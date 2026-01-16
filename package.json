@@ -1,0 +1,37 @@
+{
+  "name": "project-scaffold",
+  "version": "1.0.0",
+  "description": "Project scaffold with TypeScript, Biome, and modern tooling",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "tsc && tsc-alias",
+    "clean": "rm -rf dist",
+    "format": "biome format .",
+    "format:fix": "biome format --write .",
+    "hooks:disable-all": "node tools/git-hooks/manage-hooks.js disable-all",
+    "hooks:enable-all": "node tools/git-hooks/manage-hooks.js enable-all",
+    "hooks:status": "node tools/git-hooks/manage-hooks.js status",
+    "hooks": "node tools/git-hooks/manage-hooks.js",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "prepare": "test \"$GIT_HOOKS\" = \"0\" && exit 0; node tools/git-hooks/manage-hooks.js setup 2>/dev/null || true",
+    "test": "echo \"No tests configured\" && exit 0",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.3.11",
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "@types/node": "^22.10.0",
+    "lint-staged": "^15.2.11",
+    "tsc-alias": "^1.8.10",
+    "tsx": "^4.21.0",
+    "typescript": "^5.8.3"
+  },
+  "packageManager": "pnpm@10.13.1",
+  "engines": {
+    "node": ">=22.17.0",
+    "pnpm": ">=10.13.1"
+  }
+}

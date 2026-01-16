@@ -1,0 +1,50 @@
+# dependencies
+node_modules
+.pnp
+.pnp.js
+
+# testing
+coverage
+
+# misc
+.DS_Store
+*.pem
+
+# tsc
+*.tsbuildinfo
+
+# build outputs
+dist/
+build/
+
+# using pnpm instead of yarn
+yarn.lock
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# local env files
+.env
+.env.local
+.env.*.local
+
+# Claude Code MCP configuration (contains API keys)
+.mcp.json
+
+# Ignore agent-specific project files (agent-agnostic)
+.agents/projects/**
+!.agents/projects/keep.md
+!.agents/projects/pr-descriptions/
+.agents/projects/pr-descriptions/**
+!.agents/projects/pr-descriptions/keep.md
+
+# Ignore claude instructions
+CLAUDE.md
+.claude/*
+!.claude/commands/
+!.claude/skills/
+
+.conductor

@@ -1,0 +1,2 @@
+# Run full lint across all workspaces before pushing
+pnpm run lint

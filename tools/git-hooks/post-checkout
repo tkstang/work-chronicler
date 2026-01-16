@@ -1,0 +1,2 @@
+# Install dependencies when switching branches (if package.json changed)
+pnpm install --frozen-lockfile

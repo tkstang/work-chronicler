@@ -1,0 +1,57 @@
+# ============================================================================
+# Claude Code Ignore File (.ignore)
+# ============================================================================
+# This file controls what Claude Code can access when the "Respect Gitignore"
+# setting is disabled in Claude Code settings.
+#
+# WORKFLOW:
+# 1. Files in .gitignore are normally hidden from Claude Code
+# 2. Disable "Respect Gitignore" in Claude Code settings to override this
+# 3. This .ignore file then re-hides most gitignored files from Claude Code
+# 4. Net result: Claude Code can access specific gitignored files (like .agents/)
+#    while keeping other gitignored files (like node_modules/) hidden
+#
+# WHY THIS EXISTS:
+# We want Claude Code to access local working files in .agents/ directory
+# (project planning, documentation, etc.) while keeping them out of git.
+# This is currently the only way to achieve this workflow.
+#
+# REFERENCE:
+# https://github.com/anthropics/claude-code/issues/5105
+#
+# NOTE: Ideally this would be named .claudeignore, but .ignore is what
+# Claude Code currently uses.
+# ============================================================================
+
+# dependencies (ignore at any depth)
+**/node_modules/
+.pnp
+.pnp.js
+
+# testing
+coverage/
+
+# misc
+.DS_Store
+*.pem
+
+# TypeScript
+*.tsbuildinfo
+
+# build outputs (ignore at any depth)
+**/dist/
+**/build/
+
+# using pnpm instead of yarn
+yarn.lock
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# local env files (ignore at any depth)
+**/.env
+**/.env.local
+**/.env.*.local

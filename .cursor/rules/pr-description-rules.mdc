@@ -1,0 +1,184 @@
+---
+description: Guidelines for creating comprehensive PR descriptions for large projects
+globs: .agents/projects/pr-descriptions/*.md,.agents/projects/**/pr-description*.md
+alwaysApply: false
+---
+
+# PR Description Creation Rules
+
+Guidelines for creating detailed PR descriptions for large or complex projects that require extensive documentation.
+
+## When to Use This Rule
+
+Use this rule when creating **all PR descriptions**. The key distinction is:
+
+- **Standard Projects**: Use the PULL_REQUEST_TEMPLATE.md as the structure template for the markdown document
+- **Large/Complex Projects**: When the standard template structure won't support the level of detail needed, deviate to use the expanded structure outlined in Step 4
+
+**Always suggest which approach to use** based on the complexity assessment after executing a git diff (if provided).
+
+## File Location and Naming
+
+1. **Location**: **Always ask the user** where they want to place the PR description file. Two options:
+
+   **Option A - Standalone PR Description:**
+   ```
+   .agents/projects/pr-descriptions/<filename>.md
+   ```
+   Use for quick fixes, small changes, or PRs that don't warrant a full project directory.
+
+   **Option B - Project-Specific PR Description:**
+   ```
+   .agents/projects/<project-name>/pr-description.md
+   ```
+   Use when you have an existing project directory with planning/implementation docs.
+
+2. **Naming Convention**: Use one of these patterns:
+   - `<name-of-the-project-or-task>.md` (e.g., `openapi-automation-workflow.md`)
+   - `<jira-ticket-number>.md` (e.g., `JIRA-1234.md`)
+   - `pr-description.md` (when placing within a project directory)
+
+   **Always ask the user for their preferred filename** but provide a suggestion based on the project context.
+
+## Creation Process
+
+### Step 1: Determine Detail Level
+Ask the user to specify the desired detail level:
+- **Minimum**: Basic overview with key changes
+- **Moderate**: Detailed explanation with implementation notes
+- **Maximum**: Comprehensive documentation with examples, rationale, and extensive context
+
+### Step 2: Gather Reference Materials
+1. **Jira Ticket**: Ask for the Jira ticket number/link if applicable
+2. **Planning Documents**: Use any planning markdown documents created during the chat session as reference
+3. **Additional References**: Ask if there are any additional markdown docs to reference
+4. **Starting Commit**: Ask if there's a starting commit SHA for reference
+
+**IMPORTANT**: Do not reference files in the `.agents` directory in the PR description content, as this directory is not version controlled and reviewers won't have access to these files. Only reference files that are committed to the repository (e.g., source code, documentation, README files, etc.).
+
+### Step 3: Code Analysis (if commit SHA provided)
+If a starting commit SHA is provided:
+1. Execute `git diff <sha>` to review all changes
+2. Analyze the diff to assess project complexity and scope
+3. **Make a suggestion** on whether the standard PULL_REQUEST_TEMPLATE.md structure will be sufficient or if the expanded structure is needed
+4. Use the changes to inform the description content
+
+#### Complexity Assessment Guidelines
+
+**Use Standard PULL_REQUEST_TEMPLATE.md for:**
+- Changes that can be explained clearly in a few bullet points
+- Infrastructure/tooling setup (even if many files)
+- Documentation updates and rule creation
+- Configuration changes and simple API modifications
+- Bug fixes and straightforward feature additions
+- File moves, renames, or reorganization
+- Changes where the "what" is more important than the "how" or "why"
+
+**Use Expanded Structure for:**
+- Changes requiring detailed explanation of implementation approach
+- Multi-component features with complex interactions
+- Changes where reviewers need extensive context to understand decisions
+- Modifications that affect multiple systems or have cascading effects
+- Performance optimizations that need rationale and measurement details
+- Changes where the "how" and "why" are as important as the "what"
+
+**Key Principle:** *Use expanded structure when the standard template sections won't provide enough space to adequately explain the changes, decisions, and context needed for effective review.*
+
+### Step 4: Structure the PR Description
+
+**For Standard Projects**: Use the PULL_REQUEST_TEMPLATE.md sections as your structure template with the same heading levels from the template:
+- Purpose (with Jira link and context)
+- Changes (with checkboxes and audience classification)
+- Launch Plan
+- GIF (feel free to find a GIF on GIPHY that is relevant!)
+
+**For Large/Complex Projects**: Use this expanded structure when the standard template is insufficient:
+
+```markdown
+# [Project Name]
+
+## Overview
+Brief summary of the project and its purpose.
+
+## Context & Background
+- Link to Jira ticket: [TICKET-NUMBER](https://your-org.atlassian.net/browse/TICKET-NUMBER)
+- Background information and motivation
+- Problem statement
+
+## Changes Summary
+High-level overview of what was changed.
+
+## Detailed Implementation
+### Component/Feature 1
+- What was changed
+- Why it was changed
+- How it works
+
+### Component/Feature 2
+- What was changed
+- Why it was changed
+- How it works
+
+## Technical Details
+- Architecture decisions
+- Dependencies added/removed
+- Configuration changes
+- Database changes (if any)
+
+## Testing Strategy
+- Unit tests added/modified
+- Integration tests
+- Manual testing performed
+
+## Deployment Considerations
+- Migration steps (if any)
+- Environment variables
+- Feature flags
+- Rollback plan
+
+## QA Notes
+- Test scenarios
+- Edge cases to verify
+- Known limitations
+
+## Follow-up Items
+- Future improvements
+- Technical debt
+- Related tickets
+```
+
+## Best Practices
+
+1. **Start with Template Assessment**: Always assess whether the standard PULL_REQUEST_TEMPLATE.md structure is sufficient
+2. **Make Structure Recommendations**: After analyzing git diff, suggest which structure approach to use
+3. **Use Clear Headings**: Organize content with descriptive headings
+4. **Include Code Examples**: When relevant, include code snippets to illustrate changes
+5. **Link to Resources**: Reference relevant documentation, tickets, and planning documents
+6. **Be Comprehensive**: For maximum detail level, include rationale for decisions and alternative approaches considered
+
+## Example Usage
+
+```markdown
+# OpenAPI Automation Workflow - PR Description
+
+## Overview
+Implementation of automated OpenAPI documentation updates with GitHub Actions workflow.
+
+## Context & Background
+- Jira: [DWP-5678](https://your-org.atlassian.net/browse/DWP-5678)
+- Manual OpenAPI updates were error-prone and time-consuming
+- Need automated solution to keep documentation in sync with API changes
+
+[... continue with detailed sections ...]
+```
+
+## Checklist Before Creating
+
+- [ ] **Asked user for preferred file location** (standalone pr-descriptions/ vs project-specific directory)
+- [ ] Asked user for preferred filename
+- [ ] Determined detail level (minimum/moderate/maximum)
+- [ ] Gathered reference materials and planning documents
+- [ ] Obtained starting commit SHA (if applicable)
+- [ ] Reviewed git diff (if commit SHA provided)
+- [ ] **Made recommendation** on whether to use standard template structure or expanded structure
+- [ ] Structured content according to chosen approach and project complexity
