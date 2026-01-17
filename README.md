@@ -17,50 +17,72 @@ But you didn't take notes, and now you're scrolling through months of PRs trying
 
 ## Quick Start
 
-**If developing locally in this repo**, use `pnpm cli` instead of `work-chronicler`:
+### Local Development (this repo)
+
+Use `pnpm cli` instead of `work-chronicler`:
 
 ```bash
-# Install dependencies
 pnpm install
-
-# Run from the repo root - creates config files in current directory
 pnpm cli init
-pnpm cli status
 pnpm cli fetch:all
 ```
 
-**If installed globally** (after npm publish), you can run from any directory:
+### Published Package Usage
+
+After the package is published to npm:
 
 ```bash
+# Install globally
 npm install -g @work-chronicler/cli
 
-# Create a directory for your work history and run from there
-mkdir ~/work-history && cd ~/work-history
+# Create a dedicated directory for your work history
+mkdir ~/work-history
+cd ~/work-history
+
+# Initialize - creates .env and work-chronicler.yaml in current directory
 work-chronicler init
+
+# Edit .env with your tokens:
+#   GITHUB_TOKEN=ghp_xxxx
+#   JIRA_EMAIL=you@company.com
+#   JIRA_TOKEN=xxxx
+
+# Edit work-chronicler.yaml with your GitHub username, orgs, and JIRA config
+
+# Fetch your work history
 work-chronicler fetch:all
+
+# Analyze and generate stats
+work-chronicler analyze --projects --timeline
+
+# Check what you have
+work-chronicler status
 ```
+
+All data is stored in the current directory under `work-log/`. You can version control this directory or keep it private.
 
 ## Usage
 
-The CLI creates config files in the current directory. For local development, run all commands from the repo root using `pnpm cli`.
+All commands operate on the current directory. The CLI looks for `work-chronicler.yaml` in the current directory first, then falls back to `~/.config/work-chronicler/config.yaml`.
 
 ```bash
-# 1. Create config files (.env and work-chronicler.yaml)
-pnpm cli init        # local dev
-# or: work-chronicler init  # if installed globally
+# Create config files (.env and work-chronicler.yaml)
+work-chronicler init
 
-# 2. Add your API tokens to .env
-# 3. Edit work-chronicler.yaml with your GitHub username and orgs
+# Fetch from GitHub and JIRA
+work-chronicler fetch:all
 
-# 4. Fetch everything
-pnpm cli fetch:all
+# Cross-reference PRs ↔ tickets
+work-chronicler link
 
-# 5. Link PRs to JIRA tickets
-pnpm cli link
+# Generate analysis files
+work-chronicler analyze --projects --timeline
 
-# 6. Check status
-pnpm cli status
+# Check status
+work-chronicler status
 ```
+
+> **Note**: For local development in this repo, prefix all commands with `pnpm cli` (e.g., `pnpm cli init`).
 
 ## Directory Structure
 
