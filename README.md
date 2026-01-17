@@ -130,7 +130,7 @@ work-log/
 Classifies PRs into four impact tiers and generates statistics:
 
 ```bash
-# Generate stats only
+# Generate stats only (will prompt for filtered vs full if filtered/ exists)
 work-chronicler analyze
 
 # Tag all PRs with impact levels
@@ -141,6 +141,9 @@ work-chronicler analyze --projects
 
 # Generate chronological timeline
 work-chronicler analyze --timeline
+
+# Analyze full work-log even if filtered/ exists
+work-chronicler analyze --full
 ```
 
 **Impact Tiers:**
@@ -170,6 +173,17 @@ Output is written to `.analysis/timeline.json`.
 Create a filtered subset of your work-log:
 
 ```bash
+# Interactive mode (prompts for filter options)
+work-chronicler filter
+
+# Filter by organization (useful for separating work vs personal)
+work-chronicler filter --org my-work-org
+work-chronicler filter --exclude-org personal-github
+
+# Filter by repository
+work-chronicler filter --repo my-org/important-repo
+work-chronicler filter --exclude-repo my-org/experimental-repo
+
 # Exclude minor PRs
 work-chronicler filter --exclude-impact minor
 
@@ -178,9 +192,25 @@ work-chronicler filter --min-impact major --merged-only
 
 # Only PRs linked to tickets with 100+ lines changed
 work-chronicler filter --linked-only --min-loc 100
+
+# Combine filters (e.g., work PRs that are major+)
+work-chronicler filter --org my-work-org --min-impact major
+
+# Clear filtered data
+work-chronicler filter --clear
 ```
 
-Filtered files are written to `work-log/filtered/` with their own stats.
+Filtered files are written to `work-log/filtered/` with their own analysis (stats, projects, timeline).
+
+### Interactive Prompts
+
+Most commands will prompt for options when run without flags:
+
+- **fetch:github/jira/all** - Prompts whether to use cache mode if data already exists
+- **analyze** - Prompts whether to analyze filtered or full data if filtered/ exists
+- **filter** - Prompts for all filter options
+
+Use flags like `--cache`, `--full`, etc. to skip prompts in scripts.
 
 ## Configuration
 
