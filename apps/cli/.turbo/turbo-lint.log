@@ -1,5 +1,0 @@
-
-> @work-chronicler/cli@0.1.0 lint /Users/thomas.stang/Code/work-chronicler/apps/cli
-> biome lint .
-
-Checked 11 files in 8ms. No fixes applied.

@@ -1,5 +1,0 @@
-
-
-> @work-chronicler/cli@0.1.0 build /Users/thomas.stang/Code/work-chronicler/apps/cli
-> tsc && tsc-alias
-
