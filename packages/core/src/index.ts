@@ -21,6 +21,8 @@ export {
   JiraConfigSchema,
   type JiraInstanceConfig,
   type OutputConfig,
+  type ProjectsConfig,
+  ProjectsConfigSchema,
 } from '@config/schema';
 // Storage
 export {
@@ -43,6 +45,16 @@ export {
   JiraTicketSchema,
   type PRImpact,
   PRImpactSchema,
+  type ProjectConfidence,
+  ProjectConfidenceSchema,
+  type ProjectGrouping,
+  ProjectGroupingSchema,
+  type ProjectSignal,
+  ProjectSignalSchema,
+  type ProjectSignals,
+  ProjectSignalsSchema,
+  type ProjectsAnalysis,
+  ProjectsAnalysisSchema,
   type PullRequest,
   type PullRequestFile,
   PullRequestSchema,

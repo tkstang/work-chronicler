@@ -12,12 +12,13 @@ import {
 import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
-import { classifyPRImpact, generateStats } from '../analyzer';
+import { classifyPRImpact, detectProjects, generateStats } from '../analyzer';
 
 export const analyzeCommand = new Command('analyze')
   .description('Analyze work history and generate stats')
   .option('-c, --config <path>', 'Path to config file')
   .option('--tag-prs', 'Update PR files with impact tags')
+  .option('--projects', 'Detect and group related PRs/tickets into projects')
   .option('-v, --verbose', 'Show detailed output')
   .action(async (options) => {
     try {
@@ -130,6 +131,60 @@ export const analyzeCommand = new Command('analyze')
         .slice(0, 5);
       for (const [repo, count] of topRepos) {
         console.log(`  ${repo}: ${chalk.cyan(count)} PRs`);
+      }
+
+      // Detect projects if requested
+      if (options.projects) {
+        console.log();
+        spinner.start('Detecting projects...');
+        const projectsAnalysis = detectProjects(
+          prs,
+          tickets,
+          since,
+          until ?? '',
+          config.analysis.projects,
+        );
+        spinner.succeed(
+          `Detected ${chalk.cyan(projectsAnalysis.summary.totalProjects)} projects`,
+        );
+
+        // Write projects file
+        const projectsPath = getAnalysisFilePath(outputDir, 'projects');
+        writeFileSync(projectsPath, JSON.stringify(projectsAnalysis, null, 2));
+        console.log(`${chalk.green('✓')} Wrote ${chalk.cyan(projectsPath)}`);
+
+        // Print project summary
+        console.log();
+        console.log(chalk.bold('Projects Detected:'));
+        console.log(
+          `  By confidence: ${chalk.green(projectsAnalysis.summary.byConfidence.high)} high, ${chalk.yellow(projectsAnalysis.summary.byConfidence.medium)} medium, ${chalk.gray(projectsAnalysis.summary.byConfidence.low)} low`,
+        );
+        console.log(
+          `  By signal: ${chalk.cyan(projectsAnalysis.summary.bySignal.tickets)} ticket-based, ${chalk.blue(projectsAnalysis.summary.bySignal.time)} time-based`,
+        );
+        if (projectsAnalysis.summary.unassignedPRs > 0) {
+          console.log(
+            `  Unassigned PRs: ${chalk.gray(projectsAnalysis.summary.unassignedPRs)}`,
+          );
+        }
+
+        // Show top projects
+        if (projectsAnalysis.projects.length > 0) {
+          console.log();
+          console.log(chalk.bold('Top Projects:'));
+          const topProjects = projectsAnalysis.projects.slice(0, 5);
+          for (const project of topProjects) {
+            const confidenceColor =
+              project.confidence === 'high'
+                ? chalk.green
+                : project.confidence === 'medium'
+                  ? chalk.yellow
+                  : chalk.gray;
+            console.log(
+              `  ${confidenceColor('●')} ${project.name} (${chalk.cyan(project.stats.prCount)} PRs, ${chalk.cyan(project.stats.ticketCount)} tickets)`,
+            );
+          }
+        }
       }
     } catch (error) {
       console.error(

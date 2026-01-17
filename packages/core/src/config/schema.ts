@@ -84,6 +84,18 @@ const ImpactThresholdSchema = z.object({
 });
 
 /**
+ * Project detection configuration
+ */
+export const ProjectsConfigSchema = z.object({
+  /** Time window in days for temporal clustering (default: 14) */
+  timeWindowDays: z.number().default(14),
+  /** Minimum PRs to form a temporal cluster (default: 2) */
+  minClusterSize: z.number().default(2),
+  /** Whether to include unlinked PRs in temporal clusters (default: true) */
+  includeUnlinkedPRs: z.boolean().default(true),
+});
+
+/**
  * Analysis configuration with impact thresholds
  */
 export const AnalysisConfigSchema = z.object({
@@ -94,6 +106,7 @@ export const AnalysisConfigSchema = z.object({
       flagship: ImpactThresholdSchema.default({ minLines: 500, minFiles: 15 }),
     })
     .default({}),
+  projects: ProjectsConfigSchema.default({}),
 });
 
 /**
@@ -113,5 +126,6 @@ export type JiraInstanceConfig = z.infer<typeof JiraInstanceConfigSchema>;
 export type JiraConfig = z.infer<typeof JiraConfigSchema>;
 export type OutputConfig = z.infer<typeof OutputConfigSchema>;
 export type FetchConfig = z.infer<typeof FetchConfigSchema>;
+export type ProjectsConfig = z.infer<typeof ProjectsConfigSchema>;
 export type AnalysisConfig = z.infer<typeof AnalysisConfigSchema>;
 export type Config = z.infer<typeof ConfigSchema>;
