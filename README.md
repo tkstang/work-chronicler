@@ -237,39 +237,44 @@ work-chronicler includes an MCP (Model Context Protocol) server that exposes you
 
 2. Configure your AI assistant.
 
-   The MCP server needs to find your `work-chronicler.yaml` config. You can either:
-   - Set `cwd` to your work history directory, OR
-   - Use the `WORK_CHRONICLER_DIR` environment variable
+   The MCP server needs to find your `work-chronicler.yaml` config. Use the `WORK_CHRONICLER_DIR` environment variable to point to your project directory.
+
+   **Local Development** (running from source):
 
    **Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
    ```json
    {
      "mcpServers": {
        "work-chronicler": {
-         "command": "npx",
-         "args": ["@work-chronicler/mcp-server"],
+         "command": "node",
+         "args": ["/path/to/work-chronicler/apps/mcp-server/dist/index.js"],
          "env": {
-           "WORK_CHRONICLER_DIR": "/Users/you/work-history"
+           "WORK_CHRONICLER_DIR": "/path/to/work-chronicler"
          }
        }
      }
    }
    ```
 
-   Or using `cwd`:
+   > **Note:** Replace `/path/to/work-chronicler` with your actual project path. Run `pnpm build` first to generate the dist files.
+
+   **Cursor** (`.cursor/mcp.json` in your project):
    ```json
    {
      "mcpServers": {
        "work-chronicler": {
-         "command": "npx",
-         "args": ["@work-chronicler/mcp-server"],
-         "cwd": "/Users/you/work-history"
+         "command": "node",
+         "args": ["/path/to/work-chronicler/apps/mcp-server/dist/index.js"],
+         "env": {
+           "WORK_CHRONICLER_DIR": "/path/to/work-chronicler"
+         }
        }
      }
    }
    ```
 
-   **Cursor** (`.cursor/mcp.json` in your project):
+   **Published Package** (when available on npm):
+
    ```json
    {
      "mcpServers": {
