@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { promptFilterInteractive } from '@prompts';
 import {
@@ -14,7 +14,13 @@ import {
 import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
-import { classifyPRImpact, generateStats, IMPACT_HIERARCHY } from '../analyzer';
+import {
+  classifyPRImpact,
+  detectProjects,
+  generateStats,
+  generateTimeline,
+  IMPACT_HIERARCHY,
+} from '../analyzer';
 
 export const filterCommand = new Command('filter')
   .description('Filter work-log to a subset based on criteria')
@@ -37,13 +43,25 @@ export const filterCommand = new Command('filter')
     '--exclude-status <statuses...>',
     'Exclude tickets with these statuses (e.g., "To Do", "Rejected")',
   )
+  .option('--clear', 'Remove existing filtered data')
   .option('-v, --verbose', 'Show detailed output')
   .action(async (options) => {
     try {
       const configPath = findConfigPath(options.config);
       const config = await loadConfig(options.config);
       const outputDir = getOutputDirectory(config, configPath ?? undefined);
-      const filteredDir = join(outputDir, 'filtered');
+      const filteredDir = join(outputDir, DIRECTORIES.FILTERED);
+
+      // Handle --clear flag
+      if (options.clear) {
+        if (existsSync(filteredDir)) {
+          rmSync(filteredDir, { recursive: true });
+          console.log(chalk.green('✓'), 'Cleared filtered data');
+        } else {
+          console.log(chalk.yellow('No filtered data to clear'));
+        }
+        return;
+      }
 
       console.log(chalk.cyan('Filtering work-log...\n'));
 
@@ -236,23 +254,49 @@ export const filterCommand = new Command('filter')
         );
       }
 
-      // Generate stats for filtered set
+      // Generate analysis for filtered set
       const since = config.fetch.since;
       const until =
         config.fetch.until ?? new Date().toISOString().split('T')[0];
+
+      if (!existsSync(analysisDir)) {
+        mkdirSync(analysisDir, { recursive: true });
+      }
+
+      // Generate stats
       const stats = generateStats(
         filteredPRs,
         filteredTickets,
         since,
         until ?? '',
       );
-
-      if (!existsSync(analysisDir)) {
-        mkdirSync(analysisDir, { recursive: true });
-      }
       writeFileSync(
         join(analysisDir, 'stats.json'),
         JSON.stringify(stats, null, 2),
+      );
+
+      // Generate projects
+      const projects = detectProjects(
+        filteredPRs,
+        filteredTickets,
+        since,
+        until ?? '',
+      );
+      writeFileSync(
+        join(analysisDir, 'projects.json'),
+        JSON.stringify(projects, null, 2),
+      );
+
+      // Generate timeline
+      const timeline = generateTimeline(
+        filteredPRs,
+        filteredTickets,
+        since,
+        until ?? '',
+      );
+      writeFileSync(
+        join(analysisDir, 'timeline.json'),
+        JSON.stringify(timeline, null, 2),
       );
 
       spinner.succeed(`Wrote filtered files to ${chalk.cyan(filteredDir)}`);

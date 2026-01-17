@@ -1,6 +1,7 @@
 export {
   DIRECTORIES,
   getAnalysisFilePath,
+  getEffectiveOutputDir,
   getJiraDirectory,
   getPRDirectory,
   getPRFilePath,

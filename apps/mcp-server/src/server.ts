@@ -5,6 +5,7 @@ import {
   type Config,
   findConfigPath,
   getAnalysisFilePath,
+  getEffectiveOutputDir,
   getOutputDirectory,
   loadConfig,
   type ProjectGrouping,
@@ -45,12 +46,20 @@ export async function createServer(): Promise<MCPServerContext> {
 
   const configPath = findConfigPath(explicitPath);
   const config = await loadConfig(explicitPath);
-  const outputDir = getOutputDirectory(config, configPath ?? undefined);
+  const baseOutputDir = getOutputDirectory(config, configPath ?? undefined);
+
+  // Check if filtered data exists and use it by default
+  const { dir: outputDir, isFiltered } = getEffectiveOutputDir(baseOutputDir);
 
   const server = new McpServer({
     name: 'work-chronicler',
     version: '0.1.0',
   });
+
+  // Log which directory we're using (visible in debug logs)
+  if (isFiltered) {
+    console.error('[work-chronicler] Using filtered data from:', outputDir);
+  }
 
   // Register all tools
   registerSearchPRsTool(server, outputDir);

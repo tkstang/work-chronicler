@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
@@ -8,7 +9,28 @@ export const DIRECTORIES = {
   JIRA: 'jira',
   PERFORMANCE_REVIEWS: 'performance-reviews',
   ANALYSIS: '.analysis',
+  FILTERED: 'filtered',
 } as const;
+
+/**
+ * Check if filtered data exists and return the appropriate directory.
+ * If filtered/ exists and has data, returns the filtered path.
+ * Otherwise returns the original outputDir.
+ */
+export function getEffectiveOutputDir(outputDir: string): {
+  dir: string;
+  isFiltered: boolean;
+} {
+  const filteredDir = join(outputDir, DIRECTORIES.FILTERED);
+  const filteredPRDir = join(filteredDir, DIRECTORIES.PULL_REQUESTS);
+
+  // Check if filtered directory exists and has PR data
+  if (existsSync(filteredPRDir)) {
+    return { dir: filteredDir, isFiltered: true };
+  }
+
+  return { dir: outputDir, isFiltered: false };
+}
 
 /**
  * Get the path for a PR file

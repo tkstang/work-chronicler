@@ -27,6 +27,7 @@ export {
   DIRECTORIES,
   ensureDirectory,
   getAnalysisFilePath,
+  getEffectiveOutputDir,
   getJiraDirectory,
   getPRDirectory,
   getPRFilePath,

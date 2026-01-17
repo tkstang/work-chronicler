@@ -3,6 +3,7 @@ import { dirname } from 'node:path';
 import {
   findConfigPath,
   getAnalysisFilePath,
+  getEffectiveOutputDir,
   getOutputDirectory,
   loadConfig,
   readAllPRs,
@@ -26,17 +27,30 @@ export const analyzeCommand = new Command('analyze')
   .option('--projects', 'Detect and group related PRs/tickets into projects')
   .option('--timeline', 'Generate chronological timeline grouped by week/month')
   .option('-v, --verbose', 'Show detailed output')
+  .option('--no-filtered', 'Analyze main work-log even if filtered/ exists')
   .action(async (options) => {
     try {
       const configPath = findConfigPath(options.config);
       const config = await loadConfig(options.config);
-      const outputDir = getOutputDirectory(config, configPath ?? undefined);
+      const baseOutputDir = getOutputDirectory(config, configPath ?? undefined);
+
+      // Check if filtered data exists and use it by default (unless --no-filtered)
+      let outputDir = baseOutputDir;
+      let isFiltered = false;
+      if (options.filtered !== false) {
+        const effective = getEffectiveOutputDir(baseOutputDir);
+        outputDir = effective.dir;
+        isFiltered = effective.isFiltered;
+      }
 
       const since = config.fetch.since;
       const until =
         config.fetch.until ?? new Date().toISOString().split('T')[0];
 
       console.log(chalk.cyan('Analyzing work history...\n'));
+      if (isFiltered) {
+        console.log(chalk.yellow('Using filtered data'));
+      }
       console.log(`${chalk.gray('Date range:')} ${since} to ${until}`);
       console.log();
 
