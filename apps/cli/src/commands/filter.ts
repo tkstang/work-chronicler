@@ -43,6 +43,16 @@ export const filterCommand = new Command('filter')
     '--exclude-status <statuses...>',
     'Exclude tickets with these statuses (e.g., "To Do", "Rejected")',
   )
+  .option('--org <orgs...>', 'Only include PRs from these GitHub orgs')
+  .option('--exclude-org <orgs...>', 'Exclude PRs from these GitHub orgs')
+  .option(
+    '--repo <repos...>',
+    'Only include PRs from these repos (format: org/repo)',
+  )
+  .option(
+    '--exclude-repo <repos...>',
+    'Exclude PRs from these repos (format: org/repo)',
+  )
   .option('--clear', 'Remove existing filtered data')
   .option('-v, --verbose', 'Show detailed output')
   .action(async (options) => {
@@ -67,6 +77,18 @@ export const filterCommand = new Command('filter')
 
       // Show active filters
       const filters: string[] = [];
+      if (options.org) {
+        filters.push(`Include orgs: ${options.org.join(', ')}`);
+      }
+      if (options.excludeOrg) {
+        filters.push(`Exclude orgs: ${options.excludeOrg.join(', ')}`);
+      }
+      if (options.repo) {
+        filters.push(`Include repos: ${options.repo.join(', ')}`);
+      }
+      if (options.excludeRepo) {
+        filters.push(`Exclude repos: ${options.excludeRepo.join(', ')}`);
+      }
       if (options.excludeImpact) {
         filters.push(`Excluding impact: ${options.excludeImpact.join(', ')}`);
       }
@@ -156,7 +178,44 @@ export const filterCommand = new Command('filter')
         ? IMPACT_HIERARCHY[options.minImpact as PRImpact]
         : 0;
 
+      // Build org/repo filter sets
+      const includeOrgs = options.org
+        ? new Set(options.org.map((o: string) => o.toLowerCase()))
+        : null;
+      const excludeOrgs = new Set(
+        (options.excludeOrg ?? []).map((o: string) => o.toLowerCase()),
+      );
+      const includeRepos = options.repo
+        ? new Set(options.repo.map((r: string) => r.toLowerCase()))
+        : null;
+      const excludeRepos = new Set(
+        (options.excludeRepo ?? []).map((r: string) => r.toLowerCase()),
+      );
+
       const filteredPRs = allPRs.filter((pr) => {
+        const prOrg = pr.frontmatter.org.toLowerCase();
+        const prRepoKey = `${prOrg}/${pr.frontmatter.repository.toLowerCase()}`;
+
+        // Check org inclusion (if specified, must be in the list)
+        if (includeOrgs && !includeOrgs.has(prOrg)) {
+          return false;
+        }
+
+        // Check org exclusion
+        if (excludeOrgs.has(prOrg)) {
+          return false;
+        }
+
+        // Check repo inclusion (if specified, must be in the list)
+        if (includeRepos && !includeRepos.has(prRepoKey)) {
+          return false;
+        }
+
+        // Check repo exclusion
+        if (excludeRepos.has(prRepoKey)) {
+          return false;
+        }
+
         const impact =
           pr.frontmatter.impact ??
           classifyPRImpact(pr.frontmatter, config.analysis);
