@@ -16,6 +16,19 @@ import {
 } from '@work-chronicler/core';
 import { z } from 'zod';
 
+/**
+ * Validate and parse a date string. Returns the Date if valid, throws if invalid.
+ */
+function parseAndValidateDate(dateStr: string, fieldName: string): Date {
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(
+      `Invalid ${fieldName} date format: "${dateStr}". Use ISO format (YYYY-MM-DD).`,
+    );
+  }
+  return date;
+}
+
 export interface MCPServerContext {
   config: Config;
   outputDir: string;
@@ -143,14 +156,14 @@ function registerSearchPRsTool(server: McpServer, outputDir: string) {
       }
 
       if (input.since) {
-        const sinceDate = new Date(input.since);
+        const sinceDate = parseAndValidateDate(input.since, 'since');
         filtered = filtered.filter(
           (pr) => new Date(pr.frontmatter.createdAt) >= sinceDate,
         );
       }
 
       if (input.until) {
-        const untilDate = new Date(input.until);
+        const untilDate = parseAndValidateDate(input.until, 'until');
         filtered = filtered.filter(
           (pr) => new Date(pr.frontmatter.createdAt) <= untilDate,
         );
@@ -242,14 +255,14 @@ function registerSearchTicketsTool(server: McpServer, outputDir: string) {
       }
 
       if (input.since) {
-        const sinceDate = new Date(input.since);
+        const sinceDate = parseAndValidateDate(input.since, 'since');
         filtered = filtered.filter(
           (t) => new Date(t.frontmatter.createdAt) >= sinceDate,
         );
       }
 
       if (input.until) {
-        const untilDate = new Date(input.until);
+        const untilDate = parseAndValidateDate(input.until, 'until');
         filtered = filtered.filter(
           (t) => new Date(t.frontmatter.createdAt) <= untilDate,
         );
@@ -520,7 +533,7 @@ function registerGetStatsTool(server: McpServer, outputDir: string) {
 
       // Apply date filters
       if (input.since) {
-        const sinceDate = new Date(input.since);
+        const sinceDate = parseAndValidateDate(input.since, 'since');
         prs = prs.filter(
           (pr) => new Date(pr.frontmatter.createdAt) >= sinceDate,
         );
@@ -530,7 +543,7 @@ function registerGetStatsTool(server: McpServer, outputDir: string) {
       }
 
       if (input.until) {
-        const untilDate = new Date(input.until);
+        const untilDate = parseAndValidateDate(input.until, 'until');
         prs = prs.filter(
           (pr) => new Date(pr.frontmatter.createdAt) <= untilDate,
         );

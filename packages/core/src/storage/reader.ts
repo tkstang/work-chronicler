@@ -63,9 +63,15 @@ export async function readAllPRs(
           body: content.trim(),
           filePath,
         });
+      } else {
+        console.warn(
+          `Warning: Invalid frontmatter in ${filePath}: ${parsed.error.issues[0]?.message ?? 'unknown error'}`,
+        );
       }
-    } catch {
-      // Skip files that can't be parsed
+    } catch (error) {
+      console.warn(
+        `Warning: Failed to parse ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -93,9 +99,15 @@ export async function readAllTickets(
           body: content.trim(),
           filePath,
         });
+      } else {
+        console.warn(
+          `Warning: Invalid frontmatter in ${filePath}: ${parsed.error.issues[0]?.message ?? 'unknown error'}`,
+        );
       }
-    } catch {
-      // Skip files that can't be parsed
+    } catch (error) {
+      console.warn(
+        `Warning: Failed to parse ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 

@@ -10,6 +10,40 @@ import {
 import chalk from 'chalk';
 import ora, { type Ora } from 'ora';
 
+/**
+ * Check if an error is a GitHub rate limit error and handle it
+ */
+function handleRateLimitError(error: unknown): never {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'status' in error &&
+    error.status === 403
+  ) {
+    const reqError = error as {
+      message?: string;
+      response?: { headers?: Record<string, string> };
+    };
+    const rateLimitRemaining =
+      reqError.response?.headers?.['x-ratelimit-remaining'];
+    const rateLimitReset = reqError.response?.headers?.['x-ratelimit-reset'];
+
+    if (
+      rateLimitRemaining === '0' ||
+      reqError.message?.includes('rate limit')
+    ) {
+      let message = 'GitHub API rate limit exceeded.';
+      if (rateLimitReset) {
+        const resetDate = new Date(Number.parseInt(rateLimitReset, 10) * 1000);
+        message += ` Rate limit resets at: ${resetDate.toLocaleString()}`;
+      }
+      message += '\nTip: Use --cache flag to avoid re-fetching existing PRs.';
+      throw new Error(message);
+    }
+  }
+  throw error;
+}
+
 interface FetchGitHubOptions {
   config: Config;
   outputDir: string;
@@ -160,15 +194,20 @@ async function fetchRepoPRs(
   }
 
   while (true) {
-    const response = await octokit.pulls.list({
-      owner: org,
-      repo,
-      state: 'all',
-      sort: 'created',
-      direction: 'desc',
-      per_page: 100,
-      page,
-    });
+    let response: Awaited<ReturnType<typeof octokit.pulls.list>>;
+    try {
+      response = await octokit.pulls.list({
+        owner: org,
+        repo,
+        state: 'all',
+        sort: 'created',
+        direction: 'desc',
+        per_page: 100,
+        page,
+      });
+    } catch (error) {
+      handleRateLimitError(error);
+    }
 
     if (response.data.length === 0) break;
 
@@ -203,11 +242,16 @@ async function fetchRepoPRs(
       spinner.text = `${chalk.gray(org)}/${chalk.cyan(repo)} - Fetching PR #${pr.number}...`;
 
       // Fetch additional PR details (additions, deletions, etc.)
-      const prDetails = await octokit.pulls.get({
-        owner: org,
-        repo,
-        pull_number: pr.number,
-      });
+      let prDetails: Awaited<ReturnType<typeof octokit.pulls.get>>;
+      try {
+        prDetails = await octokit.pulls.get({
+          owner: org,
+          repo,
+          pull_number: pr.number,
+        });
+      } catch (error) {
+        handleRateLimitError(error);
+      }
 
       const prData: PullRequest = {
         title: pr.title,
