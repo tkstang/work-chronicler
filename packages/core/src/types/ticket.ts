@@ -11,9 +11,9 @@ export const JiraTicketSchema = z.object({
   issueType: z.string(),
   status: z.string(),
   storyPoints: z.number().nullable(),
-  url: z.string().url(),
-  createdAt: z.string().datetime(),
-  resolvedAt: z.string().datetime().nullable(),
+  url: z.string(), // Not validated as URL since config may have typos
+  createdAt: z.string(), // Not strict datetime since JIRA uses various formats
+  resolvedAt: z.string().nullable(),
   linkedPRs: z.array(z.string()).default([]),
 });
 

@@ -1,33 +1,38 @@
+import { fetchGitHubPRs } from '@fetchers/github';
 import {
   findConfigPath,
   getOutputDirectory,
   loadConfig,
 } from '@work-chronicler/core';
+import chalk from 'chalk';
 import { Command } from 'commander';
 
 export const fetchGitHubCommand = new Command('fetch:github')
   .description('Fetch pull requests from GitHub')
   .option('-c, --config <path>', 'Path to config file')
+  .option('-v, --verbose', 'Show detailed output')
+  .option('--cache', 'Skip PRs that already exist in work log')
   .action(async (options) => {
     try {
       const configPath = findConfigPath(options.config);
       const config = await loadConfig(options.config);
       const outputDir = getOutputDirectory(config, configPath ?? undefined);
 
-      console.log('Fetching GitHub PRs...\n');
+      const results = await fetchGitHubPRs({
+        config,
+        outputDir,
+        verbose: options.verbose,
+        useCache: options.cache,
+      });
 
-      // TODO: Implement GitHub fetching
-      // - Use Octokit to fetch PRs
-      // - Filter by author and date range
-      // - Write to work-log directory
+      const totalWritten = results.reduce((sum, r) => sum + r.prsWritten, 0);
 
-      console.log('GitHub fetch not yet implemented');
-      console.log(`GitHub username: ${config.github.username}`);
-      console.log(`Orgs: ${config.github.orgs.map((o) => o.name).join(', ')}`);
-      console.log(`Output: ${outputDir}`);
+      console.log(
+        `\n${chalk.green('✓')} Fetched ${chalk.cyan(totalWritten)} PRs to ${chalk.gray(outputDir)}`,
+      );
     } catch (error) {
       console.error(
-        'Error:',
+        chalk.red('Error:'),
         error instanceof Error ? error.message : String(error),
       );
       process.exit(1);

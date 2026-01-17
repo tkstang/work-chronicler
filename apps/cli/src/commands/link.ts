@@ -1,32 +1,34 @@
+import { linkPRsToTickets } from '@linker/index';
 import {
   findConfigPath,
   getOutputDirectory,
   loadConfig,
 } from '@work-chronicler/core';
+import chalk from 'chalk';
 import { Command } from 'commander';
 
 export const linkCommand = new Command('link')
   .description('Cross-reference PRs and JIRA tickets')
   .option('-c, --config <path>', 'Path to config file')
+  .option('-v, --verbose', 'Show detailed output')
   .action(async (options) => {
     try {
       const configPath = findConfigPath(options.config);
       const config = await loadConfig(options.config);
       const outputDir = getOutputDirectory(config, configPath ?? undefined);
 
-      console.log('Linking PRs to JIRA tickets...\n');
+      const result = await linkPRsToTickets({
+        config,
+        outputDir,
+        verbose: options.verbose,
+      });
 
-      // TODO: Implement linking logic
-      // - Read all PRs
-      // - Extract JIRA ticket keys from PR titles/descriptions
-      // - Update PR frontmatter with linked tickets
-      // - Update ticket frontmatter with linked PRs
-
-      console.log('Link command not yet implemented');
-      console.log(`Would operate on: ${outputDir}`);
+      console.log(
+        `\n${chalk.green('✓')} Created ${chalk.cyan(result.linksFound)} links (${result.prsUpdated} PRs, ${result.ticketsUpdated} tickets updated)`,
+      );
     } catch (error) {
       console.error(
-        'Error:',
+        chalk.red('Error:'),
         error instanceof Error ? error.message : String(error),
       );
       process.exit(1);

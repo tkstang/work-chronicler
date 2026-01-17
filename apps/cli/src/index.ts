@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { existsSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { analyzeCommand } from '@commands/analyze';
 import { fetchAllCommand } from '@commands/fetch/all';
 import { fetchGitHubCommand } from '@commands/fetch/github';
@@ -7,7 +9,21 @@ import { fetchJiraCommand } from '@commands/fetch/jira';
 import { initCommand } from '@commands/init';
 import { linkCommand } from '@commands/link';
 import { statusCommand } from '@commands/status';
+import { findConfigPath } from '@work-chronicler/core';
 import { Command } from 'commander';
+import { config as loadDotenv } from 'dotenv';
+
+// Load .env from config directory or current directory
+const configPath = findConfigPath();
+if (configPath) {
+  const envPath = resolve(dirname(configPath), '.env');
+  if (existsSync(envPath)) {
+    loadDotenv({ path: envPath });
+  }
+} else {
+  // Fallback to current directory
+  loadDotenv();
+}
 
 const program = new Command();
 

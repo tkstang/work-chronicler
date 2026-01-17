@@ -13,3 +13,5 @@ export {
   readPR,
   readTicket,
 } from './reader';
+
+export { ensureDirectory, writeMarkdownFile } from './writer';

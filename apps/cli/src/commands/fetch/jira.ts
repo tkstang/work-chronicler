@@ -1,39 +1,41 @@
+import { fetchJiraTickets } from '@fetchers/jira';
 import {
   findConfigPath,
   getOutputDirectory,
   loadConfig,
 } from '@work-chronicler/core';
+import chalk from 'chalk';
 import { Command } from 'commander';
 
 export const fetchJiraCommand = new Command('fetch:jira')
   .description('Fetch tickets from JIRA')
   .option('-c, --config <path>', 'Path to config file')
+  .option('-v, --verbose', 'Show detailed output')
+  .option('--cache', 'Skip tickets that already exist in work log')
   .action(async (options) => {
     try {
       const configPath = findConfigPath(options.config);
       const config = await loadConfig(options.config);
       const outputDir = getOutputDirectory(config, configPath ?? undefined);
 
-      if (!config.jira?.instances.length) {
-        console.log('No JIRA instances configured');
-        return;
-      }
+      const results = await fetchJiraTickets({
+        config,
+        outputDir,
+        verbose: options.verbose,
+        useCache: options.cache,
+      });
 
-      console.log('Fetching JIRA tickets...\n');
-
-      // TODO: Implement JIRA fetching
-      // - Use jira.js to fetch tickets
-      // - Filter by assignee and date range
-      // - Write to work-log directory
-
-      console.log('JIRA fetch not yet implemented');
-      console.log(
-        `Instances: ${config.jira.instances.map((i) => i.name).join(', ')}`,
+      const totalWritten = results.reduce(
+        (sum, r) => sum + r.ticketsWritten,
+        0,
       );
-      console.log(`Output: ${outputDir}`);
+
+      console.log(
+        `\n${chalk.green('✓')} Fetched ${chalk.cyan(totalWritten)} tickets to ${chalk.gray(outputDir)}`,
+      );
     } catch (error) {
       console.error(
-        'Error:',
+        chalk.red('Error:'),
         error instanceof Error ? error.message : String(error),
       );
       process.exit(1);

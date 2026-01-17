@@ -23,6 +23,7 @@ export {
 // Storage
 export {
   DIRECTORIES,
+  ensureDirectory,
   getAnalysisFilePath,
   getJiraDirectory,
   getPRDirectory,
@@ -32,6 +33,7 @@ export {
   readAllTickets,
   readPR,
   readTicket,
+  writeMarkdownFile,
 } from '@storage/index';
 export {
   type JiraTicket,

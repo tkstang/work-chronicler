@@ -29,8 +29,9 @@ jira:
     - name: "company"
       url: "https://your-company.atlassian.net"
 
-      # Email for authentication (optional if using token)
-      # email: "you@company.com"
+      # Email for JIRA Cloud authentication (required)
+      # Can also be set via JIRA_EMAIL env var
+      email: "you@company.com"
 
       # API token - can also be set via JIRA_TOKEN env var
       # Create at: https://id.atlassian.com/manage-profile/security/api-tokens

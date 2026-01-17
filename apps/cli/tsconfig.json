@@ -7,7 +7,9 @@
     "declarationMap": true,
     "baseUrl": ".",
     "paths": {
-      "@commands/*": ["src/commands/*"]
+      "@commands/*": ["src/commands/*"],
+      "@fetchers/*": ["src/fetchers/*"],
+      "@linker/*": ["src/linker/*"]
     }
   },
   "include": ["src/**/*"],
