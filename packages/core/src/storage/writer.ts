@@ -1,13 +1,20 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
+import type { PullRequest } from 'src/types/pr';
+import type { JiraTicket } from 'src/types/ticket';
 import { stringify as stringifyYaml } from 'yaml';
+
+/**
+ * Valid frontmatter types for markdown files
+ */
+export type MarkdownFrontmatter = PullRequest | JiraTicket;
 
 /**
  * Write a markdown file with YAML frontmatter
  */
 export function writeMarkdownFile(
   filePath: string,
-  frontmatter: Record<string, unknown>,
+  frontmatter: MarkdownFrontmatter,
   body: string,
 ): void {
   const dir = dirname(filePath);

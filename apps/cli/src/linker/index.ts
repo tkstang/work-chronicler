@@ -124,11 +124,7 @@ export async function linkPRsToTickets(
         jiraTickets: [...pr.frontmatter.jiraTickets, ...newKeys],
       };
 
-      writeMarkdownFile(
-        pr.filePath,
-        updatedFrontmatter as unknown as Record<string, unknown>,
-        pr.body,
-      );
+      writeMarkdownFile(pr.filePath, updatedFrontmatter, pr.body);
       prsUpdated++;
       linksFound += newKeys.length;
 
@@ -176,11 +172,7 @@ export async function linkPRsToTickets(
           linkedPRs: [...ticket.frontmatter.linkedPRs, ...newUrls],
         };
 
-        writeMarkdownFile(
-          ticket.filePath,
-          updatedFrontmatter as unknown as Record<string, unknown>,
-          ticket.body,
-        );
+        writeMarkdownFile(ticket.filePath, updatedFrontmatter, ticket.body);
         ticketsUpdated++;
 
         if (verbose) {

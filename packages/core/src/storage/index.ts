@@ -15,4 +15,8 @@ export {
   readTicket,
 } from './reader';
 
-export { ensureDirectory, writeMarkdownFile } from './writer';
+export {
+  ensureDirectory,
+  type MarkdownFrontmatter,
+  writeMarkdownFile,
+} from './writer';

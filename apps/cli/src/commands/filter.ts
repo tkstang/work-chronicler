@@ -230,11 +230,7 @@ export const filterCommand = new Command('filter')
           mkdirSync(dir, { recursive: true });
         }
 
-        writeMarkdownFile(
-          newPath,
-          pr.frontmatter as unknown as Record<string, unknown>,
-          pr.body,
-        );
+        writeMarkdownFile(newPath, pr.frontmatter, pr.body);
       }
 
       // Write filtered tickets
@@ -247,11 +243,7 @@ export const filterCommand = new Command('filter')
           mkdirSync(dir, { recursive: true });
         }
 
-        writeMarkdownFile(
-          newPath,
-          ticket.frontmatter as unknown as Record<string, unknown>,
-          ticket.body,
-        );
+        writeMarkdownFile(newPath, ticket.frontmatter, ticket.body);
       }
 
       // Generate analysis for filtered set

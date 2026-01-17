@@ -32,6 +32,7 @@ export {
   getPRDirectory,
   getPRFilePath,
   getTicketFilePath,
+  type MarkdownFrontmatter,
   readAllPRs,
   readAllTickets,
   readPR,

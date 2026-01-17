@@ -230,11 +230,7 @@ async function fetchProjectTickets(
         }
       }
 
-      writeMarkdownFile(
-        filePath,
-        ticketData as unknown as Record<string, unknown>,
-        body,
-      );
+      writeMarkdownFile(filePath, ticketData, body);
       written++;
 
       if (verbose) {

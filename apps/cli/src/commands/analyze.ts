@@ -93,11 +93,7 @@ export const analyzeCommand = new Command('analyze')
               ...pr.frontmatter,
               impact: newImpact,
             };
-            writeMarkdownFile(
-              pr.filePath,
-              updatedFrontmatter as unknown as Record<string, unknown>,
-              pr.body,
-            );
+            writeMarkdownFile(pr.filePath, updatedFrontmatter, pr.body);
             updated++;
 
             if (options.verbose) {

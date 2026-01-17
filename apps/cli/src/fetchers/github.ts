@@ -280,11 +280,7 @@ async function fetchRepoPRs(
       );
       const body = pr.body || '';
 
-      writeMarkdownFile(
-        filePath,
-        prData as unknown as Record<string, unknown>,
-        body,
-      );
+      writeMarkdownFile(filePath, prData, body);
       written++;
 
       if (verbose) {
