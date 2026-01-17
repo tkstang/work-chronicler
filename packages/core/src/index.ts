@@ -21,8 +21,6 @@ export {
   JiraConfigSchema,
   type JiraInstanceConfig,
   type OutputConfig,
-  type ProjectsConfig,
-  ProjectsConfigSchema,
 } from '@config/schema';
 // Storage
 export {

@@ -151,9 +151,7 @@ work-chronicler analyze --timeline
 
 **Project Detection:**
 
-The `--projects` flag groups related PRs and tickets into projects using:
-- **Ticket-based** (high confidence): PRs that share JIRA ticket references
-- **Time-based** (low confidence): PRs in same repo within a 14-day window
+The `--projects` flag groups related PRs and tickets into projects based on shared JIRA ticket references. PRs that reference the same ticket are grouped together as a project. PRs without ticket references remain unassigned.
 
 Output is written to `.analysis/projects.json`.
 

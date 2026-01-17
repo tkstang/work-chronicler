@@ -2,28 +2,9 @@ import type {
   JiraTicketFile,
   ProjectConfidence,
   ProjectGrouping,
-  ProjectSignal,
   ProjectsAnalysis,
   PullRequestFile,
 } from '@work-chronicler/core';
-
-/**
- * Configuration for project detection
- */
-export interface ProjectDetectorConfig {
-  /** Time window in days for temporal clustering (default: 14) */
-  timeWindowDays?: number;
-  /** Minimum PRs to form a temporal cluster (default: 2) */
-  minClusterSize?: number;
-  /** Whether to include unlinked PRs in temporal clusters (default: true) */
-  includeUnlinkedPRs?: boolean;
-}
-
-const DEFAULT_CONFIG: Required<ProjectDetectorConfig> = {
-  timeWindowDays: 14,
-  minClusterSize: 2,
-  includeUnlinkedPRs: true,
-};
 
 /**
  * Internal representation of a project during detection
@@ -34,10 +15,6 @@ interface ProjectBuilder {
   sharedTickets: Set<string>;
   repos: Set<string>;
   jiraProject?: string;
-  earliestDate?: Date;
-  latestDate?: Date;
-  sharedLabels: Set<string>;
-  dominantSignal: ProjectSignal;
 }
 
 /**
@@ -94,6 +71,9 @@ function generateProjectName(
 
 /**
  * Calculate confidence based on signals
+ *
+ * Only ticket-linked groupings get high confidence.
+ * Everything else is unassigned.
  */
 function calculateConfidence(builder: ProjectBuilder): ProjectConfidence {
   // High confidence: explicit ticket linking
@@ -101,32 +81,23 @@ function calculateConfidence(builder: ProjectBuilder): ProjectConfidence {
     return 'high';
   }
 
-  // Medium confidence: same JIRA project with multiple PRs
-  if (builder.jiraProject && builder.prs.size >= 3) {
-    return 'medium';
-  }
-
-  // Medium confidence: shared labels
-  if (builder.sharedLabels.size > 0 && builder.prs.size >= 2) {
-    return 'medium';
-  }
-
-  // Low confidence: time-based clustering only
+  // No other signals produce confident groupings
   return 'low';
 }
 
 /**
  * Detect project groupings from PRs and tickets
+ *
+ * Projects are detected based on shared JIRA ticket references.
+ * PRs that reference the same ticket are grouped together.
+ * PRs without ticket references are not grouped into projects.
  */
 export function detectProjects(
   prs: PullRequestFile[],
   tickets: JiraTicketFile[],
   since: string,
   until: string,
-  config: ProjectDetectorConfig = {},
 ): ProjectsAnalysis {
-  const cfg = { ...DEFAULT_CONFIG, ...config };
-
   // Build lookup maps
   const prByUrl = new Map<string, PullRequestFile>();
   const ticketByKey = new Map<string, JiraTicketFile>();
@@ -143,7 +114,7 @@ export function detectProjects(
   const projects: ProjectBuilder[] = [];
 
   // ========================================
-  // PHASE 1: Ticket-based grouping (highest confidence)
+  // Ticket-based grouping (only reliable signal)
   // ========================================
   // Group PRs by shared ticket references using union-find
   const ticketToPRs = new Map<string, Set<string>>();
@@ -203,8 +174,6 @@ export function detectProjects(
         tickets: new Set([ticketKey]),
         sharedTickets: new Set([ticketKey]),
         repos: new Set(),
-        sharedLabels: new Set(),
-        dominantSignal: 'tickets',
       };
 
       // Add PR metadata
@@ -230,9 +199,6 @@ export function detectProjects(
     }
   }
 
-  // ========================================
-  // PHASE 2: JIRA project grouping for remaining tickets
-  // ========================================
   // Add tickets without linked PRs to existing projects by JIRA project
   for (const ticket of tickets) {
     if (ticketToProject.has(ticket.frontmatter.key)) continue;
@@ -246,106 +212,6 @@ export function detectProjects(
     if (matchingProjectIdx >= 0) {
       projects[matchingProjectIdx]?.tickets.add(ticket.frontmatter.key);
       ticketToProject.set(ticket.frontmatter.key, matchingProjectIdx);
-    }
-  }
-
-  // ========================================
-  // PHASE 3: Time-based clustering for unassigned PRs
-  // ========================================
-  if (cfg.includeUnlinkedPRs) {
-    const unassignedPRs = prs.filter(
-      (pr) => !assignedPRs.has(pr.frontmatter.url),
-    );
-
-    // Group by repo first, then cluster by time
-    const prsByRepo = new Map<string, PullRequestFile[]>();
-    for (const pr of unassignedPRs) {
-      const repoKey = `${pr.frontmatter.org}/${pr.frontmatter.repository}`;
-      if (!prsByRepo.has(repoKey)) {
-        prsByRepo.set(repoKey, []);
-      }
-      prsByRepo.get(repoKey)?.push(pr);
-    }
-
-    // Time-based clustering within each repo
-    for (const [repoKey, repoPRs] of prsByRepo) {
-      // Sort by created date
-      const sorted = [...repoPRs].sort(
-        (a, b) =>
-          new Date(a.frontmatter.createdAt).getTime() -
-          new Date(b.frontmatter.createdAt).getTime(),
-      );
-
-      let currentCluster: PullRequestFile[] = [];
-      let clusterStart: Date | null = null;
-
-      const flushCluster = () => {
-        if (currentCluster.length >= cfg.minClusterSize) {
-          const builder: ProjectBuilder = {
-            prs: new Set(currentCluster.map((pr) => pr.frontmatter.url)),
-            tickets: new Set(),
-            sharedTickets: new Set(),
-            repos: new Set([repoKey]),
-            sharedLabels: new Set(),
-            dominantSignal: 'time',
-          };
-
-          // Calculate time range
-          const dates = currentCluster.map(
-            (pr) => new Date(pr.frontmatter.createdAt),
-          );
-          builder.earliestDate = new Date(
-            Math.min(...dates.map((d) => d.getTime())),
-          );
-          builder.latestDate = new Date(
-            Math.max(...dates.map((d) => d.getTime())),
-          );
-
-          // Find common labels
-          const labelCounts = new Map<string, number>();
-          for (const pr of currentCluster) {
-            for (const label of pr.frontmatter.labels) {
-              labelCounts.set(label, (labelCounts.get(label) ?? 0) + 1);
-            }
-          }
-          for (const [label, count] of labelCounts) {
-            if (count >= currentCluster.length * 0.5) {
-              builder.sharedLabels.add(label);
-            }
-          }
-
-          for (const pr of currentCluster) {
-            assignedPRs.add(pr.frontmatter.url);
-          }
-
-          projects.push(builder);
-        }
-        currentCluster = [];
-        clusterStart = null;
-      };
-
-      for (const pr of sorted) {
-        const prDate = new Date(pr.frontmatter.createdAt);
-
-        if (clusterStart === null) {
-          currentCluster.push(pr);
-          clusterStart = prDate;
-        } else {
-          const daysDiff =
-            (prDate.getTime() - clusterStart.getTime()) / (1000 * 60 * 60 * 24);
-
-          if (daysDiff <= cfg.timeWindowDays) {
-            currentCluster.push(pr);
-          } else {
-            flushCluster();
-            currentCluster.push(pr);
-            clusterStart = prDate;
-          }
-        }
-      }
-
-      // Flush remaining cluster
-      flushCluster();
     }
   }
 
@@ -376,19 +242,11 @@ export function detectProjects(
       signals: {
         sharedTickets: [...builder.sharedTickets],
         jiraProject: builder.jiraProject,
-        timeRange:
-          builder.earliestDate && builder.latestDate
-            ? {
-                earliest:
-                  builder.earliestDate.toISOString().split('T')[0] ?? '',
-                latest: builder.latestDate.toISOString().split('T')[0] ?? '',
-              }
-            : undefined,
-        sharedLabels: [...builder.sharedLabels],
+        sharedLabels: [],
         commonKeywords: [],
       },
       confidence,
-      dominantSignal: builder.dominantSignal,
+      dominantSignal: 'tickets' as const,
       stats: {
         prCount: builder.prs.size,
         ticketCount: builder.tickets.size,
@@ -411,11 +269,10 @@ export function detectProjects(
       low: groupings.filter((g) => g.confidence === 'low').length,
     },
     bySignal: {
-      tickets: groupings.filter((g) => g.dominantSignal === 'tickets').length,
-      jiraProject: groupings.filter((g) => g.dominantSignal === 'jiraProject')
-        .length,
-      time: groupings.filter((g) => g.dominantSignal === 'time').length,
-      labels: groupings.filter((g) => g.dominantSignal === 'labels').length,
+      tickets: groupings.length,
+      jiraProject: 0,
+      time: 0,
+      labels: 0,
     },
     unassignedPRs: prs.length - assignedPRs.size,
   };

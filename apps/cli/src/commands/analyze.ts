@@ -148,7 +148,6 @@ export const analyzeCommand = new Command('analyze')
           tickets,
           since,
           until ?? '',
-          config.analysis.projects,
         );
         spinner.succeed(
           `Detected ${chalk.cyan(projectsAnalysis.summary.totalProjects)} projects`,
@@ -166,7 +165,7 @@ export const analyzeCommand = new Command('analyze')
           `  By confidence: ${chalk.green(projectsAnalysis.summary.byConfidence.high)} high, ${chalk.yellow(projectsAnalysis.summary.byConfidence.medium)} medium, ${chalk.gray(projectsAnalysis.summary.byConfidence.low)} low`,
         );
         console.log(
-          `  By signal: ${chalk.cyan(projectsAnalysis.summary.bySignal.tickets)} ticket-based, ${chalk.blue(projectsAnalysis.summary.bySignal.time)} time-based`,
+          `  By signal: ${chalk.cyan(projectsAnalysis.summary.bySignal.tickets)} ticket-based`,
         );
         if (projectsAnalysis.summary.unassignedPRs > 0) {
           console.log(
