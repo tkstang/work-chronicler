@@ -130,17 +130,16 @@ work-log/
 Classifies PRs into four impact tiers and generates statistics:
 
 ```bash
-# Generate stats only (will prompt for filtered vs full if filtered/ exists)
+# Interactive mode - prompts what to generate (tag-prs, projects, timeline)
 work-chronicler analyze
 
-# Tag all PRs with impact levels
-work-chronicler analyze --tag-prs
+# Run all analysis at once
+work-chronicler analyze --all
 
-# Detect project groupings
-work-chronicler analyze --projects
-
-# Generate chronological timeline
-work-chronicler analyze --timeline
+# Or run specific analysis:
+work-chronicler analyze --tag-prs      # Tag PRs with impact levels
+work-chronicler analyze --projects     # Detect project groupings
+work-chronicler analyze --timeline     # Generate chronological timeline
 
 # Analyze full work-log even if filtered/ exists
 work-chronicler analyze --full
@@ -207,10 +206,10 @@ Filtered files are written to `work-log/filtered/` with their own analysis (stat
 Most commands will prompt for options when run without flags:
 
 - **fetch:github/jira/all** - Prompts whether to use cache mode if data already exists
-- **analyze** - Prompts whether to analyze filtered or full data if filtered/ exists
+- **analyze** - Prompts what to generate (tag-prs, projects, timeline) and whether to use filtered data
 - **filter** - Prompts for all filter options
 
-Use flags like `--cache`, `--full`, etc. to skip prompts in scripts.
+Use flags like `--cache`, `--all`, `--full`, etc. to skip prompts in scripts.
 
 ## Configuration
 

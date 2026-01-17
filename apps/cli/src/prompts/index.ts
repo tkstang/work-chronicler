@@ -192,6 +192,51 @@ export async function promptFilterOptions(): Promise<{
 }
 
 /**
+ * Analysis options that can be selected
+ */
+export interface AnalyzeOptions {
+  tagPrs: boolean;
+  projects: boolean;
+  timeline: boolean;
+}
+
+/**
+ * Prompt for analyze options (what to generate)
+ */
+export async function promptAnalyzeOptions(): Promise<AnalyzeOptions> {
+  const { options } = await inquirer.prompt([
+    {
+      type: 'checkbox',
+      name: 'options',
+      message: 'What would you like to generate?',
+      choices: [
+        {
+          name: 'Tag PRs with impact levels (updates PR files)',
+          value: 'tagPrs',
+          checked: true,
+        },
+        {
+          name: 'Detect project groupings',
+          value: 'projects',
+          checked: true,
+        },
+        {
+          name: 'Generate timeline (weekly/monthly breakdown)',
+          value: 'timeline',
+          checked: true,
+        },
+      ],
+    },
+  ]);
+
+  return {
+    tagPrs: options.includes('tagPrs'),
+    projects: options.includes('projects'),
+    timeline: options.includes('timeline'),
+  };
+}
+
+/**
  * Interactive filter prompts - prompts for all filter options
  */
 export async function promptFilterInteractive(): Promise<{

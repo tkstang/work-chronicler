@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { promptUseFiltered } from '@prompts';
+import { promptAnalyzeOptions, promptUseFiltered } from '@prompts';
 import {
   findConfigPath,
   getAnalysisFilePath,
@@ -27,9 +27,24 @@ export const analyzeCommand = new Command('analyze')
   .option('--tag-prs', 'Update PR files with impact tags')
   .option('--projects', 'Detect and group related PRs/tickets into projects')
   .option('--timeline', 'Generate chronological timeline grouped by week/month')
+  .option('--all', 'Run all analysis (tag-prs, projects, timeline)')
   .option('-v, --verbose', 'Show detailed output')
   .option('--full', 'Analyze full work-log even if filtered/ exists')
   .action(async (options) => {
+    // Determine what to analyze
+    const hasAnalysisFlags =
+      options.tagPrs || options.projects || options.timeline || options.all;
+
+    let analyzeOpts = {
+      tagPrs: options.tagPrs || options.all,
+      projects: options.projects || options.all,
+      timeline: options.timeline || options.all,
+    };
+
+    // If no flags provided, prompt interactively
+    if (!hasAnalysisFlags) {
+      analyzeOpts = await promptAnalyzeOptions();
+    }
     try {
       const configPath = findConfigPath(options.config);
       const config = await loadConfig(options.config);
@@ -90,7 +105,7 @@ export const analyzeCommand = new Command('analyze')
       console.log(`${chalk.green('✓')} Wrote ${chalk.cyan(statsPath)}`);
 
       // Optionally tag PRs with impact
-      if (options.tagPrs) {
+      if (analyzeOpts.tagPrs) {
         spinner.start('Tagging PRs with impact levels...');
         let updated = 0;
         let skipped = 0;
@@ -162,7 +177,7 @@ export const analyzeCommand = new Command('analyze')
       }
 
       // Detect projects if requested
-      if (options.projects) {
+      if (analyzeOpts.projects) {
         console.log();
         spinner.start('Detecting projects...');
         const projectsAnalysis = detectProjects(
@@ -215,7 +230,7 @@ export const analyzeCommand = new Command('analyze')
       }
 
       // Generate timeline if requested
-      if (options.timeline) {
+      if (analyzeOpts.timeline) {
         console.log();
         spinner.start('Generating timeline...');
         const timeline = generateTimeline(prs, tickets, since, until ?? '');
