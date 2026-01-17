@@ -23,10 +23,28 @@ export interface MCPServerContext {
 
 /**
  * Create and configure the MCP server with all tools
+ *
+ * Config discovery order:
+ * 1. WORK_CHRONICLER_CONFIG environment variable (path to config file)
+ * 2. WORK_CHRONICLER_DIR environment variable (directory containing config)
+ * 3. Current working directory
+ * 4. ~/.config/work-chronicler/
  */
 export async function createServer(): Promise<MCPServerContext> {
-  const configPath = findConfigPath();
-  const config = await loadConfig();
+  // Support explicit config path via environment variable
+  const envConfigPath = process.env.WORK_CHRONICLER_CONFIG;
+  const envConfigDir = process.env.WORK_CHRONICLER_DIR;
+
+  let explicitPath: string | undefined;
+  if (envConfigPath) {
+    explicitPath = envConfigPath;
+  } else if (envConfigDir) {
+    // If directory specified, look for config files in it
+    explicitPath = `${envConfigDir}/work-chronicler.yaml`;
+  }
+
+  const configPath = findConfigPath(explicitPath);
+  const config = await loadConfig(explicitPath);
   const outputDir = getOutputDirectory(config, configPath ?? undefined);
 
   const server = new McpServer({

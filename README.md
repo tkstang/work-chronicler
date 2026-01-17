@@ -208,7 +208,11 @@ work-chronicler includes an MCP (Model Context Protocol) server that exposes you
    work-chronicler analyze --projects --timeline
    ```
 
-2. Configure your AI assistant:
+2. Configure your AI assistant.
+
+   The MCP server needs to find your `work-chronicler.yaml` config. You can either:
+   - Set `cwd` to your work history directory, OR
+   - Use the `WORK_CHRONICLER_DIR` environment variable
 
    **Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
    ```json
@@ -217,7 +221,22 @@ work-chronicler includes an MCP (Model Context Protocol) server that exposes you
        "work-chronicler": {
          "command": "npx",
          "args": ["@work-chronicler/mcp-server"],
-         "cwd": "/path/to/your/work-log-directory"
+         "env": {
+           "WORK_CHRONICLER_DIR": "/Users/you/work-history"
+         }
+       }
+     }
+   }
+   ```
+
+   Or using `cwd`:
+   ```json
+   {
+     "mcpServers": {
+       "work-chronicler": {
+         "command": "npx",
+         "args": ["@work-chronicler/mcp-server"],
+         "cwd": "/Users/you/work-history"
        }
      }
    }
@@ -229,13 +248,20 @@ work-chronicler includes an MCP (Model Context Protocol) server that exposes you
      "mcpServers": {
        "work-chronicler": {
          "command": "npx",
-         "args": ["@work-chronicler/mcp-server"]
+         "args": ["@work-chronicler/mcp-server"],
+         "env": {
+           "WORK_CHRONICLER_DIR": "/Users/you/work-history"
+         }
        }
      }
    }
    ```
 
 3. Restart your AI assistant to load the MCP server.
+
+**Environment Variables:**
+- `WORK_CHRONICLER_DIR` - Directory containing your `work-chronicler.yaml`
+- `WORK_CHRONICLER_CONFIG` - Full path to config file (alternative to DIR)
 
 ### Available Tools
 
