@@ -1,0 +1,44 @@
+{
+  "name": "@work-chronicler/cli",
+  "version": "0.1.0",
+  "description": "CLI for gathering and analyzing work history from GitHub PRs and JIRA tickets",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "work-chronicler": "./bin/work-chronicler.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc && tsc-alias",
+    "clean": "rm -rf dist",
+    "cli": "tsx src/index.ts",
+    "dev": "tsc --watch",
+    "format": "biome format .",
+    "format:fix": "biome format --write .",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@octokit/rest": "^21.0.0",
+    "@work-chronicler/core": "workspace:*",
+    "commander": "^12.1.0",
+    "jira.js": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsc-alias": "^1.8.10",
+    "tsx": "^4.21.0",
+    "typescript": "^5.8.3"
+  },
+  "files": [
+    "dist",
+    "bin"
+  ]
+}

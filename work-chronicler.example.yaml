@@ -1,0 +1,62 @@
+# work-chronicler configuration
+# Copy this file to work-chronicler.yaml and customize for your setup
+
+github:
+  # Your GitHub username (used to filter PRs by author)
+  username: "your-github-username"
+
+  # GitHub token - can also be set via GITHUB_TOKEN env var
+  # Create at: https://github.com/settings/tokens
+  # Required scopes: repo (or public_repo for public repos only)
+  # token: "ghp_xxxxx"
+
+  # Organizations and repositories to fetch from
+  orgs:
+    # Fetch specific repos from an org
+    - name: "your-company"
+      repos:
+        - "api"
+        - "frontend"
+        - "shared-lib"
+
+    # Use ["*"] to fetch all repos from an org
+    - name: "your-personal-org"
+      repos: ["*"]
+
+jira:
+  instances:
+    # JIRA Cloud instance
+    - name: "company"
+      url: "https://your-company.atlassian.net"
+
+      # Email for authentication (optional if using token)
+      # email: "you@company.com"
+
+      # API token - can also be set via JIRA_TOKEN env var
+      # Create at: https://id.atlassian.com/manage-profile/security/api-tokens
+      # token: "xxxxx"
+
+      # Projects to fetch tickets from
+      projects:
+        - "PROJ"
+        - "TEAM"
+        - "BACKEND"
+
+    # You can configure multiple JIRA instances
+    # - name: "client-jira"
+    #   url: "https://client.atlassian.net"
+    #   projects: ["CLIENT"]
+
+# Where to store fetched data
+output:
+  # Relative to config file location, or absolute path
+  directory: "./work-log"
+
+# Date range for fetching
+fetch:
+  # ISO date string (YYYY-MM-DD)
+  since: "2024-01-01"
+
+  # null means "now" - fetch up to current date
+  # Or specify a date: "2024-12-31"
+  until: null

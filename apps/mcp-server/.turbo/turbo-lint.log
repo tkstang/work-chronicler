@@ -1,0 +1,5 @@
+
+> @work-chronicler/mcp-server@0.1.0 lint /Users/thomas.stang/Code/work-chronicler/apps/mcp-server
+> biome lint .
+
+Checked 7 files in 8ms. No fixes applied.

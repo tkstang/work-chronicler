@@ -31,6 +31,10 @@ yarn-error.log*
 .env.local
 .env.*.local
 
+# work-chronicler data and config
+work-log/
+work-chronicler.yaml
+
 # Claude Code MCP configuration (contains API keys)
 .mcp.json
 

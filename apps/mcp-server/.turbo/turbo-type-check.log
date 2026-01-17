@@ -1,0 +1,4 @@
+
+> @work-chronicler/mcp-server@0.1.0 type-check /Users/thomas.stang/Code/work-chronicler/apps/mcp-server
+> tsc --noEmit
+
