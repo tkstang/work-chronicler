@@ -43,7 +43,21 @@ function findMarkdownFiles(dir: string): string[] {
 }
 
 /**
- * Read all PR files from the work-log
+ * Read all PR markdown files from the work-log directory.
+ *
+ * Recursively scans the pull-requests directory and parses each markdown file.
+ * Invalid files are logged with warnings but don't stop processing.
+ *
+ * @param outputDir - Base work-log output directory
+ * @returns Array of parsed PR files with frontmatter, body, and file path
+ *
+ * @example
+ * ```ts
+ * const prs = await readAllPRs('/path/to/work-log');
+ * for (const pr of prs) {
+ *   console.log(pr.frontmatter.title, pr.frontmatter.prNumber);
+ * }
+ * ```
  */
 export async function readAllPRs(
   outputDir: string,
@@ -79,7 +93,21 @@ export async function readAllPRs(
 }
 
 /**
- * Read all JIRA ticket files from the work-log
+ * Read all JIRA ticket markdown files from the work-log directory.
+ *
+ * Recursively scans the jira directory and parses each markdown file.
+ * Invalid files are logged with warnings but don't stop processing.
+ *
+ * @param outputDir - Base work-log output directory
+ * @returns Array of parsed ticket files with frontmatter, body, and file path
+ *
+ * @example
+ * ```ts
+ * const tickets = await readAllTickets('/path/to/work-log');
+ * for (const ticket of tickets) {
+ *   console.log(ticket.frontmatter.key, ticket.frontmatter.summary);
+ * }
+ * ```
  */
 export async function readAllTickets(
   outputDir: string,
@@ -115,7 +143,18 @@ export async function readAllTickets(
 }
 
 /**
- * Read a single PR file by path
+ * Read a single PR markdown file by its path.
+ *
+ * @param filePath - Absolute path to the PR markdown file
+ * @returns Parsed PR file with frontmatter and body, or null if invalid/not found
+ *
+ * @example
+ * ```ts
+ * const pr = await readPR('/path/to/work-log/pull-requests/org/repo/2024-01-15_123.md');
+ * if (pr) {
+ *   console.log(pr.frontmatter.title);
+ * }
+ * ```
  */
 export async function readPR(
   filePath: string,
@@ -138,7 +177,18 @@ export async function readPR(
 }
 
 /**
- * Read a single ticket file by path
+ * Read a single JIRA ticket markdown file by its path.
+ *
+ * @param filePath - Absolute path to the ticket markdown file
+ * @returns Parsed ticket file with frontmatter and body, or null if invalid/not found
+ *
+ * @example
+ * ```ts
+ * const ticket = await readTicket('/path/to/work-log/jira/instance/PROJ/PROJ-123.md');
+ * if (ticket) {
+ *   console.log(ticket.frontmatter.summary);
+ * }
+ * ```
  */
 export async function readTicket(
   filePath: string,

@@ -258,7 +258,7 @@ async function fetchRepoPRs(
         prNumber: pr.number,
         repository: repo,
         org,
-        author: pr.user?.login || 'unknown',
+        author: pr.user?.login ?? 'unknown',
         state: mapPRState(pr.state, pr.merged_at),
         createdAt: pr.created_at,
         mergedAt: pr.merged_at,
@@ -278,7 +278,7 @@ async function fetchRepoPRs(
         createdAt,
         pr.number,
       );
-      const body = pr.body || '';
+      const body = pr.body ?? '';
 
       writeMarkdownFile(filePath, prData, body);
       written++;

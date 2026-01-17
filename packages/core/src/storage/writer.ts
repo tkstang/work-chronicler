@@ -5,12 +5,31 @@ import type { JiraTicket } from 'src/types/ticket';
 import { stringify as stringifyYaml } from 'yaml';
 
 /**
- * Valid frontmatter types for markdown files
+ * Valid frontmatter types for markdown files.
+ *
+ * Union type representing the structured data that can be written
+ * as YAML frontmatter in work-log markdown files.
  */
 export type MarkdownFrontmatter = PullRequest | JiraTicket;
 
 /**
- * Write a markdown file with YAML frontmatter
+ * Write a markdown file with YAML frontmatter.
+ *
+ * Creates parent directories if they don't exist. The frontmatter
+ * is serialized as YAML with double-quoted strings for consistency.
+ *
+ * @param filePath - Absolute path where the file should be written
+ * @param frontmatter - Structured data to serialize as YAML frontmatter
+ * @param body - Markdown body content (typically PR/ticket description)
+ *
+ * @example
+ * ```ts
+ * writeMarkdownFile(
+ *   '/path/to/work-log/pull-requests/org/repo/2024-01-15_123.md',
+ *   { title: 'Add feature', prNumber: 123, ... },
+ *   'This PR adds a new feature...'
+ * );
+ * ```
  */
 export function writeMarkdownFile(
   filePath: string,
@@ -34,7 +53,14 @@ export function writeMarkdownFile(
 }
 
 /**
- * Ensure a directory exists
+ * Ensure a directory exists, creating it recursively if needed.
+ *
+ * @param dirPath - Absolute path to the directory
+ *
+ * @example
+ * ```ts
+ * ensureDirectory('/path/to/work-log/pull-requests/org/repo');
+ * ```
  */
 export function ensureDirectory(dirPath: string): void {
   if (!existsSync(dirPath)) {

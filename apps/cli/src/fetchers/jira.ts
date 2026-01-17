@@ -197,15 +197,15 @@ async function fetchProjectTickets(
 
       const ticketData: JiraTicket = {
         key: issue.key,
-        summary: fields.summary || '',
+        summary: fields.summary ?? '',
         project,
         org: instanceName,
-        issueType: fields.issuetype?.name || 'Unknown',
-        status: fields.status?.name || 'Unknown',
+        issueType: fields.issuetype?.name ?? 'unknown',
+        status: fields.status?.name ?? 'unknown',
         storyPoints,
         url: `${baseUrl}/browse/${issue.key}`,
-        createdAt: fields.created || new Date().toISOString(),
-        resolvedAt: fields.resolutiondate || null,
+        createdAt: fields.created ?? new Date().toISOString(),
+        resolvedAt: fields.resolutiondate ?? null,
         linkedPRs: [],
       };
 

@@ -14,10 +14,23 @@ const CONFIG_FILE_NAMES = [
 const GLOBAL_CONFIG_DIR = join(homedir(), '.config', 'work-chronicler');
 
 /**
- * Find the config file path by checking:
+ * Find the config file path by checking multiple locations.
+ *
+ * Search order:
  * 1. Explicit path if provided
- * 2. Current directory
- * 3. Global config directory
+ * 2. Current directory (work-chronicler.yaml, .work-chronicler.yaml, etc.)
+ * 3. Global config directory (~/.config/work-chronicler/)
+ *
+ * @param explicitPath - Optional explicit path to config file
+ * @returns Absolute path to config file, or null if not found
+ *
+ * @example
+ * ```ts
+ * const configPath = findConfigPath();
+ * if (configPath) {
+ *   console.log(`Found config at: ${configPath}`);
+ * }
+ * ```
  */
 export function findConfigPath(explicitPath?: string): string | null {
   // If explicit path provided, use it
@@ -49,7 +62,17 @@ export function findConfigPath(explicitPath?: string): string | null {
 }
 
 /**
- * Load and validate configuration from a YAML file
+ * Load and validate configuration from a YAML file.
+ *
+ * @param configPath - Optional path to config file. If not provided, searches default locations.
+ * @returns Validated configuration object
+ * @throws Error if config file not found or validation fails
+ *
+ * @example
+ * ```ts
+ * const config = await loadConfig();
+ * console.log(`Fetching PRs for ${config.github.username}`);
+ * ```
  */
 export async function loadConfig(configPath?: string): Promise<Config> {
   const foundPath = findConfigPath(configPath);
@@ -76,7 +99,20 @@ export async function loadConfig(configPath?: string): Promise<Config> {
 }
 
 /**
- * Get the output directory from config, resolved to absolute path
+ * Get the work-log output directory, resolved to an absolute path.
+ *
+ * The path is resolved relative to the config file's directory (if provided)
+ * or the current working directory.
+ *
+ * @param config - The loaded configuration object
+ * @param configPath - Optional path to config file (for relative resolution)
+ * @returns Absolute path to output directory
+ *
+ * @example
+ * ```ts
+ * const outputDir = getOutputDirectory(config, configPath);
+ * // outputDir: "/home/user/project/work-log"
+ * ```
  */
 export function getOutputDirectory(
   config: Config,
@@ -87,7 +123,11 @@ export function getOutputDirectory(
 }
 
 /**
- * Generate example config content
+ * Generate example configuration file content.
+ *
+ * Use this when creating a new config file via `work-chronicler init`.
+ *
+ * @returns YAML string with example configuration
  */
 export function generateExampleConfig(): string {
   return `# work-chronicler configuration

@@ -2,7 +2,13 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
- * Directory names within the work-log
+ * Standard directory names within the work-log structure.
+ *
+ * @example
+ * ```ts
+ * const prDir = join(outputDir, DIRECTORIES.PULL_REQUESTS);
+ * // prDir: "/path/to/work-log/pull-requests"
+ * ```
  */
 export const DIRECTORIES = {
   PULL_REQUESTS: 'pull-requests',
@@ -13,9 +19,21 @@ export const DIRECTORIES = {
 } as const;
 
 /**
- * Check if filtered data exists and return the appropriate directory.
- * If filtered/ exists and has data, returns the filtered path.
- * Otherwise returns the original outputDir.
+ * Get the effective output directory, preferring filtered data if available.
+ *
+ * Checks if a `filtered/` subdirectory exists with PR data.
+ * If so, returns that path for read operations to use the filtered subset.
+ *
+ * @param outputDir - Base work-log output directory
+ * @returns Object with `dir` (path to use) and `isFiltered` (whether using filtered data)
+ *
+ * @example
+ * ```ts
+ * const { dir, isFiltered } = getEffectiveOutputDir('/path/to/work-log');
+ * if (isFiltered) {
+ *   console.log('Using filtered data');
+ * }
+ * ```
  */
 export function getEffectiveOutputDir(outputDir: string): {
   dir: string;
@@ -33,7 +51,14 @@ export function getEffectiveOutputDir(outputDir: string): {
 }
 
 /**
- * Get the path for a PR file
+ * Get the file path for storing a PR markdown file.
+ *
+ * @param outputDir - Base work-log output directory
+ * @param org - GitHub organization name
+ * @param repo - Repository name
+ * @param date - PR creation date (used in filename)
+ * @param prNumber - PR number (used in filename)
+ * @returns Full path like `{outputDir}/pull-requests/{org}/{repo}/{date}_{prNumber}.md`
  */
 export function getPRFilePath(
   outputDir: string,
@@ -48,7 +73,13 @@ export function getPRFilePath(
 }
 
 /**
- * Get the path for a JIRA ticket file
+ * Get the file path for storing a JIRA ticket markdown file.
+ *
+ * @param outputDir - Base work-log output directory
+ * @param org - JIRA instance name
+ * @param project - JIRA project key
+ * @param ticketKey - Ticket key (e.g., "PROJ-123")
+ * @returns Full path like `{outputDir}/jira/{org}/{project}/{ticketKey}.md`
  */
 export function getTicketFilePath(
   outputDir: string,
@@ -61,7 +92,11 @@ export function getTicketFilePath(
 }
 
 /**
- * Get the path for an analysis file
+ * Get the file path for an analysis JSON file.
+ *
+ * @param outputDir - Base work-log output directory
+ * @param analysisName - Name of analysis file (without extension)
+ * @returns Full path like `{outputDir}/.analysis/{analysisName}.json`
  */
 export function getAnalysisFilePath(
   outputDir: string,
@@ -71,7 +106,12 @@ export function getAnalysisFilePath(
 }
 
 /**
- * Get the pull requests directory for an org/repo
+ * Get the directory path for pull requests.
+ *
+ * @param outputDir - Base work-log output directory
+ * @param org - GitHub organization name
+ * @param repo - Optional repository name (omit to get org-level directory)
+ * @returns Directory path for the org or org/repo
  */
 export function getPRDirectory(
   outputDir: string,
@@ -85,7 +125,12 @@ export function getPRDirectory(
 }
 
 /**
- * Get the JIRA directory for an org/project
+ * Get the directory path for JIRA tickets.
+ *
+ * @param outputDir - Base work-log output directory
+ * @param org - JIRA instance name
+ * @param project - Optional project key (omit to get instance-level directory)
+ * @returns Directory path for the instance or instance/project
  */
 export function getJiraDirectory(
   outputDir: string,
