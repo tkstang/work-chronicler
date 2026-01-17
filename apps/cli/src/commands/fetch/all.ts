@@ -1,7 +1,11 @@
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { fetchGitHubPRs } from '@fetchers/github';
 import { fetchJiraTickets } from '@fetchers/jira';
 import { linkPRsToTickets } from '@linker/index';
+import { promptUseCache } from '@prompts';
 import {
+  DIRECTORIES,
   findConfigPath,
   getOutputDirectory,
   loadConfig,
@@ -21,9 +25,19 @@ export const fetchAllCommand = new Command('fetch:all')
       const config = await loadConfig(options.config);
       const outputDir = getOutputDirectory(config, configPath ?? undefined);
 
+      // Determine cache behavior - prompt if data exists and --cache not specified
+      let useCache = options.cache;
+      if (!options.cache) {
+        const prDir = join(outputDir, DIRECTORIES.PULL_REQUESTS);
+        const jiraDir = join(outputDir, DIRECTORIES.JIRA);
+        if (existsSync(prDir) || existsSync(jiraDir)) {
+          useCache = await promptUseCache();
+        }
+      }
+
       console.log(chalk.bold('\n📥 Fetching Work History\n'));
       console.log(`${chalk.gray('Output directory:')} ${outputDir}`);
-      if (options.cache) {
+      if (useCache) {
         console.log(
           `${chalk.gray('Cache mode:')} ${chalk.cyan('enabled')} (skipping existing items)`,
         );
@@ -36,7 +50,7 @@ export const fetchAllCommand = new Command('fetch:all')
         config,
         outputDir,
         verbose: options.verbose,
-        useCache: options.cache,
+        useCache,
       });
       const totalPRs = githubResults.reduce((sum, r) => sum + r.prsWritten, 0);
 
@@ -48,7 +62,7 @@ export const fetchAllCommand = new Command('fetch:all')
           config,
           outputDir,
           verbose: options.verbose,
-          useCache: options.cache,
+          useCache,
         });
         totalTickets = jiraResults.reduce(
           (sum, r) => sum + r.ticketsWritten,

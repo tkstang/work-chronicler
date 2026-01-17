@@ -1,5 +1,9 @@
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { fetchJiraTickets } from '@fetchers/jira';
+import { promptUseCache } from '@prompts';
 import {
+  DIRECTORIES,
   findConfigPath,
   getOutputDirectory,
   loadConfig,
@@ -18,11 +22,20 @@ export const fetchJiraCommand = new Command('fetch:jira')
       const config = await loadConfig(options.config);
       const outputDir = getOutputDirectory(config, configPath ?? undefined);
 
+      // Determine cache behavior - prompt if data exists and --cache not specified
+      let useCache = options.cache;
+      if (!options.cache) {
+        const jiraDir = join(outputDir, DIRECTORIES.JIRA);
+        if (existsSync(jiraDir)) {
+          useCache = await promptUseCache();
+        }
+      }
+
       const results = await fetchJiraTickets({
         config,
         outputDir,
         verbose: options.verbose,
-        useCache: options.cache,
+        useCache,
       });
 
       const totalWritten = results.reduce(

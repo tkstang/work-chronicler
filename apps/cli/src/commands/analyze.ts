@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { promptUseFiltered } from '@prompts';
 import {
   findConfigPath,
   getAnalysisFilePath,
@@ -27,20 +28,31 @@ export const analyzeCommand = new Command('analyze')
   .option('--projects', 'Detect and group related PRs/tickets into projects')
   .option('--timeline', 'Generate chronological timeline grouped by week/month')
   .option('-v, --verbose', 'Show detailed output')
-  .option('--no-filtered', 'Analyze main work-log even if filtered/ exists')
+  .option('--full', 'Analyze full work-log even if filtered/ exists')
   .action(async (options) => {
     try {
       const configPath = findConfigPath(options.config);
       const config = await loadConfig(options.config);
       const baseOutputDir = getOutputDirectory(config, configPath ?? undefined);
 
-      // Check if filtered data exists and use it by default (unless --no-filtered)
+      // Check if filtered data exists
       let outputDir = baseOutputDir;
       let isFiltered = false;
-      if (options.filtered !== false) {
-        const effective = getEffectiveOutputDir(baseOutputDir);
-        outputDir = effective.dir;
-        isFiltered = effective.isFiltered;
+      const effective = getEffectiveOutputDir(baseOutputDir);
+
+      if (effective.isFiltered) {
+        if (options.full) {
+          // User explicitly requested full work-log
+          outputDir = baseOutputDir;
+          isFiltered = false;
+        } else {
+          // Filtered data exists - prompt user
+          const useFiltered = await promptUseFiltered();
+          if (useFiltered) {
+            outputDir = effective.dir;
+            isFiltered = true;
+          }
+        }
       }
 
       const since = config.fetch.since;

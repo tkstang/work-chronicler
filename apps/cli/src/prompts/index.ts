@@ -17,6 +17,37 @@ export async function confirmAction(message: string): Promise<boolean> {
 }
 
 /**
+ * Prompt whether to use cache when fetching data
+ */
+export async function promptUseCache(): Promise<boolean> {
+  const { useCache } = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'useCache',
+      message:
+        'Existing data found. Use cache mode? (Skip items already fetched)',
+      default: true,
+    },
+  ]);
+  return useCache;
+}
+
+/**
+ * Prompt whether to analyze filtered or full data
+ */
+export async function promptUseFiltered(): Promise<boolean> {
+  const { useFiltered } = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'useFiltered',
+      message: 'Filtered data found. Analyze filtered data instead of full?',
+      default: true,
+    },
+  ]);
+  return useFiltered;
+}
+
+/**
  * Impact level choices for prompts
  */
 const IMPACT_CHOICES: Array<{ name: string; value: PRImpact }> = [
