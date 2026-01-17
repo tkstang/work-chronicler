@@ -2,56 +2,85 @@
 
 Generate achievement-focused resume bullet points from the user's work history.
 
+## Data Location
+
+Work data is stored in the `work-log/` directory:
+
+```
+work-log/
+├── .analysis/
+│   ├── stats.json      # Impact breakdown, repo stats
+│   ├── projects.json   # Detected project groupings
+│   └── timeline.json   # Chronological view
+├── pull-requests/
+│   └── <org>/<repo>/*.md
+├── jira/
+│   └── <org>/<project>/*.md
+├── resumes/            # User's existing resume(s) - use for tone/format
+├── performance-reviews/ # Past reviews - use for context
+└── notes/              # User's goals and highlights
+```
+
 ## Instructions
 
-1. Read the work-log data:
-   - Check `work-log/.analysis/` for pre-computed analysis
-   - Read PR files from `work-log/pull-requests/**/*.md`
-   - Read ticket files from `work-log/jira/**/*.md`
+1. **Read analysis files first**:
+   - `stats.json` - Get impact distribution
+   - `projects.json` - Get high-confidence project groupings
+   - Focus on **flagship** and **major** impact PRs
 
-2. Focus on **impact and achievements**, not tasks:
-   - Use action verbs: "Implemented", "Reduced", "Architected", "Led"
+2. **Read supporting documents** (if present):
+   - `resumes/` - Match tone and format of existing resume
+   - `notes/` - Prioritize what user wants to highlight
+
+3. **Focus on impact, not tasks**:
+   - Use action verbs: "Architected", "Led", "Reduced", "Implemented"
    - Quantify when possible: percentages, numbers, scale
    - Highlight business impact, not just technical changes
+   - Group related PRs into cohesive achievements
 
-3. Group by project or theme when multiple PRs relate to the same initiative.
+4. **Use impact levels as signals**:
+   - **Flagship** (500+ lines or 15+ files): Major initiatives, lead with these
+   - **Major** (200+ lines or 8+ files): Significant features
+   - Skip minor/standard unless specifically relevant
 
-4. Format each bullet point for resume use:
-   - Start with strong action verb
-   - Include context (what, for whom)
-   - Show measurable impact
-   - Keep concise (1-2 lines max)
+## Bullet Point Format
+
+- Start with strong action verb
+- Include context (what, for whom)
+- Show measurable impact
+- Keep concise (1-2 lines max)
 
 ## Example Output
 
-```
+```markdown
 ## Resume Bullet Points
 
-### Backend Engineering
+### Platform Engineering
 
-- **Architected OAuth2 authentication system** supporting 3 identity providers, enabling SSO for 50,000+ enterprise users and reducing login friction by 40%
+- **Architected multi-region deployment infrastructure** using Kubernetes and Helm, enabling 99.9% uptime and reducing deployment time by 70%
 
-- **Implemented distributed caching layer** using Redis, reducing API response times from 450ms to 120ms (73% improvement) and cutting database load by 60%
+- **Led authentication system migration** to OAuth2 with MFA support, serving 50,000+ enterprise users across 3 identity providers
 
-- **Led database migration** from PostgreSQL 12 to 15, achieving zero-downtime deployment across 3 production clusters with automated rollback capabilities
+- **Designed and implemented caching layer** using Redis, reducing API response times from 450ms to 120ms (73% improvement)
 
-### Frontend Development
+### Product Development
 
-- **Redesigned checkout flow** reducing cart abandonment by 25% and increasing mobile conversion rate from 2.1% to 3.4%
+- **Built real-time collaboration features** enabling 10 concurrent editors, driving 25% increase in user engagement
 
-- **Built component library** with 40+ reusable React components, accelerating feature development by 30% across 3 product teams
+- **Redesigned checkout flow** reducing cart abandonment by 25% and increasing mobile conversion from 2.1% to 3.4%
 
 ### Technical Leadership
 
-- **Mentored 2 junior engineers** through code reviews and pair programming, both promoted within 12 months
+- **Established CI/CD pipeline** with automated testing and rollback, enabling 5x more frequent deployments
 
-- **Established CI/CD pipeline** reducing deployment time from 45 minutes to 8 minutes and enabling 5x more frequent releases
+- **Mentored 3 junior engineers** through code reviews and pair programming, all promoted within 12 months
 ```
 
-## Tips for the AI
+## Tips for AI
 
-- Look for PRs with high line counts or many files changed as indicators of significant work
-- Cross-reference JIRA tickets for story points and business context
-- Group related PRs (same project prefix, similar timeframe) into cohesive achievements
-- Infer impact from PR descriptions and commit messages
-- If specific metrics aren't available, use relative terms ("significantly improved", "major reduction")
+- Prioritize flagship/major PRs from projects.json high-confidence groups
+- Cross-reference JIRA tickets for business context and story points
+- Infer metrics from PR descriptions when exact numbers aren't available
+- Use relative terms ("significantly improved", "major reduction") if specific metrics unavailable
+- Group PRs by project rather than listing individually
+- Match tone/format of existing resume if one is provided

@@ -223,9 +223,9 @@ pnpm test
 - [x] **Analysis commands**: Categorize work by size/impact (4-tier classification)
 - [x] **Project detection**: Group related PRs/tickets into initiatives
 - [x] **Timeline view**: Chronological view of work grouped by week/month
-- [ ] **AI summarization**: Generate bullet points for reviews (via AI commands)
-- [ ] **Resume generation**: Export achievements in resume format
 - [ ] **MCP server**: Full implementation for AI assistant integration
+- [ ] **AI summarization**: Claude/Cursor commands + CLI commands for summaries
+- [ ] **Supporting documents**: Import past reviews, resumes, notes for context
 - [ ] **Google Docs integration**: Import performance review docs
 - [ ] **Linear support**: Alternative to JIRA
 - [ ] **Notion integration**: Import from Notion

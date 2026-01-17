@@ -2,82 +2,104 @@
 
 Analyze work history to identify major projects and group related work.
 
+**Note**: Project detection is now built into the CLI. Run `work-chronicler analyze --projects` to generate `projects.json`. This command is for reviewing and refining those results.
+
+## Data Location
+
+```
+work-log/
+├── .analysis/
+│   ├── projects.json   # Pre-computed project groupings (use this first!)
+│   ├── stats.json      # Impact breakdown, repo stats
+│   └── timeline.json   # Chronological view
+├── pull-requests/
+│   └── <org>/<repo>/*.md
+└── jira/
+    └── <org>/<project>/*.md
+```
+
 ## Instructions
 
-1. Read all PR and ticket data from:
-   - `work-log/pull-requests/**/*.md`
-   - `work-log/jira/**/*.md`
+1. **Start with projects.json** (if it exists):
+   - Contains pre-detected project groupings
+   - Has confidence levels: high, medium, low
+   - High confidence = PRs share JIRA ticket references
+   - Low confidence = time-based clustering (may need refinement)
 
-2. Detect project groupings by analyzing:
-   - JIRA ticket prefixes (e.g., AUTH-*, PERF-*, MOBILE-*)
-   - PR labels and repository patterns
-   - Temporal clustering (work done in the same time period)
-   - Semantic similarity in titles and descriptions
-   - Cross-references between PRs and tickets
+2. **Review and refine groupings**:
+   - Merge related projects that were detected separately
+   - Split projects that are too broad
+   - Add context from ticket summaries and PR descriptions
+   - Identify themes across projects
 
-3. For each detected project, gather:
-   - Name/theme
-   - Time period (start to end dates)
-   - Related PRs and tickets
-   - Total scope (lines changed, story points)
-   - Key outcomes or deliverables
+3. **For manual detection** (if projects.json doesn't exist):
+   - Look for shared JIRA ticket references across PRs
+   - Check ticket prefixes (e.g., AUTH-*, PERF-*)
+   - Consider temporal clustering (work in same 2-4 week period)
+   - Use PR labels and repository patterns
 
-4. Rank projects by significance:
-   - Number of PRs/tickets
-   - Total lines of code
-   - Story points
-   - Duration
+## Project Summary Format
+
+For each project, gather:
+- Name/theme (from primary ticket or inferred)
+- Time period (earliest to latest PR)
+- Related PRs and tickets
+- Total scope (lines changed, PR count)
+- Impact level distribution
+- Key outcomes or deliverables
 
 ## Example Output
 
-```
+```markdown
 ## Detected Projects
 
-### 1. Authentication Overhaul
-**Period**: January - March 2024
-**Scope**: 12 PRs, 8 tickets, +5,200 / -1,800 lines, 34 story points
+### 1. Authentication Overhaul (High Confidence)
+**Period**: January - March 2025
+**Scope**: 5 PRs, 4 tickets, +5,200 / -1,800 lines
+**Impact**: 3 flagship, 2 major
 
-**Related Work**:
-- AUTH-101: Implement OAuth2 flow
-- AUTH-102: Add MFA support
-- AUTH-103: Session management refactor
-- PRs: #234, #245, #256, #267, #278, #289, #301, #312, #323, #334, #345, #356
+**Tickets**:
+- DWP-575: Add cursor command for creating jira ticket
+- DWP-576: Create honeycomb-env package
+- DWP-577: Refactor helm charts
+- DWP-578: Update deployment scripts
 
 **Key Deliverables**:
-- OAuth2 integration with Google, GitHub, Microsoft
-- TOTP-based MFA
+- OAuth2 integration with multiple providers
+- TOTP-based MFA support
 - Secure session handling with refresh tokens
 
 ---
 
-### 2. Performance Optimization Initiative
-**Period**: April - July 2024
-**Scope**: 15 PRs, 6 tickets, +3,100 / -900 lines, 21 story points
+### 2. Performance Optimization (High Confidence)
+**Period**: April - June 2025
+**Scope**: 8 PRs, 3 tickets, +3,100 / -900 lines
+**Impact**: 2 flagship, 4 major, 2 standard
 
-**Related Work**:
-- PERF-201: Database query optimization
-- PERF-202: Implement caching layer
-- PERF-203: Frontend bundle optimization
-- PRs: #401, #412, #423, #434, #445, #456, #467, #478, #489, #501, #512, #523, #534, #545, #556
+**Tickets**:
+- DWP-463: Eater app lambda optimization
+- DWP-529: Caching layer implementation
+- DWP-530: Database query optimization
 
 **Key Deliverables**:
 - 73% reduction in API latency
 - 60% reduction in database load
-- 45% smaller frontend bundle
 
 ---
 
-### 3. Mobile App Launch
-**Period**: August - November 2024
-**Scope**: 20 PRs, 12 tickets, +8,400 / -200 lines, 55 story points
+### 3. Unrelated Work Cluster (Low Confidence - Needs Review)
+**Period**: July 2025
+**Scope**: 12 PRs, 0 tickets, +800 / -200 lines
 
-...
+*This cluster was detected by time proximity. Review PRs to determine if they form a cohesive project or should be split.*
+
+PRs: #4074, #4091, #4094, #4096, #4098, #4103, #4104, #4109, #4110, #4114, #4120, #4126
 ```
 
-## Analysis Tips
+## Tips
 
-- Look for JIRA ticket key patterns (letters before the number)
-- Check PR labels for project tags
-- Consider work done within 2-4 week sprints as potentially related
-- Use PR descriptions and commit messages for semantic grouping
-- Note when multiple tickets are linked to the same PR
+- High confidence projects are most reliable - start there
+- Low confidence projects may need manual review
+- Look for patterns in PR titles that suggest related work
+- Consider the "filtered/" directory if you only want to see significant work
+- Check timeline.json to understand when projects overlapped
