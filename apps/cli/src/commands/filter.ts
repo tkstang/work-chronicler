@@ -33,6 +33,10 @@ export const filterCommand = new Command('filter')
     'Only include PRs linked to tickets and tickets linked to PRs',
   )
   .option('--merged-only', 'Only include merged PRs')
+  .option(
+    '--exclude-status <statuses...>',
+    'Exclude tickets with these statuses (e.g., "To Do", "Rejected")',
+  )
   .option('-v, --verbose', 'Show detailed output')
   .action(async (options) => {
     try {
@@ -59,6 +63,11 @@ export const filterCommand = new Command('filter')
       }
       if (options.mergedOnly) {
         filters.push('Merged PRs only');
+      }
+      if (options.excludeStatus) {
+        filters.push(
+          `Excluding ticket status: ${options.excludeStatus.join(', ')}`,
+        );
       }
 
       // If no filters specified, prompt interactively
@@ -90,6 +99,12 @@ export const filterCommand = new Command('filter')
         if (prompted.mergedOnly) {
           options.mergedOnly = true;
           filters.push('Merged PRs only');
+        }
+        if (prompted.excludeStatus.length > 0) {
+          options.excludeStatus = prompted.excludeStatus;
+          filters.push(
+            `Excluding ticket status: ${prompted.excludeStatus.join(', ')}`,
+          );
         }
 
         // Check if user selected any filters
@@ -159,8 +174,14 @@ export const filterCommand = new Command('filter')
 
       // Filter tickets
       const linkedPRUrls = new Set(filteredPRs.map((pr) => pr.frontmatter.url));
+      const excludeStatuses = new Set<string>(options.excludeStatus ?? []);
 
       const filteredTickets = allTickets.filter((ticket) => {
+        // Check exclude status
+        if (excludeStatuses.has(ticket.frontmatter.status)) {
+          return false;
+        }
+
         // If linked-only, only include tickets that have PRs in our filtered set
         if (options.linkedOnly) {
           return ticket.frontmatter.linkedPRs.some((url) =>

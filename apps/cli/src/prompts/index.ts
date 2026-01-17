@@ -97,11 +97,43 @@ export async function promptMinLoc(): Promise<number | null> {
 }
 
 /**
+ * Common ticket statuses
+ */
+const TICKET_STATUS_CHOICES = [
+  { name: 'To Do - Not yet started', value: 'To Do' },
+  { name: 'Rejected - Declined tickets', value: 'Rejected' },
+  { name: 'Blocked - Blocked tickets', value: 'Blocked' },
+  { name: 'In Progress - Currently being worked on', value: 'In Progress' },
+  { name: 'Code Review - In review', value: 'Code Review' },
+  {
+    name: 'Ready for Release - Awaiting deployment',
+    value: 'Ready for Release',
+  },
+  { name: 'Done - Completed tickets', value: 'Done' },
+];
+
+/**
+ * Prompt for ticket statuses to exclude (multi-select)
+ */
+export async function promptExcludeStatus(): Promise<string[]> {
+  const { statuses } = await inquirer.prompt([
+    {
+      type: 'checkbox',
+      name: 'statuses',
+      message: 'Select ticket statuses to exclude:',
+      choices: TICKET_STATUS_CHOICES,
+    },
+  ]);
+  return statuses;
+}
+
+/**
  * Prompt for filter options (linked-only, merged-only)
  */
 export async function promptFilterOptions(): Promise<{
   linkedOnly: boolean;
   mergedOnly: boolean;
+  excludeStatus: string[];
 }> {
   const { options } = await inquirer.prompt([
     {
@@ -111,13 +143,20 @@ export async function promptFilterOptions(): Promise<{
       choices: [
         { name: 'Only PRs linked to JIRA tickets', value: 'linkedOnly' },
         { name: 'Only merged PRs', value: 'mergedOnly' },
+        { name: 'Exclude certain ticket statuses', value: 'excludeStatus' },
       ],
     },
   ]);
 
+  let excludeStatus: string[] = [];
+  if (options.includes('excludeStatus')) {
+    excludeStatus = await promptExcludeStatus();
+  }
+
   return {
     linkedOnly: options.includes('linkedOnly'),
     mergedOnly: options.includes('mergedOnly'),
+    excludeStatus,
   };
 }
 
@@ -130,6 +169,7 @@ export async function promptFilterInteractive(): Promise<{
   minLoc: number | null;
   linkedOnly: boolean;
   mergedOnly: boolean;
+  excludeStatus: string[];
 }> {
   // First, ask what type of filtering they want
   const { filterType } = await inquirer.prompt([
@@ -143,7 +183,10 @@ export async function promptFilterInteractive(): Promise<{
           value: 'minImpact',
         },
         { name: 'Exclude specific impact levels', value: 'excludeImpact' },
-        { name: 'Custom filters (LOC, linked, merged)', value: 'custom' },
+        {
+          name: 'Custom filters (LOC, linked, merged, status)',
+          value: 'custom',
+        },
         { name: 'All of the above', value: 'all' },
       ],
     },
@@ -154,6 +197,7 @@ export async function promptFilterInteractive(): Promise<{
   let minLoc: number | null = null;
   let linkedOnly = false;
   let mergedOnly = false;
+  let excludeStatus: string[] = [];
 
   if (filterType === 'minImpact' || filterType === 'all') {
     minImpact = await promptMinImpact();
@@ -168,6 +212,7 @@ export async function promptFilterInteractive(): Promise<{
     const options = await promptFilterOptions();
     linkedOnly = options.linkedOnly;
     mergedOnly = options.mergedOnly;
+    excludeStatus = options.excludeStatus;
   }
 
   return {
@@ -176,5 +221,6 @@ export async function promptFilterInteractive(): Promise<{
     minLoc,
     linkedOnly,
     mergedOnly,
+    excludeStatus,
   };
 }
