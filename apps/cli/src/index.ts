@@ -9,6 +9,7 @@ import { fetchJiraCommand } from '@commands/fetch/jira';
 import { filterCommand } from '@commands/filter';
 import { initCommand } from '@commands/init';
 import { linkCommand } from '@commands/link';
+import { mcpCommand } from '@commands/mcp';
 import { statusCommand } from '@commands/status';
 import { findConfigPath } from '@work-chronicler/core';
 import { Command } from 'commander';
@@ -44,5 +45,6 @@ program.addCommand(filterCommand);
 program.addCommand(fetchGitHubCommand);
 program.addCommand(fetchJiraCommand);
 program.addCommand(fetchAllCommand);
+program.addCommand(mcpCommand);
 
 program.parse();

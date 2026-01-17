@@ -4,27 +4,30 @@
  * MCP Server for work-chronicler
  *
  * Exposes work history data to AI assistants via the Model Context Protocol.
+ *
+ * Usage:
+ *   work-chronicler-mcp
+ *
+ * The server communicates via stdio and should be configured in your
+ * AI assistant's MCP configuration (e.g., Claude Desktop, Cursor).
  */
 
-import { createServer } from './server';
+import { createServer, startServer } from './server';
 
-async function main() {
-  const _server = await createServer();
+export type { MCPServerContext } from './server';
+// Re-export for library usage
+export { createServer, startServer } from './server';
 
-  // TODO: Start the MCP server
-  // This will depend on the @modelcontextprotocol/sdk API
+// Run as CLI if executed directly
+const isMainModule =
+  import.meta.url === `file://${process.argv[1]}` ||
+  process.argv[1]?.endsWith('work-chronicler-mcp');
 
-  console.log('Work Chronicler MCP Server');
-  console.log('==========================');
-  console.log('');
-  console.log('MCP server implementation coming soon.');
-  console.log('');
-  console.log('Available tools will include:');
-  console.log('  - search_prs: Search PRs by date, repo, or keywords');
-  console.log('  - search_tickets: Search JIRA tickets');
-  console.log('  - get_linked_work: Get PR with associated tickets');
-  console.log('  - list_repos: List repositories with data');
-  console.log('  - get_stats: Get summary statistics');
+if (isMainModule) {
+  createServer()
+    .then(startServer)
+    .catch((error) => {
+      console.error('Failed to start MCP server:', error);
+      process.exit(1);
+    });
 }
-
-main().catch(console.error);

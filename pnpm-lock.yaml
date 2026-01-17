@@ -44,6 +44,9 @@ importers:
       '@work-chronicler/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@work-chronicler/mcp-server':
+        specifier: workspace:*
+        version: link:../mcp-server
       chalk:
         specifier: ^5.6.2
         version: 5.6.2
@@ -84,6 +87,9 @@ importers:
       '@work-chronicler/core':
         specifier: workspace:*
         version: link:../../packages/core
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: ^22.10.0

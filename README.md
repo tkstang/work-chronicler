@@ -93,6 +93,7 @@ work-log/
 | `analyze` | Classify PRs by impact and generate stats |
 | `filter` | Filter work-log to a subset based on criteria |
 | `status` | Show current state of fetched data |
+| `mcp` | Start the MCP server for AI assistant integration |
 
 ### Analyze Command
 
@@ -167,22 +168,76 @@ Create an API token at https://id.atlassian.com/manage-profile/security/api-toke
 
 ## MCP Server
 
-For AI-powered analysis, work-chronicler includes an MCP (Model Context Protocol) server that exposes your work history to AI assistants like Claude Desktop.
+work-chronicler includes an MCP (Model Context Protocol) server that exposes your work history to AI assistants like Claude Desktop and Cursor.
+
+### Setup
+
+1. First, fetch and analyze your data:
+   ```bash
+   work-chronicler fetch:all
+   work-chronicler analyze --projects --timeline
+   ```
+
+2. Configure your AI assistant:
+
+   **Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+   ```json
+   {
+     "mcpServers": {
+       "work-chronicler": {
+         "command": "npx",
+         "args": ["@work-chronicler/mcp-server"],
+         "cwd": "/path/to/your/work-log-directory"
+       }
+     }
+   }
+   ```
+
+   **Cursor** (`.cursor/mcp.json` in your project):
+   ```json
+   {
+     "mcpServers": {
+       "work-chronicler": {
+         "command": "npx",
+         "args": ["@work-chronicler/mcp-server"]
+       }
+     }
+   }
+   ```
+
+3. Restart your AI assistant to load the MCP server.
+
+### Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `search_prs` | Search PRs by date range, repo, keywords, impact level, or state |
+| `search_tickets` | Search JIRA tickets by project, status, or keywords |
+| `get_linked_work` | Get a PR with its linked JIRA tickets (or vice versa) |
+| `list_repos` | List all repositories with statistics |
+| `get_stats` | Get summary statistics (reads from stats.json or computes on-the-fly) |
+| `get_projects` | Get detected project groupings with confidence levels |
+| `get_timeline` | Get chronological timeline of work grouped by week or month |
+
+### Example Prompts
+
+Once configured, you can ask your AI assistant:
+
+- "Show me my flagship PRs from last quarter"
+- "What projects did I work on with high confidence groupings?"
+- "Find all my work related to authentication"
+- "Summarize my work from January to March"
+- "What was my busiest week?"
+
+### CLI Commands
 
 ```bash
-# After fetching your data
+# Show MCP server info
+work-chronicler mcp --info
+
+# Start MCP server (stdio transport)
 work-chronicler mcp
-
-# Or run the MCP server directly
-npx @work-chronicler/mcp-server
 ```
-
-The MCP server provides tools for:
-- `search_prs` - Search PRs by date, repo, or keywords
-- `search_tickets` - Search JIRA tickets
-- `get_linked_work` - Get PR with associated tickets
-- `list_repos` - List repositories with data
-- `get_stats` - Get summary statistics
 
 ## Monorepo Structure
 
@@ -223,7 +278,7 @@ pnpm test
 - [x] **Analysis commands**: Categorize work by size/impact (4-tier classification)
 - [x] **Project detection**: Group related PRs/tickets into initiatives
 - [x] **Timeline view**: Chronological view of work grouped by week/month
-- [ ] **MCP server**: Full implementation for AI assistant integration
+- [x] **MCP server**: Full implementation for AI assistant integration
 - [ ] **AI summarization**: Claude/Cursor commands + CLI commands for summaries
 - [ ] **Supporting documents**: Import past reviews, resumes, notes for context
 - [ ] **Google Docs integration**: Import performance review docs
