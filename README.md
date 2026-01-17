@@ -71,10 +71,12 @@ work-log/
 │           ├── PROJ-100.md
 │           └── PROJ-101.md
 ├── performance-reviews/     # Add your own review docs here
-└── .analysis/               # Generated analysis
-    ├── large-prs.json
-    ├── projects.json
-    └── timeline.json
+├── .analysis/               # Generated analysis
+│   └── stats.json           # Impact breakdown, repo stats, etc.
+└── filtered/                # Filtered subset (from filter command)
+    ├── pull-requests/
+    ├── jira/
+    └── .analysis/
 ```
 
 ## CLI Commands
@@ -86,8 +88,44 @@ work-log/
 | `fetch:jira` | Fetch tickets from JIRA |
 | `fetch:all` | Fetch both PRs and JIRA tickets |
 | `link` | Cross-reference PRs and JIRA tickets |
-| `analyze` | Generate analysis files (large PRs, project detection) |
+| `analyze` | Classify PRs by impact and generate stats |
+| `filter` | Filter work-log to a subset based on criteria |
 | `status` | Show current state of fetched data |
+
+### Analyze Command
+
+Classifies PRs into four impact tiers and generates statistics:
+
+```bash
+# Generate stats only
+work-chronicler analyze
+
+# Tag all PRs with impact levels
+work-chronicler analyze --tag-prs
+```
+
+**Impact Tiers:**
+- **flagship**: Large initiatives (500+ lines or 15+ files), migrations, platform changes
+- **major**: Significant features (200+ lines or 8+ files), `feat:` or `refactor:` commits
+- **standard**: Regular work, bug fixes, `fix:` or `test:` commits
+- **minor**: Small changes (<20 lines), docs, chores, dependency updates
+
+### Filter Command
+
+Create a filtered subset of your work-log:
+
+```bash
+# Exclude minor PRs
+work-chronicler filter --exclude-impact minor
+
+# Only major+ merged PRs
+work-chronicler filter --min-impact major --merged-only
+
+# Only PRs linked to tickets with 100+ lines changed
+work-chronicler filter --linked-only --min-loc 100
+```
+
+Filtered files are written to `work-log/filtered/` with their own stats.
 
 ## Configuration
 
@@ -156,9 +194,10 @@ pnpm test
 
 ## Roadmap
 
-- [ ] **Analysis commands**: Categorize work by size/impact
+- [x] **Analysis commands**: Categorize work by size/impact (4-tier classification)
 - [ ] **AI summarization**: Generate bullet points for reviews (via AI commands)
 - [ ] **Resume generation**: Export achievements in resume format
+- [ ] **MCP server**: Full implementation for AI assistant integration
 - [ ] **Google Docs integration**: Import performance review docs
 - [ ] **Linear support**: Alternative to JIRA
 - [ ] **Notion integration**: Import from Notion

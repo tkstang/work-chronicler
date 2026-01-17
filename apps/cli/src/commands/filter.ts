@@ -1,0 +1,226 @@
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import {
+  DIRECTORIES,
+  findConfigPath,
+  getOutputDirectory,
+  loadConfig,
+  type PRImpact,
+  readAllPRs,
+  readAllTickets,
+  writeMarkdownFile,
+} from '@work-chronicler/core';
+import chalk from 'chalk';
+import { Command } from 'commander';
+import ora from 'ora';
+import { classifyPRImpact, generateStats, IMPACT_HIERARCHY } from '../analyzer';
+
+export const filterCommand = new Command('filter')
+  .description('Filter work-log to a subset based on criteria')
+  .option('-c, --config <path>', 'Path to config file')
+  .option(
+    '--exclude-impact <levels...>',
+    'Exclude PRs with these impact levels (minor, standard, major, flagship)',
+  )
+  .option(
+    '--min-impact <level>',
+    'Minimum impact level to include (minor, standard, major, flagship)',
+  )
+  .option('--min-loc <lines>', 'Minimum lines of code changed', parseInt)
+  .option(
+    '--linked-only',
+    'Only include PRs linked to tickets and tickets linked to PRs',
+  )
+  .option('--merged-only', 'Only include merged PRs')
+  .option('-v, --verbose', 'Show detailed output')
+  .action(async (options) => {
+    try {
+      const configPath = findConfigPath(options.config);
+      const config = await loadConfig(options.config);
+      const outputDir = getOutputDirectory(config, configPath ?? undefined);
+      const filteredDir = join(outputDir, 'filtered');
+
+      console.log(chalk.cyan('Filtering work-log...\n'));
+
+      // Show active filters
+      const filters: string[] = [];
+      if (options.excludeImpact) {
+        filters.push(`Excluding impact: ${options.excludeImpact.join(', ')}`);
+      }
+      if (options.minImpact) {
+        filters.push(`Minimum impact: ${options.minImpact}`);
+      }
+      if (options.minLoc) {
+        filters.push(`Minimum LOC: ${options.minLoc}`);
+      }
+      if (options.linkedOnly) {
+        filters.push('Linked only');
+      }
+      if (options.mergedOnly) {
+        filters.push('Merged PRs only');
+      }
+
+      if (filters.length === 0) {
+        console.log(
+          chalk.yellow(
+            'No filters specified. Use --help to see available options.',
+          ),
+        );
+        return;
+      }
+
+      console.log(chalk.gray('Filters:'));
+      for (const f of filters) {
+        console.log(`  - ${f}`);
+      }
+      console.log();
+
+      // Load all data
+      const spinner = ora('Loading PRs...').start();
+      const allPRs = await readAllPRs(outputDir);
+      spinner.text = 'Loading tickets...';
+      const allTickets = await readAllTickets(outputDir);
+      spinner.succeed(
+        `Loaded ${chalk.cyan(allPRs.length)} PRs and ${chalk.cyan(allTickets.length)} tickets`,
+      );
+
+      // Filter PRs
+      spinner.start('Filtering PRs...');
+      const excludeImpacts = new Set<PRImpact>(options.excludeImpact ?? []);
+      const minImpactLevel = options.minImpact
+        ? IMPACT_HIERARCHY[options.minImpact as PRImpact]
+        : 0;
+
+      const filteredPRs = allPRs.filter((pr) => {
+        const impact =
+          pr.frontmatter.impact ??
+          classifyPRImpact(pr.frontmatter, config.analysis);
+        const totalLines = pr.frontmatter.additions + pr.frontmatter.deletions;
+
+        // Check exclude impact
+        if (excludeImpacts.has(impact)) {
+          return false;
+        }
+
+        // Check min impact
+        if (IMPACT_HIERARCHY[impact] < minImpactLevel) {
+          return false;
+        }
+
+        // Check min LOC
+        if (options.minLoc && totalLines < options.minLoc) {
+          return false;
+        }
+
+        // Check linked only
+        if (options.linkedOnly && pr.frontmatter.jiraTickets.length === 0) {
+          return false;
+        }
+
+        // Check merged only
+        if (options.mergedOnly && pr.frontmatter.state !== 'merged') {
+          return false;
+        }
+
+        return true;
+      });
+
+      // Filter tickets
+      const linkedPRUrls = new Set(filteredPRs.map((pr) => pr.frontmatter.url));
+
+      const filteredTickets = allTickets.filter((ticket) => {
+        // If linked-only, only include tickets that have PRs in our filtered set
+        if (options.linkedOnly) {
+          return ticket.frontmatter.linkedPRs.some((url) =>
+            linkedPRUrls.has(url),
+          );
+        }
+        return true;
+      });
+
+      spinner.succeed(
+        `Filtered to ${chalk.green(filteredPRs.length)} PRs and ${chalk.green(filteredTickets.length)} tickets`,
+      );
+
+      // Create filtered directory structure
+      spinner.start('Writing filtered files...');
+
+      // Create filtered directory structure
+      const analysisDir = join(filteredDir, DIRECTORIES.ANALYSIS);
+
+      // Write filtered PRs
+      for (const pr of filteredPRs) {
+        // Reconstruct path relative to filtered dir
+        const relativePath = pr.filePath.replace(outputDir, '');
+        const newPath = join(filteredDir, relativePath);
+        const dir = dirname(newPath);
+
+        if (!existsSync(dir)) {
+          mkdirSync(dir, { recursive: true });
+        }
+
+        writeMarkdownFile(
+          newPath,
+          pr.frontmatter as unknown as Record<string, unknown>,
+          pr.body,
+        );
+      }
+
+      // Write filtered tickets
+      for (const ticket of filteredTickets) {
+        const relativePath = ticket.filePath.replace(outputDir, '');
+        const newPath = join(filteredDir, relativePath);
+        const dir = dirname(newPath);
+
+        if (!existsSync(dir)) {
+          mkdirSync(dir, { recursive: true });
+        }
+
+        writeMarkdownFile(
+          newPath,
+          ticket.frontmatter as unknown as Record<string, unknown>,
+          ticket.body,
+        );
+      }
+
+      // Generate stats for filtered set
+      const since = config.fetch.since;
+      const until =
+        config.fetch.until ?? new Date().toISOString().split('T')[0];
+      const stats = generateStats(
+        filteredPRs,
+        filteredTickets,
+        since,
+        until ?? '',
+      );
+
+      if (!existsSync(analysisDir)) {
+        mkdirSync(analysisDir, { recursive: true });
+      }
+      writeFileSync(
+        join(analysisDir, 'stats.json'),
+        JSON.stringify(stats, null, 2),
+      );
+
+      spinner.succeed(`Wrote filtered files to ${chalk.cyan(filteredDir)}`);
+
+      // Summary
+      console.log();
+      console.log(chalk.cyan('Filtered Summary:'));
+      console.log(
+        `  PRs: ${chalk.cyan(filteredPRs.length)} / ${allPRs.length} (${Math.round((filteredPRs.length / allPRs.length) * 100)}%)`,
+      );
+      console.log(
+        `  Tickets: ${chalk.cyan(filteredTickets.length)} / ${allTickets.length}`,
+      );
+      console.log(
+        `  Impact: ${chalk.magenta(stats.prs.byImpact.flagship)} flagship, ${chalk.green(stats.prs.byImpact.major)} major, ${chalk.yellow(stats.prs.byImpact.standard)} standard, ${chalk.gray(stats.prs.byImpact.minor)} minor`,
+      );
+    } catch (error) {
+      console.error(
+        chalk.red('Error:'),
+        error instanceof Error ? error.message : String(error),
+      );
+      process.exit(1);
+    }
+  });

@@ -1,4 +1,6 @@
 export {
+  type PRImpact,
+  PRImpactSchema,
   type PullRequest,
   type PullRequestFile,
   PullRequestSchema,

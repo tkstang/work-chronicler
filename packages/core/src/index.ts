@@ -9,6 +9,8 @@ export {
 
 // Config
 export {
+  type AnalysisConfig,
+  AnalysisConfigSchema,
   type Config,
   ConfigSchema,
   type FetchConfig,
@@ -39,6 +41,8 @@ export {
   type JiraTicket,
   type JiraTicketFile,
   JiraTicketSchema,
+  type PRImpact,
+  PRImpactSchema,
   type PullRequest,
   type PullRequestFile,
   PullRequestSchema,

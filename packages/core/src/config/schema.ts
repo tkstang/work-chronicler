@@ -1,6 +1,29 @@
 import { z } from 'zod';
 
 /**
+ * Custom URL validator that ensures proper format (catches https:/example.com typos)
+ */
+const httpsUrl = z
+  .string()
+  .refine((url) => url.startsWith('https://'), {
+    message: 'URL must start with https://',
+  })
+  .refine(
+    (url) => {
+      try {
+        const parsed = new URL(url);
+        return parsed.host.includes('.');
+      } catch {
+        return false;
+      }
+    },
+    {
+      message:
+        'Must be a valid HTTPS URL (e.g., https://example.atlassian.net)',
+    },
+  );
+
+/**
  * GitHub organization configuration
  */
 export const GitHubOrgConfigSchema = z.object({
@@ -22,7 +45,7 @@ export const GitHubConfigSchema = z.object({
  */
 export const JiraInstanceConfigSchema = z.object({
   name: z.string(),
-  url: z.string().url(),
+  url: httpsUrl,
   email: z.string().email().optional(),
   token: z.string().optional(),
   projects: z.array(z.string()).default([]),
@@ -51,6 +74,29 @@ export const FetchConfigSchema = z.object({
 });
 
 /**
+ * Impact threshold configuration for a single tier
+ */
+const ImpactThresholdSchema = z.object({
+  minLines: z.number().optional(),
+  maxLines: z.number().optional(),
+  minFiles: z.number().optional(),
+  maxFiles: z.number().optional(),
+});
+
+/**
+ * Analysis configuration with impact thresholds
+ */
+export const AnalysisConfigSchema = z.object({
+  thresholds: z
+    .object({
+      minor: ImpactThresholdSchema.default({ maxLines: 20, maxFiles: 3 }),
+      major: ImpactThresholdSchema.default({ minLines: 200, minFiles: 8 }),
+      flagship: ImpactThresholdSchema.default({ minLines: 500, minFiles: 15 }),
+    })
+    .default({}),
+});
+
+/**
  * Root configuration schema
  */
 export const ConfigSchema = z.object({
@@ -58,6 +104,7 @@ export const ConfigSchema = z.object({
   jira: JiraConfigSchema.optional(),
   output: OutputConfigSchema.default({ directory: './work-log' }),
   fetch: FetchConfigSchema,
+  analysis: AnalysisConfigSchema.default({}),
 });
 
 export type GitHubOrgConfig = z.infer<typeof GitHubOrgConfigSchema>;
@@ -66,4 +113,5 @@ export type JiraInstanceConfig = z.infer<typeof JiraInstanceConfigSchema>;
 export type JiraConfig = z.infer<typeof JiraConfigSchema>;
 export type OutputConfig = z.infer<typeof OutputConfigSchema>;
 export type FetchConfig = z.infer<typeof FetchConfigSchema>;
+export type AnalysisConfig = z.infer<typeof AnalysisConfigSchema>;
 export type Config = z.infer<typeof ConfigSchema>;
