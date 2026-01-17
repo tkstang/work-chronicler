@@ -9,7 +9,8 @@
     "paths": {
       "@commands/*": ["src/commands/*"],
       "@fetchers/*": ["src/fetchers/*"],
-      "@linker/*": ["src/linker/*"]
+      "@linker/*": ["src/linker/*"],
+      "@prompts": ["src/prompts/index.ts"]
     }
   },
   "include": ["src/**/*"],

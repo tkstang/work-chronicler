@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { promptFilterInteractive } from '@prompts';
 import {
   DIRECTORIES,
   findConfigPath,
@@ -60,13 +61,44 @@ export const filterCommand = new Command('filter')
         filters.push('Merged PRs only');
       }
 
+      // If no filters specified, prompt interactively
       if (filters.length === 0) {
         console.log(
-          chalk.yellow(
-            'No filters specified. Use --help to see available options.',
-          ),
+          chalk.cyan('No filters specified. Starting interactive mode...\n'),
         );
-        return;
+        const prompted = await promptFilterInteractive();
+
+        // Apply prompted values to options
+        if (prompted.excludeImpact.length > 0) {
+          options.excludeImpact = prompted.excludeImpact;
+          filters.push(
+            `Excluding impact: ${prompted.excludeImpact.join(', ')}`,
+          );
+        }
+        if (prompted.minImpact) {
+          options.minImpact = prompted.minImpact;
+          filters.push(`Minimum impact: ${prompted.minImpact}`);
+        }
+        if (prompted.minLoc) {
+          options.minLoc = prompted.minLoc;
+          filters.push(`Minimum LOC: ${prompted.minLoc}`);
+        }
+        if (prompted.linkedOnly) {
+          options.linkedOnly = true;
+          filters.push('Linked only');
+        }
+        if (prompted.mergedOnly) {
+          options.mergedOnly = true;
+          filters.push('Merged PRs only');
+        }
+
+        // Check if user selected any filters
+        if (filters.length === 0) {
+          console.log(chalk.yellow('No filters selected. Exiting.'));
+          return;
+        }
+
+        console.log();
       }
 
       console.log(chalk.gray('Filters:'));
