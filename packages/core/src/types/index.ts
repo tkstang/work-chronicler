@@ -22,3 +22,15 @@ export {
   type JiraTicketFile,
   JiraTicketSchema,
 } from './ticket';
+export {
+  type TimelineAnalysis,
+  TimelineAnalysisSchema,
+  type TimelineMonth,
+  TimelineMonthSchema,
+  type TimelinePR,
+  TimelinePRSchema,
+  type TimelineTicket,
+  TimelineTicketSchema,
+  type TimelineWeek,
+  TimelineWeekSchema,
+} from './timeline';

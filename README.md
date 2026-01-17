@@ -73,7 +73,8 @@ work-log/
 ├── performance-reviews/     # Add your own review docs here
 ├── .analysis/               # Generated analysis
 │   ├── stats.json           # Impact breakdown, repo stats, etc.
-│   └── projects.json        # Detected project groupings
+│   ├── projects.json        # Detected project groupings
+│   └── timeline.json        # Chronological view by week/month
 └── filtered/                # Filtered subset (from filter command)
     ├── pull-requests/
     ├── jira/
@@ -106,6 +107,9 @@ work-chronicler analyze --tag-prs
 
 # Detect project groupings
 work-chronicler analyze --projects
+
+# Generate chronological timeline
+work-chronicler analyze --timeline
 ```
 
 **Impact Tiers:**
@@ -121,6 +125,16 @@ The `--projects` flag groups related PRs and tickets into projects using:
 - **Time-based** (low confidence): PRs in same repo within a 14-day window
 
 Output is written to `.analysis/projects.json`.
+
+**Timeline View:**
+
+The `--timeline` flag generates a chronological view of your work:
+- Groups PRs and tickets by ISO week and month
+- Shows weekly/monthly stats (PR count, ticket count, additions/deletions)
+- Identifies busiest week and month
+- Tracks impact distribution over time
+
+Output is written to `.analysis/timeline.json`.
 
 ### Filter Command
 
@@ -208,7 +222,7 @@ pnpm test
 
 - [x] **Analysis commands**: Categorize work by size/impact (4-tier classification)
 - [x] **Project detection**: Group related PRs/tickets into initiatives
-- [ ] **Timeline view**: Chronological view of work grouped by week/month
+- [x] **Timeline view**: Chronological view of work grouped by week/month
 - [ ] **AI summarization**: Generate bullet points for reviews (via AI commands)
 - [ ] **Resume generation**: Export achievements in resume format
 - [ ] **MCP server**: Full implementation for AI assistant integration

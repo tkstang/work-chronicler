@@ -9,3 +9,4 @@ export {
   type ProjectDetectorConfig,
 } from './projects';
 export { type AnalysisStats, generateStats } from './stats';
+export { generateTimeline } from './timeline';

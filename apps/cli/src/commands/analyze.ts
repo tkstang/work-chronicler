@@ -12,13 +12,19 @@ import {
 import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
-import { classifyPRImpact, detectProjects, generateStats } from '../analyzer';
+import {
+  classifyPRImpact,
+  detectProjects,
+  generateStats,
+  generateTimeline,
+} from '../analyzer';
 
 export const analyzeCommand = new Command('analyze')
   .description('Analyze work history and generate stats')
   .option('-c, --config <path>', 'Path to config file')
   .option('--tag-prs', 'Update PR files with impact tags')
   .option('--projects', 'Detect and group related PRs/tickets into projects')
+  .option('--timeline', 'Generate chronological timeline grouped by week/month')
   .option('-v, --verbose', 'Show detailed output')
   .action(async (options) => {
     try {
@@ -182,6 +188,63 @@ export const analyzeCommand = new Command('analyze')
                   : chalk.gray;
             console.log(
               `  ${confidenceColor('●')} ${project.name} (${chalk.cyan(project.stats.prCount)} PRs, ${chalk.cyan(project.stats.ticketCount)} tickets)`,
+            );
+          }
+        }
+      }
+
+      // Generate timeline if requested
+      if (options.timeline) {
+        console.log();
+        spinner.start('Generating timeline...');
+        const timeline = generateTimeline(prs, tickets, since, until ?? '');
+        spinner.succeed(
+          `Generated timeline: ${chalk.cyan(timeline.summary.totalMonths)} months, ${chalk.cyan(timeline.summary.totalWeeks)} weeks`,
+        );
+
+        // Write timeline file
+        const timelinePath = getAnalysisFilePath(outputDir, 'timeline');
+        writeFileSync(timelinePath, JSON.stringify(timeline, null, 2));
+        console.log(`${chalk.green('✓')} Wrote ${chalk.cyan(timelinePath)}`);
+
+        // Print timeline summary
+        console.log();
+        console.log(chalk.bold('Timeline Summary:'));
+        if (timeline.summary.busiestWeek) {
+          console.log(
+            `  Busiest week: ${chalk.cyan(timeline.summary.busiestWeek.weekStart)} (${timeline.summary.busiestWeek.prCount} PRs)`,
+          );
+        }
+        if (timeline.summary.busiestMonth) {
+          console.log(
+            `  Busiest month: ${chalk.cyan(timeline.summary.busiestMonth.month)} (${timeline.summary.busiestMonth.prCount} PRs)`,
+          );
+        }
+
+        // Show recent months
+        if (timeline.months.length > 0) {
+          console.log();
+          console.log(chalk.bold('Recent Activity:'));
+          const recentMonths = timeline.months.slice(-3).reverse();
+          for (const month of recentMonths) {
+            const impactStr = [
+              month.stats.byImpact.flagship > 0
+                ? chalk.magenta(`${month.stats.byImpact.flagship}F`)
+                : null,
+              month.stats.byImpact.major > 0
+                ? chalk.green(`${month.stats.byImpact.major}M`)
+                : null,
+              month.stats.byImpact.standard > 0
+                ? chalk.yellow(`${month.stats.byImpact.standard}S`)
+                : null,
+              month.stats.byImpact.minor > 0
+                ? chalk.gray(`${month.stats.byImpact.minor}m`)
+                : null,
+            ]
+              .filter(Boolean)
+              .join(' ');
+            console.log(
+              `  ${month.monthName}: ${chalk.cyan(month.stats.prCount)} PRs, ${chalk.cyan(month.stats.ticketCount)} tickets ${impactStr ? `[${impactStr}]` : ''}`,
             );
           }
         }
