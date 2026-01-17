@@ -15,43 +15,51 @@ But you didn't take notes, and now you're scrolling through months of PRs trying
 
 `work-chronicler` fetches your PR descriptions and JIRA tickets, stores them locally as searchable markdown files, and provides AI-ready tooling to analyze and summarize your work.
 
-## Quick Start (Local Development)
+## Quick Start
+
+**If developing locally in this repo**, use `pnpm cli` instead of `work-chronicler`:
 
 ```bash
 # Install dependencies
 pnpm install
 
-# Run the CLI
+# Run from the repo root - creates config files in current directory
 pnpm cli init
 pnpm cli status
 pnpm cli fetch:all
 ```
 
-## Installation (Published Package)
+**If installed globally** (after npm publish), you can run from any directory:
 
 ```bash
 npm install -g @work-chronicler/cli
-# or
-npx @work-chronicler/cli
+
+# Create a directory for your work history and run from there
+mkdir ~/work-history && cd ~/work-history
+work-chronicler init
+work-chronicler fetch:all
 ```
 
 ## Usage
 
+The CLI creates config files in the current directory. For local development, run all commands from the repo root using `pnpm cli`.
+
 ```bash
 # 1. Create config files (.env and work-chronicler.yaml)
-work-chronicler init
+pnpm cli init        # local dev
+# or: work-chronicler init  # if installed globally
 
 # 2. Add your API tokens to .env
 # 3. Edit work-chronicler.yaml with your GitHub username and orgs
 
 # 4. Fetch everything
-work-chronicler fetch:all
+pnpm cli fetch:all
 
 # 5. Link PRs to JIRA tickets
-work-chronicler link
+pnpm cli link
 
 # 6. Check status
-work-chronicler status
+pnpm cli status
 ```
 
 ## Directory Structure
