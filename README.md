@@ -1,6 +1,6 @@
 # work-chronicler
 
-Gather, analyze, and summarize your work history from GitHub PRs and JIRA tickets for performance reviews and resumes.
+Gather, analyze, and summarize your work history from GitHub PRs, JIRA tickets and other documents for performance reviews, resumes or self-evaluation.
 
 ## The Problem
 
