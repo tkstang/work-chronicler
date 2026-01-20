@@ -33,7 +33,7 @@ After the package is published to npm:
 
 ```bash
 # Install globally
-npm install -g @work-chronicler/cli
+npm install -g work-chronicler
 
 # Create a dedicated directory for your work history
 mkdir ~/work-history
@@ -237,17 +237,52 @@ work-chronicler includes an MCP (Model Context Protocol) server that exposes you
 
 2. Configure your AI assistant.
 
-   The MCP server needs to find your `work-chronicler.yaml` config. Use the `WORK_CHRONICLER_DIR` environment variable to point to your project directory.
+   The MCP server needs to find your `work-chronicler.yaml` config. Use the `WORK_CHRONICLER_DIR` environment variable to point to your work history directory.
 
-   **Local Development** (running from source):
+   **Published Package** (installed via npm):
+
+   Use `npx work-chronicler mcp` which runs through the CLI. This is the recommended approach for installed packages.
 
    **Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
    ```json
    {
      "mcpServers": {
        "work-chronicler": {
+         "command": "npx",
+         "args": ["work-chronicler", "mcp"],
+         "env": {
+           "WORK_CHRONICLER_DIR": "/Users/you/work-history"
+         }
+       }
+     }
+   }
+   ```
+
+   **Cursor** (`.cursor/mcp.json` in your project):
+   ```json
+   {
+     "mcpServers": {
+       "work-chronicler": {
+         "command": "npx",
+         "args": ["work-chronicler", "mcp"],
+         "env": {
+           "WORK_CHRONICLER_DIR": "/Users/you/work-history"
+         }
+       }
+     }
+   }
+   ```
+
+   **Local Development** (running from source):
+
+   For local development, use `node bin/mcp.js` which starts the MCP server directly without CLI overhead. This is faster for development iteration.
+
+   ```json
+   {
+     "mcpServers": {
+       "work-chronicler": {
          "command": "node",
-         "args": ["/path/to/work-chronicler/apps/mcp-server/dist/index.js"],
+         "args": ["/path/to/work-chronicler/bin/mcp.js"],
          "env": {
            "WORK_CHRONICLER_DIR": "/path/to/work-chronicler"
          }
@@ -258,31 +293,15 @@ work-chronicler includes an MCP (Model Context Protocol) server that exposes you
 
    > **Note:** Replace `/path/to/work-chronicler` with your actual project path. Run `pnpm build` first to generate the dist files.
 
-   **Cursor** (`.cursor/mcp.json` in your project):
+   Alternatively, you can use the CLI approach for local development too:
    ```json
    {
      "mcpServers": {
        "work-chronicler": {
          "command": "node",
-         "args": ["/path/to/work-chronicler/apps/mcp-server/dist/index.js"],
+         "args": ["/path/to/work-chronicler/bin/work-chronicler.js", "mcp"],
          "env": {
            "WORK_CHRONICLER_DIR": "/path/to/work-chronicler"
-         }
-       }
-     }
-   }
-   ```
-
-   **Published Package** (when available on npm):
-
-   ```json
-   {
-     "mcpServers": {
-       "work-chronicler": {
-         "command": "npx",
-         "args": ["@work-chronicler/mcp-server"],
-         "env": {
-           "WORK_CHRONICLER_DIR": "/Users/you/work-history"
          }
        }
      }
@@ -327,17 +346,23 @@ work-chronicler mcp --info
 work-chronicler mcp
 ```
 
-## Monorepo Structure
-
-This project is organized as a Turborepo monorepo:
+## Project Structure
 
 ```
 work-chronicler/
-├── apps/
-│   ├── cli/                    # CLI application (@work-chronicler/cli)
-│   └── mcp-server/             # MCP server (@work-chronicler/mcp-server)
-├── packages/
-│   └── core/                   # Shared types, config, storage (@work-chronicler/core)
+├── src/
+│   ├── cli/                    # CLI application (Commander)
+│   │   ├── commands/           # CLI commands
+│   │   ├── fetchers/           # GitHub and JIRA fetchers
+│   │   ├── linker/             # Cross-reference linking
+│   │   ├── analyzer/           # Impact analysis
+│   │   └── prompts/            # Interactive prompts
+│   ├── mcp/                    # MCP server for AI assistants
+│   └── core/                   # Shared types, config, storage
+│       ├── config/             # Config loading and schema
+│       ├── storage/            # Markdown file reader/writer
+│       └── types/              # Zod schemas and types
+├── bin/                        # CLI entry point
 └── tools/
     └── git-hooks/              # Git hook management
 ```
@@ -359,6 +384,34 @@ pnpm lint
 
 # Run tests
 pnpm test
+```
+
+## Publishing
+
+The package is published to npm as `work-chronicler`.
+
+### Release Process
+
+1. Update the version in `package.json`
+2. Commit and push to main
+3. Create and push a version tag:
+   ```bash
+   git tag v0.1.0
+   git push origin v0.1.0
+   ```
+4. The GitHub Action will automatically publish to npm
+
+### Manual Publishing
+
+```bash
+# Build the package
+pnpm build
+
+# Dry run to verify what will be published
+pnpm publish --dry-run --no-git-checks
+
+# Publish (requires NPM_TOKEN or npm login)
+pnpm publish --access public --no-git-checks
 ```
 
 ## Roadmap

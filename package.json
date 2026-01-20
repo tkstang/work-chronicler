@@ -3,38 +3,79 @@
   "version": "0.1.0",
   "description": "Gather, analyze, and summarize your work history from GitHub PRs and JIRA tickets for performance reviews and resumes",
   "type": "module",
-  "private": true,
+  "main": "dist/cli/index.js",
+  "types": "dist/cli/index.d.ts",
+  "bin": {
+    "work-chronicler": "./bin/work-chronicler.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/cli/index.d.ts",
+      "default": "./dist/cli/index.js"
+    }
+  },
   "scripts": {
-    "build": "turbo run build",
-    "clean": "turbo run clean",
-    "cli": "tsx --tsconfig apps/cli/tsconfig.json apps/cli/src/index.ts",
-    "dev": "turbo run dev",
-    "format": "turbo run format",
-    "format:fix": "turbo run format:fix",
+    "build": "tsc && tsc-alias",
+    "clean": "rm -rf dist",
+    "cli": "tsx src/cli/index.ts",
+    "mcp": "tsx src/cli/index.ts mcp",
+    "dev": "tsc --watch",
+    "format": "biome format src/",
+    "format:fix": "biome format --write src/",
     "hooks:disable-all": "node tools/git-hooks/manage-hooks.js disable-all",
     "hooks:enable-all": "node tools/git-hooks/manage-hooks.js enable-all",
     "hooks:status": "node tools/git-hooks/manage-hooks.js status",
     "hooks": "node tools/git-hooks/manage-hooks.js",
-    "lint": "turbo run lint",
-    "lint:fix": "turbo run lint:fix",
+    "lint": "biome lint src/",
+    "lint:fix": "biome lint --write src/",
     "prepare": "test \"$GIT_HOOKS\" = \"0\" && exit 0; node tools/git-hooks/manage-hooks.js setup 2>/dev/null || true",
-    "test": "turbo run test",
-    "type-check": "turbo run type-check"
+    "test": "echo \"No tests configured\"",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@octokit/rest": "^21.0.0",
+    "chalk": "^5.6.2",
+    "commander": "^12.1.0",
+    "dotenv": "^17.2.3",
+    "gray-matter": "^4.0.3",
+    "inquirer": "^13.2.0",
+    "ora": "^9.0.0",
+    "yaml": "^2.4.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@biomejs/biome": "2.3.11",
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
+    "@types/inquirer": "^9.0.9",
     "@types/node": "^22.10.0",
     "lint-staged": "^15.2.11",
     "tsc-alias": "^1.8.10",
     "tsx": "^4.21.0",
-    "turbo": "^2.5.0",
     "typescript": "^5.8.3"
   },
+  "files": [
+    "dist",
+    "bin"
+  ],
   "packageManager": "pnpm@10.13.1",
   "engines": {
-    "node": ">=22.17.0",
-    "pnpm": ">=10.13.1"
-  }
+    "node": ">=22.17.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tkstang/work-chronicler.git"
+  },
+  "keywords": [
+    "cli",
+    "github",
+    "jira",
+    "performance-review",
+    "resume",
+    "mcp",
+    "ai"
+  ],
+  "author": "Thomas Stang",
+  "license": "MIT"
 }
