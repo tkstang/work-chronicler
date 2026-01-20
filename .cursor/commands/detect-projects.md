@@ -8,6 +8,10 @@ Analyze work history to identify major projects and group related work.
 
 ```
 work-log/
+├── filtered/               # ⭐ USE THIS IF IT EXISTS (pre-filtered subset)
+│   ├── .analysis/
+│   ├── pull-requests/
+│   └── jira/
 ├── .analysis/
 │   ├── projects.json   # Pre-computed project groupings (use this first!)
 │   ├── stats.json      # Impact breakdown, repo stats
@@ -17,6 +21,8 @@ work-log/
 └── jira/
     └── <org>/<project>/*.md
 ```
+
+**Important**: If `work-log/filtered/` exists, use it instead of the main work-log directories. This contains a pre-filtered subset of significant work (e.g., filtered by organization, impact level, or linked tickets).
 
 ## Instructions
 

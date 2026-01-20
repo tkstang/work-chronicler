@@ -8,6 +8,10 @@ Work data is stored in the `work-log/` directory (or location specified in `work
 
 ```
 work-log/
+├── filtered/               # ⭐ USE THIS IF IT EXISTS (pre-filtered subset)
+│   ├── .analysis/
+│   ├── pull-requests/
+│   └── jira/
 ├── .analysis/
 │   ├── stats.json      # Impact breakdown, repo stats, PR/ticket counts
 │   ├── projects.json   # Detected project groupings
@@ -17,6 +21,8 @@ work-log/
 └── jira/
     └── <org>/<project>/*.md
 ```
+
+**Important**: If `work-log/filtered/` exists, use it instead of the main work-log directories. This contains a pre-filtered subset of significant work (e.g., filtered by organization, impact level, or linked tickets). The filtered data is more relevant for summarization.
 
 ## Instructions
 
