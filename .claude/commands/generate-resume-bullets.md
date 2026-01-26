@@ -49,6 +49,13 @@ work-log/
    - **Major** (200+ lines or 8+ files): Significant features
    - Skip minor/standard unless specifically relevant
 
+## Output Location
+
+Save generated documents to the `generated/` directory at the project root:
+- `generated/resume-bullets-YYYY-MM-DD.md` - Generated bullet points
+
+Create the directory if it doesn't exist.
+
 ## Bullet Point Format
 
 - Start with strong action verb

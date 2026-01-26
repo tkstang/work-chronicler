@@ -63,6 +63,13 @@ work-log/
    - **Collaboration**: Cross-team work, mentorship, knowledge sharing
    - **Goals**: How work aligned with or exceeded goals
 
+## Output Location
+
+Save generated documents to the `generated/` directory at the project root:
+- `generated/self-review-YYYY-MM-DD.md` - Generated self-review
+
+Create the directory if it doesn't exist.
+
 ## Output Format
 
 Structure depends on company format (from past reviews). If no past reviews, use this structure:
