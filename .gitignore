@@ -36,6 +36,9 @@ yarn-error.log*
 work-log/
 work-chronicler.yaml
 
+# generated documents (resumes, reviews, etc.)
+generated/
+
 # Claude Code MCP configuration (contains API keys)
 .mcp.json
 
@@ -47,9 +50,6 @@ work-chronicler.yaml
 !.agents/projects/pr-descriptions/keep.md
 
 # Ignore claude instructions
-CLAUDE.md
-.claude/*
-!.claude/commands/
-!.claude/skills/
+.claude/settings.local.json
 
 .conductor
