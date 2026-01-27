@@ -1,50 +1,32 @@
 import type { PRImpact } from '@core/index';
-import inquirer from 'inquirer';
+import { checkbox, confirm, input, select } from '@inquirer/prompts';
 
 /**
  * Prompt for confirmation
  */
 export async function confirmAction(message: string): Promise<boolean> {
-  const { confirmed } = await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'confirmed',
-      message,
-      default: false,
-    },
-  ]);
-  return confirmed;
+  return await confirm({ message, default: false });
 }
 
 /**
  * Prompt whether to use cache when fetching data
  */
 export async function promptUseCache(): Promise<boolean> {
-  const { useCache } = await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'useCache',
-      message:
-        'Existing data found. Use cache mode? (Skip items already fetched)',
-      default: true,
-    },
-  ]);
-  return useCache;
+  return await confirm({
+    message:
+      'Existing data found. Use cache mode? (Skip items already fetched)',
+    default: true,
+  });
 }
 
 /**
  * Prompt whether to analyze filtered or full data
  */
 export async function promptUseFiltered(): Promise<boolean> {
-  const { useFiltered } = await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'useFiltered',
-      message: 'Filtered data found. Analyze filtered data instead of full?',
-      default: true,
-    },
-  ]);
-  return useFiltered;
+  return await confirm({
+    message: 'Filtered data found. Analyze filtered data instead of full?',
+    default: true,
+  });
 }
 
 /**
@@ -64,67 +46,51 @@ const IMPACT_CHOICES: Array<{ name: string; value: PRImpact }> = [
  * Prompt for impact levels to exclude (multi-select)
  */
 export async function promptExcludeImpact(): Promise<PRImpact[]> {
-  const { impacts } = await inquirer.prompt([
-    {
-      type: 'checkbox',
-      name: 'impacts',
-      message: 'Select impact levels to exclude:',
-      choices: IMPACT_CHOICES,
-    },
-  ]);
-  return impacts;
+  return await checkbox({
+    message: 'Select impact levels to exclude:',
+    choices: IMPACT_CHOICES,
+  });
 }
 
 /**
  * Prompt for minimum impact level (single-select)
  */
 export async function promptMinImpact(): Promise<PRImpact | null> {
-  const { impact } = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'impact',
-      message: 'Select minimum impact level:',
-      choices: [
-        { name: 'No minimum (include all)', value: null },
-        ...IMPACT_CHOICES,
-      ],
-    },
-  ]);
-  return impact;
+  return await select({
+    message: 'Select minimum impact level:',
+    choices: [
+      { name: 'No minimum (include all)', value: null },
+      ...IMPACT_CHOICES,
+    ],
+  });
 }
 
 /**
  * Prompt for minimum lines of code
  */
 export async function promptMinLoc(): Promise<number | null> {
-  const { useLoc } = await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'useLoc',
-      message: 'Filter by minimum lines of code?',
-      default: false,
-    },
-  ]);
+  const useLoc = await confirm({
+    message: 'Filter by minimum lines of code?',
+    default: false,
+  });
 
   if (!useLoc) {
     return null;
   }
 
-  const { loc } = await inquirer.prompt([
-    {
-      type: 'number',
-      name: 'loc',
-      message: 'Minimum lines of code (additions + deletions):',
-      default: 100,
-      validate: (input) => {
-        if (typeof input !== 'number' || input < 0) {
-          return 'Please enter a positive number';
-        }
-        return true;
-      },
+  const loc = await input({
+    message: 'Minimum lines of code (additions + deletions):',
+    default: '100',
+    validate: (value: string) => {
+      const num = Number.parseInt(value, 10);
+      if (Number.isNaN(num) || num < 0) {
+        return 'Please enter a positive number';
+      }
+      return true;
     },
-  ]);
-  return loc;
+  });
+
+  return Number.parseInt(loc, 10);
 }
 
 /**
@@ -147,15 +113,10 @@ const TICKET_STATUS_CHOICES = [
  * Prompt for ticket statuses to exclude (multi-select)
  */
 export async function promptExcludeStatus(): Promise<string[]> {
-  const { statuses } = await inquirer.prompt([
-    {
-      type: 'checkbox',
-      name: 'statuses',
-      message: 'Select ticket statuses to exclude:',
-      choices: TICKET_STATUS_CHOICES,
-    },
-  ]);
-  return statuses;
+  return await checkbox({
+    message: 'Select ticket statuses to exclude:',
+    choices: TICKET_STATUS_CHOICES,
+  });
 }
 
 /**
@@ -166,18 +127,14 @@ export async function promptFilterOptions(): Promise<{
   mergedOnly: boolean;
   excludeStatus: string[];
 }> {
-  const { options } = await inquirer.prompt([
-    {
-      type: 'checkbox',
-      name: 'options',
-      message: 'Additional filters:',
-      choices: [
-        { name: 'Only PRs linked to JIRA tickets', value: 'linkedOnly' },
-        { name: 'Only merged PRs', value: 'mergedOnly' },
-        { name: 'Exclude certain ticket statuses', value: 'excludeStatus' },
-      ],
-    },
-  ]);
+  const options = await checkbox({
+    message: 'Additional filters:',
+    choices: [
+      { name: 'Only PRs linked to JIRA tickets', value: 'linkedOnly' },
+      { name: 'Only merged PRs', value: 'mergedOnly' },
+      { name: 'Exclude certain ticket statuses', value: 'excludeStatus' },
+    ],
+  });
 
   let excludeStatus: string[] = [];
   if (options.includes('excludeStatus')) {
@@ -204,30 +161,26 @@ export interface AnalyzeOptions {
  * Prompt for analyze options (what to generate)
  */
 export async function promptAnalyzeOptions(): Promise<AnalyzeOptions> {
-  const { options } = await inquirer.prompt([
-    {
-      type: 'checkbox',
-      name: 'options',
-      message: 'What would you like to generate?',
-      choices: [
-        {
-          name: 'Tag PRs with impact levels (updates PR files)',
-          value: 'tagPrs',
-          checked: true,
-        },
-        {
-          name: 'Detect project groupings',
-          value: 'projects',
-          checked: true,
-        },
-        {
-          name: 'Generate timeline (weekly/monthly breakdown)',
-          value: 'timeline',
-          checked: true,
-        },
-      ],
-    },
-  ]);
+  const options = await checkbox({
+    message: 'What would you like to generate?',
+    choices: [
+      {
+        name: 'Tag PRs with impact levels (updates PR files)',
+        value: 'tagPrs',
+        checked: true,
+      },
+      {
+        name: 'Detect project groupings',
+        value: 'projects',
+        checked: true,
+      },
+      {
+        name: 'Generate timeline (weekly/monthly breakdown)',
+        value: 'timeline',
+        checked: true,
+      },
+    ],
+  });
 
   return {
     tagPrs: options.includes('tagPrs'),
@@ -248,25 +201,21 @@ export async function promptFilterInteractive(): Promise<{
   excludeStatus: string[];
 }> {
   // First, ask what type of filtering they want
-  const { filterType } = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'filterType',
-      message: 'How would you like to filter your work log?',
-      choices: [
-        {
-          name: 'By minimum impact level (e.g., major and above)',
-          value: 'minImpact',
-        },
-        { name: 'Exclude specific impact levels', value: 'excludeImpact' },
-        {
-          name: 'Custom filters (LOC, linked, merged, status)',
-          value: 'custom',
-        },
-        { name: 'All of the above', value: 'all' },
-      ],
-    },
-  ]);
+  const filterType = await select({
+    message: 'How would you like to filter your work log?',
+    choices: [
+      {
+        name: 'By minimum impact level (e.g., major and above)',
+        value: 'minImpact',
+      },
+      { name: 'Exclude specific impact levels', value: 'excludeImpact' },
+      {
+        name: 'Custom filters (LOC, linked, merged, status)',
+        value: 'custom',
+      },
+      { name: 'All of the above', value: 'all' },
+    ],
+  });
 
   let excludeImpact: PRImpact[] = [];
   let minImpact: PRImpact | null = null;
