@@ -100,6 +100,7 @@ work-log/
 │       └── <project-key>/
 │           ├── PROJ-100.md
 │           └── PROJ-101.md
+├── notes/                   # Additional context for AI analysis
 ├── performance-reviews/     # Add your own review docs here
 ├── .analysis/               # Generated analysis
 │   ├── stats.json           # Impact breakdown, repo stats, etc.
