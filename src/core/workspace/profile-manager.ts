@@ -73,9 +73,11 @@ export function createProfile(profileName: string, config: Config): void {
 /**
  * Delete a profile and all its data.
  *
- * @throws Error if profile doesn't exist or is the active profile
+ * @throws Error if profile name is invalid, doesn't exist, or is the active profile
  */
 export function deleteProfile(profileName: string): void {
+  validateProfileName(profileName);
+
   if (!profileExists(profileName)) {
     throw new Error(`Profile '${profileName}' does not exist`);
   }

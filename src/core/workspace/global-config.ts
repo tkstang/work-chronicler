@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { validateProfileName } from './profile-manager';
 import {
   ensureWorkspaceRoot,
   getGlobalConfigPath,
@@ -64,9 +65,11 @@ export function getActiveProfile(): string {
 /**
  * Set the active profile in global config.
  *
- * @throws Error if profile doesn't exist
+ * @throws Error if profile name is invalid or doesn't exist
  */
 export function setActiveProfile(profileName: string): void {
+  validateProfileName(profileName);
+
   if (!profileExists(profileName)) {
     throw new Error(`Profile '${profileName}' does not exist`);
   }
