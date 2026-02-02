@@ -5,8 +5,8 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { type Config, ConfigSchema } from '@core/config/schema';
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import {
   getActiveProfile,
   loadGlobalConfig,
@@ -20,19 +20,10 @@ import {
   getProfilesDir,
   profileExists,
 } from './resolver';
-import { ProfileNameSchema } from './types';
+import { validateProfileName } from './types';
 
-/**
- * Validate a profile name
- *
- * @throws Error if profile name is invalid
- */
-export function validateProfileName(name: string): void {
-  const result = ProfileNameSchema.safeParse(name);
-  if (!result.success) {
-    throw new Error(result.error.errors[0]?.message ?? 'Invalid profile name');
-  }
-}
+// Re-export validateProfileName for backwards compatibility
+export { validateProfileName } from './types';
 
 /**
  * List all available profiles
@@ -96,9 +87,10 @@ export function deleteProfile(profileName: string): void {
 /**
  * Load a profile's config.
  *
- * @throws Error if profile doesn't exist or config is invalid
+ * @throws Error if profile name is invalid, doesn't exist, or config is invalid
  */
 export function loadProfileConfig(profileName: string): Config {
+  validateProfileName(profileName);
   const configPath = getProfileConfigPath(profileName);
 
   if (!existsSync(configPath)) {
@@ -121,8 +113,11 @@ export function loadProfileConfig(profileName: string): Config {
 
 /**
  * Save a profile's config.
+ *
+ * @throws Error if profile name is invalid
  */
 export function saveProfileConfig(profileName: string, config: Config): void {
+  validateProfileName(profileName);
   ensureProfileDirs(profileName);
   const configPath = getProfileConfigPath(profileName);
   const content = stringifyYaml(config, {
@@ -147,11 +142,14 @@ function escapeEnvValue(value: string): string {
 /**
  * Save environment variables to a profile's .env file.
  * File is written with 0600 permissions (owner read/write only) for security.
+ *
+ * @throws Error if profile name is invalid
  */
 export function saveProfileEnv(
   profileName: string,
   env: { githubToken?: string; jiraToken?: string; jiraEmail?: string },
 ): void {
+  validateProfileName(profileName);
   ensureProfileDirs(profileName);
   const envPath = getProfileEnvPath(profileName);
 
@@ -181,8 +179,11 @@ export function saveProfileEnv(
 
 /**
  * Set a profile as the first/default profile (for new workspaces)
+ *
+ * @throws Error if profile name is invalid
  */
 export function initializeWorkspaceWithProfile(profileName: string): void {
+  validateProfileName(profileName);
   const config = loadGlobalConfig();
   config.activeProfile = profileName;
   saveGlobalConfig(config);

@@ -27,3 +27,15 @@ export const ProfileNameSchema = z
   );
 
 export type ProfileName = z.infer<typeof ProfileNameSchema>;
+
+/**
+ * Validate a profile name
+ *
+ * @throws Error if profile name is invalid
+ */
+export function validateProfileName(name: string): void {
+  const result = ProfileNameSchema.safeParse(name);
+  if (!result.success) {
+    throw new Error(result.error.errors[0]?.message ?? 'Invalid profile name');
+  }
+}
