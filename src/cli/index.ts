@@ -12,6 +12,7 @@ import { linkCommand } from '@commands/link';
 import { mcpCommand } from '@commands/mcp';
 import { statusCommand } from '@commands/status';
 import { profileCommand } from '@commands/subcommands/profile/index';
+import { workspaceCommand } from '@commands/workspace/index';
 import { findConfigPath, ProfileNameSchema } from '@core/index';
 import { Command } from 'commander';
 import { config as loadDotenv } from 'dotenv';
@@ -86,5 +87,6 @@ program.addCommand(fetchJiraCommand);
 program.addCommand(fetchAllCommand);
 program.addCommand(mcpCommand);
 program.addCommand(profileCommand);
+program.addCommand(workspaceCommand);
 
 program.parse();
