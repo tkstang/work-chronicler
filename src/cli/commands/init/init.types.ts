@@ -1,14 +1,5 @@
 import type { Config } from '@core/index';
-
-/**
- * Data sources that can be configured
- */
-export type DataSource = 'github' | 'jira';
-
-/**
- * Time range presets for lookback period
- */
-export type TimeRange = '6m' | '1y' | '2y' | 'custom';
+import type { DataSource, TimeRange } from './init.prompts';
 
 /**
  * GitHub organization configuration from wizard
@@ -87,9 +78,9 @@ export function wizardResultToConfig(result: WizardResult): Config {
     },
     analysis: {
       thresholds: {
-        minor: { maxLines: 20, maxFiles: 3 },
-        major: { minLines: 200, minFiles: 8 },
-        flagship: { minLines: 500, minFiles: 15 },
+        minor: {},
+        major: {},
+        flagship: {},
       },
     },
   };
