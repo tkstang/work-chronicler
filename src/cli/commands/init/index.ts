@@ -151,18 +151,8 @@ export const initCommand = new Command('init')
 
       if (fetchNow) {
         console.log(chalk.cyan('\nStarting data fetch...\n'));
-        // Make tokens available for fetchers during this run (without persisting anything beyond .env)
-        if (tokens.githubToken) {
-          process.env.GITHUB_TOKEN = tokens.githubToken;
-        }
-        if (tokens.jiraToken) {
-          process.env.JIRA_TOKEN = tokens.jiraToken;
-        }
-        if (tokens.jiraEmail) {
-          process.env.JIRA_EMAIL = tokens.jiraEmail;
-        }
-
-        const missing = getMissingTokensForFetch(dataSources, config);
+        const configForFetch = withRuntimeTokens(config, tokens);
+        const missing = getMissingTokensForFetch(dataSources, configForFetch);
         if (missing.length > 0) {
           const envPath = getProfileEnvPath(profileName);
           console.log(
@@ -174,7 +164,7 @@ export const initCommand = new Command('init')
           console.log(chalk.dim('Then run: work-chronicler fetch:all\n'));
         } else {
           const outputDir = getWorkLogDir(profileName);
-          await runInitialFetch(config, outputDir);
+          await runInitialFetch(configForFetch, outputDir);
         }
       }
 
@@ -412,6 +402,28 @@ function getMissingTokensForFetch(
   return missing;
 }
 
+function withRuntimeTokens(config: Config, tokens: WizardTokens): Config {
+  const next: Config = {
+    ...config,
+    github: {
+      ...config.github,
+      token: tokens.githubToken ?? config.github.token,
+    },
+  };
+
+  if (config.jira?.instances.length) {
+    next.jira = {
+      instances: config.jira.instances.map((instance) => ({
+        ...instance,
+        token: tokens.jiraToken ?? instance.token,
+        email: tokens.jiraEmail ?? instance.email,
+      })),
+    };
+  }
+
+  return next;
+}
+
 async function runInitialFetch(
   config: Parameters<typeof fetchGitHubPRs>[0]['config'],
   outputDir: string,
@@ -419,36 +431,54 @@ async function runInitialFetch(
   console.log(chalk.bold('📥 Fetching Work History\n'));
   console.log(`${chalk.gray('Output directory:')} ${outputDir}\n`);
 
-  // GitHub
-  const githubResults = await fetchGitHubPRs({
-    config,
-    outputDir,
-    verbose: false,
-    useCache: false,
-  });
-  const totalPRs = githubResults.reduce((sum, r) => sum + r.prsWritten, 0);
+  const errors: string[] = [];
 
-  // JIRA
-  let totalTickets = 0;
-  if (config.jira?.instances.length) {
-    const jiraResults = await fetchJiraTickets({
+  // GitHub
+  let totalPRs = 0;
+  try {
+    const githubResults = await fetchGitHubPRs({
       config,
       outputDir,
       verbose: false,
       useCache: false,
     });
-    totalTickets = jiraResults.reduce((sum, r) => sum + r.ticketsWritten, 0);
+    totalPRs = githubResults.reduce((sum, r) => sum + r.prsWritten, 0);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    errors.push(`GitHub fetch failed: ${message}`);
+  }
+
+  // JIRA
+  let totalTickets = 0;
+  if (config.jira?.instances.length) {
+    try {
+      const jiraResults = await fetchJiraTickets({
+        config,
+        outputDir,
+        verbose: false,
+        useCache: false,
+      });
+      totalTickets = jiraResults.reduce((sum, r) => sum + r.ticketsWritten, 0);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      errors.push(`JIRA fetch failed: ${message}`);
+    }
   }
 
   // Link
   let linksCreated = 0;
   if (totalPRs > 0) {
-    const linkResult = await linkPRsToTickets({
-      config,
-      outputDir,
-      verbose: false,
-    });
-    linksCreated = linkResult.linksFound;
+    try {
+      const linkResult = await linkPRsToTickets({
+        config,
+        outputDir,
+        verbose: false,
+      });
+      linksCreated = linkResult.linksFound;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      errors.push(`Linking failed: ${message}`);
+    }
   }
 
   const separator = '═'.repeat(40);
@@ -463,7 +493,15 @@ async function runInitialFetch(
     `  ${chalk.cyan('Links created:')}   ${chalk.green(linksCreated)}`,
   );
   console.log(`${separator}\n`);
-  console.log(`${chalk.green('✓')} Done!`);
+  if (errors.length > 0) {
+    console.log(chalk.yellow('Completed with errors:\n'));
+    for (const err of errors) {
+      console.log(chalk.yellow(`- ${err}`));
+    }
+    console.log(chalk.dim('\nYou can re-run: work-chronicler fetch:all\n'));
+  } else {
+    console.log(`${chalk.green('✓')} Done!`);
+  }
 }
 
 /**

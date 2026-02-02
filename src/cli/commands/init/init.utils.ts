@@ -109,8 +109,11 @@ export async function discoverRepos(
       const elapsed = formatElapsed(Date.now() - startTime);
       spinner.text = `Checked ${totalReposChecked}/${reposInRange.length} repos... (${elapsed})`;
 
-      // Light throttling to reduce secondary rate limits
-      await sleep(60);
+      // Light throttling to reduce secondary rate limits.
+      // Keep this very small; updatedAt filtering should already shrink the repo set.
+      if (totalReposChecked % 5 === 0) {
+        await sleep(30);
+      }
     }
 
     const elapsedMs = Date.now() - startTime;
@@ -243,16 +246,19 @@ async function repoHasUserPRInRange(options: {
   if (!response.repository) return false;
 
   for (const pr of response.repository.pullRequests.nodes) {
-    const author = pr.author?.login;
-    if (!author || author.toLowerCase() !== options.username.toLowerCase()) {
+    const createdAt = new Date(pr.createdAt);
+
+    // PRs are returned in CREATED_AT DESC order; once we go older than since, we can stop.
+    if (createdAt < options.sinceDate) {
+      break;
+    }
+
+    if (options.untilDate && createdAt > options.untilDate) {
       continue;
     }
 
-    const createdAt = new Date(pr.createdAt);
-    if (createdAt < options.sinceDate) {
-      continue;
-    }
-    if (options.untilDate && createdAt > options.untilDate) {
+    const author = pr.author?.login;
+    if (!author || author.toLowerCase() !== options.username.toLowerCase()) {
       continue;
     }
 
