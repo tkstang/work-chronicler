@@ -1,5 +1,6 @@
 import {
   createProfile,
+  getProfileEnvPath,
   initializeWorkspaceWithProfile,
   isWorkspaceMode,
   ProfileNameSchema,
@@ -253,9 +254,8 @@ function showNextSteps(profileName: string, tokens: WizardTokens): void {
   console.log(chalk.cyan('\nNext steps:\n'));
 
   if (!tokens.githubToken && !tokens.jiraToken) {
-    console.log(
-      `  1. Add your API tokens to: ~/.work-chronicler/profiles/${profileName}/.env`,
-    );
+    const envPath = getProfileEnvPath(profileName);
+    console.log(`  1. Add your API tokens to: ${envPath}`);
     console.log('  2. Fetch your work history: work-chronicler fetch:all');
   } else {
     console.log('  1. Fetch your work history: work-chronicler fetch:all');
