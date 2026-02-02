@@ -1,4 +1,4 @@
-import type { Config } from '@core/index';
+import { type Config, ConfigSchema } from '@core/index';
 import type { DataSource, TimeRange } from './init.prompts';
 
 /**
@@ -58,10 +58,11 @@ export interface WizardResult {
 }
 
 /**
- * Convert wizard result to Config
+ * Convert wizard result to Config.
+ * Uses ConfigSchema.parse() to apply Zod defaults for analysis thresholds etc.
  */
 export function wizardResultToConfig(result: WizardResult): Config {
-  const config: Config = {
+  const rawConfig = {
     github: result.github
       ? {
           username: result.github.username,
@@ -76,25 +77,20 @@ export function wizardResultToConfig(result: WizardResult): Config {
       since: result.since,
       until: null,
     },
-    analysis: {
-      thresholds: {
-        minor: {},
-        major: {},
-        flagship: {},
-      },
-    },
+    // Let Zod apply analysis defaults
+    jira:
+      result.jira && result.jira.instances.length > 0
+        ? {
+            instances: result.jira.instances.map((instance) => ({
+              name: instance.name,
+              url: instance.url,
+              email: instance.email,
+              projects: instance.projects,
+            })),
+          }
+        : undefined,
   };
 
-  if (result.jira && result.jira.instances.length > 0) {
-    config.jira = {
-      instances: result.jira.instances.map((instance) => ({
-        name: instance.name,
-        url: instance.url,
-        email: instance.email,
-        projects: instance.projects,
-      })),
-    };
-  }
-
-  return config;
+  // Parse through Zod to apply all defaults
+  return ConfigSchema.parse(rawConfig);
 }
