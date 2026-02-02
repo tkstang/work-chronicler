@@ -173,7 +173,10 @@ export function saveProfileEnv(
     lines.push(`JIRA_EMAIL=${escapeEnvValue(env.jiraEmail)}`);
   }
 
-  writeFileSync(envPath, `${lines.join('\n')}\n`, { encoding: 'utf-8', mode: 0o600 });
+  writeFileSync(envPath, `${lines.join('\n')}\n`, {
+    encoding: 'utf-8',
+    mode: 0o600,
+  });
 }
 
 /**
