@@ -103,8 +103,10 @@ export async function discoverRepos(
         ? buildOrgQuery(prCount, cursor)
         : buildUserQuery(prCount, cursor);
 
-      const variables: { org?: string; login?: string; after: string | null } =
-        isOrg ? { org, after: cursor } : { login: org, after: cursor };
+      // Only include 'after' variable when cursor exists (query declares $after conditionally)
+      const variables: { org?: string; login?: string; after?: string } = isOrg
+        ? { org, ...(cursor && { after: cursor }) }
+        : { login: org, ...(cursor && { after: cursor }) };
 
       const response: ReposResponse = await graphqlWithAuth<ReposResponse>(
         query,
