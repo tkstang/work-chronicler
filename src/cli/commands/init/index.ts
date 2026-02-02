@@ -1,13 +1,13 @@
-import chalk from 'chalk';
-import { Command } from 'commander';
 import {
   createProfile,
   initializeWorkspaceWithProfile,
   isWorkspaceMode,
-  profileExists,
   ProfileNameSchema,
+  profileExists,
   saveProfileEnv,
 } from '@core/index';
+import chalk from 'chalk';
+import { Command } from 'commander';
 import type { DataSource } from './init.prompts';
 import {
   promptConfirmAllRepos,
@@ -55,7 +55,11 @@ export const initCommand = new Command('init')
       if (options.profile) {
         const result = ProfileNameSchema.safeParse(options.profile);
         if (!result.success) {
-          console.error(chalk.red(result.error.errors[0]?.message ?? 'Invalid profile name'));
+          console.error(
+            chalk.red(
+              result.error.errors[0]?.message ?? 'Invalid profile name',
+            ),
+          );
           process.exit(1);
         }
         profileName = result.data;
