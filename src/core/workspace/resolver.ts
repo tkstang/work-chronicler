@@ -68,6 +68,13 @@ export function getWorkLogDir(profileName: string): string {
 }
 
 /**
+ * Get the path to a profile's analysis directory
+ */
+export function getAnalysisDir(profileName: string): string {
+  return join(getWorkLogDir(profileName), '.analysis');
+}
+
+/**
  * Get the path to the global config file
  */
 export function getGlobalConfigPath(): string {
