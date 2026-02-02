@@ -16,9 +16,19 @@ Fetch PR descriptions and JIRA tickets, store them as searchable markdown files,
 
 ```
 work-chronicler/
+├── .agent/
+│   └── skills/                 # Portable AI skills (installed via `skills install`)
+│       ├── work-chronicler-summarize-work/
+│       ├── work-chronicler-generate-resume-bullets/
+│       ├── work-chronicler-write-self-review/
+│       ├── work-chronicler-update-resume/
+│       ├── work-chronicler-detect-projects/
+│       └── work-chronicler-detect-themes/
 ├── src/
 │   ├── cli/                    # CLI application (Commander)
 │   │   ├── commands/           # CLI commands (fetch, analyze, link, etc.)
+│   │   │   ├── skills/         # Skill management (install, uninstall, list)
+│   │   │   └── workspace/      # Workspace path resolution
 │   │   ├── fetchers/           # GitHub and JIRA fetchers
 │   │   ├── linker/             # Cross-reference linking
 │   │   ├── analyzer/           # Impact analysis and project detection
@@ -106,14 +116,16 @@ The project has three layers:
    - `status` - Show current state
    - `init` - Create config file
    - `mcp` - Start MCP server
+   - `workspace profile|work-log|analysis|root` - Output workspace paths
+   - `skills install|uninstall|list` - Manage AI skills
 
-2. **AI Commands** (Cursor/Claude prompts in `.claude/commands/` and `.cursor/commands/`):
-   - `/summarize-work` - Summarize PRs for time period
-   - `/generate-resume-bullets` - Create achievement-focused bullet points
-   - `/update-resume` - Update existing resume with new accomplishments
-   - `/write-self-review` - Draft self-review for performance reviews
-   - `/detect-projects` - Identify major project groupings
-   - `/detect-themes` - Identify recurring themes across work
+2. **AI Skills** (portable, installed via `skills install`):
+   - `/work-chronicler-summarize-work` - Summarize PRs for time period
+   - `/work-chronicler-generate-resume-bullets` - Create achievement-focused bullet points
+   - `/work-chronicler-update-resume` - Update existing resume with new accomplishments
+   - `/work-chronicler-write-self-review` - Draft self-review for performance reviews
+   - `/work-chronicler-detect-projects` - Identify major project groupings
+   - `/work-chronicler-detect-themes` - Identify recurring themes across work
 
 3. **MCP Server** (read-only data access for AI assistants):
    - Exposes work-log data to Claude Desktop, Cursor, etc.
