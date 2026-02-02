@@ -7,7 +7,7 @@ import { fetchAllCommand } from '@commands/fetch/all';
 import { fetchGitHubCommand } from '@commands/fetch/github';
 import { fetchJiraCommand } from '@commands/fetch/jira';
 import { filterCommand } from '@commands/filter';
-import { initCommand } from '@commands/init';
+import { initCommand } from '@commands/init/index';
 import { linkCommand } from '@commands/link';
 import { mcpCommand } from '@commands/mcp';
 import { statusCommand } from '@commands/status';
