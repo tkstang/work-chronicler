@@ -35,19 +35,8 @@ After the package is published to npm:
 # Install globally
 npm install -g work-chronicler
 
-# Create a dedicated directory for your work history
-mkdir ~/work-history
-cd ~/work-history
-
-# Initialize - creates .env and work-chronicler.yaml in current directory
+# Initialize - interactive wizard guides you through setup
 work-chronicler init
-
-# Edit .env with your tokens:
-#   GITHUB_TOKEN=ghp_xxxx
-#   JIRA_EMAIL=you@company.com
-#   JIRA_TOKEN=xxxx
-
-# Edit work-chronicler.yaml with your GitHub username, orgs, and JIRA config
 
 # Fetch your work history
 work-chronicler fetch:all
@@ -59,14 +48,14 @@ work-chronicler analyze --projects --timeline
 work-chronicler status
 ```
 
-All data is stored in the current directory under `work-log/`. You can version control this directory or keep it private.
+Data is stored in `~/.work-chronicler/profiles/<profile-name>/` with isolated configs, tokens, and work logs per profile.
 
 ## Usage
 
-All commands operate on the current directory. The CLI looks for `work-chronicler.yaml` in the current directory first, then falls back to `~/.config/work-chronicler/config.yaml`.
+work-chronicler uses a portable workspace at `~/.work-chronicler/` with support for multiple profiles. Each profile has its own config, tokens, and work log.
 
 ```bash
-# Create config files (.env and work-chronicler.yaml)
+# Initialize with interactive wizard (creates profile)
 work-chronicler init
 
 # Fetch from GitHub and JIRA
@@ -80,43 +69,76 @@ work-chronicler analyze --projects --timeline
 
 # Check status
 work-chronicler status
+
+# Use a specific profile for any command
+work-chronicler fetch:all --profile work
+work-chronicler status --profile personal
 ```
 
 > **Note**: For local development in this repo, prefix all commands with `pnpm cli` (e.g., `pnpm cli init`).
 
+### Profiles
+
+Profiles let you maintain separate work histories (e.g., work vs personal, different employers):
+
+```bash
+# List all profiles
+work-chronicler profile list
+
+# Switch active profile
+work-chronicler profile switch work
+
+# Delete a profile
+work-chronicler profile delete old-job
+
+# Use a profile for a single command
+work-chronicler fetch:all --profile personal
+```
+
+Profile data is stored at `~/.work-chronicler/profiles/<name>/`:
+- `config.yaml` - GitHub orgs, JIRA config, etc.
+- `.env` - Tokens (GitHub, JIRA)
+- `work-log/` - Fetched PRs and tickets
+
 ## Directory Structure
 
-After fetching, your data is organized like this:
+work-chronicler uses a portable workspace at `~/.work-chronicler/`:
 
 ```
-work-log/
-├── pull-requests/
-│   └── <org-name>/
-│       └── <repo-name>/
-│           ├── 2024-01-15_123.md
-│           └── 2024-02-20_456.md
-├── jira/
-│   └── <org-name>/
-│       └── <project-key>/
-│           ├── PROJ-100.md
-│           └── PROJ-101.md
-├── notes/                   # Additional context for AI analysis
-├── performance-reviews/     # Add your own review docs here
-├── .analysis/               # Generated analysis
-│   ├── stats.json           # Impact breakdown, repo stats, etc.
-│   ├── projects.json        # Detected project groupings
-│   └── timeline.json        # Chronological view by week/month
-└── filtered/                # Filtered subset (from filter command)
-    ├── pull-requests/
-    ├── jira/
-    └── .analysis/
+~/.work-chronicler/
+├── config.json              # Global config (active profile)
+└── profiles/
+    └── <profile-name>/
+        ├── config.yaml      # Profile-specific config
+        ├── .env             # Tokens (600 permissions)
+        └── work-log/
+            ├── pull-requests/
+            │   └── <org-name>/
+            │       └── <repo-name>/
+            │           ├── 2024-01-15_123.md
+            │           └── 2024-02-20_456.md
+            ├── jira/
+            │   └── <org-name>/
+            │       └── <project-key>/
+            │           ├── PROJ-100.md
+            │           └── PROJ-101.md
+            ├── notes/                   # Additional context for AI analysis
+            ├── performance-reviews/     # Add your own review docs here
+            ├── .analysis/               # Generated analysis
+            │   ├── stats.json           # Impact breakdown, repo stats, etc.
+            │   ├── projects.json        # Detected project groupings
+            │   └── timeline.json        # Chronological view by week/month
+            └── filtered/                # Filtered subset (from filter command)
+                ├── pull-requests/
+                ├── jira/
+                └── .analysis/
 ```
 
 ## CLI Commands
 
 | Command | Description |
 |---------|-------------|
-| `init` | Create a new config file |
+| `init` | Initialize workspace with interactive wizard |
 | `fetch:github` | Fetch PRs from GitHub |
 | `fetch:jira` | Fetch tickets from JIRA |
 | `fetch:all` | Fetch both PRs and JIRA tickets |
@@ -124,7 +146,16 @@ work-log/
 | `analyze` | Classify PRs by impact and generate stats |
 | `filter` | Filter work-log to a subset based on criteria |
 | `status` | Show current state of fetched data |
+| `profile list` | List all profiles |
+| `profile switch <name>` | Switch active profile |
+| `profile delete <name>` | Delete a profile |
 | `mcp` | Start the MCP server for AI assistant integration |
+
+### Global Options
+
+| Option | Description |
+|--------|-------------|
+| `--profile <name>` | Use a specific profile (overrides active profile) |
 
 ### Analyze Command
 
@@ -214,7 +245,13 @@ Use flags like `--cache`, `--all`, `--full`, etc. to skip prompts in scripts.
 
 ## Configuration
 
-See [work-chronicler.example.yaml](work-chronicler.example.yaml) for a complete example.
+The `init` command runs an interactive wizard that:
+1. Creates a new profile (or uses "default")
+2. Prompts for your GitHub username and discovers your organizations/repos
+3. Optionally configures JIRA
+4. Stores tokens securely in `.env` with restricted permissions
+
+See [work-chronicler.example.yaml](work-chronicler.example.yaml) for a complete config example.
 
 ### GitHub Token
 
@@ -223,6 +260,14 @@ Create a personal access token at https://github.com/settings/tokens with the `r
 ### JIRA Token
 
 Create an API token at https://id.atlassian.com/manage-profile/security/api-tokens
+
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `WORK_CHRONICLER_PROFILE` | Override active profile |
+| `WORK_CHRONICLER_DIR` | Legacy: directory containing config (for MCP server) |
+| `WORK_CHRONICLER_CONFIG` | Legacy: full path to config file |
 
 ## MCP Server
 
@@ -421,6 +466,7 @@ pnpm publish --access public --no-git-checks
 - [x] **Project detection**: Group related PRs/tickets into initiatives
 - [x] **Timeline view**: Chronological view of work grouped by week/month
 - [x] **MCP server**: Full implementation for AI assistant integration
+- [x] **Profiles**: Multiple isolated profiles with interactive setup wizard
 - [ ] **AI summarization**: Claude/Cursor commands + CLI commands for summaries
 - [ ] **Supporting documents**: Import past reviews, resumes, notes for context
 - [ ] **Google Docs integration**: Import performance review docs
