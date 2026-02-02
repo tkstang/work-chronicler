@@ -150,6 +150,10 @@ work-chronicler uses a portable workspace at `~/.work-chronicler/`:
 | `profile switch <name>` | Switch active profile |
 | `profile delete <name>` | Delete a profile |
 | `mcp` | Start the MCP server for AI assistant integration |
+| `workspace <subcommand>` | Output workspace paths (profile, work-log, analysis, root) |
+| `skills install` | Install AI skills to Claude Code, Cursor, etc. |
+| `skills uninstall` | Remove installed AI skills |
+| `skills list` | Show where AI skills are installed |
 
 ### Global Options
 
@@ -268,6 +272,55 @@ Create an API token at https://id.atlassian.com/manage-profile/security/api-toke
 | `WORK_CHRONICLER_PROFILE` | Override active profile |
 | `WORK_CHRONICLER_DIR` | Legacy: directory containing config (for MCP server) |
 | `WORK_CHRONICLER_CONFIG` | Legacy: full path to config file |
+
+## AI Skills Installation
+
+work-chronicler includes AI skills that can be installed to your preferred coding assistant:
+
+```bash
+# Install skills to Claude Code, Cursor, etc.
+work-chronicler skills install
+
+# See where skills are installed
+work-chronicler skills list
+
+# Remove installed skills
+work-chronicler skills uninstall
+```
+
+### Available Skills
+
+After installation, these skills are available as slash commands:
+
+| Skill | Description |
+|-------|-------------|
+| `/work-chronicler-summarize-work` | Summarize work for reviews and 1:1s |
+| `/work-chronicler-generate-resume-bullets` | Create achievement-focused resume bullet points |
+| `/work-chronicler-write-self-review` | Draft self-review content for performance reviews |
+| `/work-chronicler-update-resume` | Update existing resume with recent accomplishments |
+| `/work-chronicler-detect-projects` | Identify major project groupings from work history |
+| `/work-chronicler-detect-themes` | Find recurring themes for career narrative |
+
+### Supported AI Tools
+
+Skills can be installed to:
+- **Claude Code** (`~/.claude/skills/`)
+- **Cursor** (`~/.cursor/skills/`)
+- **Codex** (`~/.codex/skills/`)
+- **Gemini** (`~/.gemini/skills/`)
+
+The install wizard auto-detects which tools you have installed.
+
+### Workspace Path Commands
+
+Skills use dynamic workspace resolution. These commands output paths for the active profile:
+
+```bash
+work-chronicler workspace profile    # Active profile name
+work-chronicler workspace work-log   # Work-log directory path
+work-chronicler workspace analysis   # Analysis directory path
+work-chronicler workspace root       # Profile root directory path
+```
 
 ## MCP Server
 
@@ -467,7 +520,8 @@ pnpm publish --access public --no-git-checks
 - [x] **Timeline view**: Chronological view of work grouped by week/month
 - [x] **MCP server**: Full implementation for AI assistant integration
 - [x] **Profiles**: Multiple isolated profiles with interactive setup wizard
-- [ ] **AI summarization**: Claude/Cursor commands + CLI commands for summaries
+- [x] **AI skills**: Portable skills for Claude Code, Cursor, Codex, Gemini
+- [ ] **AI summarization**: CLI commands for automated summaries
 - [ ] **Supporting documents**: Import past reviews, resumes, notes for context
 - [ ] **Google Docs integration**: Import performance review docs
 - [ ] **Linear support**: Alternative to JIRA
