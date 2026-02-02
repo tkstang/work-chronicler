@@ -1,12 +1,12 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { parse as parseYaml } from 'yaml';
 import {
   getActiveProfile,
   getProfileConfigPath,
   isWorkspaceMode,
 } from '@workspace/index';
+import { parse as parseYaml } from 'yaml';
 import { type Config, ConfigSchema } from './schema';
 
 const CONFIG_FILE_NAMES = [
@@ -90,6 +90,18 @@ export function findConfigPath(explicitPath?: string): string | null {
  * ```
  */
 export async function loadConfig(configPath?: string): Promise<Config> {
+  // In workspace mode, require the active profile config to exist unless the user explicitly
+  // provided a config path (legacy mode).
+  if (!configPath && isWorkspaceMode()) {
+    const profileName = getActiveProfile();
+    const profileConfigPath = getProfileConfigPath(profileName);
+    if (!existsSync(profileConfigPath)) {
+      throw new Error(
+        `Workspace profile '${profileName}' is not initialized. Run \`work-chronicler init --profile ${profileName}\`, switch profiles, or pass --config <path> to use a legacy config file.`,
+      );
+    }
+  }
+
   const foundPath = findConfigPath(configPath);
 
   if (!foundPath) {

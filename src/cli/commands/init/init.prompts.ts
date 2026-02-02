@@ -67,6 +67,7 @@ export async function promptDataSources(): Promise<DataSource[]> {
  */
 export async function promptTimeRange(): Promise<{
   since: string;
+  until: string | null;
   timeRange: TimeRange;
 }> {
   const timeRange = await select<TimeRange>({
@@ -80,6 +81,7 @@ export async function promptTimeRange(): Promise<{
   });
 
   let since: string;
+  let until: string | null = null;
   const now = new Date();
 
   switch (timeRange) {
@@ -98,20 +100,53 @@ export async function promptTimeRange(): Promise<{
         .toISOString()
         .split('T')[0]!;
       break;
-    case 'custom':
-      since = await input({
-        message: 'Enter start date (YYYY-MM-DD):',
-        validate: (value: string) => {
-          if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-            return 'Please enter a date in YYYY-MM-DD format';
+    case 'custom': {
+      while (true) {
+        const start = await input({
+          message: 'Enter start date (YYYY-MM-DD):',
+          validate: validateIsoDate,
+        });
+        const end = await input({
+          message: 'Enter end date (YYYY-MM-DD) (optional, blank for now):',
+          validate: (value: string) => {
+            if (!value.trim()) return true;
+            return validateIsoDate(value);
+          },
+        });
+
+        since = start.trim();
+        until = end.trim() ? end.trim() : null;
+
+        if (until) {
+          const sinceDate = new Date(`${since}T00:00:00Z`);
+          const untilDate = new Date(`${until}T00:00:00Z`);
+          if (sinceDate > untilDate) {
+            console.log(
+              chalk.red('End date must be the same as or after start date.\n'),
+            );
+            continue;
           }
-          return true;
-        },
-      });
+        }
+
+        break;
+      }
       break;
+    }
   }
 
-  return { since, timeRange };
+  return { since, until, timeRange };
+}
+
+function validateIsoDate(value: string): true | string {
+  const trimmed = value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return 'Please enter a date in YYYY-MM-DD format';
+  }
+  const date = new Date(`${trimmed}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) {
+    return 'Please enter a valid date';
+  }
+  return true;
 }
 
 /**

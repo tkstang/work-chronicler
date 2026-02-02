@@ -15,38 +15,9 @@ export interface DiscoveryResult {
   elapsedMs: number;
 }
 
-/**
- * GraphQL response types
- */
-interface RepoNode {
-  nameWithOwner: string;
-  pullRequests: {
-    nodes: Array<{
-      author: { login: string } | null;
-    }>;
-  };
-}
-
 interface PageInfo {
   hasNextPage: boolean;
   endCursor: string | null;
-}
-
-interface ReposResponse {
-  organization?: {
-    repositories: {
-      pageInfo: PageInfo;
-      nodes: RepoNode[];
-      totalCount: number;
-    };
-  };
-  user?: {
-    repositories: {
-      pageInfo: PageInfo;
-      nodes: RepoNode[];
-      totalCount: number;
-    };
-  };
 }
 
 /**
@@ -79,12 +50,12 @@ export async function discoverRepos(
   org: string,
   username: string,
   prCount: PRLookbackDepth,
+  since: string,
+  until: string | null,
 ): Promise<DiscoveryResult> {
   const startTime = Date.now();
   const foundRepos: Set<string> = new Set();
-  let cursor: string | null = null;
   let totalReposChecked = 0;
-  let totalRepos = 0;
 
   const spinner = ora(`Discovering repos in '${org}'...`).start();
 
@@ -98,59 +69,49 @@ export async function discoverRepos(
   const isOrg = await checkIfOrganization(graphqlWithAuth, org);
 
   try {
-    do {
-      const query: string = isOrg
-        ? buildOrgQuery(prCount, cursor)
-        : buildUserQuery(prCount, cursor);
+    const sinceDate = new Date(`${since}T00:00:00Z`);
+    const untilDate = until ? new Date(`${until}T23:59:59Z`) : null;
 
-      // Only include 'after' variable when cursor exists (query declares $after conditionally)
-      const variables: { org?: string; login?: string; after?: string } = isOrg
-        ? { org, ...(cursor && { after: cursor }) }
-        : { login: org, ...(cursor && { after: cursor }) };
+    spinner.text = `Listing repos updated since ${since}...`;
+    const reposInRange = await listReposUpdatedInRange({
+      graphqlWithAuth,
+      org,
+      isOrg,
+      sinceDate,
+      untilDate,
+    });
 
-      const response: ReposResponse = await graphqlWithAuth<ReposResponse>(
-        query,
-        variables,
+    if (reposInRange.length === 0) {
+      const elapsedMs = Date.now() - startTime;
+      spinner.succeed(
+        `Found 0 repos updated since ${since} (${formatElapsed(elapsedMs)})`,
       );
+      return { repos: [], totalReposChecked: 0, elapsedMs };
+    }
 
-      const data = isOrg ? response.organization : response.user;
-      if (!data) {
-        throw new Error(
-          `Could not find ${isOrg ? 'organization' : 'user'} '${org}'`,
-        );
+    spinner.text = `Checking PRs in ${reposInRange.length} recently-updated repos...`;
+    for (const repo of reposInRange) {
+      totalReposChecked++;
+      const hasUserPR = await repoHasUserPRInRange({
+        graphqlWithAuth,
+        owner: repo.owner,
+        repo: repo.name,
+        username,
+        prCount,
+        sinceDate,
+        untilDate,
+      });
+
+      if (hasUserPR) {
+        foundRepos.add(repo.name);
       }
 
-      const repositories = data.repositories;
-      totalRepos = repositories.totalCount;
-
-      for (const repo of repositories.nodes) {
-        totalReposChecked++;
-
-        // Check if any PR in this repo was authored by the target user
-        const hasUserPR = repo.pullRequests.nodes.some(
-          (pr: { author: { login: string } | null }) =>
-            pr.author?.login?.toLowerCase() === username.toLowerCase(),
-        );
-
-        if (hasUserPR) {
-          const repoName = stripOrgPrefix(repo.nameWithOwner, org);
-          foundRepos.add(repoName);
-        }
-      }
-
-      // Update spinner
       const elapsed = formatElapsed(Date.now() - startTime);
-      spinner.text = `Checked ${totalReposChecked}/${totalRepos} repos... (${elapsed})`;
+      spinner.text = `Checked ${totalReposChecked}/${reposInRange.length} repos... (${elapsed})`;
 
-      cursor = repositories.pageInfo.hasNextPage
-        ? repositories.pageInfo.endCursor
-        : null;
-
-      // Rate limit protection
-      if (cursor) {
-        await sleep(100);
-      }
-    } while (cursor);
+      // Light throttling to reduce secondary rate limits
+      await sleep(60);
+    }
 
     const elapsedMs = Date.now() - startTime;
     spinner.succeed(
@@ -166,6 +127,139 @@ export async function discoverRepos(
     spinner.fail('Discovery failed');
     throw error;
   }
+}
+
+interface RepoRef {
+  owner: string;
+  name: string;
+  updatedAt: string;
+}
+
+async function listReposUpdatedInRange(options: {
+  graphqlWithAuth: typeof graphql;
+  org: string;
+  isOrg: boolean;
+  sinceDate: Date;
+  untilDate: Date | null;
+}): Promise<RepoRef[]> {
+  const repos: RepoRef[] = [];
+  let cursor: string | null = null;
+
+  while (true) {
+    const query = options.isOrg
+      ? buildOrgRepoListQuery(cursor)
+      : buildUserRepoListQuery(cursor);
+    const variables: { org?: string; login?: string; after?: string } =
+      options.isOrg
+        ? { org: options.org, ...(cursor && { after: cursor }) }
+        : { login: options.org, ...(cursor && { after: cursor }) };
+
+    const response: {
+      organization?: {
+        repositories: {
+          pageInfo: PageInfo;
+          nodes: Array<{ nameWithOwner: string; updatedAt: string }>;
+          totalCount: number;
+        };
+      };
+      user?: {
+        repositories: {
+          pageInfo: PageInfo;
+          nodes: Array<{ nameWithOwner: string; updatedAt: string }>;
+          totalCount: number;
+        };
+      };
+    } = await options.graphqlWithAuth(query, variables);
+
+    const data = options.isOrg ? response.organization : response.user;
+    if (!data) {
+      throw new Error(
+        `Could not find ${options.isOrg ? 'organization' : 'user'} '${options.org}'`,
+      );
+    }
+
+    const page = data.repositories;
+    if (!page.nodes.length) break;
+
+    for (const node of page.nodes) {
+      const updatedAt = new Date(node.updatedAt);
+
+      // Repos are returned in UPDATED_AT DESC order; once we go older than since we can stop.
+      if (updatedAt < options.sinceDate) {
+        return repos;
+      }
+
+      if (options.untilDate && updatedAt > options.untilDate) {
+        continue;
+      }
+
+      const [owner, name] = node.nameWithOwner.split('/');
+      if (!owner || !name) continue;
+
+      repos.push({ owner, name, updatedAt: node.updatedAt });
+    }
+
+    cursor = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
+    if (!cursor) break;
+    await sleep(50);
+  }
+
+  return repos;
+}
+
+async function repoHasUserPRInRange(options: {
+  graphqlWithAuth: typeof graphql;
+  owner: string;
+  repo: string;
+  username: string;
+  prCount: PRLookbackDepth;
+  sinceDate: Date;
+  untilDate: Date | null;
+}): Promise<boolean> {
+  const query = `
+    query($owner: String!, $repo: String!) {
+      repository(owner: $owner, name: $repo) {
+        pullRequests(first: ${options.prCount}, orderBy: {field: CREATED_AT, direction: DESC}, states: [OPEN, CLOSED, MERGED]) {
+          nodes {
+            createdAt
+            author { login }
+          }
+        }
+      }
+    }
+  `;
+
+  const response: {
+    repository: {
+      pullRequests: {
+        nodes: Array<{ createdAt: string; author: { login: string } | null }>;
+      };
+    } | null;
+  } = await options.graphqlWithAuth(query, {
+    owner: options.owner,
+    repo: options.repo,
+  });
+
+  if (!response.repository) return false;
+
+  for (const pr of response.repository.pullRequests.nodes) {
+    const author = pr.author?.login;
+    if (!author || author.toLowerCase() !== options.username.toLowerCase()) {
+      continue;
+    }
+
+    const createdAt = new Date(pr.createdAt);
+    if (createdAt < options.sinceDate) {
+      continue;
+    }
+    if (options.untilDate && createdAt > options.untilDate) {
+      continue;
+    }
+
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -188,23 +282,19 @@ async function checkIfOrganization(
 }
 
 /**
- * Build GraphQL query for organization repos
+ * Build GraphQL query for listing org repos (updatedAt DESC)
  */
-function buildOrgQuery(prCount: number, cursor: string | null): string {
+function buildOrgRepoListQuery(cursor: string | null): string {
   const afterClause = cursor ? ', after: $after' : '';
   return `
     query($org: String!${cursor ? ', $after: String' : ''}) {
       organization(login: $org) {
-        repositories(first: 100${afterClause}, orderBy: {field: NAME, direction: ASC}) {
+        repositories(first: 100${afterClause}, orderBy: {field: UPDATED_AT, direction: DESC}) {
           pageInfo { hasNextPage endCursor }
           totalCount
           nodes {
             nameWithOwner
-            pullRequests(first: ${prCount}, orderBy: {field: CREATED_AT, direction: DESC}, states: [OPEN, CLOSED, MERGED]) {
-              nodes {
-                author { login }
-              }
-            }
+            updatedAt
           }
         }
       }
@@ -213,23 +303,19 @@ function buildOrgQuery(prCount: number, cursor: string | null): string {
 }
 
 /**
- * Build GraphQL query for user repos
+ * Build GraphQL query for listing user repos (updatedAt DESC)
  */
-function buildUserQuery(prCount: number, cursor: string | null): string {
+function buildUserRepoListQuery(cursor: string | null): string {
   const afterClause = cursor ? ', after: $after' : '';
   return `
     query($login: String!${cursor ? ', $after: String' : ''}) {
       user(login: $login) {
-        repositories(first: 100${afterClause}, orderBy: {field: NAME, direction: ASC}) {
+        repositories(first: 100${afterClause}, orderBy: {field: UPDATED_AT, direction: DESC}) {
           pageInfo { hasNextPage endCursor }
           totalCount
           nodes {
             nameWithOwner
-            pullRequests(first: ${prCount}, orderBy: {field: CREATED_AT, direction: DESC}, states: [OPEN, CLOSED, MERGED]) {
-              nodes {
-                author { login }
-              }
-            }
+            updatedAt
           }
         }
       }

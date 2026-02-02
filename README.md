@@ -251,7 +251,7 @@ Use flags like `--cache`, `--all`, `--full`, etc. to skip prompts in scripts.
 
 The `init` command runs an interactive wizard that:
 1. Creates a new profile (or uses "default")
-2. Prompts for your GitHub username and discovers your organizations/repos
+2. Prompts for your GitHub username, orgs, and repo selection (manual, auto-discover, or all)
 3. Optionally configures JIRA
 4. Stores tokens securely in `.env` with restricted permissions
 
@@ -269,6 +269,7 @@ Create an API token at https://id.atlassian.com/manage-profile/security/api-toke
 
 | Variable | Description |
 |----------|-------------|
+| `WORK_CHRONICLER_HOME` | Override workspace root directory (default: `~/.work-chronicler`) |
 | `WORK_CHRONICLER_PROFILE` | Override active profile |
 | `WORK_CHRONICLER_DIR` | Legacy: directory containing config (for MCP server) |
 | `WORK_CHRONICLER_CONFIG` | Legacy: full path to config file |
@@ -336,7 +337,10 @@ work-chronicler includes an MCP (Model Context Protocol) server that exposes you
 
 2. Configure your AI assistant.
 
-   The MCP server needs to find your `work-chronicler.yaml` config. Use the `WORK_CHRONICLER_DIR` environment variable to point to your work history directory.
+   The MCP server loads your configuration the same way the CLI does:
+   - If you use the portable workspace (recommended), it reads `~/.work-chronicler/profiles/<profile>/config.yaml`.
+   - You can select a profile via `WORK_CHRONICLER_PROFILE`.
+   - For legacy configs, you can still point to a `work-chronicler.yaml` via `WORK_CHRONICLER_DIR` / `WORK_CHRONICLER_CONFIG`.
 
    **Published Package** (installed via npm):
 
@@ -350,7 +354,7 @@ work-chronicler includes an MCP (Model Context Protocol) server that exposes you
          "command": "npx",
          "args": ["work-chronicler", "mcp"],
          "env": {
-           "WORK_CHRONICLER_DIR": "/Users/you/work-history"
+           "WORK_CHRONICLER_PROFILE": "default"
          }
        }
      }
@@ -365,7 +369,7 @@ work-chronicler includes an MCP (Model Context Protocol) server that exposes you
          "command": "npx",
          "args": ["work-chronicler", "mcp"],
          "env": {
-           "WORK_CHRONICLER_DIR": "/Users/you/work-history"
+           "WORK_CHRONICLER_PROFILE": "default"
          }
        }
      }
@@ -383,7 +387,8 @@ work-chronicler includes an MCP (Model Context Protocol) server that exposes you
          "command": "node",
          "args": ["/path/to/work-chronicler/bin/mcp.js"],
          "env": {
-           "WORK_CHRONICLER_DIR": "/path/to/work-chronicler"
+           "WORK_CHRONICLER_PROFILE": "default",
+           "WORK_CHRONICLER_HOME": "/Users/you/.work-chronicler"
          }
        }
      }
@@ -400,7 +405,8 @@ work-chronicler includes an MCP (Model Context Protocol) server that exposes you
          "command": "node",
          "args": ["/path/to/work-chronicler/bin/work-chronicler.js", "mcp"],
          "env": {
-           "WORK_CHRONICLER_DIR": "/path/to/work-chronicler"
+           "WORK_CHRONICLER_PROFILE": "default",
+           "WORK_CHRONICLER_HOME": "/Users/you/.work-chronicler"
          }
        }
      }
@@ -410,8 +416,10 @@ work-chronicler includes an MCP (Model Context Protocol) server that exposes you
 3. Restart your AI assistant to load the MCP server.
 
 **Environment Variables:**
-- `WORK_CHRONICLER_DIR` - Directory containing your `work-chronicler.yaml`
-- `WORK_CHRONICLER_CONFIG` - Full path to config file (alternative to DIR)
+- `WORK_CHRONICLER_HOME` - Workspace root (default: `~/.work-chronicler`)
+- `WORK_CHRONICLER_PROFILE` - Profile name (default: active profile in `~/.work-chronicler/config.json`)
+- `WORK_CHRONICLER_DIR` - Legacy: directory containing your `work-chronicler.yaml`
+- `WORK_CHRONICLER_CONFIG` - Legacy: full path to config file (alternative to DIR)
 
 ### Available Tools
 

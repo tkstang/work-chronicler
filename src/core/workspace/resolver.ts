@@ -109,6 +109,23 @@ export function ensureProfileDirs(profileName: string): void {
       mkdirSync(subdirPath, { recursive: true });
     }
   }
+
+  // Create standard work-log subdirectories (used by analyze/filter and for user notes)
+  const workLogDir = getWorkLogDir(profileName);
+  const workLogSubdirs = [
+    '.analysis',
+    'filtered',
+    join('filtered', '.analysis'),
+    'notes',
+    'performance-reviews',
+  ];
+
+  for (const subdir of workLogSubdirs) {
+    const subdirPath = join(workLogDir, subdir);
+    if (!existsSync(subdirPath)) {
+      mkdirSync(subdirPath, { recursive: true });
+    }
+  }
 }
 
 /**
