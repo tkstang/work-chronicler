@@ -11,6 +11,7 @@ import { initCommand } from '@commands/init';
 import { linkCommand } from '@commands/link';
 import { mcpCommand } from '@commands/mcp';
 import { statusCommand } from '@commands/status';
+import { profileCommand } from '@commands/subcommands/profile/index';
 import { findConfigPath } from '@core/index';
 import { Command } from 'commander';
 import { config as loadDotenv } from 'dotenv';
@@ -46,5 +47,6 @@ program.addCommand(fetchGitHubCommand);
 program.addCommand(fetchJiraCommand);
 program.addCommand(fetchAllCommand);
 program.addCommand(mcpCommand);
+program.addCommand(profileCommand);
 
 program.parse();
