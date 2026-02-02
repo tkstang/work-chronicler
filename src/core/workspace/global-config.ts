@@ -1,11 +1,15 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { validateProfileName } from './profile-manager';
 import {
   ensureWorkspaceRoot,
   getGlobalConfigPath,
   profileExists,
 } from './resolver';
-import { type GlobalConfig, GlobalConfigSchema } from './types';
+import {
+  type GlobalConfig,
+  GlobalConfigSchema,
+  ProfileNameSchema,
+  validateProfileName,
+} from './types';
 
 /**
  * Load global config from ~/.work-chronicler/config.json
@@ -49,11 +53,19 @@ export function saveGlobalConfig(config: GlobalConfig): void {
  * 1. WORK_CHRONICLER_PROFILE environment variable
  * 2. activeProfile in global config
  * 3. Fallback: "default"
+ *
+ * @throws Error if WORK_CHRONICLER_PROFILE contains an invalid profile name
  */
 export function getActiveProfile(): string {
   // 1. Check environment variable
   const envProfile = process.env.WORK_CHRONICLER_PROFILE;
   if (envProfile) {
+    const result = ProfileNameSchema.safeParse(envProfile);
+    if (!result.success) {
+      throw new Error(
+        `Invalid WORK_CHRONICLER_PROFILE: ${result.error.errors[0]?.message}`,
+      );
+    }
     return envProfile;
   }
 
