@@ -51,6 +51,7 @@ export interface WizardResult {
   dataSources: DataSource[];
   timeRange: TimeRange;
   since: string;
+  until: string | null;
   github?: WizardGitHubConfig;
   jira?: WizardJiraConfig;
   tokens: WizardTokens;
@@ -75,7 +76,7 @@ export function wizardResultToConfig(result: WizardResult): Config {
     output: { directory: './work-log' },
     fetch: {
       since: result.since,
-      until: null,
+      until: result.until ?? null,
     },
     // Let Zod apply analysis defaults
     jira:

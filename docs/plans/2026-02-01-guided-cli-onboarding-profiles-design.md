@@ -48,8 +48,10 @@ This document defines the design for guided CLI onboarding and profile managemen
     │   ├── work-log/             # Fetched data
     │   │   ├── pull-requests/
     │   │   └── jira/
-    │   ├── analysis/             # Generated analysis
-    │   └── outputs/              # AI-generated outputs
+    │   │   ├── notes/            # Optional user notes/context
+    │   │   ├── performance-reviews/
+    │   │   ├── .analysis/        # Generated analysis (stats/projects/timeline)
+    │   │   └── filtered/         # Filtered subset (with its own .analysis/)
     ├── work/
     │   ├── config.yaml
     │   ├── .env

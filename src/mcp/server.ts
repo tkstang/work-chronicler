@@ -41,8 +41,11 @@ export interface MCPServerContext {
  * Config discovery order:
  * 1. WORK_CHRONICLER_CONFIG environment variable (path to config file)
  * 2. WORK_CHRONICLER_DIR environment variable (directory containing config)
- * 3. Current working directory
- * 4. ~/.config/work-chronicler/
+ * 3. Portable workspace active profile config (if workspace root exists)
+ *    - WORK_CHRONICLER_HOME overrides the workspace root (default: ~/.work-chronicler)
+ *    - WORK_CHRONICLER_PROFILE overrides the active profile
+ * 4. Current working directory
+ * 5. ~/.config/work-chronicler/
  */
 export async function createServer(): Promise<MCPServerContext> {
   // Support explicit config path via environment variable

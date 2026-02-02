@@ -1,18 +1,25 @@
+import type { Config } from '@core/index';
 import {
   createProfile,
   getProfileEnvPath,
+  getWorkLogDir,
   initializeWorkspaceWithProfile,
   isWorkspaceMode,
   ProfileNameSchema,
   profileExists,
   saveProfileEnv,
 } from '@core/index';
+import { fetchGitHubPRs } from '@fetchers/github';
+import { fetchJiraTickets } from '@fetchers/jira';
+import { linkPRsToTickets } from '@linker/index';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import type { DataSource } from './init.prompts';
 import {
   promptConfirmAllRepos,
+  promptConfirmDiscoveredRepos,
   promptDataSources,
+  promptEditRepos,
   promptFetchNow,
   promptGitHubOrgs,
   promptGitHubToken,
@@ -23,6 +30,7 @@ import {
   promptJiraToken,
   promptJiraUrl,
   promptManualRepos,
+  promptPRLookbackDepth,
   promptProfileName,
   promptRepoDiscoveryMethod,
   promptTimeRange,
@@ -37,6 +45,7 @@ import type {
   WizardTokens,
 } from './init.types';
 import { wizardResultToConfig } from './init.types';
+import { discoverRepos, type PRLookbackDepth } from './init.utils';
 
 export const initCommand = new Command('init')
   .description('Initialize a new work-chronicler profile with guided setup')
@@ -80,24 +89,34 @@ export const initCommand = new Command('init')
       const dataSources = await promptDataSources();
 
       // Step 3: Time range
-      const { since, timeRange } = await promptTimeRange();
+      const { since, until, timeRange } = await promptTimeRange();
 
       // Step 4: GitHub configuration (if selected)
       let github: WizardGitHubConfig | undefined;
+      const initialTokens: WizardTokens = {};
 
       if (dataSources.includes('github')) {
-        github = await collectGitHubConfig();
+        const { config, githubToken } = await collectGitHubConfig({
+          since,
+          until,
+        });
+        github = config;
+        if (githubToken) {
+          initialTokens.githubToken = githubToken;
+        }
       }
 
       // Step 5: JIRA configuration (if selected)
       let jira: WizardJiraConfig | undefined;
 
       if (dataSources.includes('jira')) {
-        jira = await collectJiraConfig();
+        const jiraConfig = await collectJiraConfig();
+        jira = jiraConfig;
+        initialTokens.jiraEmail = jiraConfig.instances[0]?.email;
       }
 
       // Step 6: Token setup
-      const tokens = await collectTokens(dataSources);
+      const tokens = await collectTokens(dataSources, initialTokens);
 
       // Step 7: Create profile
       const result: WizardResult = {
@@ -105,6 +124,7 @@ export const initCommand = new Command('init')
         dataSources,
         timeRange,
         since,
+        until,
         github,
         jira,
         tokens,
@@ -114,7 +134,7 @@ export const initCommand = new Command('init')
       const config = wizardResultToConfig(result);
       createProfile(profileName, config);
 
-      // Save tokens if provided
+      // Save tokens if provided (written to profile .env file)
       if (tokens.githubToken || tokens.jiraToken) {
         saveProfileEnv(profileName, tokens);
       }
@@ -131,11 +151,31 @@ export const initCommand = new Command('init')
 
       if (fetchNow) {
         console.log(chalk.cyan('\nStarting data fetch...\n'));
-        // TODO: Integrate with fetch:all command
-        console.log(chalk.yellow('Fetch integration not yet implemented.'));
-        console.log(
-          chalk.dim('Run `work-chronicler fetch:all` to fetch your data.'),
-        );
+        // Make tokens available for fetchers during this run (without persisting anything beyond .env)
+        if (tokens.githubToken) {
+          process.env.GITHUB_TOKEN = tokens.githubToken;
+        }
+        if (tokens.jiraToken) {
+          process.env.JIRA_TOKEN = tokens.jiraToken;
+        }
+        if (tokens.jiraEmail) {
+          process.env.JIRA_EMAIL = tokens.jiraEmail;
+        }
+
+        const missing = getMissingTokensForFetch(dataSources, config);
+        if (missing.length > 0) {
+          const envPath = getProfileEnvPath(profileName);
+          console.log(
+            chalk.yellow(
+              `Missing required token(s): ${missing.join(', ')}. Skipping fetch.`,
+            ),
+          );
+          console.log(chalk.dim(`Add tokens to: ${envPath}`));
+          console.log(chalk.dim('Then run: work-chronicler fetch:all\n'));
+        } else {
+          const outputDir = getWorkLogDir(profileName);
+          await runInitialFetch(config, outputDir);
+        }
       }
 
       // Show next steps
@@ -159,11 +199,19 @@ export const initCommand = new Command('init')
 /**
  * Collect GitHub configuration
  */
-async function collectGitHubConfig(): Promise<WizardGitHubConfig> {
+async function collectGitHubConfig(options: {
+  since: string;
+  until: string | null;
+}): Promise<{
+  config: WizardGitHubConfig;
+  githubToken?: string;
+}> {
   const username = await promptGitHubUsername();
   const orgNames = await promptGitHubOrgs();
 
   const orgs: WizardGitHubOrg[] = [];
+  let githubToken: string | undefined;
+  let prLookbackDepth: PRLookbackDepth | undefined;
 
   for (const orgName of orgNames) {
     const method = await promptRepoDiscoveryMethod(orgName);
@@ -176,16 +224,24 @@ async function collectGitHubConfig(): Promise<WizardGitHubConfig> {
         break;
 
       case 'auto':
-        // Will be implemented with token collection
-        console.log(
-          chalk.yellow(
-            '\nAuto-discovery requires a GitHub token. We will collect it later.',
-          ),
-        );
-        console.log(
-          chalk.dim('For now, please enter repos manually or select "all".\n'),
-        );
-        repos = await promptManualRepos(orgName);
+        if (!prLookbackDepth) {
+          prLookbackDepth = await promptPRLookbackDepth();
+        }
+
+        repos = await autoDiscoverReposForOrg({
+          org: orgName,
+          username,
+          prLookbackDepth,
+          since: options.since,
+          until: options.until,
+          getToken: async () => {
+            // Prefer existing env token; otherwise prompt once and reuse.
+            if (process.env.GITHUB_TOKEN) return process.env.GITHUB_TOKEN;
+            if (githubToken) return githubToken;
+            githubToken = await promptGitHubToken();
+            return githubToken;
+          },
+        });
         break;
 
       case 'all': {
@@ -202,7 +258,7 @@ async function collectGitHubConfig(): Promise<WizardGitHubConfig> {
     orgs.push({ name: orgName, repos });
   }
 
-  return { username, orgs };
+  return { config: { username, orgs }, githubToken };
 }
 
 /**
@@ -224,10 +280,38 @@ async function collectJiraConfig(): Promise<WizardJiraConfig> {
 /**
  * Collect tokens
  */
-async function collectTokens(dataSources: DataSource[]): Promise<WizardTokens> {
-  const tokens: WizardTokens = {};
+function collectTokens(dataSources: DataSource[]): Promise<WizardTokens>;
+function collectTokens(
+  dataSources: DataSource[],
+  initialTokens: WizardTokens,
+): Promise<WizardTokens>;
+async function collectTokens(
+  dataSources: DataSource[],
+  initialTokens: WizardTokens = {},
+): Promise<WizardTokens> {
+  const tokens: WizardTokens = { ...initialTokens };
 
-  const ready = await promptTokensReady(dataSources);
+  const missingSources: DataSource[] = [];
+  if (
+    dataSources.includes('github') &&
+    !process.env.GITHUB_TOKEN &&
+    !tokens.githubToken
+  ) {
+    missingSources.push('github');
+  }
+  if (
+    dataSources.includes('jira') &&
+    !process.env.JIRA_TOKEN &&
+    !tokens.jiraToken
+  ) {
+    missingSources.push('jira');
+  }
+
+  if (missingSources.length === 0) {
+    return tokens;
+  }
+
+  const ready = await promptTokensReady(missingSources);
 
   if (!ready) {
     console.log(
@@ -236,15 +320,150 @@ async function collectTokens(dataSources: DataSource[]): Promise<WizardTokens> {
     return tokens;
   }
 
-  if (dataSources.includes('github')) {
+  if (missingSources.includes('github')) {
     tokens.githubToken = await promptGitHubToken();
   }
 
-  if (dataSources.includes('jira')) {
+  if (missingSources.includes('jira')) {
     tokens.jiraToken = await promptJiraToken();
   }
 
   return tokens;
+}
+
+async function autoDiscoverReposForOrg(options: {
+  org: string;
+  username: string;
+  prLookbackDepth: PRLookbackDepth;
+  since: string;
+  until: string | null;
+  getToken: () => Promise<string>;
+}): Promise<string[]> {
+  const token = await options.getToken();
+
+  try {
+    const result = await discoverRepos(
+      token,
+      options.org,
+      options.username,
+      options.prLookbackDepth,
+      options.since,
+      options.until,
+    );
+
+    if (result.repos.length === 0) {
+      console.log(
+        chalk.yellow(
+          `\nNo repos found with PRs by '${options.username}' in '${options.org}'.`,
+        ),
+      );
+      console.log(chalk.dim('Falling back to manual repo entry.\n'));
+      return await promptManualRepos(options.org);
+    }
+
+    const choice = await promptConfirmDiscoveredRepos(result.repos);
+    if (choice === 'yes') {
+      return result.repos;
+    }
+
+    if (choice === 'edit') {
+      const edited = await promptEditRepos(result.repos);
+      if (edited.length === 0) {
+        console.log(
+          chalk.yellow('\nNo repos selected. Falling back to manual entry.\n'),
+        );
+        return await promptManualRepos(options.org);
+      }
+      return edited;
+    }
+
+    // choice === 'no'
+    return await promptManualRepos(options.org);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.log(
+      chalk.red(`\nAuto-discovery failed for '${options.org}': ${message}`),
+    );
+    console.log(chalk.dim('Falling back to manual repo entry.\n'));
+    return await promptManualRepos(options.org);
+  }
+}
+
+function getMissingTokensForFetch(
+  dataSources: DataSource[],
+  config: Config,
+): string[] {
+  const missing: string[] = [];
+
+  if (dataSources.includes('github')) {
+    const hasGitHubToken = Boolean(
+      config.github?.token || process.env.GITHUB_TOKEN,
+    );
+    if (!hasGitHubToken) missing.push('GITHUB_TOKEN');
+  }
+
+  if (dataSources.includes('jira') && config.jira?.instances.length) {
+    const hasJiraToken = Boolean(
+      config.jira.instances.some((i) => i.token) || process.env.JIRA_TOKEN,
+    );
+    if (!hasJiraToken) missing.push('JIRA_TOKEN');
+  }
+
+  return missing;
+}
+
+async function runInitialFetch(
+  config: Parameters<typeof fetchGitHubPRs>[0]['config'],
+  outputDir: string,
+): Promise<void> {
+  console.log(chalk.bold('📥 Fetching Work History\n'));
+  console.log(`${chalk.gray('Output directory:')} ${outputDir}\n`);
+
+  // GitHub
+  const githubResults = await fetchGitHubPRs({
+    config,
+    outputDir,
+    verbose: false,
+    useCache: false,
+  });
+  const totalPRs = githubResults.reduce((sum, r) => sum + r.prsWritten, 0);
+
+  // JIRA
+  let totalTickets = 0;
+  if (config.jira?.instances.length) {
+    const jiraResults = await fetchJiraTickets({
+      config,
+      outputDir,
+      verbose: false,
+      useCache: false,
+    });
+    totalTickets = jiraResults.reduce((sum, r) => sum + r.ticketsWritten, 0);
+  }
+
+  // Link
+  let linksCreated = 0;
+  if (totalPRs > 0) {
+    const linkResult = await linkPRsToTickets({
+      config,
+      outputDir,
+      verbose: false,
+    });
+    linksCreated = linkResult.linksFound;
+  }
+
+  const separator = '═'.repeat(40);
+  console.log(chalk.bold(`\n${separator}`));
+  console.log(chalk.bold('📊 Summary'));
+  console.log(separator);
+  console.log(`  ${chalk.cyan('PRs fetched:')}      ${chalk.green(totalPRs)}`);
+  console.log(
+    `  ${chalk.cyan('Tickets fetched:')} ${chalk.green(totalTickets)}`,
+  );
+  console.log(
+    `  ${chalk.cyan('Links created:')}   ${chalk.green(linksCreated)}`,
+  );
+  console.log(`${separator}\n`);
+  console.log(`${chalk.green('✓')} Done!`);
 }
 
 /**

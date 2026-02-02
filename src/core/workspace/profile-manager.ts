@@ -59,6 +59,9 @@ export function createProfile(profileName: string, config: Config): void {
 
   // Write config file
   saveProfileConfig(profileName, config);
+
+  // Create placeholder .env (0600) so users have a stable path to edit later
+  ensureProfileEnvFile(profileName);
 }
 
 /**
@@ -175,6 +178,21 @@ export function saveProfileEnv(
     encoding: 'utf-8',
     mode: 0o600,
   });
+}
+
+function ensureProfileEnvFile(profileName: string): void {
+  const envPath = getProfileEnvPath(profileName);
+  if (existsSync(envPath)) {
+    return;
+  }
+
+  const content = [
+    '# work-chronicler profile environment variables',
+    '# These tokens are used for API authentication',
+    '',
+  ].join('\n');
+
+  writeFileSync(envPath, `${content}\n`, { encoding: 'utf-8', mode: 0o600 });
 }
 
 /**
