@@ -133,7 +133,20 @@ export function saveProfileConfig(profileName: string, config: Config): void {
 }
 
 /**
+ * Escape a value for .env file format.
+ * Wraps in double quotes and escapes internal quotes, backslashes, and newlines.
+ */
+function escapeEnvValue(value: string): string {
+  const escaped = value
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, '\\n');
+  return `"${escaped}"`;
+}
+
+/**
  * Save environment variables to a profile's .env file.
+ * File is written with 0600 permissions (owner read/write only) for security.
  */
 export function saveProfileEnv(
   profileName: string,
@@ -149,18 +162,18 @@ export function saveProfileEnv(
   ];
 
   if (env.githubToken) {
-    lines.push(`GITHUB_TOKEN=${env.githubToken}`);
+    lines.push(`GITHUB_TOKEN=${escapeEnvValue(env.githubToken)}`);
   }
 
   if (env.jiraToken) {
-    lines.push(`JIRA_TOKEN=${env.jiraToken}`);
+    lines.push(`JIRA_TOKEN=${escapeEnvValue(env.jiraToken)}`);
   }
 
   if (env.jiraEmail) {
-    lines.push(`JIRA_EMAIL=${env.jiraEmail}`);
+    lines.push(`JIRA_EMAIL=${escapeEnvValue(env.jiraEmail)}`);
   }
 
-  writeFileSync(envPath, `${lines.join('\n')}\n`, 'utf-8');
+  writeFileSync(envPath, `${lines.join('\n')}\n`, { encoding: 'utf-8', mode: 0o600 });
 }
 
 /**
