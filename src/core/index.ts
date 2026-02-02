@@ -80,6 +80,7 @@ export {
   type GlobalConfig,
   GlobalConfigSchema,
   getActiveProfile,
+  getAnalysisDir,
   getGlobalConfigPath,
   getProfileConfigPath,
   getProfileDir,
