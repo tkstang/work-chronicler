@@ -43,14 +43,19 @@ program
     'Gather, analyze, and summarize your work history from GitHub PRs and JIRA tickets',
   )
   .version('0.1.0')
-  .option('--profile <name>', 'Use a specific profile (overrides active profile)')
+  .option(
+    '--profile <name>',
+    'Use a specific profile (overrides active profile)',
+  )
   .hook('preAction', (thisCommand) => {
     const opts = thisCommand.opts();
     if (opts.profile) {
       // Validate profile name
       const result = ProfileNameSchema.safeParse(opts.profile);
       if (!result.success) {
-        console.error(`Invalid profile name: ${result.error.errors[0]?.message}`);
+        console.error(
+          `Invalid profile name: ${result.error.errors[0]?.message}`,
+        );
         process.exit(1);
       }
       // Set environment variable so getActiveProfile() uses it
