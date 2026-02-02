@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { parse as parseYaml } from 'yaml';
+import { getActiveProfile, getProfileConfigPath, isWorkspaceMode } from '@workspace/index';
 import { type Config, ConfigSchema } from './schema';
 
 const CONFIG_FILE_NAMES = [
@@ -18,8 +19,9 @@ const GLOBAL_CONFIG_DIR = join(homedir(), '.config', 'work-chronicler');
  *
  * Search order:
  * 1. Explicit path if provided
- * 2. Current directory (work-chronicler.yaml, .work-chronicler.yaml, etc.)
- * 3. Global config directory (~/.config/work-chronicler/)
+ * 2. Active profile config (if workspace mode enabled)
+ * 3. Current directory (work-chronicler.yaml, .work-chronicler.yaml, etc.)
+ * 4. Global config directory (~/.config/work-chronicler/)
  *
  * @param explicitPath - Optional explicit path to config file
  * @returns Absolute path to config file, or null if not found
@@ -42,7 +44,16 @@ export function findConfigPath(explicitPath?: string): string | null {
     return null;
   }
 
-  // Check current directory
+  // Check active profile config (workspace mode)
+  if (isWorkspaceMode()) {
+    const profileName = getActiveProfile();
+    const profileConfigPath = getProfileConfigPath(profileName);
+    if (existsSync(profileConfigPath)) {
+      return profileConfigPath;
+    }
+  }
+
+  // Check current directory (legacy mode)
   for (const name of CONFIG_FILE_NAMES) {
     const localPath = resolve(name);
     if (existsSync(localPath)) {
@@ -50,7 +61,7 @@ export function findConfigPath(explicitPath?: string): string | null {
     }
   }
 
-  // Check global config directory
+  // Check global config directory (legacy mode)
   for (const name of CONFIG_FILE_NAMES) {
     const globalPath = join(GLOBAL_CONFIG_DIR, name);
     if (existsSync(globalPath)) {
