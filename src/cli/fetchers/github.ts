@@ -421,6 +421,13 @@ export async function fetchGitHubPRs(
   options: FetchGitHubOptions,
 ): Promise<FetchResult[]> {
   const { config, outputDir, verbose, useCache } = options;
+
+  // Skip if no GitHub orgs configured (e.g., JIRA-only profile)
+  if (!config.github.orgs.length) {
+    console.log(chalk.dim('No GitHub orgs configured, skipping GitHub fetch.'));
+    return [];
+  }
+
   const token = getGitHubToken(config);
 
   if (!token) {
