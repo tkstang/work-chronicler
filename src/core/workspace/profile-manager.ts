@@ -1,7 +1,17 @@
-import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { type Config, ConfigSchema } from '@core/config/schema';
-import { getActiveProfile, loadGlobalConfig, saveGlobalConfig } from './global-config';
+import {
+  getActiveProfile,
+  loadGlobalConfig,
+  saveGlobalConfig,
+} from './global-config';
 import {
   ensureProfileDirs,
   getProfileConfigPath,

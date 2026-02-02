@@ -54,7 +54,9 @@ export const initCommand = new Command('init')
 
       if (profileExists(profileName)) {
         console.error(chalk.red(`\nProfile '${profileName}' already exists.`));
-        console.error("Use 'work-chronicler profile delete' to remove it first.");
+        console.error(
+          "Use 'work-chronicler profile delete' to remove it first.",
+        );
         process.exit(1);
       }
 
@@ -104,7 +106,9 @@ export const initCommand = new Command('init')
       // Set as active profile
       initializeWorkspaceWithProfile(profileName);
 
-      console.log(chalk.green(`\nProfile '${profileName}' created successfully!`));
+      console.log(
+        chalk.green(`\nProfile '${profileName}' created successfully!`),
+      );
 
       // Step 8: Fetch now?
       const fetchNow = await promptFetchNow();
@@ -113,13 +117,18 @@ export const initCommand = new Command('init')
         console.log(chalk.cyan('\nStarting data fetch...\n'));
         // TODO: Integrate with fetch:all command
         console.log(chalk.yellow('Fetch integration not yet implemented.'));
-        console.log(chalk.dim('Run `work-chronicler fetch:all` to fetch your data.'));
+        console.log(
+          chalk.dim('Run `work-chronicler fetch:all` to fetch your data.'),
+        );
       }
 
       // Show next steps
       showNextSteps(profileName, tokens);
     } catch (error) {
-      if (error instanceof Error && error.message.includes('User force closed')) {
+      if (
+        error instanceof Error &&
+        error.message.includes('User force closed')
+      ) {
         console.log(chalk.yellow('\n\nSetup cancelled.'));
         process.exit(0);
       }
@@ -157,11 +166,13 @@ async function collectGitHubConfig(): Promise<WizardGitHubConfig> {
             '\nAuto-discovery requires a GitHub token. We will collect it later.',
           ),
         );
-        console.log(chalk.dim('For now, please enter repos manually or select "all".\n'));
+        console.log(
+          chalk.dim('For now, please enter repos manually or select "all".\n'),
+        );
         repos = await promptManualRepos(orgName);
         break;
 
-      case 'all':
+      case 'all': {
         const confirmed = await promptConfirmAllRepos(orgName);
         if (confirmed) {
           repos = ['*'];
@@ -169,6 +180,7 @@ async function collectGitHubConfig(): Promise<WizardGitHubConfig> {
           repos = await promptManualRepos(orgName);
         }
         break;
+      }
     }
 
     orgs.push({ name: orgName, repos });
@@ -202,7 +214,9 @@ async function collectTokens(dataSources: DataSource[]): Promise<WizardTokens> {
   const ready = await promptTokensReady(dataSources);
 
   if (!ready) {
-    console.log(chalk.dim('\nYou can add tokens later to your profile .env file.'));
+    console.log(
+      chalk.dim('\nYou can add tokens later to your profile .env file.'),
+    );
     return tokens;
   }
 
@@ -237,6 +251,8 @@ function showNextSteps(profileName: string, tokens: WizardTokens): void {
     '  3. Generate a summary: Use /summarize-work in your AI assistant',
   );
   console.log();
-  console.log(chalk.dim('Switch profiles: work-chronicler profile switch <name>'));
+  console.log(
+    chalk.dim('Switch profiles: work-chronicler profile switch <name>'),
+  );
   console.log(chalk.dim('List profiles:   work-chronicler profile list'));
 }
