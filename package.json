@@ -58,7 +58,8 @@
   },
   "files": [
     "dist",
-    "bin"
+    "bin",
+    ".agent"
   ],
   "packageManager": "pnpm@10.13.1",
   "engines": {
