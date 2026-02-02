@@ -20,9 +20,7 @@ export {
 export {
   ensureProfileDirs,
   ensureWorkspaceRoot,
-  getAnalysisDir,
   getGlobalConfigPath,
-  getOutputsDir,
   getProfileConfigPath,
   getProfileDir,
   getProfileEnvPath,

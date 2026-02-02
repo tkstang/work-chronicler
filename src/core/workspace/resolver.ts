@@ -10,7 +10,7 @@ const DEFAULT_WORKSPACE_ROOT = join(homedir(), '.work-chronicler');
 /**
  * Standard directories within a profile
  */
-const PROFILE_SUBDIRS = ['work-log', 'analysis', 'outputs'] as const;
+const PROFILE_SUBDIRS = ['work-log'] as const;
 
 /**
  * Get the workspace root directory.
@@ -65,20 +65,6 @@ export function getProfileEnvPath(profileName: string): string {
  */
 export function getWorkLogDir(profileName: string): string {
   return join(getProfileDir(profileName), 'work-log');
-}
-
-/**
- * Get the path to a profile's analysis directory
- */
-export function getAnalysisDir(profileName: string): string {
-  return join(getProfileDir(profileName), 'analysis');
-}
-
-/**
- * Get the path to a profile's outputs directory
- */
-export function getOutputsDir(profileName: string): string {
-  return join(getProfileDir(profileName), 'outputs');
 }
 
 /**

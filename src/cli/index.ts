@@ -18,22 +18,32 @@ import { config as loadDotenv } from 'dotenv';
 
 /**
  * Load .env file based on current config path resolution
+ *
+ * @param override - Whether .env should override existing env vars (default: false)
  */
-function loadEnvFile(): void {
-  const configPath = findConfigPath();
-  if (configPath) {
-    const envPath = resolve(dirname(configPath), '.env');
-    if (existsSync(envPath)) {
-      loadDotenv({ path: envPath, override: true });
+function loadEnvFile(override = false): void {
+  try {
+    const configPath = findConfigPath();
+    if (configPath) {
+      const envPath = resolve(dirname(configPath), '.env');
+      if (existsSync(envPath)) {
+        loadDotenv({ path: envPath, override });
+      }
+    } else {
+      // Fallback to current directory
+      loadDotenv({ override });
     }
-  } else {
-    // Fallback to current directory
-    loadDotenv();
+  } catch (error) {
+    // Handle invalid profile name or other config errors gracefully
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`Error loading environment: ${message}`);
+    process.exit(1);
   }
 }
 
 // Initial .env load (before --profile is parsed)
-loadEnvFile();
+// Use override:false so real env vars take precedence over .env
+loadEnvFile(false);
 
 const program = new Command();
 
@@ -60,8 +70,8 @@ program
       }
       // Set environment variable so getActiveProfile() uses it
       process.env.WORK_CHRONICLER_PROFILE = opts.profile;
-      // Reload .env from the specified profile
-      loadEnvFile();
+      // Reload .env from the specified profile (override:true since user explicitly requested this profile)
+      loadEnvFile(true);
     }
   });
 
