@@ -24,7 +24,8 @@
       "@analyzer/*": ["src/cli/analyzer/*"],
       "@config/*": ["src/core/config/*"],
       "@storage/*": ["src/core/storage/*"],
-      "@wc-types/*": ["src/core/types/*"]
+      "@wc-types/*": ["src/core/types/*"],
+      "@workspace/*": ["src/core/workspace/*"]
     },
     "isolatedModules": true,
     "esModuleInterop": true,
