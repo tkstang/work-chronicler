@@ -20,7 +20,9 @@ export type RepoDiscoveryMethod = 'manual' | 'auto' | 'all';
 /**
  * Prompt for profile name
  */
-export async function promptProfileName(defaultName = 'default'): Promise<string> {
+export async function promptProfileName(
+  defaultName = 'default',
+): Promise<string> {
   return await input({
     message: 'What would you like to name this profile?',
     default: defaultName,
@@ -63,7 +65,10 @@ export async function promptDataSources(): Promise<DataSource[]> {
 /**
  * Prompt for time range
  */
-export async function promptTimeRange(): Promise<{ since: string; timeRange: TimeRange }> {
+export async function promptTimeRange(): Promise<{
+  since: string;
+  timeRange: TimeRange;
+}> {
   const timeRange = await select<TimeRange>({
     message: 'How far back should we fetch data?',
     choices: [
@@ -79,13 +84,19 @@ export async function promptTimeRange(): Promise<{ since: string; timeRange: Tim
 
   switch (timeRange) {
     case '3months':
-      since = new Date(now.setMonth(now.getMonth() - 3)).toISOString().split('T')[0]!;
+      since = new Date(now.setMonth(now.getMonth() - 3))
+        .toISOString()
+        .split('T')[0]!;
       break;
     case '6months':
-      since = new Date(now.setMonth(now.getMonth() - 6)).toISOString().split('T')[0]!;
+      since = new Date(now.setMonth(now.getMonth() - 6))
+        .toISOString()
+        .split('T')[0]!;
       break;
     case '12months':
-      since = new Date(now.setMonth(now.getMonth() - 12)).toISOString().split('T')[0]!;
+      since = new Date(now.setMonth(now.getMonth() - 12))
+        .toISOString()
+        .split('T')[0]!;
       break;
     case 'custom':
       since = await input({
@@ -122,16 +133,19 @@ export async function promptGitHubUsername(): Promise<string> {
  * Prompt for GitHub organizations (multi-input)
  */
 export async function promptGitHubOrgs(): Promise<string[]> {
-  console.log(chalk.dim('\nFor personal repos, use your username as the org name'));
+  console.log(
+    chalk.dim('\nFor personal repos, use your username as the org name'),
+  );
 
   const orgs: string[] = [];
   let addMore = true;
 
   while (addMore) {
     const org = await input({
-      message: orgs.length === 0
-        ? 'Enter a GitHub organization (or username for personal repos):'
-        : 'Enter another organization (or press Enter to finish):',
+      message:
+        orgs.length === 0
+          ? 'Enter a GitHub organization (or username for personal repos):'
+          : 'Enter another organization (or press Enter to finish):',
       validate: (value: string) => {
         if (orgs.length === 0 && !value.trim()) {
           return 'At least one organization is required';
@@ -153,7 +167,9 @@ export async function promptGitHubOrgs(): Promise<string[]> {
 /**
  * Prompt for repo discovery method
  */
-export async function promptRepoDiscoveryMethod(org: string): Promise<RepoDiscoveryMethod> {
+export async function promptRepoDiscoveryMethod(
+  org: string,
+): Promise<RepoDiscoveryMethod> {
   console.log(chalk.cyan(`\nConfiguring repos for '${org}'...`));
 
   return await select<RepoDiscoveryMethod>({
@@ -167,12 +183,14 @@ export async function promptRepoDiscoveryMethod(org: string): Promise<RepoDiscov
       {
         name: 'Auto-discover',
         value: 'auto',
-        description: 'Find repos where you have PRs (slow for large orgs, may miss old contributions)',
+        description:
+          'Find repos where you have PRs (slow for large orgs, may miss old contributions)',
       },
       {
         name: 'All repos (slowest)',
         value: 'all',
-        description: "Include everything - repos: ['*'] (very slow for large orgs)",
+        description:
+          "Include everything - repos: ['*'] (very slow for large orgs)",
       },
     ],
   });
@@ -182,7 +200,9 @@ export async function promptRepoDiscoveryMethod(org: string): Promise<RepoDiscov
  * Prompt for PR lookback depth (auto-discover only)
  */
 export async function promptPRLookbackDepth(): Promise<PRLookbackDepth> {
-  console.log(chalk.dim('\nIn active repos, older PRs may be outside this range'));
+  console.log(
+    chalk.dim('\nIn active repos, older PRs may be outside this range'),
+  );
 
   return await select<PRLookbackDepth>({
     message: 'How many recent PRs per repo should we check?',
@@ -204,9 +224,10 @@ export async function promptManualRepos(org: string): Promise<string[]> {
 
   while (addMore) {
     const repo = await input({
-      message: repos.length === 0
-        ? `Enter a repo name for '${org}':`
-        : 'Enter another repo (or press Enter to finish):',
+      message:
+        repos.length === 0
+          ? `Enter a repo name for '${org}':`
+          : 'Enter another repo (or press Enter to finish):',
       validate: (value: string) => {
         if (repos.length === 0 && !value.trim()) {
           return 'At least one repo is required';
@@ -230,7 +251,9 @@ export async function promptManualRepos(org: string): Promise<string[]> {
 /**
  * Prompt to confirm discovered repos
  */
-export async function promptConfirmDiscoveredRepos(repos: string[]): Promise<'yes' | 'no' | 'edit'> {
+export async function promptConfirmDiscoveredRepos(
+  repos: string[],
+): Promise<'yes' | 'no' | 'edit'> {
   console.log(chalk.cyan(`\nFound ${repos.length} repos:`));
   for (const repo of repos.slice(0, 10)) {
     console.log(`  - ${repo}`);
@@ -263,7 +286,11 @@ export async function promptEditRepos(repos: string[]): Promise<string[]> {
  * Prompt for all repos confirmation
  */
 export async function promptConfirmAllRepos(org: string): Promise<boolean> {
-  console.log(chalk.yellow(`\nWarning: This will fetch ALL repos in '${org}' (may be slow)`));
+  console.log(
+    chalk.yellow(
+      `\nWarning: This will fetch ALL repos in '${org}' (may be slow)`,
+    ),
+  );
 
   return await confirm({
     message: 'Continue?',
@@ -339,9 +366,10 @@ export async function promptJiraProjects(): Promise<string[]> {
 
   while (addMore) {
     const project = await input({
-      message: projects.length === 0
-        ? 'Enter a JIRA project key (e.g., "PROJ"):'
-        : 'Enter another project (or press Enter to finish):',
+      message:
+        projects.length === 0
+          ? 'Enter a JIRA project key (e.g., "PROJ"):'
+          : 'Enter another project (or press Enter to finish):',
       validate: (value: string) => {
         if (projects.length === 0 && !value.trim()) {
           return 'At least one project is required';
@@ -363,7 +391,9 @@ export async function promptJiraProjects(): Promise<string[]> {
 /**
  * Prompt for token readiness
  */
-export async function promptTokensReady(sources: DataSource[]): Promise<boolean> {
+export async function promptTokensReady(
+  sources: DataSource[],
+): Promise<boolean> {
   console.log(chalk.cyan('\nAPI tokens are required to fetch data.\n'));
   console.log('Create your tokens at:');
 
@@ -373,7 +403,11 @@ export async function promptTokensReady(sources: DataSource[]): Promise<boolean>
   }
 
   if (sources.includes('jira')) {
-    console.log(chalk.dim('  JIRA:   https://id.atlassian.com/manage-profile/security/api-tokens'));
+    console.log(
+      chalk.dim(
+        '  JIRA:   https://id.atlassian.com/manage-profile/security/api-tokens',
+      ),
+    );
   }
 
   console.log();

@@ -1,5 +1,9 @@
 // Types
-export { type GlobalConfig, GlobalConfigSchema, ProfileNameSchema } from './types';
+export {
+  type GlobalConfig,
+  GlobalConfigSchema,
+  ProfileNameSchema,
+} from './types';
 
 // Resolver utilities
 export {

@@ -32,6 +32,8 @@ export const listCommand = new Command('list')
     }
 
     console.log(
-      chalk.dim("\nUse 'work-chronicler profile switch <name>' to change profiles"),
+      chalk.dim(
+        "\nUse 'work-chronicler profile switch <name>' to change profiles",
+      ),
     );
   });

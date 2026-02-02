@@ -103,15 +103,19 @@ export async function discoverRepos(
         ? buildOrgQuery(prCount, cursor)
         : buildUserQuery(prCount, cursor);
 
-      const variables: { org?: string; login?: string; after: string | null } = isOrg
-        ? { org, after: cursor }
-        : { login: org, after: cursor };
+      const variables: { org?: string; login?: string; after: string | null } =
+        isOrg ? { org, after: cursor } : { login: org, after: cursor };
 
-      const response: ReposResponse = await graphqlWithAuth<ReposResponse>(query, variables);
+      const response: ReposResponse = await graphqlWithAuth<ReposResponse>(
+        query,
+        variables,
+      );
 
       const data = isOrg ? response.organization : response.user;
       if (!data) {
-        throw new Error(`Could not find ${isOrg ? 'organization' : 'user'} '${org}'`);
+        throw new Error(
+          `Could not find ${isOrg ? 'organization' : 'user'} '${org}'`,
+        );
       }
 
       const repositories = data.repositories;
@@ -122,7 +126,8 @@ export async function discoverRepos(
 
         // Check if any PR in this repo was authored by the target user
         const hasUserPR = repo.pullRequests.nodes.some(
-          (pr: { author: { login: string } | null }) => pr.author?.login?.toLowerCase() === username.toLowerCase(),
+          (pr: { author: { login: string } | null }) =>
+            pr.author?.login?.toLowerCase() === username.toLowerCase(),
         );
 
         if (hasUserPR) {
@@ -169,10 +174,11 @@ async function checkIfOrganization(
   login: string,
 ): Promise<boolean> {
   try {
-    const response = await graphqlWithAuth<{ organization: { id: string } | null }>(
-      `query($login: String!) { organization(login: $login) { id } }`,
-      { login },
-    );
+    const response = await graphqlWithAuth<{
+      organization: { id: string } | null;
+    }>(`query($login: String!) { organization(login: $login) { id } }`, {
+      login,
+    });
     return response.organization !== null;
   } catch {
     return false;

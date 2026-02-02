@@ -14,7 +14,9 @@ export const switchCommand = new Command('switch')
 
     if (!profileExists(name)) {
       console.error(chalk.red(`Profile '${name}' does not exist.`));
-      console.error("Run 'work-chronicler profile list' to see available profiles.");
+      console.error(
+        "Run 'work-chronicler profile list' to see available profiles.",
+      );
       process.exit(1);
     }
 
