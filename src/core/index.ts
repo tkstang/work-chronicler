@@ -69,3 +69,39 @@ export {
   type TimelineWeek,
   TimelineWeekSchema,
 } from '@wc-types/index';
+
+// Workspace (global config and profiles)
+export {
+  // Types
+  type GlobalConfig,
+  GlobalConfigSchema,
+  ProfileNameSchema,
+  // Resolver utilities
+  getWorkspaceRoot,
+  isWorkspaceMode,
+  getProfilesDir,
+  getProfileDir,
+  getProfileConfigPath,
+  getProfileEnvPath,
+  getWorkLogDir,
+  getAnalysisDir,
+  getOutputsDir,
+  getGlobalConfigPath,
+  ensureWorkspaceRoot,
+  ensureProfileDirs,
+  profileExists,
+  // Global config
+  loadGlobalConfig,
+  saveGlobalConfig,
+  getActiveProfile,
+  setActiveProfile,
+  // Profile manager
+  validateProfileName,
+  listProfiles,
+  createProfile,
+  deleteProfile,
+  loadProfileConfig,
+  saveProfileConfig,
+  saveProfileEnv,
+  initializeWorkspaceWithProfile,
+} from '@workspace/index';
