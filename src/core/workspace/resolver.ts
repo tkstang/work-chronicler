@@ -112,13 +112,7 @@ export function ensureProfileDirs(profileName: string): void {
 
   // Create standard work-log subdirectories (used by analyze/filter and for user notes)
   const workLogDir = getWorkLogDir(profileName);
-  const workLogSubdirs = [
-    '.analysis',
-    'filtered',
-    join('filtered', '.analysis'),
-    'notes',
-    'performance-reviews',
-  ];
+  const workLogSubdirs = ['.analysis', 'notes', 'performance-reviews'];
 
   for (const subdir of workLogSubdirs) {
     const subdirPath = join(workLogDir, subdir);
