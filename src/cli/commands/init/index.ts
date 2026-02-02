@@ -5,6 +5,7 @@ import {
   initializeWorkspaceWithProfile,
   isWorkspaceMode,
   profileExists,
+  ProfileNameSchema,
   saveProfileEnv,
 } from '@core/index';
 import type { DataSource } from './init.prompts';
@@ -49,8 +50,18 @@ export const initCommand = new Command('init')
         console.log(chalk.dim("Let's set up your first profile.\n"));
       }
 
-      // Step 1: Profile name
-      const profileName = options.profile ?? (await promptProfileName());
+      // Step 1: Profile name (validate with Zod if provided via CLI flag)
+      let profileName: string;
+      if (options.profile) {
+        const result = ProfileNameSchema.safeParse(options.profile);
+        if (!result.success) {
+          console.error(chalk.red(result.error.errors[0]?.message ?? 'Invalid profile name'));
+          process.exit(1);
+        }
+        profileName = result.data;
+      } else {
+        profileName = await promptProfileName();
+      }
 
       if (profileExists(profileName)) {
         console.error(chalk.red(`\nProfile '${profileName}' already exists.`));
