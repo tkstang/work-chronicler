@@ -1,8 +1,11 @@
+import { writeFileSync } from 'node:fs';
 import { fetchGitHubPRs } from '@commands/fetch/github/github.utils';
 import { fetchJiraTickets } from '@commands/fetch/jira/jira.utils';
 import type { Config } from '@core/index';
 import {
   createProfile,
+  ensureProfileDirs,
+  getProfileConfigPath,
   getProfileEnvPath,
   getWorkLogDir,
   initializeWorkspaceWithProfile,
@@ -11,9 +14,13 @@ import {
   profileExists,
   saveProfileEnv,
 } from '@core/index';
+import { confirm, input, password, select } from '@inquirer/prompts';
 import { linkPRsToTickets } from '@linker/index';
+import type { ManagerConfig, ReportConfig } from '@wc-types/manager';
+import { addReport } from '@workspace/report-manager';
 import chalk from 'chalk';
 import { Command } from 'commander';
+import { stringify as stringifyYaml } from 'yaml';
 import type { DataSource } from './init.prompts';
 import {
   promptConfirmAllRepos,
@@ -50,7 +57,8 @@ import { discoverRepos, type PRLookbackDepth } from './init.utils';
 export const initCommand = new Command('init')
   .description('Initialize a new work-chronicler profile with guided setup')
   .option('--profile <name>', 'Profile name (skips profile name prompt)')
-  .action(async (options: { profile?: string }) => {
+  .option('--mode <mode>', 'Profile mode: ic or manager (default: ic)')
+  .action(async (options: { profile?: string; mode?: string }) => {
     try {
       console.log(chalk.cyan('\nWelcome to work-chronicler!\n'));
 
@@ -60,6 +68,22 @@ export const initCommand = new Command('init')
         console.log(chalk.dim("Let's set up your first profile.\n"));
       }
 
+      // Validate mode option
+      const mode = options.mode?.toLowerCase() ?? 'ic';
+      if (mode !== 'ic' && mode !== 'manager') {
+        console.error(
+          chalk.red('\nError: --mode must be either "ic" or "manager"'),
+        );
+        process.exit(1);
+      }
+
+      // Branch on mode
+      if (mode === 'manager') {
+        await initManagerProfile(options.profile);
+        return;
+      }
+
+      // IC mode initialization (existing flow)
       // Step 1: Profile name (validate with Zod if provided via CLI flag)
       let profileName: string;
       if (options.profile) {
@@ -527,4 +551,294 @@ function showNextSteps(profileName: string, tokens: WizardTokens): void {
     chalk.dim('Switch profiles: work-chronicler profile switch <name>'),
   );
   console.log(chalk.dim('List profiles:   work-chronicler profile list'));
+}
+
+/**
+ * Initialize a manager profile
+ */
+async function initManagerProfile(cliProfileName?: string): Promise<void> {
+  // Step 1: Profile name
+  let profileName: string;
+  if (cliProfileName) {
+    const result = ProfileNameSchema.safeParse(cliProfileName);
+    if (!result.success) {
+      console.error(
+        chalk.red(result.error.errors[0]?.message ?? 'Invalid profile name'),
+      );
+      process.exit(1);
+    }
+    profileName = result.data;
+  } else {
+    profileName = await promptProfileName('manager');
+  }
+
+  if (profileExists(profileName)) {
+    console.error(chalk.red(`\nProfile '${profileName}' already exists.`));
+    console.error("Use 'work-chronicler profile delete' to remove it first.");
+    process.exit(1);
+  }
+
+  console.log(chalk.cyan('\nManager Mode Configuration\n'));
+
+  // Step 2: GitHub configuration
+  const githubOrg = await input({
+    message: 'GitHub organization:',
+    validate: (value: string) => {
+      if (!value.trim()) {
+        return 'GitHub organization is required';
+      }
+      return true;
+    },
+  });
+
+  const githubToken = await promptGitHubTokenForManager();
+
+  // Step 3: Optional JIRA configuration
+  const useJira = await confirm({
+    message: 'Configure JIRA?',
+    default: false,
+  });
+
+  let jiraConfig: ManagerConfig['jira'];
+  const tokens: {
+    githubToken?: string;
+    jiraToken?: string;
+    jiraEmail?: string;
+  } = {
+    githubToken,
+  };
+
+  if (useJira) {
+    const jiraHost = await input({
+      message: 'JIRA host (e.g., company.atlassian.net):',
+      validate: (value: string) => {
+        if (!value.trim()) {
+          return 'JIRA host is required';
+        }
+        return true;
+      },
+    });
+
+    const jiraEmail = await input({
+      message: 'JIRA email:',
+      validate: (value: string) => {
+        if (!value.trim()) {
+          return 'Email is required';
+        }
+        if (!value.includes('@')) {
+          return 'Please enter a valid email address';
+        }
+        return true;
+      },
+    });
+
+    const jiraToken = await password({
+      message: 'JIRA token:',
+      validate: (value: string) => {
+        if (!value.trim()) {
+          return 'Token is required';
+        }
+        return true;
+      },
+    });
+
+    jiraConfig = {
+      host: jiraHost.trim(),
+      email: jiraEmail.trim(),
+    };
+
+    tokens.jiraToken = jiraToken;
+    tokens.jiraEmail = jiraEmail.trim();
+  }
+
+  // Step 4: Create manager config
+  const config: ManagerConfig = {
+    mode: 'manager',
+    github: {
+      org: githubOrg.trim(),
+    },
+    jira: jiraConfig,
+    reports: [],
+  };
+
+  // Step 5: Create profile directories
+  ensureProfileDirs(profileName);
+
+  // Save manager config as YAML
+  const configPath = getProfileConfigPath(profileName);
+  const yamlContent = stringifyYaml(config, {
+    defaultStringType: 'QUOTE_DOUBLE',
+    defaultKeyType: 'PLAIN',
+  });
+  writeFileSync(configPath, yamlContent, 'utf-8');
+
+  // Save tokens to .env
+  saveProfileEnv(profileName, tokens);
+
+  // Set as active profile
+  initializeWorkspaceWithProfile(profileName);
+
+  console.log(
+    chalk.green(`\nManager profile '${profileName}' created successfully!`),
+  );
+
+  // Step 6: Add reports?
+  const addReportsNow = await confirm({
+    message: 'Add reports now?',
+    default: true,
+  });
+
+  if (addReportsNow) {
+    let addMore = true;
+    while (addMore) {
+      const report = await promptForReport(config);
+      await addReport(profileName, report);
+      console.log(chalk.green(`✓ ${report.name} added`));
+
+      addMore = await confirm({
+        message: 'Add another report?',
+        default: false,
+      });
+    }
+  }
+
+  // Show next steps
+  console.log(chalk.cyan('\nNext steps:\n'));
+  console.log('  1. List reports: work-chronicler reports list');
+  console.log('  2. Add more reports: work-chronicler reports add');
+  console.log(
+    '  3. Fetch data for a report: work-chronicler reports fetch <report-id>',
+  );
+  console.log();
+  console.log(
+    chalk.dim('Switch profiles: work-chronicler profile switch <name>'),
+  );
+  console.log(chalk.dim('List profiles:   work-chronicler profile list'));
+}
+
+/**
+ * Prompt for GitHub token (manager mode)
+ */
+async function promptGitHubTokenForManager(): Promise<string> {
+  console.log(
+    chalk.dim('\nCreate a token at: https://github.com/settings/tokens'),
+  );
+  console.log(chalk.dim('Required scopes: repo or public_repo\n'));
+
+  return await password({
+    message: 'GitHub token:',
+    validate: (value: string) => {
+      if (!value.trim()) {
+        return 'Token is required';
+      }
+      return true;
+    },
+  });
+}
+
+/**
+ * Prompt for report details (reused from reports/add.ts)
+ */
+async function promptForReport(config: ManagerConfig): Promise<ReportConfig> {
+  console.log(chalk.blue('\nAdd new report:\n'));
+
+  const name = await input({
+    message: 'Name:',
+    validate: (value) => {
+      if (!value.trim()) return 'Name is required';
+      return true;
+    },
+  });
+
+  const github = await input({
+    message: 'GitHub username:',
+    validate: (value) => {
+      if (!value.trim()) return 'GitHub username is required';
+      return true;
+    },
+  });
+
+  const email = await input({
+    message: 'Email:',
+    validate: (value) => {
+      if (!value.trim()) return 'Email is required';
+      if (!value.includes('@')) return 'Invalid email format';
+      return true;
+    },
+  });
+
+  // Repos
+  const reposChoice = await select({
+    message: 'Repos:',
+    choices: [
+      { name: 'Auto-discover', value: 'discover' },
+      { name: 'Specify manually', value: 'manual' },
+      { name: 'Skip for now', value: 'skip' },
+    ],
+  });
+
+  let repos: string[] = [];
+
+  if (reposChoice === 'discover') {
+    console.log(chalk.blue(`\n🔍 Discovering repos for ${github}...\n`));
+
+    const token = config.github?.token || process.env.GITHUB_TOKEN;
+    if (!token) {
+      throw new Error('GitHub token not found in config or environment');
+    }
+
+    const org = config.github?.org;
+    if (!org) {
+      throw new Error('GitHub org not found in config');
+    }
+
+    // Use existing discovery logic
+    const { discoverRepos } = await import('./init.utils');
+    const result = await discoverRepos(
+      token,
+      org,
+      github,
+      50, // prCount
+      '6months', // since (6 months ago)
+      null, // until
+    );
+
+    repos = result.repos;
+
+    if (repos.length === 0) {
+      console.log(
+        chalk.yellow(
+          'No repos found. You can add them later with "reports update".',
+        ),
+      );
+    } else {
+      console.log(chalk.green(`✓ Found ${repos.length} repos\n`));
+    }
+  } else if (reposChoice === 'manual') {
+    const reposInput = await input({
+      message: 'Repos (comma-separated):',
+    });
+    repos = reposInput
+      .split(',')
+      .map((r) => r.trim())
+      .filter(Boolean);
+  }
+
+  // Jira projects
+  const jiraInput = await input({
+    message: 'Jira projects (comma-separated, or leave blank):',
+  });
+
+  const jiraProjects = jiraInput
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  return {
+    name,
+    github,
+    email,
+    repos,
+    jiraProjects,
+  };
 }
