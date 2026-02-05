@@ -1,3 +1,5 @@
+import { fetchGitHubPRs } from '@commands/fetch/github/github.utils';
+import { fetchJiraTickets } from '@commands/fetch/jira/jira.utils';
 import type { Config } from '@core/index';
 import {
   createProfile,
@@ -9,8 +11,6 @@ import {
   profileExists,
   saveProfileEnv,
 } from '@core/index';
-import { fetchGitHubPRs } from '@fetchers/github';
-import { fetchJiraTickets } from '@fetchers/jira';
 import { linkPRsToTickets } from '@linker/index';
 import chalk from 'chalk';
 import { Command } from 'commander';
