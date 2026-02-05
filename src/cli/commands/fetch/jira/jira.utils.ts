@@ -5,7 +5,6 @@
  */
 
 import {
-  type Config,
   getTicketFilePath,
   type JiraInstanceConfig,
   type JiraTicket,
@@ -17,7 +16,6 @@ import ora, { type Ora } from 'ora';
 import type {
   FetchJiraOptions,
   JiraFetchResult,
-  JiraIssue,
   JiraSearchResponse,
 } from './jira.types';
 
