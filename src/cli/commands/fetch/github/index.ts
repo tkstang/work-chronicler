@@ -67,8 +67,8 @@ async function fetchGitHubManagerMode(options: any): Promise<void> {
     ),
   );
 
-  // Load config once (same for all reports)
-  const config = await loadConfig(options.config);
+  // Load base config
+  const baseConfig = await loadConfig(options.config);
 
   for (let i = 0; i < reportIds.length; i++) {
     const reportId = reportIds[i]!;
@@ -83,6 +83,15 @@ async function fetchGitHubManagerMode(options: any): Promise<void> {
     try {
       const outputDir = resolveReportOutputDir(reportId);
 
+      // Override github.username with report's username
+      const reportConfig = {
+        ...baseConfig,
+        github: {
+          ...baseConfig.github,
+          username: report.github, // Use report's GitHub username, not manager's
+        },
+      };
+
       // Determine cache behavior - prompt if data exists and --cache not specified
       let useCache = options.cache;
       if (!options.cache) {
@@ -93,7 +102,7 @@ async function fetchGitHubManagerMode(options: any): Promise<void> {
       }
 
       const results = await fetchGitHubPRs({
-        config,
+        config: reportConfig, // Use report-specific config
         outputDir,
         verbose: options.verbose,
         useCache,
