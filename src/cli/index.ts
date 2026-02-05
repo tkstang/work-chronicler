@@ -52,7 +52,7 @@ program
   .description(
     'Gather, analyze, and summarize your work history from GitHub PRs and JIRA tickets',
   )
-  .version('0.1.0')
+  .version('0.1.1')
   .option(
     '--profile <name>',
     'Use a specific profile (overrides active profile)',

@@ -29,7 +29,10 @@
     "lint": "biome lint src/",
     "lint:fix": "biome lint --write src/",
     "prepare": "test \"$GIT_HOOKS\" = \"0\" && exit 0; node tools/git-hooks/manage-hooks.js setup 2>/dev/null || true",
-    "test": "echo \"No tests configured\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
@@ -51,10 +54,12 @@
     "@commitlint/config-conventional": "^19.8.1",
     "@types/inquirer": "^9.0.9",
     "@types/node": "^22.10.0",
+    "@vitest/ui": "^4.0.18",
     "lint-staged": "^15.2.11",
     "tsc-alias": "^1.8.10",
     "tsx": "^4.21.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.18"
   },
   "files": [
     "dist",
