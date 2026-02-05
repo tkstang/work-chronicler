@@ -1,6 +1,12 @@
+/**
+ * profile switch subcommand
+ *
+ * Switches to a different profile.
+ */
+
+import { isWorkspaceMode, profileExists, setActiveProfile } from '@core/index';
 import chalk from 'chalk';
 import { Command } from 'commander';
-import { isWorkspaceMode, profileExists, setActiveProfile } from '@core/index';
 
 export const switchCommand = new Command('switch')
   .description('Switch to a different profile')

@@ -1,3 +1,9 @@
+/**
+ * fetch jira subcommand
+ *
+ * Fetches tickets from JIRA for the configured user and instances.
+ */
+
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import {
@@ -6,12 +12,12 @@ import {
   getOutputDirectory,
   loadConfig,
 } from '@core/index';
-import { fetchJiraTickets } from '@fetchers/jira';
 import { promptUseCache } from '@prompts';
 import chalk from 'chalk';
 import { Command } from 'commander';
+import { fetchJiraTickets } from './jira.utils';
 
-export const fetchJiraCommand = new Command('fetch:jira')
+export const jiraCommand = new Command('jira')
   .description('Fetch tickets from JIRA')
   .option('-c, --config <path>', 'Path to config file')
   .option('-v, --verbose', 'Show detailed output')

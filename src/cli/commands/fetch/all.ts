@@ -1,19 +1,18 @@
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
-import {
-  DIRECTORIES,
-  findConfigPath,
-  getOutputDirectory,
-  loadConfig,
-} from '@core/index';
-import { fetchGitHubPRs } from '@fetchers/github';
-import { fetchJiraTickets } from '@fetchers/jira';
+/**
+ * fetch all subcommand
+ *
+ * Fetches both GitHub PRs and JIRA tickets, then links them.
+ */
+
+import { findConfigPath, getOutputDirectory, loadConfig } from '@core/index';
 import { linkPRsToTickets } from '@linker/index';
-import { promptUseCache } from '@prompts';
 import chalk from 'chalk';
 import { Command } from 'commander';
+import { resolveCacheBehavior } from './fetch.utils';
+import { fetchGitHubPRs } from './github/github.utils';
+import { fetchJiraTickets } from './jira/jira.utils';
 
-export const fetchAllCommand = new Command('fetch:all')
+export const allCommand = new Command('all')
   .description('Fetch both GitHub PRs and JIRA tickets, then link them')
   .option('-c, --config <path>', 'Path to config file')
   .option('-v, --verbose', 'Show detailed output')
@@ -26,14 +25,11 @@ export const fetchAllCommand = new Command('fetch:all')
       const outputDir = getOutputDirectory(config, configPath ?? undefined);
 
       // Determine cache behavior - prompt if data exists and --cache not specified
-      let useCache = options.cache;
-      if (!options.cache) {
-        const prDir = join(outputDir, DIRECTORIES.PULL_REQUESTS);
-        const jiraDir = join(outputDir, DIRECTORIES.JIRA);
-        if (existsSync(prDir) || existsSync(jiraDir)) {
-          useCache = await promptUseCache();
-        }
-      }
+      const useCache = await resolveCacheBehavior({
+        outputDir,
+        cacheFlag: options.cache,
+        checkDirectories: ['github', 'jira'],
+      });
 
       console.log(chalk.bold('\n📥 Fetching Work History\n'));
       console.log(`${chalk.gray('Output directory:')} ${outputDir}`);

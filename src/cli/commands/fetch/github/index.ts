@@ -1,3 +1,9 @@
+/**
+ * fetch github subcommand
+ *
+ * Fetches pull requests from GitHub for the configured user and organizations.
+ */
+
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import {
@@ -6,12 +12,12 @@ import {
   getOutputDirectory,
   loadConfig,
 } from '@core/index';
-import { fetchGitHubPRs } from '@fetchers/github';
 import { promptUseCache } from '@prompts';
 import chalk from 'chalk';
 import { Command } from 'commander';
+import { fetchGitHubPRs } from './github.utils';
 
-export const fetchGitHubCommand = new Command('fetch:github')
+export const githubCommand = new Command('github')
   .description('Fetch pull requests from GitHub')
   .option('-c, --config <path>', 'Path to config file')
   .option('-v, --verbose', 'Show detailed output')

@@ -18,7 +18,6 @@
       "@mcp/*": ["src/mcp/*"],
       "@cli/*": ["src/cli/*"],
       "@commands/*": ["src/cli/commands/*"],
-      "@fetchers/*": ["src/cli/fetchers/*"],
       "@linker/*": ["src/cli/linker/*"],
       "@prompts": ["src/cli/prompts/index.ts"],
       "@analyzer/*": ["src/cli/analyzer/*"],

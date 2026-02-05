@@ -1,6 +1,12 @@
+/**
+ * profile list subcommand
+ *
+ * Lists all available profiles and indicates the active one.
+ */
+
+import { getActiveProfile, isWorkspaceMode, listProfiles } from '@core/index';
 import chalk from 'chalk';
 import { Command } from 'commander';
-import { getActiveProfile, isWorkspaceMode, listProfiles } from '@core/index';
 
 export const listCommand = new Command('list')
   .description('List all available profiles')

@@ -1,3 +1,9 @@
+/**
+ * GitHub fetching utilities
+ *
+ * Contains the core logic for fetching PRs from GitHub.
+ */
+
 import {
   type Config,
   type GitHubOrgConfig,
@@ -9,6 +15,11 @@ import {
 import { Octokit } from '@octokit/rest';
 import chalk from 'chalk';
 import ora, { type Ora } from 'ora';
+import type {
+  FetchGitHubOptions,
+  GitHubCacheInfo,
+  GitHubFetchResult,
+} from './github.types';
 
 /**
  * Check if an error is a GitHub rate limit error and handle it
@@ -42,27 +53,6 @@ function handleRateLimitError(error: unknown): never {
     }
   }
   throw error;
-}
-
-interface FetchGitHubOptions {
-  config: Config;
-  outputDir: string;
-  verbose?: boolean;
-  useCache?: boolean;
-}
-
-interface FetchResult {
-  org: string;
-  repo: string;
-  prsWritten: number;
-  prsSkipped: number;
-  prsCached: number;
-}
-
-interface CacheInfo {
-  cachedPRs: Set<string>;
-  oldestCachedDate: Date | null;
-  newestCachedDate: Date | null;
 }
 
 /**
@@ -155,28 +145,47 @@ async function listOrgRepos(
   return repos;
 }
 
+interface FetchRepoPRsParams {
+  octokit: Octokit;
+  org: string;
+  repo: string;
+  username: string;
+  since: Date;
+  until: Date;
+  outputDir: string;
+  spinner: Ora;
+  cacheInfo: GitHubCacheInfo;
+  verbose?: boolean;
+}
+
 /**
  * Fetch PRs for a single repository
  */
 async function fetchRepoPRs(
-  octokit: Octokit,
-  org: string,
-  repo: string,
-  username: string,
-  since: Date,
-  until: Date,
-  outputDir: string,
-  spinner: Ora,
-  cacheInfo: CacheInfo,
-  verbose?: boolean,
+  params: FetchRepoPRsParams,
 ): Promise<{ written: number; skipped: number; cached: number }> {
+  const {
+    octokit,
+    org,
+    repo,
+    username,
+    since,
+    until,
+    outputDir,
+    spinner,
+    cacheInfo,
+    verbose,
+  } = params;
+
   let written = 0;
   const skipped = 0;
   let cached = 0;
   let page = 1;
 
-  // Determine if we can skip this repo entirely based on cache
-  // If we have cached PRs and the requested range is within the cached range, skip
+  /**
+   * Determine if we can skip this repo entirely based on cache.
+   * If we have cached PRs and the requested range is within the cached range, skip.
+   */
   if (
     cacheInfo.cachedPRs.size > 0 &&
     cacheInfo.oldestCachedDate &&
@@ -300,21 +309,37 @@ async function fetchRepoPRs(
   return { written, skipped, cached };
 }
 
+interface FetchOrgPRsParams {
+  octokit: Octokit;
+  orgConfig: GitHubOrgConfig;
+  username: string;
+  since: Date;
+  until: Date;
+  outputDir: string;
+  spinner: Ora;
+  cacheInfo: GitHubCacheInfo;
+  verbose?: boolean;
+}
+
 /**
  * Fetch PRs for an organization
  */
 async function fetchOrgPRs(
-  octokit: Octokit,
-  orgConfig: GitHubOrgConfig,
-  username: string,
-  since: Date,
-  until: Date,
-  outputDir: string,
-  spinner: Ora,
-  cacheInfo: CacheInfo,
-  verbose?: boolean,
-): Promise<FetchResult[]> {
-  const results: FetchResult[] = [];
+  params: FetchOrgPRsParams,
+): Promise<GitHubFetchResult[]> {
+  const {
+    octokit,
+    orgConfig,
+    username,
+    since,
+    until,
+    outputDir,
+    spinner,
+    cacheInfo,
+    verbose,
+  } = params;
+
+  const results: GitHubFetchResult[] = [];
   const org = orgConfig.name;
 
   // Get list of repos to fetch
@@ -334,7 +359,7 @@ async function fetchOrgPRs(
     try {
       spinner.text = `Fetching ${chalk.gray(org)}/${chalk.cyan(repo)}...`;
 
-      const { written, skipped, cached } = await fetchRepoPRs(
+      const { written, skipped, cached } = await fetchRepoPRs({
         octokit,
         org,
         repo,
@@ -345,7 +370,7 @@ async function fetchOrgPRs(
         spinner,
         cacheInfo,
         verbose,
-      );
+      });
 
       results.push({
         org,
@@ -391,7 +416,7 @@ async function fetchOrgPRs(
 /**
  * Build cache info from existing work log
  */
-async function buildCacheInfo(outputDir: string): Promise<CacheInfo> {
+async function buildCacheInfo(outputDir: string): Promise<GitHubCacheInfo> {
   const cachedPRs = new Set<string>();
   let oldestCachedDate: Date | null = null;
   let newestCachedDate: Date | null = null;
@@ -416,10 +441,13 @@ async function buildCacheInfo(outputDir: string): Promise<CacheInfo> {
 
 /**
  * Fetch all PRs from GitHub based on config
+ *
+ * @param options - Fetch options including config, output directory, and flags
+ * @returns Array of fetch results per repository
  */
 export async function fetchGitHubPRs(
   options: FetchGitHubOptions,
-): Promise<FetchResult[]> {
+): Promise<GitHubFetchResult[]> {
   const { config, outputDir, verbose, useCache } = options;
 
   // Skip if no GitHub orgs configured (e.g., JIRA-only profile)
@@ -451,7 +479,7 @@ export async function fetchGitHubPRs(
   console.log(`${chalk.gray('Date range:')} ${sinceStr} to ${untilStr}`);
 
   // Build cache if enabled
-  let cacheInfo: CacheInfo = {
+  let cacheInfo: GitHubCacheInfo = {
     cachedPRs: new Set(),
     oldestCachedDate: null,
     newestCachedDate: null,
@@ -474,13 +502,13 @@ export async function fetchGitHubPRs(
   console.log();
 
   const spinner = ora();
-  const allResults: FetchResult[] = [];
+  const allResults: GitHubFetchResult[] = [];
 
   for (const orgConfig of config.github.orgs) {
     console.log(`${chalk.cyan('Org:')} ${orgConfig.name}`);
     spinner.start(`Fetching from ${orgConfig.name}...`);
 
-    const results = await fetchOrgPRs(
+    const results = await fetchOrgPRs({
       octokit,
       orgConfig,
       username,
@@ -490,7 +518,7 @@ export async function fetchGitHubPRs(
       spinner,
       cacheInfo,
       verbose,
-    );
+    });
     allResults.push(...results);
 
     spinner.stop();

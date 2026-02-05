@@ -1,7 +1,13 @@
+/**
+ * profile delete subcommand
+ *
+ * Deletes a profile and all its data.
+ */
+
+import { deleteProfile, isWorkspaceMode, profileExists } from '@core/index';
 import { confirm } from '@inquirer/prompts';
 import chalk from 'chalk';
 import { Command } from 'commander';
-import { deleteProfile, isWorkspaceMode, profileExists } from '@core/index';
 
 export const deleteCommand = new Command('delete')
   .description('Delete a profile and all its data')

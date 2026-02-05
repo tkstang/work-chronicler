@@ -1,3 +1,9 @@
+/**
+ * JIRA fetching utilities
+ *
+ * Contains the core logic for fetching tickets from JIRA.
+ */
+
 import {
   type Config,
   getTicketFilePath,
@@ -8,40 +14,12 @@ import {
 } from '@core/index';
 import chalk from 'chalk';
 import ora, { type Ora } from 'ora';
-
-interface FetchJiraOptions {
-  config: Config;
-  outputDir: string;
-  verbose?: boolean;
-  useCache?: boolean;
-}
-
-interface FetchResult {
-  instance: string;
-  project: string;
-  ticketsWritten: number;
-  ticketsSkipped: number;
-  ticketsCached: number;
-}
-
-interface JiraSearchResponse {
-  issues: JiraIssue[];
-  nextPageToken?: string;
-  isLast?: boolean;
-}
-
-interface JiraIssue {
-  key: string;
-  fields: {
-    summary: string;
-    issuetype?: { name: string };
-    status?: { name: string };
-    created: string;
-    resolutiondate: string | null;
-    customfield_10016?: number; // Story points
-    description?: string | { content: unknown[] };
-  };
-}
+import type {
+  FetchJiraOptions,
+  JiraFetchResult,
+  JiraIssue,
+  JiraSearchResponse,
+} from './jira.types';
 
 /**
  * Get JIRA token from instance config or environment
@@ -73,16 +51,19 @@ function formatJqlDate(date: Date): string {
   return dateStr ?? iso.slice(0, 10);
 }
 
+interface JiraFetchParams {
+  baseUrl: string;
+  path: string;
+  email: string;
+  token: string;
+  options?: RequestInit;
+}
+
 /**
  * Make authenticated request to JIRA API
  */
-async function jiraFetch<T>(
-  baseUrl: string,
-  path: string,
-  email: string,
-  token: string,
-  options: RequestInit = {},
-): Promise<T> {
+async function jiraFetch<T>(params: JiraFetchParams): Promise<T> {
+  const { baseUrl, path, email, token, options = {} } = params;
   const auth = Buffer.from(`${email}:${token}`).toString('base64');
 
   const response = await fetch(`${baseUrl}${path}`, {
@@ -103,22 +84,40 @@ async function jiraFetch<T>(
   return response.json() as Promise<T>;
 }
 
+interface FetchProjectTicketsParams {
+  baseUrl: string;
+  email: string;
+  token: string;
+  instanceName: string;
+  project: string;
+  since: Date;
+  until: Date;
+  outputDir: string;
+  spinner: Ora;
+  cachedTickets: Set<string>;
+  verbose?: boolean;
+}
+
 /**
  * Fetch tickets for a single project
  */
 async function fetchProjectTickets(
-  baseUrl: string,
-  email: string,
-  token: string,
-  instanceName: string,
-  project: string,
-  since: Date,
-  until: Date,
-  outputDir: string,
-  spinner: Ora,
-  cachedTickets: Set<string>,
-  verbose?: boolean,
+  params: FetchProjectTicketsParams,
 ): Promise<{ written: number; skipped: number; cached: number }> {
+  const {
+    baseUrl,
+    email,
+    token,
+    instanceName,
+    project,
+    since,
+    until,
+    outputDir,
+    spinner,
+    cachedTickets,
+    verbose,
+  } = params;
+
   let written = 0;
   let skipped = 0;
   let cached = 0;
@@ -158,16 +157,16 @@ async function fetchProjectTickets(
       requestBody.nextPageToken = nextPageToken;
     }
 
-    const response = await jiraFetch<JiraSearchResponse>(
+    const response = await jiraFetch<JiraSearchResponse>({
       baseUrl,
-      '/rest/api/3/search/jql',
+      path: '/rest/api/3/search/jql',
       email,
       token,
-      {
+      options: {
         method: 'POST',
         body: JSON.stringify(requestBody),
       },
-    );
+    });
 
     const issues = response.issues || [];
     if (issues.length === 0) break;
@@ -287,19 +286,33 @@ function extractTextFromAdf(adf: unknown): string {
     .trim();
 }
 
+interface FetchInstanceTicketsParams {
+  instanceConfig: JiraInstanceConfig;
+  since: Date;
+  until: Date;
+  outputDir: string;
+  spinner: Ora;
+  cachedTickets: Set<string>;
+  verbose?: boolean;
+}
+
 /**
  * Fetch tickets for a JIRA instance
  */
 async function fetchInstanceTickets(
-  instanceConfig: JiraInstanceConfig,
-  since: Date,
-  until: Date,
-  outputDir: string,
-  spinner: Ora,
-  cachedTickets: Set<string>,
-  verbose?: boolean,
-): Promise<FetchResult[]> {
-  const results: FetchResult[] = [];
+  params: FetchInstanceTicketsParams,
+): Promise<JiraFetchResult[]> {
+  const {
+    instanceConfig,
+    since,
+    until,
+    outputDir,
+    spinner,
+    cachedTickets,
+    verbose,
+  } = params;
+
+  const results: JiraFetchResult[] = [];
   const instanceName = instanceConfig.name;
 
   const token = getJiraToken(instanceConfig);
@@ -321,8 +334,8 @@ async function fetchInstanceTickets(
     try {
       spinner.text = `Fetching ${chalk.gray(instanceName)}/${chalk.cyan(project)}...`;
 
-      const { written, skipped, cached } = await fetchProjectTickets(
-        instanceConfig.url,
+      const { written, skipped, cached } = await fetchProjectTickets({
+        baseUrl: instanceConfig.url,
         email,
         token,
         instanceName,
@@ -333,7 +346,7 @@ async function fetchInstanceTickets(
         spinner,
         cachedTickets,
         verbose,
-      );
+      });
 
       results.push({
         instance: instanceName,
@@ -380,10 +393,13 @@ async function buildCacheSet(outputDir: string): Promise<Set<string>> {
 
 /**
  * Fetch all JIRA tickets based on config
+ *
+ * @param options - Fetch options including config, output directory, and flags
+ * @returns Array of fetch results per project
  */
 export async function fetchJiraTickets(
   options: FetchJiraOptions,
-): Promise<FetchResult[]> {
+): Promise<JiraFetchResult[]> {
   const { config, outputDir, verbose, useCache } = options;
 
   if (!config.jira?.instances.length) {
@@ -410,13 +426,13 @@ export async function fetchJiraTickets(
   console.log();
 
   const spinner = ora();
-  const allResults: FetchResult[] = [];
+  const allResults: JiraFetchResult[] = [];
 
   for (const instanceConfig of config.jira.instances) {
     console.log(`${chalk.cyan('Instance:')} ${instanceConfig.name}`);
     spinner.start(`Fetching from ${instanceConfig.name}...`);
 
-    const results = await fetchInstanceTickets(
+    const results = await fetchInstanceTickets({
       instanceConfig,
       since,
       until,
@@ -424,7 +440,7 @@ export async function fetchJiraTickets(
       spinner,
       cachedTickets,
       verbose,
-    );
+    });
     allResults.push(...results);
 
     spinner.stop();
