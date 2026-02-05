@@ -254,16 +254,27 @@ work-chronicler reports remove alice-smith --delete-data
 
 ## Fetching Data
 
+All fetch commands (`github`, `jira`, `all`) support three modes in manager mode:
+- **Interactive**: Prompts for report selection when no flags provided
+- **Single report**: `--report <id>` to fetch for one report
+- **All reports**: `--all-reports` to fetch for all reports
+
+**Important**: Each report is fetched using their individual credentials (GitHub username, email), not the manager's credentials.
+
 ### Fetch All Reports
 
 Fetch data for all reports at once:
 
 ```bash
-# Interactive (prompts if using cache)
+# Interactive (prompts for report selection)
 work-chronicler fetch all
 
-# Non-interactive (full fetch)
+# Non-interactive (fetch all reports)
 work-chronicler fetch all --all-reports --no-cache
+
+# Also works with github and jira commands
+work-chronicler fetch github --all-reports
+work-chronicler fetch jira --all-reports
 ```
 
 **Example output:**
@@ -300,8 +311,10 @@ Summary:
 Fetch data for a specific report:
 
 ```bash
-# Interactive selection
+# Interactive selection (any fetch command)
 work-chronicler fetch all
+work-chronicler fetch github
+work-chronicler fetch jira
 
 ? Which report(s)?
   ◯ Alice Smith (alice-smith)
@@ -310,8 +323,9 @@ work-chronicler fetch all
   ◉ All reports
 
 # Or specify directly
-work-chronicler fetch github --report alice-smith
-work-chronicler fetch jira --report bob-jones
+work-chronicler fetch all --report alice-smith
+work-chronicler fetch github --report bob-jones
+work-chronicler fetch jira --report charlie-davis
 ```
 
 ### Cache Mode
@@ -319,7 +333,9 @@ work-chronicler fetch jira --report bob-jones
 Use `--cache` to skip already-fetched items:
 
 ```bash
+# Works with any fetch command
 work-chronicler fetch all --all-reports --cache
+work-chronicler fetch github --report alice-smith --cache
 ```
 
 This is useful for incremental updates - only new PRs and tickets are fetched.

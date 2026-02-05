@@ -147,9 +147,9 @@ work-chronicler uses a portable workspace at `~/.work-chronicler/`:
 |---------|-------------|
 | `init` | Initialize workspace with interactive wizard |
 | `init --mode manager` | Initialize in manager mode for tracking multiple reports |
-| `fetch github` | Fetch PRs from GitHub |
-| `fetch jira` | Fetch tickets from JIRA |
-| `fetch all` | Fetch both PRs and JIRA tickets |
+| `fetch github` | Fetch PRs from GitHub (supports manager mode: `--report`, `--all-reports`) |
+| `fetch jira` | Fetch tickets from JIRA (supports manager mode: `--report`, `--all-reports`) |
+| `fetch all` | Fetch both PRs and JIRA tickets (supports manager mode: `--report`, `--all-reports`) |
 | `link` | Cross-reference PRs and JIRA tickets |
 | `analyze` | Classify PRs by impact and generate stats |
 | `analyze reports <id>` | Analyze specific report (manager mode) |
