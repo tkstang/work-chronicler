@@ -2,6 +2,7 @@
 name: work-chronicler-detect-projects
 description: Use when analyzing work history to identify major projects and group related PRs and tickets together.
 user-invocable: true
+disable-model-invocation: true
 ---
 
 # Detect Projects

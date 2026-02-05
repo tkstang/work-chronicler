@@ -2,6 +2,7 @@
 name: work-chronicler-generate-resume-bullets
 description: Use when creating achievement-focused resume bullet points from work history. Extracts impactful accomplishments for resumes.
 user-invocable: true
+disable-model-invocation: true
 ---
 
 # Generate Resume Bullets

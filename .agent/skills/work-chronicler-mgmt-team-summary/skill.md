@@ -2,6 +2,7 @@
 name: work-chronicler-mgmt-team-summary
 description: Generate team-level overview aggregating work across all reports. Useful for leadership updates and calibration meetings. Shows collaboration patterns and team-wide trends without individual comparisons.
 user-invocable: true
+disable-model-invocation: true
 ---
 
 # Team Summary (Manager Mode)

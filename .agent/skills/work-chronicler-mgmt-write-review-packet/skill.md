@@ -2,6 +2,7 @@
 name: work-chronicler-mgmt-write-review-packet
 description: Generate evidence-based performance review content for a specific direct report. Analyzes report's work history to create structured review narratives with PR/ticket citations.
 user-invocable: true
+disable-model-invocation: true
 ---
 
 # Write Review Packet (Manager Mode)

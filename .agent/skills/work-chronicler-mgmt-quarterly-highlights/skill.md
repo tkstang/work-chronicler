@@ -2,6 +2,7 @@
 name: work-chronicler-mgmt-quarterly-highlights
 description: Generate concise quarterly highlight summaries for a specific direct report. Useful for 1:1s, check-ins, and calibration prep.
 user-invocable: true
+disable-model-invocation: true
 ---
 
 # Quarterly Highlights (Manager Mode)
