@@ -16,12 +16,12 @@ commands/
 │   ├── index.ts            # Parent command (registers subcommands)
 │   ├── all.ts              # fetch all subcommand
 │   ├── fetch.utils.ts      # Shared utilities
-│   |
+│   │
 │   ├── github/             # Complex subcommand (has utils/types)
 │   │   ├── index.ts        # fetch github subcommand
 │   │   ├── github.utils.ts # GitHub fetching logic
 │   │   └── github.types.ts # GitHub-specific types
-│   |
+│   │
 │   └── jira/               # Complex subcommand (has utils/types)
 │       ├── index.ts        # fetch jira subcommand
 │       ├── jira.utils.ts   # JIRA fetching logic
@@ -33,11 +33,25 @@ commands/
 │   ├── init.types.ts       # Types
 │   └── init.utils.ts       # Utilities
 │
-└── profile/                # Command with simple subcommands
+├── profile/                # Command with simple subcommands
+│   ├── index.ts            # Parent command
+│   ├── delete.ts           # profile delete subcommand
+│   ├── list.ts             # profile list subcommand
+│   └── switch.ts           # profile switch subcommand
+│
+├── skills/                 # Command with simple subcommands + shared types
+│   ├── index.ts            # Parent command
+│   ├── install.ts          # skills install subcommand
+│   ├── list.ts             # skills list subcommand
+│   ├── uninstall.ts        # skills uninstall subcommand
+│   └── types.ts            # Shared types (AI tool definitions)
+│
+└── workspace/              # Command with simple subcommands
     ├── index.ts            # Parent command
-    ├── delete.ts           # profile delete subcommand
-    ├── list.ts             # profile list subcommand
-    └── switch.ts           # profile switch subcommand
+    ├── analysis.ts         # workspace analysis subcommand
+    ├── profile.ts          # workspace profile subcommand
+    ├── root.ts             # workspace root subcommand
+    └── work-log.ts         # workspace work-log subcommand
 ```
 
 ## Conventions

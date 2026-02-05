@@ -24,7 +24,7 @@ Use `pnpm cli` instead of `work-chronicler`:
 ```bash
 pnpm install
 pnpm cli init
-pnpm cli fetch:all
+pnpm cli fetch all
 ```
 
 ### Published Package Usage
@@ -39,7 +39,7 @@ npm install -g work-chronicler
 work-chronicler init
 
 # Fetch your work history
-work-chronicler fetch:all
+work-chronicler fetch all
 
 # Analyze and generate stats
 work-chronicler analyze --projects --timeline
@@ -59,7 +59,7 @@ work-chronicler uses a portable workspace at `~/.work-chronicler/` with support 
 work-chronicler init
 
 # Fetch from GitHub and JIRA
-work-chronicler fetch:all
+work-chronicler fetch all
 
 # Cross-reference PRs ↔ tickets
 work-chronicler link
@@ -71,7 +71,7 @@ work-chronicler analyze --projects --timeline
 work-chronicler status
 
 # Use a specific profile for any command
-work-chronicler fetch:all --profile work
+work-chronicler fetch all --profile work
 work-chronicler status --profile personal
 ```
 
@@ -92,7 +92,7 @@ work-chronicler profile switch work
 work-chronicler profile delete old-job
 
 # Use a profile for a single command
-work-chronicler fetch:all --profile personal
+work-chronicler fetch all --profile personal
 ```
 
 Profile data is stored at `~/.work-chronicler/profiles/<name>/`:
@@ -139,9 +139,9 @@ work-chronicler uses a portable workspace at `~/.work-chronicler/`:
 | Command | Description |
 |---------|-------------|
 | `init` | Initialize workspace with interactive wizard |
-| `fetch:github` | Fetch PRs from GitHub |
-| `fetch:jira` | Fetch tickets from JIRA |
-| `fetch:all` | Fetch both PRs and JIRA tickets |
+| `fetch github` | Fetch PRs from GitHub |
+| `fetch jira` | Fetch tickets from JIRA |
+| `fetch all` | Fetch both PRs and JIRA tickets |
 | `link` | Cross-reference PRs and JIRA tickets |
 | `analyze` | Classify PRs by impact and generate stats |
 | `filter` | Filter work-log to a subset based on criteria |
@@ -241,7 +241,7 @@ Filtered files are written to `work-log/filtered/` with their own analysis (stat
 
 Most commands will prompt for options when run without flags:
 
-- **fetch:github/jira/all** - Prompts whether to use cache mode if data already exists
+- **fetch github/jira/all** - Prompts whether to use cache mode if data already exists
 - **analyze** - Prompts what to generate (tag-prs, projects, timeline) and whether to use filtered data
 - **filter** - Prompts for all filter options
 
@@ -331,7 +331,7 @@ work-chronicler includes an MCP (Model Context Protocol) server that exposes you
 
 1. First, fetch and analyze your data:
    ```bash
-   work-chronicler fetch:all
+   work-chronicler fetch all
    work-chronicler analyze --projects --timeline
    ```
 
@@ -459,8 +459,7 @@ work-chronicler mcp
 work-chronicler/
 ├── src/
 │   ├── cli/                    # CLI application (Commander)
-│   │   ├── commands/           # CLI commands
-│   │   ├── fetchers/           # GitHub and JIRA fetchers
+│   │   ├── commands/           # CLI commands (fetch, profile, skills, etc.)
 │   │   ├── linker/             # Cross-reference linking
 │   │   ├── analyzer/           # Impact analysis
 │   │   └── prompts/            # Interactive prompts
@@ -529,12 +528,23 @@ pnpm publish --access public --no-git-checks
 - [x] **MCP server**: Full implementation for AI assistant integration
 - [x] **Profiles**: Multiple isolated profiles with interactive setup wizard
 - [x] **AI skills**: Portable skills for Claude Code, Cursor, Codex, Gemini
+- [x] **Supporting documents**: Skills read from `notes/`, `performance-reviews/`, `resumes/` directories
 - [ ] **AI summarization**: CLI commands for automated summaries
-- [ ] **Supporting documents**: Import past reviews, resumes, notes for context
-- [ ] **Google Docs integration**: Import performance review docs
+  - [x] AI skills for summarization via Claude/Cursor (`/work-chronicler-summarize-work`, etc.)
+  - [x] MCP server tools for AI assistants to query work data
+  - [ ] Standalone CLI commands that call LLM APIs directly (e.g., `work-chronicler summarize`)
+- [ ] **Google Docs integration**: Import RFCs, PRDs, postmortems as Markdown
+- [ ] **Google Calendar integration**: Capture meetings, time allocation, collaboration signals
+- [ ] **Manager Mode**: Per-report workspaces, team summaries, quarterly rollups
+- [ ] **Local Web UI**: Browser-based interface (`work-chronicler ui`)
 - [ ] **Linear support**: Alternative to JIRA
 - [ ] **Notion integration**: Import from Notion
+- [ ] **Slack ingestion**: High-signal channels (future)
 - [ ] **Incremental sync**: Only fetch new/updated items
+  - [x] Cache mode (`--cache` flag) skips PRs/tickets already in work log
+  - [x] Date-range optimization skips repos when cached range covers request
+  - [ ] Detect and update PRs that changed state (open → merged/closed)
+  - [ ] Fetch only items newer than last sync timestamp
 
 ## License
 
