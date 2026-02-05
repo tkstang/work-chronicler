@@ -3,7 +3,7 @@
  */
 
 import { select } from '@inquirer/prompts';
-import type { ManagerConfig, ReportConfig } from '@wc-types/manager';
+import type { ReportConfig } from '@wc-types/manager';
 import { getActiveProfile } from '@workspace/global-config';
 import { loadManagerConfig } from '@workspace/report-manager';
 import { generateReportId } from '@workspace/report-utils';
