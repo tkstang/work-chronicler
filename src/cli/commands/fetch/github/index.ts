@@ -22,6 +22,8 @@ export const githubCommand = new Command('github')
   .option('-c, --config <path>', 'Path to config file')
   .option('-v, --verbose', 'Show detailed output')
   .option('--cache', 'Skip PRs that already exist in work log')
+  .option('--report <id>', 'Report ID (manager mode only)')
+  .option('--all-reports', 'Fetch for all reports (manager mode only)')
   .action(async (options) => {
     try {
       const configPath = findConfigPath(options.config);
