@@ -113,8 +113,8 @@ async function fetchAllManagerMode(options: any): Promise<void> {
     chalk.blue(`\n📥 Fetching all data for ${reportIds.length} report(s)...\n`),
   );
 
-  // Load config once (same for all reports)
-  const config = await loadConfig(options.config);
+  // Load config once outside loop (for efficiency)
+  const baseConfig = await loadConfig(options.config);
 
   for (let i = 0; i < reportIds.length; i++) {
     const reportId = reportIds[i]!;
@@ -129,6 +129,21 @@ async function fetchAllManagerMode(options: any): Promise<void> {
     try {
       const outputDir = resolveReportOutputDir(reportId);
 
+      // Override config with report's credentials
+      const reportConfig = {
+        ...baseConfig,
+        github: {
+          ...baseConfig.github,
+          username: report.github, // Use report's GitHub username
+        },
+        jira: baseConfig.jira
+          ? {
+              ...baseConfig.jira,
+              email: report.email, // Use report's Jira email
+            }
+          : undefined,
+      };
+
       // Determine cache behavior - prompt if data exists and --cache not specified
       const useCache = await resolveCacheBehavior({
         outputDir,
@@ -139,7 +154,7 @@ async function fetchAllManagerMode(options: any): Promise<void> {
       // Fetch GitHub PRs
       console.log(chalk.blue('📥 Fetching GitHub PRs...'));
       const githubResults = await fetchGitHubPRs({
-        config,
+        config: reportConfig,
         outputDir,
         verbose: options.verbose,
         useCache,
@@ -149,7 +164,7 @@ async function fetchAllManagerMode(options: any): Promise<void> {
       // Fetch Jira tickets
       console.log(chalk.blue('📥 Fetching Jira tickets...'));
       const jiraResults = await fetchJiraTickets({
-        config,
+        config: reportConfig,
         outputDir,
         verbose: options.verbose,
         useCache,
@@ -163,7 +178,7 @@ async function fetchAllManagerMode(options: any): Promise<void> {
       if (!options.noLink) {
         console.log(chalk.blue('🔗 Linking PRs to tickets...'));
         await linkPRsToTickets({
-          config,
+          config: reportConfig,
           outputDir,
           verbose: options.verbose,
         });
