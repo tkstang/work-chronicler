@@ -18,6 +18,8 @@ export const allCommand = new Command('all')
   .option('-v, --verbose', 'Show detailed output')
   .option('--no-link', 'Skip linking PRs to tickets')
   .option('--cache', 'Skip items that already exist in work log')
+  .option('--report <id>', 'Report ID (manager mode only)')
+  .option('--all-reports', 'Fetch for all reports (manager mode only)')
   .action(async (options) => {
     try {
       const configPath = findConfigPath(options.config);
