@@ -7,7 +7,9 @@
 
 import { Command } from 'commander';
 import { addCommand } from './add';
+import { listCommand } from './list';
 
 export const reportsCommand = new Command('reports')
   .description('Manage reports (manager mode only)')
-  .addCommand(addCommand);
+  .addCommand(addCommand)
+  .addCommand(listCommand);
