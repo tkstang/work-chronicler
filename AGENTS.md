@@ -132,11 +132,15 @@ The project has three layers:
    - `fetch github`, `fetch jira`, `fetch all` - Pull data from sources
    - `link` - Cross-reference PRs ↔ tickets
    - `analyze` - Generate `.analysis/` files
+   - `analyze reports <id>` - Per-report analysis (manager mode)
+   - `analyze team` - Team-level aggregations (manager mode)
    - `filter` - Filter work-log to a subset
    - `status` - Show current state
    - `init` - Create config file with interactive wizard
+   - `init --mode manager` - Create manager profile
    - `mcp` - Start MCP server
    - `profile list|switch|delete` - Manage profiles
+   - `reports add|list|update|remove` - Manage reports (manager mode)
    - `workspace profile|work-log|analysis|root` - Output workspace paths
    - `skills install|uninstall|list` - Manage AI skills
 
@@ -156,6 +160,8 @@ The project has three layers:
 
 Work data is stored in markdown files with YAML frontmatter:
 
+### IC Mode (Individual Contributor)
+
 ```
 work-log/
 ├── pull-requests/<org>/<repo>/<date>_<number>.md
@@ -165,6 +171,25 @@ work-log/
 ├── notes/                   # User-added notes and goals
 ├── .analysis/               # Generated analysis JSON
 └── filtered/                # Filtered subset (from filter command)
+```
+
+### Manager Mode
+
+```
+profiles/manager/
+├── reports/
+│   ├── alice-smith/
+│   │   ├── work-log/            # Same structure as IC mode
+│   │   │   ├── pull-requests/...
+│   │   │   └── jira/...
+│   │   ├── analysis/            # Per-report analysis
+│   │   ├── performance-reviews/ # Optional: Past reviews
+│   │   └── notes/               # Optional: Manager notes
+│   └── bob-jones/...
+└── analysis/                    # Team-level aggregations
+    ├── team-projects.json
+    ├── contributor-matrix.json
+    └── team-timeline.json
 ```
 
 AI-generated documents are saved to `generated/` (gitignored):

@@ -15,6 +15,10 @@ But you didn't take notes, and now you're scrolling through months of PRs trying
 
 `work-chronicler` fetches your PR descriptions and JIRA tickets, stores them locally as searchable markdown files, and provides AI-ready tooling to analyze and summarize your work.
 
+### For Managers
+
+Manager mode extends work-chronicler for people managers tracking multiple direct reports. Collect work history for your team, generate evidence-based performance reviews, and maintain team visibility across projects. See the [Manager Mode Guide](docs/manager-mode.md) for details.
+
 ## Quick Start
 
 ### Local Development (this repo)
@@ -37,6 +41,9 @@ npm install -g work-chronicler
 
 # Initialize - interactive wizard guides you through setup
 work-chronicler init
+
+# Or initialize in manager mode for tracking your team
+work-chronicler init --mode manager
 
 # Fetch your work history
 work-chronicler fetch all
@@ -139,16 +146,23 @@ work-chronicler uses a portable workspace at `~/.work-chronicler/`:
 | Command | Description |
 |---------|-------------|
 | `init` | Initialize workspace with interactive wizard |
+| `init --mode manager` | Initialize in manager mode for tracking multiple reports |
 | `fetch github` | Fetch PRs from GitHub |
 | `fetch jira` | Fetch tickets from JIRA |
 | `fetch all` | Fetch both PRs and JIRA tickets |
 | `link` | Cross-reference PRs and JIRA tickets |
 | `analyze` | Classify PRs by impact and generate stats |
+| `analyze reports <id>` | Analyze specific report (manager mode) |
+| `analyze team` | Generate team-level analysis (manager mode) |
 | `filter` | Filter work-log to a subset based on criteria |
 | `status` | Show current state of fetched data |
 | `profile list` | List all profiles |
 | `profile switch <name>` | Switch active profile |
 | `profile delete <name>` | Delete a profile |
+| `reports add` | Add a direct report (manager mode) |
+| `reports list` | List all reports (manager mode) |
+| `reports update <id>` | Update report configuration (manager mode) |
+| `reports remove <id>` | Remove a report (manager mode) |
 | `mcp` | Start the MCP server for AI assistant integration |
 | `workspace <subcommand>` | Output workspace paths (profile, work-log, analysis, root) |
 | `skills install` | Install AI skills to Claude Code, Cursor, etc. |
@@ -160,6 +174,37 @@ work-chronicler uses a portable workspace at `~/.work-chronicler/`:
 | Option | Description |
 |--------|-------------|
 | `--profile <name>` | Use a specific profile (overrides active profile) |
+
+### Manager Mode
+
+For people managers tracking multiple reports. See the [Manager Mode Guide](docs/manager-mode.md) for complete documentation.
+
+**Quick start:**
+
+```bash
+# Initialize manager profile
+work-chronicler init --mode manager
+
+# Add reports
+work-chronicler reports add alice-smith \
+  --github alice \
+  --email alice@acme.com \
+  --discover-repos \
+  --jira-projects PLAT,AUTH
+
+# Fetch data for all reports
+work-chronicler fetch all --all-reports
+
+# Generate analysis
+work-chronicler analyze reports --all
+work-chronicler analyze team
+```
+
+**Key features:**
+- Per-report workspaces with automated repo discovery
+- Dual-layer analysis (individual + team-level)
+- Evidence-based review packet generation via AI skills
+- Context from past reviews and manager notes
 
 ### Analyze Command
 
@@ -529,13 +574,13 @@ pnpm publish --access public --no-git-checks
 - [x] **Profiles**: Multiple isolated profiles with interactive setup wizard
 - [x] **AI skills**: Portable skills for Claude Code, Cursor, Codex, Gemini
 - [x] **Supporting documents**: Skills read from `notes/`, `performance-reviews/`, `resumes/` directories
+- [x] **Manager Mode**: Per-report workspaces, team summaries, quarterly rollups
 - [ ] **AI summarization**: CLI commands for automated summaries
   - [x] AI skills for summarization via Claude/Cursor (`/work-chronicler-summarize-work`, etc.)
   - [x] MCP server tools for AI assistants to query work data
   - [ ] Standalone CLI commands that call LLM APIs directly (e.g., `work-chronicler summarize`)
 - [ ] **Google Docs integration**: Import RFCs, PRDs, postmortems as Markdown
 - [ ] **Google Calendar integration**: Capture meetings, time allocation, collaboration signals
-- [ ] **Manager Mode**: Per-report workspaces, team summaries, quarterly rollups
 - [ ] **Local Web UI**: Browser-based interface (`work-chronicler ui`)
 - [ ] **Linear support**: Alternative to JIRA
 - [ ] **Notion integration**: Import from Notion
