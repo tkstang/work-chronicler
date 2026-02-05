@@ -43,11 +43,11 @@ generated/
 .mcp.json
 
 # Ignore agent-specific project files (agent-agnostic)
-.agents/projects/**
-!.agents/projects/keep.md
-!.agents/projects/pr-descriptions/
-.agents/projects/pr-descriptions/**
-!.agents/projects/pr-descriptions/keep.md
+.agent/projects/**
+!.agent/projects/keep.md
+!.agent/projects/pr-descriptions/
+.agent/projects/pr-descriptions/**
+!.agent/projects/pr-descriptions/keep.md
 
 # Ignore claude instructions
 .claude/settings.local.json

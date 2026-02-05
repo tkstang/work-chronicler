@@ -28,15 +28,13 @@ async function createProject({
     process.exit(1);
   }
 
-  const projectsDir = join(cwd(), '.agents', 'projects');
+  const projectsDir = join(cwd(), '.agent', 'projects');
   const projectDir = join(projectsDir, projectName);
 
   try {
     // Create project directory
     await mkdir(projectDir, { recursive: true });
-    console.log(
-      `✓ Created project directory: .agents/projects/${projectName}/`,
-    );
+    console.log(`✓ Created project directory: .agent/projects/${projectName}/`);
 
     // Create discovery.md
     const discoveryContent = `# ${projectName} - Discovery
@@ -190,7 +188,7 @@ async function createProject({
 
     console.log('\n✨ Project scaffolding complete!');
     console.log(`\nNext steps:`);
-    console.log(`1. Open .agents/projects/${projectName}/discovery.md`);
+    console.log(`1. Open .agent/projects/${projectName}/discovery.md`);
     console.log(`2. Start gathering requirements and asking questions`);
     console.log(`3. Once discovery is complete, move to planning.md`);
     console.log(
