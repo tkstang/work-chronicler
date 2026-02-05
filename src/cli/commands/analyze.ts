@@ -20,6 +20,7 @@ import {
   generateStats,
   generateTimeline,
 } from '../analyzer';
+import { teamCommand } from './analyze/team';
 
 export const analyzeCommand = new Command('analyze')
   .description('Analyze work history and generate stats')
@@ -30,6 +31,7 @@ export const analyzeCommand = new Command('analyze')
   .option('--all', 'Run all analysis (tag-prs, projects, timeline)')
   .option('-v, --verbose', 'Show detailed output')
   .option('--full', 'Analyze full work-log even if filtered/ exists')
+  .addCommand(teamCommand)
   .action(async (options) => {
     // Determine what to analyze
     const hasAnalysisFlags =
