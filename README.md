@@ -24,7 +24,7 @@ Use `pnpm cli` instead of `work-chronicler`:
 ```bash
 pnpm install
 pnpm cli init
-pnpm cli fetch:all
+pnpm cli fetch all
 ```
 
 ### Published Package Usage
@@ -35,22 +35,11 @@ After the package is published to npm:
 # Install globally
 npm install -g work-chronicler
 
-# Create a dedicated directory for your work history
-mkdir ~/work-history
-cd ~/work-history
-
-# Initialize - creates .env and work-chronicler.yaml in current directory
+# Initialize - interactive wizard guides you through setup
 work-chronicler init
 
-# Edit .env with your tokens:
-#   GITHUB_TOKEN=ghp_xxxx
-#   JIRA_EMAIL=you@company.com
-#   JIRA_TOKEN=xxxx
-
-# Edit work-chronicler.yaml with your GitHub username, orgs, and JIRA config
-
 # Fetch your work history
-work-chronicler fetch:all
+work-chronicler fetch all
 
 # Analyze and generate stats
 work-chronicler analyze --projects --timeline
@@ -59,18 +48,18 @@ work-chronicler analyze --projects --timeline
 work-chronicler status
 ```
 
-All data is stored in the current directory under `work-log/`. You can version control this directory or keep it private.
+Data is stored in `~/.work-chronicler/profiles/<profile-name>/` with isolated configs, tokens, and work logs per profile.
 
 ## Usage
 
-All commands operate on the current directory. The CLI looks for `work-chronicler.yaml` in the current directory first, then falls back to `~/.config/work-chronicler/config.yaml`.
+work-chronicler uses a portable workspace at `~/.work-chronicler/` with support for multiple profiles. Each profile has its own config, tokens, and work log.
 
 ```bash
-# Create config files (.env and work-chronicler.yaml)
+# Initialize with interactive wizard (creates profile)
 work-chronicler init
 
 # Fetch from GitHub and JIRA
-work-chronicler fetch:all
+work-chronicler fetch all
 
 # Cross-reference PRs ↔ tickets
 work-chronicler link
@@ -80,50 +69,97 @@ work-chronicler analyze --projects --timeline
 
 # Check status
 work-chronicler status
+
+# Use a specific profile for any command
+work-chronicler fetch all --profile work
+work-chronicler status --profile personal
 ```
 
 > **Note**: For local development in this repo, prefix all commands with `pnpm cli` (e.g., `pnpm cli init`).
 
+### Profiles
+
+Profiles let you maintain separate work histories (e.g., work vs personal, different employers):
+
+```bash
+# List all profiles
+work-chronicler profile list
+
+# Switch active profile
+work-chronicler profile switch work
+
+# Delete a profile
+work-chronicler profile delete old-job
+
+# Use a profile for a single command
+work-chronicler fetch all --profile personal
+```
+
+Profile data is stored at `~/.work-chronicler/profiles/<name>/`:
+- `config.yaml` - GitHub orgs, JIRA config, etc.
+- `.env` - Tokens (GitHub, JIRA)
+- `work-log/` - Fetched PRs and tickets
+
 ## Directory Structure
 
-After fetching, your data is organized like this:
+work-chronicler uses a portable workspace at `~/.work-chronicler/`:
 
 ```
-work-log/
-├── pull-requests/
-│   └── <org-name>/
-│       └── <repo-name>/
-│           ├── 2024-01-15_123.md
-│           └── 2024-02-20_456.md
-├── jira/
-│   └── <org-name>/
-│       └── <project-key>/
-│           ├── PROJ-100.md
-│           └── PROJ-101.md
-├── performance-reviews/     # Add your own review docs here
-├── .analysis/               # Generated analysis
-│   ├── stats.json           # Impact breakdown, repo stats, etc.
-│   ├── projects.json        # Detected project groupings
-│   └── timeline.json        # Chronological view by week/month
-└── filtered/                # Filtered subset (from filter command)
-    ├── pull-requests/
-    ├── jira/
-    └── .analysis/
+~/.work-chronicler/
+├── config.json              # Global config (active profile)
+└── profiles/
+    └── <profile-name>/
+        ├── config.yaml      # Profile-specific config
+        ├── .env             # Tokens (600 permissions)
+        └── work-log/
+            ├── pull-requests/
+            │   └── <org-name>/
+            │       └── <repo-name>/
+            │           ├── 2024-01-15_123.md
+            │           └── 2024-02-20_456.md
+            ├── jira/
+            │   └── <org-name>/
+            │       └── <project-key>/
+            │           ├── PROJ-100.md
+            │           └── PROJ-101.md
+            ├── notes/                   # Additional context for AI analysis
+            ├── performance-reviews/     # Add your own review docs here
+            ├── .analysis/               # Generated analysis
+            │   ├── stats.json           # Impact breakdown, repo stats, etc.
+            │   ├── projects.json        # Detected project groupings
+            │   └── timeline.json        # Chronological view by week/month
+            └── filtered/                # Filtered subset (from filter command)
+                ├── pull-requests/
+                ├── jira/
+                └── .analysis/
 ```
 
 ## CLI Commands
 
 | Command | Description |
 |---------|-------------|
-| `init` | Create a new config file |
-| `fetch:github` | Fetch PRs from GitHub |
-| `fetch:jira` | Fetch tickets from JIRA |
-| `fetch:all` | Fetch both PRs and JIRA tickets |
+| `init` | Initialize workspace with interactive wizard |
+| `fetch github` | Fetch PRs from GitHub |
+| `fetch jira` | Fetch tickets from JIRA |
+| `fetch all` | Fetch both PRs and JIRA tickets |
 | `link` | Cross-reference PRs and JIRA tickets |
 | `analyze` | Classify PRs by impact and generate stats |
 | `filter` | Filter work-log to a subset based on criteria |
 | `status` | Show current state of fetched data |
+| `profile list` | List all profiles |
+| `profile switch <name>` | Switch active profile |
+| `profile delete <name>` | Delete a profile |
 | `mcp` | Start the MCP server for AI assistant integration |
+| `workspace <subcommand>` | Output workspace paths (profile, work-log, analysis, root) |
+| `skills install` | Install AI skills to Claude Code, Cursor, etc. |
+| `skills uninstall` | Remove installed AI skills |
+| `skills list` | Show where AI skills are installed |
+
+### Global Options
+
+| Option | Description |
+|--------|-------------|
+| `--profile <name>` | Use a specific profile (overrides active profile) |
 
 ### Analyze Command
 
@@ -205,7 +241,7 @@ Filtered files are written to `work-log/filtered/` with their own analysis (stat
 
 Most commands will prompt for options when run without flags:
 
-- **fetch:github/jira/all** - Prompts whether to use cache mode if data already exists
+- **fetch github/jira/all** - Prompts whether to use cache mode if data already exists
 - **analyze** - Prompts what to generate (tag-prs, projects, timeline) and whether to use filtered data
 - **filter** - Prompts for all filter options
 
@@ -213,7 +249,13 @@ Use flags like `--cache`, `--all`, `--full`, etc. to skip prompts in scripts.
 
 ## Configuration
 
-See [work-chronicler.example.yaml](work-chronicler.example.yaml) for a complete example.
+The `init` command runs an interactive wizard that:
+1. Creates a new profile (or uses "default")
+2. Prompts for your GitHub username, orgs, and repo selection (manual, auto-discover, or all)
+3. Optionally configures JIRA
+4. Stores tokens securely in `.env` with restricted permissions
+
+See [work-chronicler.example.yaml](work-chronicler.example.yaml) for a complete config example.
 
 ### GitHub Token
 
@@ -223,6 +265,64 @@ Create a personal access token at https://github.com/settings/tokens with the `r
 
 Create an API token at https://id.atlassian.com/manage-profile/security/api-tokens
 
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `WORK_CHRONICLER_HOME` | Override workspace root directory (default: `~/.work-chronicler`) |
+| `WORK_CHRONICLER_PROFILE` | Override active profile |
+| `WORK_CHRONICLER_DIR` | Legacy: directory containing config (for MCP server) |
+| `WORK_CHRONICLER_CONFIG` | Legacy: full path to config file |
+
+## AI Skills Installation
+
+work-chronicler includes AI skills that can be installed to your preferred coding assistant:
+
+```bash
+# Install skills to Claude Code, Cursor, etc.
+work-chronicler skills install
+
+# See where skills are installed
+work-chronicler skills list
+
+# Remove installed skills
+work-chronicler skills uninstall
+```
+
+### Available Skills
+
+After installation, these skills are available as slash commands:
+
+| Skill | Description |
+|-------|-------------|
+| `/work-chronicler-summarize-work` | Summarize work for reviews and 1:1s |
+| `/work-chronicler-generate-resume-bullets` | Create achievement-focused resume bullet points |
+| `/work-chronicler-write-self-review` | Draft self-review content for performance reviews |
+| `/work-chronicler-update-resume` | Update existing resume with recent accomplishments |
+| `/work-chronicler-detect-projects` | Identify major project groupings from work history |
+| `/work-chronicler-detect-themes` | Find recurring themes for career narrative |
+
+### Supported AI Tools
+
+Skills can be installed to:
+- **Claude Code** (`~/.claude/skills/`)
+- **Cursor** (`~/.cursor/skills/`)
+- **Codex** (`~/.codex/skills/`)
+- **Gemini** (`~/.gemini/skills/`)
+
+The install wizard auto-detects which tools you have installed.
+
+### Workspace Path Commands
+
+Skills use dynamic workspace resolution. These commands output paths for the active profile:
+
+```bash
+work-chronicler workspace profile    # Active profile name
+work-chronicler workspace work-log   # Work-log directory path
+work-chronicler workspace analysis   # Analysis directory path
+work-chronicler workspace root       # Profile root directory path
+```
+
 ## MCP Server
 
 work-chronicler includes an MCP (Model Context Protocol) server that exposes your work history to AI assistants like Claude Desktop and Cursor.
@@ -231,13 +331,16 @@ work-chronicler includes an MCP (Model Context Protocol) server that exposes you
 
 1. First, fetch and analyze your data:
    ```bash
-   work-chronicler fetch:all
+   work-chronicler fetch all
    work-chronicler analyze --projects --timeline
    ```
 
 2. Configure your AI assistant.
 
-   The MCP server needs to find your `work-chronicler.yaml` config. Use the `WORK_CHRONICLER_DIR` environment variable to point to your work history directory.
+   The MCP server loads your configuration the same way the CLI does:
+   - If you use the portable workspace (recommended), it reads `~/.work-chronicler/profiles/<profile>/config.yaml`.
+   - You can select a profile via `WORK_CHRONICLER_PROFILE`.
+   - For legacy configs, you can still point to a `work-chronicler.yaml` via `WORK_CHRONICLER_DIR` / `WORK_CHRONICLER_CONFIG`.
 
    **Published Package** (installed via npm):
 
@@ -251,7 +354,7 @@ work-chronicler includes an MCP (Model Context Protocol) server that exposes you
          "command": "npx",
          "args": ["work-chronicler", "mcp"],
          "env": {
-           "WORK_CHRONICLER_DIR": "/Users/you/work-history"
+           "WORK_CHRONICLER_PROFILE": "default"
          }
        }
      }
@@ -266,7 +369,7 @@ work-chronicler includes an MCP (Model Context Protocol) server that exposes you
          "command": "npx",
          "args": ["work-chronicler", "mcp"],
          "env": {
-           "WORK_CHRONICLER_DIR": "/Users/you/work-history"
+           "WORK_CHRONICLER_PROFILE": "default"
          }
        }
      }
@@ -284,7 +387,8 @@ work-chronicler includes an MCP (Model Context Protocol) server that exposes you
          "command": "node",
          "args": ["/path/to/work-chronicler/bin/mcp.js"],
          "env": {
-           "WORK_CHRONICLER_DIR": "/path/to/work-chronicler"
+           "WORK_CHRONICLER_PROFILE": "default",
+           "WORK_CHRONICLER_HOME": "/Users/you/.work-chronicler"
          }
        }
      }
@@ -301,7 +405,8 @@ work-chronicler includes an MCP (Model Context Protocol) server that exposes you
          "command": "node",
          "args": ["/path/to/work-chronicler/bin/work-chronicler.js", "mcp"],
          "env": {
-           "WORK_CHRONICLER_DIR": "/path/to/work-chronicler"
+           "WORK_CHRONICLER_PROFILE": "default",
+           "WORK_CHRONICLER_HOME": "/Users/you/.work-chronicler"
          }
        }
      }
@@ -311,8 +416,10 @@ work-chronicler includes an MCP (Model Context Protocol) server that exposes you
 3. Restart your AI assistant to load the MCP server.
 
 **Environment Variables:**
-- `WORK_CHRONICLER_DIR` - Directory containing your `work-chronicler.yaml`
-- `WORK_CHRONICLER_CONFIG` - Full path to config file (alternative to DIR)
+- `WORK_CHRONICLER_HOME` - Workspace root (default: `~/.work-chronicler`)
+- `WORK_CHRONICLER_PROFILE` - Profile name (default: active profile in `~/.work-chronicler/config.json`)
+- `WORK_CHRONICLER_DIR` - Legacy: directory containing your `work-chronicler.yaml`
+- `WORK_CHRONICLER_CONFIG` - Legacy: full path to config file (alternative to DIR)
 
 ### Available Tools
 
@@ -352,8 +459,7 @@ work-chronicler mcp
 work-chronicler/
 ├── src/
 │   ├── cli/                    # CLI application (Commander)
-│   │   ├── commands/           # CLI commands
-│   │   ├── fetchers/           # GitHub and JIRA fetchers
+│   │   ├── commands/           # CLI commands (fetch, profile, skills, etc.)
 │   │   ├── linker/             # Cross-reference linking
 │   │   ├── analyzer/           # Impact analysis
 │   │   └── prompts/            # Interactive prompts
@@ -420,12 +526,25 @@ pnpm publish --access public --no-git-checks
 - [x] **Project detection**: Group related PRs/tickets into initiatives
 - [x] **Timeline view**: Chronological view of work grouped by week/month
 - [x] **MCP server**: Full implementation for AI assistant integration
-- [ ] **AI summarization**: Claude/Cursor commands + CLI commands for summaries
-- [ ] **Supporting documents**: Import past reviews, resumes, notes for context
-- [ ] **Google Docs integration**: Import performance review docs
+- [x] **Profiles**: Multiple isolated profiles with interactive setup wizard
+- [x] **AI skills**: Portable skills for Claude Code, Cursor, Codex, Gemini
+- [x] **Supporting documents**: Skills read from `notes/`, `performance-reviews/`, `resumes/` directories
+- [ ] **AI summarization**: CLI commands for automated summaries
+  - [x] AI skills for summarization via Claude/Cursor (`/work-chronicler-summarize-work`, etc.)
+  - [x] MCP server tools for AI assistants to query work data
+  - [ ] Standalone CLI commands that call LLM APIs directly (e.g., `work-chronicler summarize`)
+- [ ] **Google Docs integration**: Import RFCs, PRDs, postmortems as Markdown
+- [ ] **Google Calendar integration**: Capture meetings, time allocation, collaboration signals
+- [ ] **Manager Mode**: Per-report workspaces, team summaries, quarterly rollups
+- [ ] **Local Web UI**: Browser-based interface (`work-chronicler ui`)
 - [ ] **Linear support**: Alternative to JIRA
 - [ ] **Notion integration**: Import from Notion
+- [ ] **Slack ingestion**: High-signal channels (future)
 - [ ] **Incremental sync**: Only fetch new/updated items
+  - [x] Cache mode (`--cache` flag) skips PRs/tickets already in work log
+  - [x] Date-range optimization skips repos when cached range covers request
+  - [ ] Detect and update PRs that changed state (open → merged/closed)
+  - [ ] Fetch only items newer than last sync timestamp
 
 ## License
 

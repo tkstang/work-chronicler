@@ -18,13 +18,13 @@
       "@mcp/*": ["src/mcp/*"],
       "@cli/*": ["src/cli/*"],
       "@commands/*": ["src/cli/commands/*"],
-      "@fetchers/*": ["src/cli/fetchers/*"],
       "@linker/*": ["src/cli/linker/*"],
       "@prompts": ["src/cli/prompts/index.ts"],
       "@analyzer/*": ["src/cli/analyzer/*"],
       "@config/*": ["src/core/config/*"],
       "@storage/*": ["src/core/storage/*"],
-      "@wc-types/*": ["src/core/types/*"]
+      "@wc-types/*": ["src/core/types/*"],
+      "@workspace/*": ["src/core/workspace/*"]
     },
     "isolatedModules": true,
     "esModuleInterop": true,
