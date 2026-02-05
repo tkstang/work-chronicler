@@ -1,106 +1,148 @@
+/**
+ * analyze reports command
+ *
+ * Generate per-report analysis (manager mode only).
+ */
+
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import {
-  findConfigPath,
-  getAnalysisFilePath,
-  getEffectiveOutputDir,
-  getOutputDirectory,
-  loadConfig,
-  readAllPRs,
-  readAllTickets,
-  writeMarkdownFile,
-} from '@core/index';
-import { promptAnalyzeOptions, promptUseFiltered } from '@prompts';
-import chalk from 'chalk';
-import { Command } from 'commander';
-import ora from 'ora';
 import {
   classifyPRImpact,
   detectProjects,
   generateStats,
   generateTimeline,
-} from '../analyzer';
-import { reportsCommand } from './analyze/reports';
-import { teamCommand } from './analyze/team';
+} from '@cli/analyzer';
+import {
+  getAnalysisFilePath,
+  readAllPRs,
+  readAllTickets,
+  writeMarkdownFile,
+} from '@core/index';
+import { getActiveProfile } from '@workspace/global-config';
+import {
+  getReportAnalysisDir,
+  getReportWorkLogDir,
+  isManagerMode,
+} from '@workspace/resolver';
+import chalk from 'chalk';
+import { Command } from 'commander';
+import ora from 'ora';
 
-export const analyzeCommand = new Command('analyze')
-  .description('Analyze work history and generate stats')
-  .option('-c, --config <path>', 'Path to config file')
+/**
+ * analyze reports <id> command
+ */
+export const reportsCommand = new Command('reports')
+  .description('Generate per-report analysis (manager mode only)')
+  .argument('<id>', 'Report ID (e.g., "alice-smith")')
   .option('--tag-prs', 'Update PR files with impact tags')
   .option('--projects', 'Detect and group related PRs/tickets into projects')
   .option('--timeline', 'Generate chronological timeline grouped by week/month')
   .option('--all', 'Run all analysis (tag-prs, projects, timeline)')
   .option('-v, --verbose', 'Show detailed output')
-  .option('--full', 'Analyze full work-log even if filtered/ exists')
-  .addCommand(reportsCommand)
-  .addCommand(teamCommand)
-  .action(async (options) => {
-    // Determine what to analyze
-    const hasAnalysisFlags =
-      options.tagPrs || options.projects || options.timeline || options.all;
-
-    let analyzeOpts = {
-      tagPrs: options.tagPrs || options.all,
-      projects: options.projects || options.all,
-      timeline: options.timeline || options.all,
-    };
-
-    // If no flags provided, prompt interactively
-    if (!hasAnalysisFlags) {
-      analyzeOpts = await promptAnalyzeOptions();
-    }
+  .action(async (reportId: string, options) => {
     try {
-      const configPath = findConfigPath(options.config);
-      const config = await loadConfig(options.config);
-      const baseOutputDir = getOutputDirectory(config, configPath ?? undefined);
+      const activeProfile = getActiveProfile();
 
-      // Check if filtered data exists
-      let outputDir = baseOutputDir;
-      let isFiltered = false;
-      const effective = getEffectiveOutputDir(baseOutputDir);
-
-      if (effective.isFiltered) {
-        if (options.full) {
-          // User explicitly requested full work-log
-          outputDir = baseOutputDir;
-          isFiltered = false;
-        } else {
-          // Filtered data exists - prompt user
-          const useFiltered = await promptUseFiltered();
-          if (useFiltered) {
-            outputDir = effective.dir;
-            isFiltered = true;
-          }
-        }
+      if (!isManagerMode(activeProfile)) {
+        console.error(
+          chalk.red(
+            '\n❌ Error: "analyze reports" command only available in manager mode.',
+          ),
+        );
+        console.log(
+          chalk.gray('Use "analyze" without subcommands for IC mode analysis.'),
+        );
+        process.exit(1);
       }
 
-      const since = config.fetch.since;
-      const until =
-        config.fetch.until ?? new Date().toISOString().split('T')[0];
+      const profileName = activeProfile;
 
-      console.log(chalk.cyan('Analyzing work history...\n'));
-      if (isFiltered) {
-        console.log(chalk.yellow('Using filtered data'));
+      // Get report-specific paths
+      const workLogDir = getReportWorkLogDir(profileName, reportId);
+      const analysisDir = getReportAnalysisDir(profileName, reportId);
+
+      // Ensure directories exist
+      if (!existsSync(workLogDir)) {
+        console.error(
+          chalk.red(
+            `\n❌ Error: Work-log directory not found for report "${reportId}"`,
+          ),
+        );
+        console.log(chalk.gray(`Expected: ${workLogDir}`));
+        process.exit(1);
       }
-      console.log(`${chalk.gray('Date range:')} ${since} to ${until}`);
-      console.log();
+
+      if (!existsSync(analysisDir)) {
+        mkdirSync(analysisDir, { recursive: true });
+      }
+
+      // Determine what to analyze
+      const hasAnalysisFlags =
+        options.tagPrs || options.projects || options.timeline || options.all;
+
+      const analyzeOpts = {
+        tagPrs: options.tagPrs || options.all || !hasAnalysisFlags,
+        projects: options.projects || options.all || !hasAnalysisFlags,
+        timeline: options.timeline || options.all || !hasAnalysisFlags,
+      };
+
+      console.log(chalk.cyan(`\n📊 Analyzing ${chalk.bold(reportId)}...\n`));
 
       // Load all data
       const spinner = ora('Loading PRs...').start();
-      const prs = await readAllPRs(outputDir);
+      const prs = await readAllPRs(workLogDir);
       spinner.text = 'Loading tickets...';
-      const tickets = await readAllTickets(outputDir);
+      const tickets = await readAllTickets(workLogDir);
       spinner.succeed(
         `Loaded ${chalk.cyan(prs.length)} PRs and ${chalk.cyan(tickets.length)} tickets`,
       );
 
+      // Determine date range from data
+      const today = new Date().toISOString().split('T')[0];
+      if (!today) {
+        throw new Error('Failed to generate current date');
+      }
+
+      let since: string = today;
+      let until: string = today;
+
+      if (prs.length > 0) {
+        const dates = prs
+          .map((pr) => pr.frontmatter.mergedAt || pr.frontmatter.createdAt)
+          .filter((d): d is string => Boolean(d))
+          .map((d) => {
+            const datePart = d.split('T')[0];
+            return datePart;
+          })
+          .filter((d): d is string => Boolean(d))
+          .sort();
+
+        if (dates.length > 0) {
+          const firstDate = dates[0];
+          const lastDate = dates[dates.length - 1];
+          if (firstDate && lastDate) {
+            since = firstDate;
+            until = lastDate;
+          }
+        }
+      } else {
+        console.log(
+          chalk.yellow(
+            'Warning: No date range found in data, using current date',
+          ),
+        );
+      }
+
+      console.log(`${chalk.gray('Date range:')} ${since} to ${until}`);
+      console.log();
+
       // Generate stats
       spinner.start('Generating statistics...');
-      const stats = generateStats(prs, tickets, since, until ?? '');
+      const stats = generateStats(prs, tickets, since, until);
       spinner.succeed('Generated statistics');
 
       // Write stats file
-      const statsPath = getAnalysisFilePath(outputDir, 'stats');
+      const statsPath = getAnalysisFilePath(analysisDir, 'stats');
       const dir = dirname(statsPath);
       if (!existsSync(dir)) {
         mkdirSync(dir, { recursive: true });
@@ -116,7 +158,8 @@ export const analyzeCommand = new Command('analyze')
 
         for (const pr of prs) {
           const currentImpact = pr.frontmatter.impact;
-          const newImpact = classifyPRImpact(pr.frontmatter, config.analysis);
+          // Use default thresholds for manager mode - could be configurable later
+          const newImpact = classifyPRImpact(pr.frontmatter);
 
           // Only update if not already tagged or if impact changed
           if (currentImpact !== newImpact) {
@@ -184,18 +227,13 @@ export const analyzeCommand = new Command('analyze')
       if (analyzeOpts.projects) {
         console.log();
         spinner.start('Detecting projects...');
-        const projectsAnalysis = detectProjects(
-          prs,
-          tickets,
-          since,
-          until ?? '',
-        );
+        const projectsAnalysis = detectProjects(prs, tickets, since, until);
         spinner.succeed(
           `Detected ${chalk.cyan(projectsAnalysis.summary.totalProjects)} projects`,
         );
 
         // Write projects file
-        const projectsPath = getAnalysisFilePath(outputDir, 'projects');
+        const projectsPath = getAnalysisFilePath(analysisDir, 'projects');
         writeFileSync(projectsPath, JSON.stringify(projectsAnalysis, null, 2));
         console.log(`${chalk.green('✓')} Wrote ${chalk.cyan(projectsPath)}`);
 
@@ -237,13 +275,13 @@ export const analyzeCommand = new Command('analyze')
       if (analyzeOpts.timeline) {
         console.log();
         spinner.start('Generating timeline...');
-        const timeline = generateTimeline(prs, tickets, since, until ?? '');
+        const timeline = generateTimeline(prs, tickets, since, until);
         spinner.succeed(
           `Generated timeline: ${chalk.cyan(timeline.summary.totalMonths)} months, ${chalk.cyan(timeline.summary.totalWeeks)} weeks`,
         );
 
         // Write timeline file
-        const timelinePath = getAnalysisFilePath(outputDir, 'timeline');
+        const timelinePath = getAnalysisFilePath(analysisDir, 'timeline');
         writeFileSync(timelinePath, JSON.stringify(timeline, null, 2));
         console.log(`${chalk.green('✓')} Wrote ${chalk.cyan(timelinePath)}`);
 
@@ -289,9 +327,11 @@ export const analyzeCommand = new Command('analyze')
           }
         }
       }
+
+      console.log(chalk.green('\n✓ Report analysis generated successfully'));
     } catch (error) {
       console.error(
-        chalk.red('Error:'),
+        chalk.red('\n❌ Error:'),
         error instanceof Error ? error.message : String(error),
       );
       process.exit(1);
