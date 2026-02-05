@@ -474,6 +474,8 @@ Manager mode uses a specialized directory structure:
         │   │   │   └── timeline.json
         │   │   ├── performance-reviews/  # Optional: Past reviews
         │   │   │   └── 2025-q4-review.md
+        │   │   ├── peer-reviews/         # Optional: Peer feedback
+        │   │   │   └── 2025-q4-peer-feedback.md
         │   │   └── notes/                # Optional: Manager notes
         │   │       └── 2026-goals.md
         │   ├── bob-jones/
@@ -496,6 +498,12 @@ Each report can have optional user-added directories:
 - Upload past performance reviews for each report
 - AI skills read these for context and consistency
 - Helps maintain consistent language and themes
+
+**`peer-reviews/`**
+- Upload peer feedback and reviews for each report
+- Provides collaboration context and external perspectives
+- Helps understand how report is perceived by colleagues
+- Useful for identifying collaboration strengths and areas for growth
 
 **`notes/`**
 - Add manager notes about the report

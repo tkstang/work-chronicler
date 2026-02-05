@@ -338,6 +338,8 @@ work-chronicler skills uninstall
 
 After installation, these skills are available as slash commands:
 
+**Individual Contributor (IC) Mode:**
+
 | Skill | Description |
 |-------|-------------|
 | `/work-chronicler-summarize-work` | Summarize work for reviews and 1:1s |
@@ -346,6 +348,14 @@ After installation, these skills are available as slash commands:
 | `/work-chronicler-update-resume` | Update existing resume with recent accomplishments |
 | `/work-chronicler-detect-projects` | Identify major project groupings from work history |
 | `/work-chronicler-detect-themes` | Find recurring themes for career narrative |
+
+**Manager Mode:**
+
+| Skill | Description |
+|-------|-------------|
+| `/work-chronicler-mgmt-write-review-packet` | Generate evidence-based performance review for a direct report |
+| `/work-chronicler-mgmt-quarterly-highlights` | Create concise quarterly summary for 1:1s and calibration |
+| `/work-chronicler-mgmt-team-summary` | Generate team-level overview for leadership and calibration |
 
 ### Supported AI Tools
 

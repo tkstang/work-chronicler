@@ -230,6 +230,7 @@ export function ensureReportDirs(profileName: string, reportId: string): void {
     join(reportDir, 'outputs'),
     join(reportDir, 'notes'),
     join(reportDir, 'performance-reviews'),
+    join(reportDir, 'peer-reviews'),
   ];
 
   for (const dir of dirs) {
