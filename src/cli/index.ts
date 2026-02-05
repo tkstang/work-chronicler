@@ -9,6 +9,7 @@ import { initCommand } from '@commands/init/index';
 import { linkCommand } from '@commands/link';
 import { mcpCommand } from '@commands/mcp';
 import { profileCommand } from '@commands/profile/index';
+import { reportsCommand } from '@commands/reports/index';
 import { skillsCommand } from '@commands/skills/index';
 import { statusCommand } from '@commands/status';
 import { workspaceCommand } from '@commands/workspace/index';
@@ -84,6 +85,7 @@ program.addCommand(filterCommand);
 program.addCommand(fetchCommand);
 program.addCommand(mcpCommand);
 program.addCommand(profileCommand);
+program.addCommand(reportsCommand);
 program.addCommand(workspaceCommand);
 program.addCommand(skillsCommand);
 
