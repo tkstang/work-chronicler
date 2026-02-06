@@ -2,6 +2,7 @@
 name: work-chronicler-detect-themes
 description: Use when identifying recurring themes in work history for career narrative and skill development tracking.
 user-invocable: true
+disable-model-invocation: true
 ---
 
 # Detect Themes

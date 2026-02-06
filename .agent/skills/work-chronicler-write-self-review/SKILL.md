@@ -2,6 +2,7 @@
 name: work-chronicler-write-self-review
 description: Use when drafting self-review content for performance reviews. Analyzes work history to create structured review narratives.
 user-invocable: true
+disable-model-invocation: true
 ---
 
 # Write Self-Review

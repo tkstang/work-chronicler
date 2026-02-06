@@ -2,6 +2,7 @@
 name: work-chronicler-summarize-work
 description: Use when preparing for performance reviews, 1:1s, or summarizing accomplishments. Reads PRs and tickets from work-chronicler workspace.
 user-invocable: true
+disable-model-invocation: true
 ---
 
 # Summarize Work

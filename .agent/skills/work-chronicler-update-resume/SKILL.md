@@ -2,6 +2,7 @@
 name: work-chronicler-update-resume
 description: Use when updating an existing resume with recent accomplishments from work history. Matches existing resume format and tone.
 user-invocable: true
+disable-model-invocation: true
 ---
 
 # Update Resume
