@@ -19,13 +19,9 @@ Fetch PR descriptions and JIRA tickets, store them as searchable markdown files,
 ```
 work-chronicler/
 ├── .agent/
-│   └── skills/                 # Portable AI skills (installed via `skills install`)
-│       ├── work-chronicler-summarize-work/
-│       ├── work-chronicler-generate-resume-bullets/
-│       ├── work-chronicler-write-self-review/
-│       ├── work-chronicler-update-resume/
-│       ├── work-chronicler-detect-projects/
-│       └── work-chronicler-detect-themes/
+│   └── skills/
+│       ├── work-chronicler-*/    # Package skills (installed via `skills install`)
+│       └── release-notes/        # Repo-local dev workflow skills
 ├── src/
 │   ├── cli/                    # CLI application (Commander)
 │   │   ├── commands/           # CLI commands (see commands/README.md)
@@ -152,7 +148,10 @@ The project has three layers:
    - `/work-chronicler-detect-projects` - Identify major project groupings
    - `/work-chronicler-detect-themes` - Identify recurring themes across work
 
-3. **MCP Server** (read-only data access for AI assistants):
+3. **Repo-local Skills** (dev workflows, not distributed with package):
+   - `/release-notes` - Use after tagging a release to generate and update GitHub release notes
+
+4. **MCP Server** (read-only data access for AI assistants):
    - Exposes work-log data to Claude Desktop, Cursor, etc.
    - Tools: search_prs, search_tickets, get_linked_work, list_repos, get_stats, get_projects, get_timeline
 
@@ -206,6 +205,7 @@ generated/
 Key dependencies:
 
 - **CLI**: commander, @octokit/rest, jira.js, chalk, inquirer
+- **Google Docs**: googleapis, google-auth-library
 - **MCP**: @modelcontextprotocol/sdk
 - **Core**: zod, yaml, gray-matter
 
@@ -213,11 +213,29 @@ Key dependencies:
 
 The package is published to npm as `work-chronicler`.
 
-```bash
-# Dry run
-pnpm publish --dry-run --no-git-checks
+Pushing a version tag triggers the `release.yml` GitHub Actions workflow, which:
+1. Runs lint and type-check
+2. Builds and publishes to npm (requires `NPM_TOKEN` secret)
+3. Creates a GitHub Release with auto-generated release notes
 
-# Publish (automated via GitHub Actions on version tags)
-git tag v0.1.0
-git push origin v0.1.0
+```bash
+# Bump version in package.json, commit, then:
+git tag v0.2.0
+git push origin main v0.2.0
+# CI handles npm publish and GitHub Release creation — do NOT create the release manually
 ```
+
+After the CI release is created, run `/release-notes` to generate meaningful release notes.
+
+## Skill Conventions
+
+Skills live in `.agent/skills/<name>/skill.md`. There are two kinds:
+
+- **Package skills** (`work-chronicler-*`): Distributed with the npm package via `skills install`. These operate on work-log data and are user-facing.
+- **Repo-local skills** (no prefix): Dev workflow skills that live in the repo but are not distributed. These help with development tasks like releasing.
+
+When writing skill descriptions, use "Use when..." language to make skills discoverable by AI agents:
+- **Good**: `Use when releasing a new version, after tagging, or when the user asks to update release notes.`
+- **Bad**: `Generates release notes from git history and updates the GitHub release.`
+
+The "Use when" framing helps agents match skills to user intent. The description should answer "when should I reach for this?" not "what does this do?"
