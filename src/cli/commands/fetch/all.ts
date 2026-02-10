@@ -19,10 +19,19 @@ import {
 import { fetchGitHubPRs } from './github/github.utils';
 import { fetchJiraTickets } from './jira/jira.utils';
 
+interface FetchAllOptions {
+  config?: string;
+  verbose?: boolean;
+  cache?: boolean;
+  link: boolean;
+  report?: string;
+  allReports?: boolean;
+}
+
 /**
  * Fetch all data in IC mode
  */
-async function fetchAllICMode(options: any): Promise<void> {
+async function fetchAllICMode(options: FetchAllOptions): Promise<void> {
   const configPath = findConfigPath(options.config);
   const config = await loadConfig(options.config);
   const outputDir = getOutputDirectory(config, configPath ?? undefined);
@@ -106,7 +115,7 @@ async function fetchAllICMode(options: any): Promise<void> {
 /**
  * Fetch all data in manager mode
  */
-async function fetchAllManagerMode(options: any): Promise<void> {
+async function fetchAllManagerMode(options: FetchAllOptions): Promise<void> {
   const reportIds = await resolveReportIds(options);
 
   console.log(
@@ -175,7 +184,7 @@ async function fetchAllManagerMode(options: any): Promise<void> {
       );
 
       // Link PRs and tickets
-      if (!options.noLink) {
+      if (options.link !== false) {
         console.log(chalk.blue('🔗 Linking PRs to tickets...'));
         await linkPRsToTickets({
           config: reportConfig,

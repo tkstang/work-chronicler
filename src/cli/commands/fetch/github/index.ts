@@ -24,10 +24,18 @@ import {
 } from '../fetch-manager.utils';
 import { fetchGitHubPRs } from './github.utils';
 
+interface FetchGitHubOptions {
+  config?: string;
+  verbose?: boolean;
+  cache?: boolean;
+  report?: string;
+  allReports?: boolean;
+}
+
 /**
  * Fetch GitHub PRs in IC mode
  */
-async function fetchGitHubICMode(options: any): Promise<void> {
+async function fetchGitHubICMode(options: FetchGitHubOptions): Promise<void> {
   const configPath = findConfigPath(options.config);
   const config = await loadConfig(options.config);
   const outputDir = getOutputDirectory(config, configPath ?? undefined);
@@ -58,7 +66,9 @@ async function fetchGitHubICMode(options: any): Promise<void> {
 /**
  * Fetch GitHub PRs in manager mode
  */
-async function fetchGitHubManagerMode(options: any): Promise<void> {
+async function fetchGitHubManagerMode(
+  options: FetchGitHubOptions,
+): Promise<void> {
   const reportIds = await resolveReportIds(options);
 
   console.log(

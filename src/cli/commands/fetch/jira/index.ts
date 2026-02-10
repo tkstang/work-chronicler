@@ -24,10 +24,18 @@ import {
 } from '../fetch-manager.utils';
 import { fetchJiraTickets } from './jira.utils';
 
+interface FetchJiraOptions {
+  config?: string;
+  verbose?: boolean;
+  cache?: boolean;
+  report?: string;
+  allReports?: boolean;
+}
+
 /**
  * Fetch Jira tickets in IC mode
  */
-async function fetchJiraICMode(options: any): Promise<void> {
+async function fetchJiraICMode(options: FetchJiraOptions): Promise<void> {
   const configPath = findConfigPath(options.config);
   const config = await loadConfig(options.config);
   const outputDir = getOutputDirectory(config, configPath ?? undefined);
@@ -58,7 +66,7 @@ async function fetchJiraICMode(options: any): Promise<void> {
 /**
  * Fetch Jira tickets in manager mode
  */
-async function fetchJiraManagerMode(options: any): Promise<void> {
+async function fetchJiraManagerMode(options: FetchJiraOptions): Promise<void> {
   const reportIds = await resolveReportIds(options);
 
   console.log(
