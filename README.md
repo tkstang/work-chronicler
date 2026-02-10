@@ -21,68 +21,37 @@ Manager mode extends work-chronicler for people managers tracking multiple direc
 
 ## Quick Start
 
-### Local Development (this repo)
-
-Use `pnpm cli` instead of `work-chronicler`:
-
-```bash
-pnpm install
-pnpm cli init
-pnpm cli fetch all
-```
-
-### Published Package Usage
-
-After the package is published to npm:
-
 ```bash
 # Install globally
 npm install -g work-chronicler
 
-# Initialize - interactive wizard guides you through setup
+# 1. Initialize — interactive wizard guides you through setup
 work-chronicler init
 
-# Or initialize in manager mode for tracking your team
-work-chronicler init --mode manager
-
-# Fetch your work history
+# 2. Fetch your work history from GitHub and JIRA
 work-chronicler fetch all
 
-# Analyze and generate stats
-work-chronicler analyze --projects --timeline
-
-# Check what you have
+# 3. Review what was fetched
 work-chronicler status
+
+# 4. Filter to relevant work (exclude minor PRs, personal repos, etc.)
+work-chronicler filter
+
+# 5. Run analysis on the filtered data
+work-chronicler analyze --all
+
+# 6. Install AI skills to your coding assistant
+work-chronicler skills install
+
+# 7. Use a skill in Claude Code, Cursor, etc.
+#    /work-chronicler-summarize-work
 ```
+
+> Skills are slash commands for AI coding assistants — they won't work in a regular terminal. Run them from Claude Code, Cursor, Codex, or Gemini after running `skills install`.
 
 Data is stored in `~/.work-chronicler/profiles/<profile-name>/` with isolated configs, tokens, and work logs per profile.
 
-## Usage
-
-work-chronicler uses a portable workspace at `~/.work-chronicler/` with support for multiple profiles. Each profile has its own config, tokens, and work log.
-
-```bash
-# Initialize with interactive wizard (creates profile)
-work-chronicler init
-
-# Fetch from GitHub and JIRA
-work-chronicler fetch all
-
-# Cross-reference PRs ↔ tickets
-work-chronicler link
-
-# Generate analysis files
-work-chronicler analyze --projects --timeline
-
-# Check status
-work-chronicler status
-
-# Use a specific profile for any command
-work-chronicler fetch all --profile work
-work-chronicler status --profile personal
-```
-
-> **Note**: For local development in this repo, prefix all commands with `pnpm cli` (e.g., `pnpm cli init`).
+> **Local development:** Use `pnpm cli` instead of `work-chronicler` (e.g., `pnpm cli init`).
 
 ### Profiles
 
@@ -319,9 +288,13 @@ Create an API token at https://id.atlassian.com/manage-profile/security/api-toke
 | `WORK_CHRONICLER_DIR` | Legacy: directory containing config (for MCP server) |
 | `WORK_CHRONICLER_CONFIG` | Legacy: full path to config file |
 
-## AI Skills Installation
+## AI Skills
 
-work-chronicler includes AI skills that can be installed to your preferred coding assistant:
+work-chronicler includes AI skills that can be installed to your preferred coding assistant. Skills are **stateless** — they don't embed any file paths. At runtime, each skill shells out to `work-chronicler workspace work-log` (and similar commands) to resolve the active profile's data directory. This means:
+
+- Skills work regardless of where they're installed (`~/.claude/skills/`, `~/.cursor/skills/`, etc.)
+- Switching profiles with `work-chronicler profile switch` changes what data skills read
+- No reinstallation is needed when you change profiles
 
 ```bash
 # Install skills to Claude Code, Cursor, etc.
@@ -336,7 +309,7 @@ work-chronicler skills uninstall
 
 ### Available Skills
 
-After installation, these skills are available as slash commands:
+After installation, these skills are available as slash commands in your AI coding assistant:
 
 **Individual Contributor (IC) Mode:**
 
@@ -469,6 +442,8 @@ work-chronicler includes an MCP (Model Context Protocol) server that exposes you
    ```
 
 3. Restart your AI assistant to load the MCP server.
+
+> **Profile resolution:** The MCP server resolves the active profile **once at startup**. If you switch profiles with `work-chronicler profile switch`, you need to restart the MCP server (i.e., restart your AI assistant) for the change to take effect. Alternatively, set `WORK_CHRONICLER_PROFILE` in the MCP config to pin to a specific profile.
 
 **Environment Variables:**
 - `WORK_CHRONICLER_HOME` - Workspace root (default: `~/.work-chronicler`)

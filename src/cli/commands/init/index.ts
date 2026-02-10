@@ -534,19 +534,38 @@ async function runInitialFetch(
 function showNextSteps(profileName: string, tokens: WizardTokens): void {
   console.log(chalk.cyan('\nNext steps:\n'));
 
+  let step = 1;
+
   if (!tokens.githubToken && !tokens.jiraToken) {
     const envPath = getProfileEnvPath(profileName);
-    console.log(`  1. Add your API tokens to: ${envPath}`);
-    console.log('  2. Fetch your work history: work-chronicler fetch:all');
-  } else {
-    console.log('  1. Fetch your work history: work-chronicler fetch:all');
+    console.log(`  ${step}. Add your API tokens to: ${envPath}`);
+    step++;
   }
 
-  console.log('  2. Check what was fetched: work-chronicler status');
   console.log(
-    '  3. Generate a summary: Use /summarize-work in your AI assistant',
+    `  ${step}. Fetch your work history:       work-chronicler fetch all`,
+  );
+  console.log(
+    `  ${step + 1}. Review what was fetched:       work-chronicler status`,
+  );
+  console.log(
+    `  ${step + 2}. Filter for relevant work:       work-chronicler filter`,
+  );
+  console.log(
+    `  ${step + 3}. Run analysis on filtered data:  work-chronicler analyze --all`,
+  );
+  console.log(
+    `  ${step + 4}. Install AI skills:              work-chronicler skills install`,
+  );
+  console.log(
+    `  ${step + 5}. Use a skill in your AI editor:   /work-chronicler-summarize-work`,
   );
   console.log();
+  console.log(
+    chalk.dim(
+      'Skills are slash commands for AI coding assistants (Claude Code, Cursor, etc.).',
+    ),
+  );
   console.log(
     chalk.dim('Switch profiles: work-chronicler profile switch <name>'),
   );
