@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { existsSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { analyzeCommand } from '@commands/analyze';
 import { fetchCommand } from '@commands/fetch/index';
@@ -46,6 +47,9 @@ function loadEnvFile(override = false): void {
 // Use override:false so real env vars take precedence over .env
 loadEnvFile(false);
 
+const require = createRequire(import.meta.url);
+const { version } = require('../../package.json') as { version: string };
+
 const program = new Command();
 
 program
@@ -53,7 +57,7 @@ program
   .description(
     'Gather, analyze, and summarize your work history from GitHub PRs and JIRA tickets',
   )
-  .version('0.1.1')
+  .version(version)
   .option(
     '--profile <name>',
     'Use a specific profile (overrides active profile)',
