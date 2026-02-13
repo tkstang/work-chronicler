@@ -1,6 +1,6 @@
 {
   "name": "work-chronicler",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Gather, analyze, and summarize your work history from GitHub PRs and JIRA tickets for performance reviews and resumes",
   "type": "module",
   "main": "dist/cli/index.js",
