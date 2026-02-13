@@ -17,7 +17,9 @@ But you didn't take notes, and now you're scrolling through months of PRs trying
 
 ### For Managers
 
-Manager mode extends work-chronicler for people managers tracking multiple direct reports. Collect work history for your team, generate evidence-based performance reviews, and maintain team visibility across projects. See the [Manager Mode Guide](docs/manager-mode.md) for details.
+Manager mode extends work-chronicler for people managers tracking multiple direct reports. Collect work history for your team, generate evidence-based performance reviews, and maintain team visibility across projects.
+
+**📚 See the [Manager Mode Guide](documentation/manager-mode.md) for complete documentation.**
 
 ## Quick Start
 
@@ -327,8 +329,11 @@ After installation, these skills are available as slash commands in your AI codi
 | Skill | Description |
 |-------|-------------|
 | `/work-chronicler-mgmt-write-review-packet` | Generate evidence-based performance review for a direct report |
+| `/work-chronicler-mgmt-write-peer-review` | Write peer reviews for colleagues (works with or without work-log data) |
 | `/work-chronicler-mgmt-quarterly-highlights` | Create concise quarterly summary for 1:1s and calibration |
 | `/work-chronicler-mgmt-team-summary` | Generate team-level overview for leadership and calibration |
+
+**📚 For detailed skill documentation, see [Available Skills Guide](documentation/available-skills.md)**
 
 ### Supported AI Tools
 
