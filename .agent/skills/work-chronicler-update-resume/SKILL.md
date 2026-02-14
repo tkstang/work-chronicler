@@ -104,7 +104,14 @@ Work data is stored in the workspace work-log directory:
 
 ## Output Location
 
-Save generated documents to `generated/resume-updated-YYYY-MM-DD.md` in the workspace root.
+**IMPORTANT:** You must do BOTH of the following:
+
+1. **Respond in-thread** with the resume updates (for immediate feedback and MCP integration)
+2. **Save to file**: `<profile-root>/outputs/resume-updated-YYYY-MM-DD.md`
+
+Get the profile root with: `work-chronicler workspace root`
+
+This ensures users have both immediate feedback AND a persistent file they can reference later.
 
 ## Output Format
 

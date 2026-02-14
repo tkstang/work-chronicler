@@ -219,7 +219,7 @@ export async function promptRepoDiscoveryMethod(
         name: 'Auto-discover',
         value: 'auto',
         description:
-          'Find repos where you have PRs (slow for large orgs, may miss old contributions)',
+          'Find repos where you have PRs (requires read:org scope for orgs, slow for large orgs)',
       },
       {
         name: 'All repos (slowest)',
@@ -434,7 +434,11 @@ export async function promptTokensReady(
 
   if (sources.includes('github')) {
     console.log(chalk.dim('  GitHub: https://github.com/settings/tokens'));
-    console.log(chalk.dim('          (Required scopes: repo or public_repo)'));
+    console.log(
+      chalk.dim(
+        '          (Required scopes: repo or public_repo, read:org for orgs)',
+      ),
+    );
   }
 
   if (sources.includes('jira')) {

@@ -742,7 +742,9 @@ async function promptGitHubTokenForManager(): Promise<string> {
   console.log(
     chalk.dim('\nCreate a token at: https://github.com/settings/tokens'),
   );
-  console.log(chalk.dim('Required scopes: repo or public_repo\n'));
+  console.log(
+    chalk.dim('Required scopes: repo or public_repo, read:org for orgs\n'),
+  );
 
   return await password({
     message: 'GitHub token:',

@@ -275,7 +275,15 @@ See [work-chronicler.example.yaml](work-chronicler.example.yaml) for a complete 
 
 ### GitHub Token
 
-Create a personal access token at https://github.com/settings/tokens with the `repo` scope (or `public_repo` for public repos only).
+Create a personal access token at https://github.com/settings/tokens with the following scopes:
+
+**Required:**
+- `repo` (for private repos) or `public_repo` (for public repos only)
+
+**Required for auto-discovery with organizations:**
+- `read:org` - Needed to query organization repositories during `init` auto-discovery
+
+Without `read:org`, you can still use work-chronicler by entering repos manually during setup.
 
 ### JIRA Token
 
