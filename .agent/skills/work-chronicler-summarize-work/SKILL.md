@@ -65,6 +65,17 @@ Generate a summary including:
 - **Timeline**: Busiest periods, activity trends
 - **Notable Contributions**: Largest PRs, most complex changes
 
+## Output Location
+
+**IMPORTANT:** You must do BOTH of the following:
+
+1. **Respond in-thread** with the work summary (for immediate feedback and MCP integration)
+2. **Save to file**: `<profile-root>/outputs/work-summary-YYYY-MM-DD.md`
+
+Get the profile root with: `work-chronicler workspace root`
+
+This ensures users have both immediate feedback AND a persistent file they can reference later.
+
 ## Example Output
 
 ```markdown
