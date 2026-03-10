@@ -14,8 +14,7 @@ describe('CLI version', () => {
       'utf-8',
     );
 
-    expect(cliSource).toMatch(
-      new RegExp(`\\.version\\(['"\`]${pkg.version}['"\`]\\)`),
-    );
+    // CLI reads version dynamically from package.json
+    expect(cliSource).toMatch(/\.version\(version\)/);
   });
 });
