@@ -18,7 +18,9 @@ import { isManagerMode } from '@workspace/resolver';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import {
+  buildReportConfig,
   getReportById,
+  loadManagerConfigForFetch,
   resolveReportIds,
   resolveReportOutputDir,
 } from '../fetch-manager.utils';
@@ -77,8 +79,8 @@ async function fetchGitHubManagerMode(
     ),
   );
 
-  // Load base config
-  const baseConfig = await loadConfig(options.config);
+  // Load manager config
+  const managerConfig = loadManagerConfigForFetch();
 
   for (let i = 0; i < reportIds.length; i++) {
     const reportId = reportIds[i]!;
@@ -93,14 +95,8 @@ async function fetchGitHubManagerMode(
     try {
       const outputDir = resolveReportOutputDir(reportId);
 
-      // Override github.username with report's username
-      const reportConfig = {
-        ...baseConfig,
-        github: {
-          ...baseConfig.github,
-          username: report.github, // Use report's GitHub username, not manager's
-        },
-      };
+      // Build IC-compatible config from manager config + report
+      const reportConfig = buildReportConfig(managerConfig, report);
 
       // Determine cache behavior - prompt if data exists and --cache not specified
       let useCache = options.cache;

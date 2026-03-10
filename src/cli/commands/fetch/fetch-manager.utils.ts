@@ -2,8 +2,9 @@
  * Manager mode fetch utilities
  */
 
+import type { Config } from '@config/schema';
 import { select } from '@inquirer/prompts';
-import type { ReportConfig } from '@wc-types/manager';
+import type { ManagerConfig, ReportConfig } from '@wc-types/manager';
 import { getActiveProfile } from '@workspace/global-config';
 import { loadManagerConfig } from '@workspace/report-manager';
 import { generateReportId } from '@workspace/report-utils';
@@ -108,4 +109,77 @@ export function getReportById(reportId: string): ReportConfig {
 export function resolveReportOutputDir(reportId: string): string {
   const activeProfile = getActiveProfile();
   return getReportWorkLogDir(activeProfile, reportId);
+}
+
+/**
+ * Load and return the manager config for the active profile.
+ *
+ * @returns Manager config validated against ManagerConfigSchema
+ */
+export function loadManagerConfigForFetch(): ManagerConfig {
+  const activeProfile = getActiveProfile();
+  return loadManagerConfig(activeProfile);
+}
+
+/**
+ * Build an IC-compatible Config from a manager config and a specific report.
+ *
+ * The fetch utilities (fetchGitHubPRs, fetchJiraTickets, linkPRsToTickets)
+ * all expect a Config (IC schema). This function bridges the gap by
+ * constructing one from the manager config + per-report overrides.
+ *
+ * @param managerConfig - The manager profile config
+ * @param report - The specific report to build the config for
+ * @returns A Config object compatible with IC fetch utilities
+ */
+export function buildReportConfig(
+  managerConfig: ManagerConfig,
+  report: ReportConfig,
+): Config {
+  // Build GitHub orgs array from manager org + report repos
+  const orgs = [
+    {
+      name: managerConfig.github.org,
+      repos: report.repos.length > 0 ? report.repos : ['*'],
+    },
+  ];
+
+  // Build JIRA instances from manager's JIRA config + report's projects
+  const jira =
+    managerConfig.jira && report.jiraProjects.length > 0
+      ? {
+          instances: [
+            {
+              name: managerConfig.jira.host,
+              url: managerConfig.jira.host.startsWith('https://')
+                ? managerConfig.jira.host
+                : `https://${managerConfig.jira.host}`,
+              email: report.email,
+              token: managerConfig.jira.token,
+              projects: report.jiraProjects,
+            },
+          ],
+        }
+      : undefined;
+
+  return {
+    github: {
+      username: report.github,
+      token: managerConfig.github.token,
+      orgs,
+    },
+    jira,
+    output: { directory: './work-log' },
+    fetch: {
+      since: managerConfig.fetch.since,
+      until: managerConfig.fetch.until,
+    },
+    analysis: {
+      thresholds: {
+        minor: { maxLines: 20, maxFiles: 3 },
+        major: { minLines: 200, minFiles: 8 },
+        flagship: { minLines: 500, minFiles: 15 },
+      },
+    },
+  };
 }
