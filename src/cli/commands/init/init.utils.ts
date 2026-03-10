@@ -282,7 +282,18 @@ async function checkIfOrganization(
       login,
     });
     return response.organization !== null;
-  } catch {
+  } catch (error) {
+    // Check if this is an INSUFFICIENT_SCOPES error for read:org
+    if (error && typeof error === 'object' && 'errors' in error) {
+      const errors = (error as { errors?: Array<{ type?: string }> }).errors;
+      if (errors?.some((e) => e.type === 'INSUFFICIENT_SCOPES')) {
+        throw new Error(
+          `GitHub token is missing the 'read:org' scope, which is required to query organizations.\n` +
+            `Please add this scope at: https://github.com/settings/tokens`,
+        );
+      }
+    }
+    // For other errors, assume it's a user (not an org)
     return false;
   }
 }

@@ -77,6 +77,17 @@ Work data is stored in the workspace work-log directory:
    - PR titles and descriptions keywords
    - Timeline trends (what themes emerged when?)
 
+## Output Location
+
+**IMPORTANT:** You must do BOTH of the following:
+
+1. **Respond in-thread** with the themes analysis (for immediate feedback and MCP integration)
+2. **Save to file**: `<profile-root>/outputs/themes-detected-YYYY-MM-DD.md`
+
+Get the profile root with: `work-chronicler workspace root`
+
+This ensures users have both immediate feedback AND a persistent file they can reference later.
+
 ## Output Format
 
 ```markdown

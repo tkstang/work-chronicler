@@ -191,14 +191,19 @@ profiles/manager/
     └── team-timeline.json
 ```
 
-AI-generated documents are saved to `generated/` (gitignored):
+AI-generated documents are saved to `outputs/`:
 
 ```
-generated/
+outputs/
 ├── resume-updated-YYYY-MM-DD.md
 ├── resume-bullets-YYYY-MM-DD.md
-└── self-review-YYYY-MM-DD.md
+├── self-review-YYYY-MM-DD.md
+├── work-summary-YYYY-MM-DD.md
+├── projects-detected-YYYY-MM-DD.md
+└── themes-detected-YYYY-MM-DD.md
 ```
+
+Note: Manager mode uses `reports/<id>/outputs/` for per-report generated documents.
 
 ## Dependencies
 

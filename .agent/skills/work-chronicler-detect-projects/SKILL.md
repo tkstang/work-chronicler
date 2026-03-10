@@ -57,6 +57,17 @@ Analyze work history to identify major projects and group related work.
    - Consider temporal clustering (work in same 2-4 week period)
    - Use PR labels and repository patterns
 
+## Output Location
+
+**IMPORTANT:** You must do BOTH of the following:
+
+1. **Respond in-thread** with the project summary (for immediate feedback and MCP integration)
+2. **Save to file**: `<profile-root>/outputs/projects-detected-YYYY-MM-DD.md`
+
+Get the profile root with: `work-chronicler workspace root`
+
+This ensures users have both immediate feedback AND a persistent file they can reference later.
+
 ## Project Summary Format
 
 For each project, gather:

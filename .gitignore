@@ -36,7 +36,8 @@ yarn-error.log*
 work-log/
 work-chronicler.yaml
 
-# generated documents (resumes, reviews, etc.)
+# AI-generated documents (resumes, reviews, summaries, etc.)
+# Note: NOT outputs/ because that's used in portable workspace structure
 generated/
 
 # Claude Code MCP configuration (contains API keys)
