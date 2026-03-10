@@ -18,7 +18,9 @@ import {
   readAllTickets,
   writeMarkdownFile,
 } from '@core/index';
+import { select } from '@inquirer/prompts';
 import { getActiveProfile } from '@workspace/global-config';
+import { listReports } from '@workspace/report-manager';
 import {
   getReportAnalysisDir,
   getReportWorkLogDir,
@@ -29,17 +31,17 @@ import { Command } from 'commander';
 import ora from 'ora';
 
 /**
- * analyze reports <id> command
+ * analyze reports [id] command
  */
 export const reportsCommand = new Command('reports')
   .description('Generate per-report analysis (manager mode only)')
-  .argument('<id>', 'Report ID (e.g., "alice-smith")')
+  .argument('[id]', 'Report ID (e.g., "alice-smith")')
   .option('--tag-prs', 'Update PR files with impact tags')
   .option('--projects', 'Detect and group related PRs/tickets into projects')
   .option('--timeline', 'Generate chronological timeline grouped by week/month')
   .option('--all', 'Run all analysis (tag-prs, projects, timeline)')
   .option('-v, --verbose', 'Show detailed output')
-  .action(async (reportId: string, options) => {
+  .action(async (reportId: string | undefined, options) => {
     try {
       const activeProfile = getActiveProfile();
 
@@ -56,6 +58,24 @@ export const reportsCommand = new Command('reports')
       }
 
       const profileName = activeProfile;
+
+      // If no report ID provided, prompt to select one
+      if (!reportId) {
+        const reports = listReports(profileName);
+        if (reports.length === 0) {
+          console.error(chalk.red('\n❌ No reports configured.'));
+          console.log(chalk.gray('Add reports with "reports add"'));
+          process.exit(1);
+        }
+
+        reportId = await select({
+          message: 'Select a report to analyze:',
+          choices: reports.map((r) => ({
+            name: `${r.name} (${r.github})`,
+            value: r.id,
+          })),
+        });
+      }
 
       // Get report-specific paths
       const workLogDir = getReportWorkLogDir(profileName, reportId);
