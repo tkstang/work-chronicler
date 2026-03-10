@@ -12,7 +12,9 @@ import chalk from 'chalk';
 import { Command } from 'commander';
 import { resolveCacheBehavior } from './fetch.utils';
 import {
+  buildReportConfig,
   getReportById,
+  loadManagerConfigForFetch,
   resolveReportIds,
   resolveReportOutputDir,
 } from './fetch-manager.utils';
@@ -122,8 +124,8 @@ async function fetchAllManagerMode(options: FetchAllOptions): Promise<void> {
     chalk.blue(`\n📥 Fetching all data for ${reportIds.length} report(s)...\n`),
   );
 
-  // Load config once outside loop (for efficiency)
-  const baseConfig = await loadConfig(options.config);
+  // Load manager config once outside loop (for efficiency)
+  const managerConfig = loadManagerConfigForFetch();
 
   for (let i = 0; i < reportIds.length; i++) {
     const reportId = reportIds[i]!;
@@ -138,20 +140,8 @@ async function fetchAllManagerMode(options: FetchAllOptions): Promise<void> {
     try {
       const outputDir = resolveReportOutputDir(reportId);
 
-      // Override config with report's credentials
-      const reportConfig = {
-        ...baseConfig,
-        github: {
-          ...baseConfig.github,
-          username: report.github, // Use report's GitHub username
-        },
-        jira: baseConfig.jira
-          ? {
-              ...baseConfig.jira,
-              email: report.email, // Use report's Jira email
-            }
-          : undefined,
-      };
+      // Build IC-compatible config from manager config + report
+      const reportConfig = buildReportConfig(managerConfig, report);
 
       // Determine cache behavior - prompt if data exists and --cache not specified
       const useCache = await resolveCacheBehavior({

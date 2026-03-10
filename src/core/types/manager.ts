@@ -22,6 +22,14 @@ export const ReportConfigSchema = z.object({
 export type ReportConfig = z.infer<typeof ReportConfigSchema>;
 
 /**
+ * Manager fetch configuration schema
+ */
+export const ManagerFetchConfigSchema = z.object({
+  since: z.string(),
+  until: z.string().nullable().default(null),
+});
+
+/**
  * Manager profile configuration schema
  */
 export const ManagerConfigSchema = z.object({
@@ -37,6 +45,7 @@ export const ManagerConfigSchema = z.object({
       token: z.string().optional(), // Token stored in .env, not config
     })
     .optional(),
+  fetch: ManagerFetchConfigSchema,
   reports: z.array(ReportConfigSchema).default([]),
 });
 export type ManagerConfig = z.infer<typeof ManagerConfigSchema>;

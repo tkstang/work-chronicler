@@ -599,7 +599,10 @@ async function initManagerProfile(cliProfileName?: string): Promise<void> {
 
   console.log(chalk.cyan('\nManager Mode Configuration\n'));
 
-  // Step 2: GitHub configuration
+  // Step 2: Time range
+  const { since, until } = await promptTimeRange();
+
+  // Step 3: GitHub configuration
   const githubOrg = await input({
     message: 'GitHub organization:',
     validate: (value: string) => {
@@ -612,7 +615,7 @@ async function initManagerProfile(cliProfileName?: string): Promise<void> {
 
   const githubToken = await promptGitHubTokenForManager();
 
-  // Step 3: Optional JIRA configuration
+  // Step 4: Optional JIRA configuration
   const useJira = await confirm({
     message: 'Configure JIRA?',
     default: false,
@@ -670,17 +673,21 @@ async function initManagerProfile(cliProfileName?: string): Promise<void> {
     tokens.jiraEmail = jiraEmail.trim();
   }
 
-  // Step 4: Create manager config
+  // Step 5: Create manager config
   const config: ManagerConfig = {
     mode: 'manager',
     github: {
       org: githubOrg.trim(),
     },
     jira: jiraConfig,
+    fetch: {
+      since,
+      until,
+    },
     reports: [],
   };
 
-  // Step 5: Create profile directories
+  // Step 6: Create profile directories
   ensureProfileDirs(profileName);
 
   // Save manager config as YAML
@@ -701,7 +708,7 @@ async function initManagerProfile(cliProfileName?: string): Promise<void> {
     chalk.green(`\nManager profile '${profileName}' created successfully!`),
   );
 
-  // Step 6: Add reports?
+  // Step 7: Add reports?
   const addReportsNow = await confirm({
     message: 'Add reports now?',
     default: true,

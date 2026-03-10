@@ -18,7 +18,9 @@ import { isManagerMode } from '@workspace/resolver';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import {
+  buildReportConfig,
   getReportById,
+  loadManagerConfigForFetch,
   resolveReportIds,
   resolveReportOutputDir,
 } from '../fetch-manager.utils';
@@ -75,8 +77,8 @@ async function fetchJiraManagerMode(options: FetchJiraOptions): Promise<void> {
     ),
   );
 
-  // Load base config (will be overridden per-report)
-  const baseConfig = await loadConfig(options.config);
+  // Load manager config
+  const managerConfig = loadManagerConfigForFetch();
 
   for (let i = 0; i < reportIds.length; i++) {
     const reportId = reportIds[i]!;
@@ -91,16 +93,8 @@ async function fetchJiraManagerMode(options: FetchJiraOptions): Promise<void> {
     try {
       const outputDir = resolveReportOutputDir(reportId);
 
-      // Override jira.email with report's email (if Jira is configured)
-      const reportConfig = {
-        ...baseConfig,
-        jira: baseConfig.jira
-          ? {
-              ...baseConfig.jira,
-              email: report.email, // Use report's email, not manager's
-            }
-          : undefined,
-      };
+      // Build IC-compatible config from manager config + report
+      const reportConfig = buildReportConfig(managerConfig, report);
 
       // Determine cache behavior - prompt if data exists and --cache not specified
       let useCache = options.cache;
