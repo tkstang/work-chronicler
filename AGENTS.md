@@ -99,7 +99,8 @@ pnpm test
 CI and Publish (Dry Run) validate ready PRs targeting `main`, including the
 `ready_for_review` transition and subsequent code updates. Draft PRs skip their
 jobs before runner allocation. Main-push CI and tagged releases retain their
-existing behavior. Local checks are unchanged.
+existing behavior. The ordinary CI job runs lint, type checking, the existing
+test suite and build. Local checks are unchanged.
 
 ## Before Committing
 
