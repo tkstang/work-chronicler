@@ -96,6 +96,11 @@ pnpm format:fix
 pnpm test
 ```
 
+CI and Publish (Dry Run) validate ready PRs targeting `main`, including the
+`ready_for_review` transition and subsequent code updates. Draft PRs skip their
+jobs before runner allocation. Main-push CI and tagged releases retain their
+existing behavior. Local checks are unchanged.
+
 ## Before Committing
 
 Run these commands before committing changes:
