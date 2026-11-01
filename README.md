@@ -518,15 +518,16 @@ work-chronicler/
 
 ## Development
 
-CI and Publish (Dry Run) validate ready PRs targeting `main`, including the
-`ready_for_review` transition and subsequent code changes. Draft PRs skip these
-jobs. Pushes to `main` still run CI. The ordinary CI job and tagged releases run
-lint, type checking, the existing test suite and build. Tagged releases test the
-checked-out tag before publishing; a test failure prevents npm publication and
-the dependent GitHub Release. New ready-PR verification cancels earlier CI and
-Publish (Dry Run) runs for that PR. Draft events and main pushes use isolated
-groups. Tagged releases retain their existing concurrency behavior. Run the
-full local checks before handoff.
+CI validates ready PRs targeting `main`, including the `ready_for_review`
+transition and subsequent code changes. Draft PRs skip the job. Pushes to `main`
+still run CI. The ordinary CI job and tagged releases run lint, type checking,
+the existing test suite and build. On PRs, CI then runs the publish dry-run against
+that build, reusing the checkout and dependencies with npm registry configuration.
+Main pushes do not run the publish dry-run. Tagged releases test the checked-out
+tag before publishing; a test failure prevents npm publication and the dependent
+GitHub Release. New ready-PR verification cancels earlier CI runs for that PR.
+Draft events and main pushes use isolated groups. Tagged releases retain their
+existing concurrency behavior. Run the full local checks before handoff.
 
 ```bash
 # Install dependencies
