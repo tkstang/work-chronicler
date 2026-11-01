@@ -520,9 +520,10 @@ work-chronicler/
 
 CI and Publish (Dry Run) validate ready PRs targeting `main`, including the
 `ready_for_review` transition and subsequent code changes. Draft PRs skip these
-jobs. Pushes to `main` still run CI; tagged releases keep their existing gates.
-The ordinary CI job runs lint, type checking, the existing test suite and build.
-Run the full local checks before handoff.
+jobs. Pushes to `main` still run CI. The ordinary CI job and tagged releases run
+lint, type checking, the existing test suite and build. Tagged releases test the
+checked-out tag before publishing; a test failure prevents npm publication and
+the dependent GitHub Release. Run the full local checks before handoff.
 
 ```bash
 # Install dependencies

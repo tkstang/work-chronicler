@@ -98,9 +98,11 @@ pnpm test
 
 CI and Publish (Dry Run) validate ready PRs targeting `main`, including the
 `ready_for_review` transition and subsequent code updates. Draft PRs skip their
-jobs before runner allocation. Main-push CI and tagged releases retain their
-existing behavior. The ordinary CI job runs lint, type checking, the existing
-test suite and build. Local checks are unchanged.
+jobs before runner allocation. Main-push CI retains its existing scheduling.
+The ordinary CI job and tagged releases run lint, type checking, the existing
+test suite and build. Tagged
+releases test the checked-out tag before publishing; a test failure prevents npm
+publication and the dependent GitHub Release. Local checks are unchanged.
 
 ## Before Committing
 
@@ -225,7 +227,7 @@ Key dependencies:
 The package is published to npm as `work-chronicler`.
 
 Pushing a version tag triggers the `release.yml` GitHub Actions workflow, which:
-1. Runs lint and type-check
+1. Runs lint, type-check and the existing tests against the checked-out tag
 2. Builds and publishes to npm (requires `NPM_TOKEN` secret)
 3. Creates a GitHub Release with auto-generated release notes
 
