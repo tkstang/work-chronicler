@@ -121,6 +121,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `init --mode manager` auto-discovers a report's repos with the GitHub token
   entered in the wizard, instead of failing when `GITHUB_TOKEN` is not set. The
   token is still saved only to the profile's `.env`.
+- `analyze team` lists a report in `skippedReports` when its timeline's date
+  range is reversed or is not a real `YYYY-MM-DD` date (such as `2025-02-30`),
+  instead of merging it into the team date range.
 
 ## [0.3.2] - 2026-03-10
 
