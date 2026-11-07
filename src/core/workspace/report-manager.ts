@@ -23,7 +23,7 @@ import {
 /**
  * Load manager config from profile
  *
- * @param profileName - Profile name (must be 'manager')
+ * @param profileName - Manager profile name
  * @returns Manager config
  * @throws Error if profile is not in manager mode or config is invalid
  */
@@ -50,7 +50,7 @@ export function loadManagerConfig(profileName: string): ManagerConfig {
 /**
  * Save manager config to profile
  *
- * @param profileName - Profile name (must be 'manager')
+ * @param profileName - Manager profile name
  * @param config - Manager config to save
  * @throws Error if profile is not in manager mode
  */

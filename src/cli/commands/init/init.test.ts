@@ -103,8 +103,8 @@ describe('init', () => {
 
   it('creates a manager profile and its first report from the wizard answers', async () => {
     script({
-      // Manager mode is keyed on the profile name 'manager'
-      'What would you like to name this profile?': ['manager'],
+      // Any name works: manager mode comes from `mode: manager` in the config
+      'What would you like to name this profile?': ['team-leads'],
       'How far back should we fetch data?': ['custom'],
       'Enter start date (YYYY-MM-DD):': ['2026-01-01'],
       'Enter end date (YYYY-MM-DD) (optional, blank for now):': [''],
@@ -122,7 +122,7 @@ describe('init', () => {
 
     await runInit(['--mode', 'manager']);
 
-    const config = parseYaml(readProfileFile('manager', 'config.yaml'));
+    const config = parseYaml(readProfileFile('team-leads', 'config.yaml'));
     expect(config).toMatchObject({
       mode: 'manager',
       github: { org: 'acme' },
@@ -137,9 +137,9 @@ describe('init', () => {
         },
       ],
     });
-    expect(readProfileFile('manager', '.env')).toContain(
+    expect(readProfileFile('team-leads', '.env')).toContain(
       'GITHUB_TOKEN="ghp_mgr"',
     );
-    expect(activeProfile()).toBe('manager');
+    expect(activeProfile()).toBe('team-leads');
   });
 });

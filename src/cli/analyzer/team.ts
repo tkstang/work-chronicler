@@ -46,7 +46,7 @@ async function readReportProjects(
  * - PR URLs and ticket keys are merged
  * - Stats are summed
  *
- * @param profileName - Profile name (must be 'manager')
+ * @param profileName - Manager profile name
  * @param reportIds - List of report IDs to aggregate (duplicates are ignored)
  * @returns Array of aggregated ProjectGrouping objects
  */
@@ -123,7 +123,7 @@ export async function aggregateTeamProjects(
  * The matrix shows which projects each team member contributed to,
  * useful for understanding team collaboration patterns.
  *
- * @param profileName - Profile name (must be 'manager')
+ * @param profileName - Manager profile name
  * @param reportIds - List of report IDs to aggregate
  * @returns Record mapping contributor name to array of project names
  */
@@ -305,7 +305,7 @@ async function readReportTimeline(
  * report's own numbers and items so no work is credited to the wrong person.
  * Reports without a usable timeline are listed in `skippedReports`.
  *
- * @param profileName - Profile name (must be 'manager')
+ * @param profileName - Manager profile name
  * @param reportIds - List of report IDs to aggregate (duplicates are ignored)
  * @returns Team timeline, months and weeks in chronological order
  */
@@ -431,7 +431,7 @@ export async function aggregateTeamTimeline(
  * - contributor-matrix.json: Contributor to project mapping
  * - team-timeline.json: Team timeline merged from each report's timeline.json
  *
- * @param profileName - Profile name (must be 'manager')
+ * @param profileName - Manager profile name
  * @param reportIds - List of report IDs to aggregate
  */
 export async function writeTeamAnalysis(

@@ -55,7 +55,7 @@ Initialize work-chronicler with manager mode:
 work-chronicler init --mode manager
 
 # This will guide you through:
-# 1. Creating the "manager" profile
+# 1. Naming the profile (default "manager"; any name works)
 # 2. Configuring GitHub org and token
 # 3. Optionally configuring Jira
 # 4. Adding your first reports

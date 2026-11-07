@@ -111,6 +111,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MCP `get_linked_work` no longer returns PR 123 when asked for `23` or for a
   `…/pull/23` URL. It matches the exact URL first, and treats bare digits as
   the whole PR number; a number shared by several repos asks for the full URL.
+- Manager mode is read from `mode: manager` in the profile's `config.yaml`
+  instead of the profile being named `manager`. A manager profile with another
+  name (as `init --mode manager` allows) now works with `reports`,
+  `analyze reports`, `analyze team` and the manager `fetch` paths, and an IC
+  profile named `manager` is no longer treated as a manager profile.
+- `analyze team` prints the team analysis directory as its output path, not
+  a report directory named after the profile.
 
 ## [0.3.2] - 2026-03-10
 

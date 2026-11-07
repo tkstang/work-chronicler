@@ -1,6 +1,8 @@
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+
+import { parse as parseYaml } from 'yaml';
 
 /**
  * Default workspace root directory
@@ -132,17 +134,33 @@ export function profileExists(profileName: string): boolean {
 /**
  * Check if profile is in manager mode
  *
+ * Reads `mode` from the profile's `config.yaml` (written as `mode: manager`
+ * by `init --mode manager`), so any profile name can be a manager profile.
+ * It does not validate the rest of the config, so loadManagerConfig() can
+ * call it without recursing. A missing or unreadable config is IC mode.
+ *
  * @param profileName - Profile name
- * @returns True if manager mode
+ * @returns True if the profile's config declares `mode: manager`
  */
 export function isManagerMode(profileName: string): boolean {
-  return profileName === 'manager';
+  const configPath = getProfileConfigPath(profileName);
+  if (!existsSync(configPath)) return false;
+  try {
+    const raw: unknown = parseYaml(readFileSync(configPath, 'utf-8'));
+    return (
+      typeof raw === 'object' &&
+      raw !== null &&
+      (raw as { mode?: unknown }).mode === 'manager'
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**
  * Get the path to a report's work-log directory (manager mode)
  *
- * @param profileName - Profile name (must be 'manager')
+ * @param profileName - Manager profile name
  * @param reportId - Report ID (required for manager mode)
  * @returns Absolute path to report's work-log directory
  * @throws Error if report ID is not provided in manager mode
@@ -213,7 +231,7 @@ export function getReportOutputsDir(
 /**
  * Ensure report directories exist (manager mode)
  *
- * @param profileName - Profile name (must be 'manager')
+ * @param profileName - Manager profile name
  * @param reportId - Report ID
  */
 export function ensureReportDirs(profileName: string, reportId: string): void {

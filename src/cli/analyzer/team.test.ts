@@ -60,6 +60,12 @@ const originalHome = process.env.WORK_CHRONICLER_HOME;
 beforeEach(() => {
   home = mkdtempSync(join(tmpdir(), 'wc-team-'));
   process.env.WORK_CHRONICLER_HOME = home;
+  // Manager mode comes from the profile config, not the profile name.
+  mkdirSync(join(home, 'profiles', 'manager'), { recursive: true });
+  writeFileSync(
+    join(home, 'profiles', 'manager', 'config.yaml'),
+    'mode: manager\n',
+  );
 });
 
 afterEach(() => {
