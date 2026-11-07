@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { getPRDirectory, getPRFilePath } from '../../../src/core/storage/paths';
+import { getPRDirectory, getPRFilePath } from './paths';
 
 describe('PR storage paths', () => {
   it('never writes an org directory with a leading @', () => {

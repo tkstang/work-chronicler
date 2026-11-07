@@ -1,30 +1,37 @@
-import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
+
+// Mirror the tsconfig `paths` aliases so tests resolve imports the same way
+// the type-checker does.
+const src = (path: string) =>
+  fileURLToPath(new URL(`./src/${path}`, import.meta.url));
 
 export default defineConfig({
   test: {
-    globals: true,
+    // globals OFF: tests import { describe, it, expect, vi } explicitly.
+    globals: false,
     environment: 'node',
-    include: ['tests/**/*.test.ts'],
+    include: ['src/**/*.test.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      exclude: ['dist/**', 'tests/**', '**/*.test.ts', 'bin/**'],
+      include: ['src/**/*.ts'],
+      exclude: ['src/**/*.test.ts'],
     },
   },
   resolve: {
     alias: {
-      '@core': resolve(__dirname, './src/core'),
-      '@mcp': resolve(__dirname, './src/mcp'),
-      '@cli': resolve(__dirname, './src/cli'),
-      '@commands': resolve(__dirname, './src/cli/commands'),
-      '@linker': resolve(__dirname, './src/cli/linker'),
-      '@prompts': resolve(__dirname, './src/cli/prompts/index.ts'),
-      '@analyzer': resolve(__dirname, './src/cli/analyzer'),
-      '@config': resolve(__dirname, './src/core/config'),
-      '@storage': resolve(__dirname, './src/core/storage'),
-      '@wc-types': resolve(__dirname, './src/core/types'),
-      '@workspace': resolve(__dirname, './src/core/workspace'),
+      '@core': src('core'),
+      '@mcp': src('mcp'),
+      '@cli': src('cli'),
+      '@commands': src('cli/commands'),
+      '@linker': src('cli/linker'),
+      '@prompts': src('cli/prompts/index.ts'),
+      '@analyzer': src('cli/analyzer'),
+      '@config': src('core/config'),
+      '@storage': src('core/storage'),
+      '@wc-types': src('core/types'),
+      '@workspace': src('core/workspace'),
     },
   },
 });

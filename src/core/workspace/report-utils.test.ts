@@ -3,7 +3,7 @@ import {
   generateReportId,
   parseReportId,
   validateReportName,
-} from '../../../src/core/workspace/report-utils';
+} from './report-utils';
 
 describe('report-utils', () => {
   describe('generateReportId', () => {
