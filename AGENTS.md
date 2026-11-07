@@ -178,6 +178,7 @@ The project has four layers:
 
 1. **CLI Commands** (programmatic, no AI):
    - `fetch github`, `fetch jira`, `fetch all` - Pull data from sources
+   - `fetch github --reviews`, `fetch all --reviews` - Also fetch PR reviews the user gave (IC only)
    - `link` - Cross-reference PRs ↔ tickets
    - `analyze` - Generate `.analysis/` files
    - `analyze reports <id>` - Per-report analysis (manager mode)
@@ -211,7 +212,7 @@ The project has four layers:
 
 4. **MCP Server** (read-only data access for AI assistants):
    - Exposes work-log data to Claude Desktop, Cursor, etc. over stdio
-   - Tools (one module each in `src/mcp/tools/`, registered in `src/mcp/server.ts`): `search_prs`, `search_tickets`, `get_linked_work`, `list_repos`, `get_stats`, `get_projects`, `get_timeline`
+   - Tools (one module each in `src/mcp/tools/`, registered in `src/mcp/server.ts`): `search_prs`, `search_tickets`, `get_linked_work`, `list_repos`, `get_stats`, `get_projects`, `get_timeline`, `search_pr_reviews`
 
 ## Data Storage
 
@@ -222,6 +223,7 @@ Work data is stored in markdown files with YAML frontmatter:
 ```
 work-log/
 ├── pull-requests/<org>/<repo>/<date>_<number>.md
+├── pr-reviews/<org>/<repo>/<number>.md  # Reviews the user gave (never authored work)
 ├── jira/<org>/<project>/<key>.md
 ├── performance-reviews/     # User-added past reviews
 ├── resumes/                 # User-added existing resume(s)

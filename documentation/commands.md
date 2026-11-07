@@ -30,7 +30,7 @@ exists, `analyze` asks whether to use it unless you pass `--full`, so use
 | `init` | Create a profile with the guided wizard. |
 | `init --profile <name>` | Use this profile name instead of prompting. |
 | `init --mode <ic\|manager>` | Create an IC profile (default) or a manager profile. |
-| `status [-c <path>]` | Show what has been fetched for the active profile. |
+| `status [-c <path>]` | Show what has been fetched for the active profile, including PR reviews you gave. |
 
 ## Fetch
 
@@ -41,6 +41,7 @@ All three accept:
 | `-c, --config <path>` | Use this config file instead of the profile's. |
 | `-v, --verbose` | Show detailed output. |
 | `--cache` | Skip items already in the work log. Without it, you are asked when data exists. |
+| `--reviews` | `fetch github` and `fetch all` only: also fetch the PR reviews you gave (see below). IC profiles only; manager profiles print a notice and skip it. |
 | `--report <id>` | Manager mode: fetch for one report. |
 | `--all-reports` | Manager mode: fetch for every report. |
 
@@ -52,6 +53,26 @@ All three accept:
 
 The date range comes from `fetch.since` and `fetch.until` in the config; there
 are no date flags.
+
+### PR reviews you gave
+
+`--reviews` is opt-in because it costs extra GitHub requests: an account
+lookup and a search per org (more search pages when you reviewed many PRs),
+plus at least two requests per reviewed PR.
+It stores the reviews and inline review comments you submitted inside the
+date range, on any PR in your configured orgs and repos, however old the PR
+and whoever wrote it. PRs you authored are skipped. Pending (unsubmitted)
+reviews and ordinary PR conversation comments are not included. A comment
+counts by when it was written, not when it was last edited, and the stored
+text is its latest version.
+
+Each reviewed PR gets one file at
+`work-log/pr-reviews/<org>/<repo>/<number>.md` with the PR's URL, title,
+author and state, and your reviews and comments. Fetching again updates the
+same file. With `--cache`, PRs that have not changed since their file was
+written for the same or a wider date range are skipped. These records are never counted as PRs you authored.
+A rate limit stops the run; other failures are reported per org and make the
+run exit with status 1.
 
 ## Link, analyze and filter
 
@@ -91,6 +112,9 @@ new links and leaves unchanged files untouched.
 | `-c, --config <path>`, `-v, --verbose` | As above. |
 
 Impact filters use the PR's stored `impact`, or classify untagged PRs on the fly.
+Review records (`pr-reviews/`) are copied into `filtered/` when they pass the
+`--org`, `--exclude-org`, `--repo` and `--exclude-repo` selectors; the other
+filters describe authored PRs and do not apply to them.
 
 ## Profiles
 

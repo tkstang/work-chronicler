@@ -96,8 +96,8 @@ have old names so you can run `skills install --tool <tool>` for them.
 Before using skills, you need data:
 
 ```bash
-# 1. Fetch your work history
-work-chronicler fetch all
+# 1. Fetch your work history (--reviews also records the PR reviews you gave)
+work-chronicler fetch all --reviews
 
 # 2. Generate analysis (optional but recommended)
 work-chronicler analyze --all

@@ -49,7 +49,7 @@ example.
 
 | Field | Required | Meaning |
 | --- | --- | --- |
-| `github.username` | when `github.orgs` is set | Your GitHub login. Only PRs you authored are fetched. |
+| `github.username` | when `github.orgs` is set | Your GitHub login. Only PRs you authored are fetched, plus with `--reviews` the reviews you gave. |
 | `github.token` | no | Token; `GITHUB_TOKEN` in `.env` or the environment is used otherwise. |
 | `github.orgs[].name` | yes | Org or user login as in `github.com/<name>`. |
 | `github.orgs[].repos` | no | Repo names, or `["*"]` (the default) for every repo in the org. |
@@ -139,6 +139,7 @@ analysis:
     ├── outputs/                 # documents written by AI skills
     └── work-log/
         ├── pull-requests/<org>/<repo>/<YYYY-MM-DD>_<number>.md
+        ├── pr-reviews/<org>/<repo>/<number>.md   # reviews you gave, from `fetch --reviews`
         ├── jira/<instance>/<project>/<KEY>.md
         ├── notes/               # your own notes, read by skills
         ├── performance-reviews/ # past reviews you add, read by skills
