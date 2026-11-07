@@ -1,5 +1,5 @@
 ---
-name: work-chronicler-mgmt-team-summary
+name: work-chronicler-manager-write-team-summary
 description: Generate team-level overview aggregating work across all reports. Useful for leadership updates and calibration meetings. Shows collaboration patterns and team-wide trends without individual comparisons.
 user-invocable: true
 disable-model-invocation: true
@@ -30,10 +30,10 @@ If not in manager mode, run `work-chronicler init --mode manager` first.
 - **Focus areas**: Specific projects, themes, or initiatives to emphasize
 
 **Example invocations:**
-- `/work-chronicler-mgmt-team-summary Q1-2026`
-- `/work-chronicler-mgmt-team-summary 2025`
-- `/work-chronicler-mgmt-team-summary` (all time)
-- `/work-chronicler-mgmt-team-summary last-6-months focus on platform initiatives`
+- `/work-chronicler-manager-write-team-summary Q1-2026`
+- `/work-chronicler-manager-write-team-summary 2025`
+- `/work-chronicler-manager-write-team-summary` (all time)
+- `/work-chronicler-manager-write-team-summary last-6-months focus on platform initiatives`
 
 ## Data Location
 

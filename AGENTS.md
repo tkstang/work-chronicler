@@ -195,16 +195,16 @@ The project has four layers:
 2. **AI Skills** (package skills in `.agents/skills/`, installed via `skills install`):
    - IC mode:
      - `/work-chronicler-summarize-work` - Summarize PRs for time period
-     - `/work-chronicler-generate-resume-bullets` - Create achievement-focused bullet points
+     - `/work-chronicler-write-resume-bullets` - Create achievement-focused bullet points
      - `/work-chronicler-update-resume` - Update existing resume with new accomplishments
      - `/work-chronicler-write-self-review` - Draft self-review for performance reviews
      - `/work-chronicler-detect-projects` - Identify major project groupings
      - `/work-chronicler-detect-themes` - Identify recurring themes across work
-   - Manager mode:
-     - `/work-chronicler-mgmt-write-review-packet` - Evidence-based review content for a direct report
-     - `/work-chronicler-mgmt-write-peer-review` - Peer reviews, with or without work-log data
-     - `/work-chronicler-mgmt-quarterly-highlights` - Quarterly highlights for one report
-     - `/work-chronicler-mgmt-team-summary` - Team-level overview across reports
+     - `/work-chronicler-write-peer-review` - Peer reviews; quick mode in any profile, evidence-backed mode with a manager report
+   - Manager mode (`work-chronicler-manager-*`):
+     - `/work-chronicler-manager-write-review-packet` - Evidence-based review content for a direct report
+     - `/work-chronicler-manager-write-quarterly-highlights` - Quarterly highlights for one report
+     - `/work-chronicler-manager-write-team-summary` - Team-level overview across reports
 
 3. **Repo-local Skills** (dev workflows, not distributed with package):
    - `/release-notes` - Use after tagging a release to generate and update GitHub release notes
@@ -296,6 +296,8 @@ After the CI release is created, run `/release-notes` to generate meaningful rel
 Skills live in `.agents/skills/<name>/` with a `SKILL.md` (uppercase; hosts on case-sensitive filesystems look for that exact name). `src/cli/commands/skills/install.ts` resolves this directory relative to the package root, and `package.json` `files` publishes only the `work-chronicler-*` directories. There are two kinds:
 
 - **Package skills** (`work-chronicler-*`): Distributed with the npm package via `skills install`. These operate on work-log data and are user-facing.
+
+Package skill names follow `work-chronicler-[manager-]<verb>-<object>`: a verb from `setup`, `import`, `detect`, `summarize`, `write` or `update`, then the object (`work-chronicler-write-self-review`, `work-chronicler-manager-write-team-summary`). Add `manager-` only when the skill needs a manager profile. Repo-local skills such as `release-notes` are exempt.
 - **Repo-local skills** (no prefix): Dev workflow skills that live in the repo but are not distributed. These help with development tasks like releasing.
 
 When writing skill descriptions, use "Use when..." language to make skills discoverable by AI agents:

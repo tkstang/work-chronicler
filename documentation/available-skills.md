@@ -83,11 +83,12 @@ Skills for individual contributors tracking their own work:
 | Skill | Description | Use When |
 |-------|-------------|----------|
 | `/work-chronicler-summarize-work` | Summarize PRs and tickets for a time period | Preparing for 1:1s, reviews, or updates |
-| `/work-chronicler-generate-resume-bullets` | Create achievement-focused resume bullet points | Updating your resume with recent work |
+| `/work-chronicler-write-resume-bullets` | Create achievement-focused resume bullet points | Updating your resume with recent work |
 | `/work-chronicler-update-resume` | Update existing resume with new accomplishments | You have a resume and want to add recent work |
 | `/work-chronicler-write-self-review` | Draft self-review content for performance reviews | Performance review time, need to write self-assessment |
 | `/work-chronicler-detect-projects` | Identify major project groupings from work history | Understanding how your work clusters into initiatives |
 | `/work-chronicler-detect-themes` | Find recurring themes for career narrative | Building career story, identifying strengths |
+| `/work-chronicler-write-peer-review` | Write peer reviews for colleagues (quick mode works in any profile; evidence-backed mode needs a manager profile) | Peer review time, 360 reviews, colleague feedback |
 
 ---
 
@@ -97,10 +98,9 @@ Skills for managers tracking multiple reports:
 
 | Skill | Description | Use When |
 |-------|-------------|----------|
-| `/work-chronicler-mgmt-write-review-packet` | Generate evidence-based performance review for a direct report | Writing quarterly/annual reviews for reports |
-| `/work-chronicler-mgmt-write-peer-review` | Write peer reviews for colleagues | Peer review time, 360 reviews, colleague feedback |
-| `/work-chronicler-mgmt-quarterly-highlights` | Create concise quarterly summary for 1:1s and calibration | Preparing for 1:1s, calibration meetings, updates |
-| `/work-chronicler-mgmt-team-summary` | Generate team-level overview for leadership | Leadership updates, calibration prep, team visibility |
+| `/work-chronicler-manager-write-review-packet` | Generate evidence-based performance review for a direct report | Writing quarterly/annual reviews for reports |
+| `/work-chronicler-manager-write-quarterly-highlights` | Create concise quarterly summary for 1:1s and calibration | Preparing for 1:1s, calibration meetings, updates |
+| `/work-chronicler-manager-write-team-summary` | Generate team-level overview for leadership | Leadership updates, calibration prep, team visibility |
 
 ---
 
@@ -108,7 +108,7 @@ Skills for managers tracking multiple reports:
 
 ### Writing Peer Reviews
 
-**Skill**: `/work-chronicler-mgmt-write-peer-review`
+**Skill**: `/work-chronicler-write-peer-review`
 
 The most flexible skill - supports both quick one-off reviews and comprehensive evidence-based reviews.
 
@@ -118,7 +118,7 @@ For writing one-off peer reviews without creating a report:
 
 **Usage:**
 ```
-/work-chronicler-mgmt-write-peer-review
+/work-chronicler-write-peer-review
 ```
 
 **Interactive flow:**
@@ -138,7 +138,7 @@ For writing one-off peer reviews without creating a report:
 **Example:**
 
 ```
-You: /work-chronicler-mgmt-write-peer-review
+You: /work-chronicler-write-peer-review
 
 Skill: Is this a quick peer review, or would you like to add them as a report?
 You: Quick peer review
@@ -184,7 +184,7 @@ work-chronicler fetch github --report alice-smith
 
 **Usage:**
 ```
-/work-chronicler-mgmt-write-peer-review alice-smith
+/work-chronicler-write-peer-review alice-smith
 ```
 
 **Output:**
@@ -239,7 +239,7 @@ around after discussion.
 
 ### Writing Performance Reviews
 
-**Skill**: `/work-chronicler-mgmt-write-review-packet`
+**Skill**: `/work-chronicler-manager-write-review-packet`
 
 Generate evidence-based performance reviews for direct reports.
 
@@ -250,7 +250,7 @@ Generate evidence-based performance reviews for direct reports.
 
 **Usage:**
 ```
-/work-chronicler-mgmt-write-review-packet alice-smith Q4-2025
+/work-chronicler-manager-write-review-packet alice-smith Q4-2025
 ```
 
 **What it does:**
@@ -307,15 +307,15 @@ Summarize your work for a specific time period.
 
 ### Resume & Career Documents
 
-#### Generate Resume Bullets
+#### Write Resume Bullets
 
-**Skill**: `/work-chronicler-generate-resume-bullets`
+**Skill**: `/work-chronicler-write-resume-bullets`
 
 Create achievement-focused resume bullet points from your work.
 
 **Usage:**
 ```
-/work-chronicler-generate-resume-bullets 2025
+/work-chronicler-write-resume-bullets 2025
 ```
 
 **What it does:**
@@ -455,7 +455,7 @@ Skills provide drafts - review, refine, and personalize before submitting.
 **Quarterly review prep:**
 1. Fetch data: set `fetch.since` in the profile config, then `fetch all --all-reports`
 2. Add context: Upload past reviews, update notes
-3. Generate: `/work-chronicler-mgmt-write-review-packet {id} Q1-2026`
+3. Generate: `/work-chronicler-manager-write-review-packet {id} Q1-2026`
 4. Review and refine
 5. Save to `reports/{id}/performance-reviews/` for next cycle
 

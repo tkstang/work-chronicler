@@ -1,5 +1,5 @@
 ---
-name: work-chronicler-mgmt-quarterly-highlights
+name: work-chronicler-manager-write-quarterly-highlights
 description: Generate concise quarterly highlight summaries for a specific direct report. Useful for 1:1s, check-ins, and calibration prep.
 user-invocable: true
 disable-model-invocation: true
@@ -33,8 +33,8 @@ If not in manager mode, run `work-chronicler init --mode manager` first.
 - **Focus areas**: Specific themes or projects to emphasize
 
 **Example invocations:**
-- `/work-chronicler-mgmt-quarterly-highlights alice-smith Q1-2026`
-- `/work-chronicler-mgmt-quarterly-highlights bob-jones Q4-2025 focus on platform work`
+- `/work-chronicler-manager-write-quarterly-highlights alice-smith Q1-2026`
+- `/work-chronicler-manager-write-quarterly-highlights bob-jones Q4-2025 focus on platform work`
 
 ## Data Location
 
@@ -142,7 +142,7 @@ This skill is optimized for:
 
 ## Key Difference from Review Packet
 
-- **Review Packet** (`work-chronicler-mgmt-write-review-packet`): Comprehensive, formal review content (5-10 pages)
+- **Review Packet** (`work-chronicler-manager-write-review-packet`): Comprehensive, formal review content (5-10 pages)
 - **Quarterly Highlights** (this skill): Concise summary (1-2 pages) for conversations
 
 Use this skill for quick summaries, use review packet for formal reviews.

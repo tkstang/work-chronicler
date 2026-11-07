@@ -555,7 +555,7 @@ work-chronicler analyze team
 
 # 6. Use AI skills to generate review packets
 # (In Claude Code, Cursor, etc. with installed skills)
-/work-chronicler-mgmt-write-review-packet alice-smith --quarter Q1-2026
+/work-chronicler-manager-write-review-packet alice-smith --quarter Q1-2026
 ```
 
 ### Example 2: New Manager Getting Started
@@ -618,7 +618,7 @@ work-chronicler analyze team
 
 # 3. Generate summary for 1:1s
 # (Using AI skills)
-/work-chronicler-mgmt-quarterly-highlights alice-smith
+/work-chronicler-manager-write-quarterly-highlights alice-smith
 ```
 
 ---
@@ -634,7 +634,7 @@ work-chronicler analyze team
 2. Analyze per-report: `analyze reports <report-id>`
 3. Upload past reviews to `performance-reviews/` directories
 4. Add manager notes to `notes/` directories
-5. Use AI skills: `/work-chronicler-mgmt-write-review-packet <report-id> --quarter Q1-2026`
+5. Use AI skills: `/work-chronicler-manager-write-review-packet <report-id> --quarter Q1-2026`
 
 **Output**: Evidence-based review packets with:
 - Key accomplishments with PR citations
@@ -684,8 +684,8 @@ work-chronicler analyze team
 2. Analyze each report: `analyze reports <report-id>` for every report
 3. Generate team analysis: `analyze team`
 4. Use AI skills for summaries:
-   - `/work-chronicler-mgmt-quarterly-highlights <report-id>` - Key wins per person
-   - `/work-chronicler-mgmt-team-summary` - Team overview for leadership
+   - `/work-chronicler-manager-write-quarterly-highlights <report-id>` - Key wins per person
+   - `/work-chronicler-manager-write-team-summary` - Team overview for leadership
 
 **Output**: Concise summaries with evidence for calibration discussions.
 
@@ -807,7 +807,7 @@ work-chronicler analyze team
 ## Next Steps
 
 - **Try it**: `work-chronicler init --mode manager`
-- **Explore AI skills**: `skills install` and try `/work-chronicler-mgmt-write-review-packet`
+- **Explore AI skills**: `skills install` and try `/work-chronicler-manager-write-review-packet`
 - **Read more**: See the [command reference](commands.md) for every CLI flag and the [documentation index](index.md) for the other guides
 
 ---

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** five package skills are renamed to follow one rule,
+  `work-chronicler-[manager-]<verb>-<object>`. Re-run
+  `work-chronicler skills install` after upgrading, then restart your AI tool
+  so it reloads its skill list:
+
+  | Old name                                    | New name                                             |
+  | ------------------------------------------- | ---------------------------------------------------- |
+  | `work-chronicler-generate-resume-bullets`   | `work-chronicler-write-resume-bullets`               |
+  | `work-chronicler-mgmt-write-peer-review`    | `work-chronicler-write-peer-review`                  |
+  | `work-chronicler-mgmt-write-review-packet`  | `work-chronicler-manager-write-review-packet`        |
+  | `work-chronicler-mgmt-quarterly-highlights` | `work-chronicler-manager-write-quarterly-highlights` |
+  | `work-chronicler-mgmt-team-summary`         | `work-chronicler-manager-write-team-summary`         |
+
+  `work-chronicler-write-peer-review` drops the manager prefix because its
+  quick mode works in any profile; evidence-backed reviews still need the
+  colleague added as a report in a manager profile.
+
 ## [0.4.0] - 2026-11-07
 
 ### Added

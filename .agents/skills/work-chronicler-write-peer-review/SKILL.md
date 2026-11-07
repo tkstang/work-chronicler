@@ -1,13 +1,13 @@
 ---
-name: work-chronicler-mgmt-write-peer-review
-description: Write peer reviews for colleagues. Use when writing peer feedback, 360 reviews, or colleague evaluations. Supports both evidence-based reviews (with work-log data) and narrative reviews (notes-only).
+name: work-chronicler-write-peer-review
+description: Use when writing peer feedback, 360 reviews, or colleague evaluations. Quick mode works in any profile, including IC; evidence-backed reviews with work-log data need the colleague added as a report in a manager profile.
 user-invocable: true
 disable-model-invocation: true
 ---
 
 # Write Peer Review
 
-Write peer reviews for colleagues. Adapts to available data - works with full work-log evidence or just manager/peer notes.
+Write peer reviews for colleagues from any profile. Quick mode needs no setup and works for ICs and managers alike; full mode adds work-log evidence and notes, and needs the colleague added as a report in a manager profile.
 
 ## Quick Review vs Full Mode
 
@@ -51,11 +51,11 @@ Write peer reviews for colleagues. Adapts to available data - works with full wo
 **Example invocations:**
 
 *Full mode (with report):*
-- `/work-chronicler-mgmt-write-peer-review alice-smith`
-- `/work-chronicler-mgmt-write-peer-review bob-jones Q4-2025`
+- `/work-chronicler-write-peer-review alice-smith`
+- `/work-chronicler-write-peer-review bob-jones Q4-2025`
 
 *Quick mode (no report):*
-- `/work-chronicler-mgmt-write-peer-review` → Will ask if quick review or add report
+- `/work-chronicler-write-peer-review` → Will ask if quick review or add report
 
 **When user provides a template:**
 
