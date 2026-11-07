@@ -1,12 +1,14 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+
 import {
   getActiveProfile,
   getProfileConfigPath,
   isWorkspaceMode,
 } from '@workspace/index';
 import { parse as parseYaml } from 'yaml';
+
 import { type Config, ConfigSchema } from './schema';
 
 const CONFIG_FILE_NAMES = [
@@ -116,7 +118,7 @@ export async function loadConfig(configPath?: string): Promise<Config> {
   const result = ConfigSchema.safeParse(raw);
 
   if (!result.success) {
-    const errors = result.error.errors
+    const errors = result.error.issues
       .map((e) => `  - ${e.path.join('.')}: ${e.message}`)
       .join('\n');
     throw new Error(`Invalid config file:\n${errors}`);

@@ -3,6 +3,7 @@
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
+
 import { analyzeCommand } from '@commands/analyze';
 import { fetchCommand } from '@commands/fetch/index';
 import { filterCommand } from '@commands/filter';
@@ -69,7 +70,7 @@ program
       const result = ProfileNameSchema.safeParse(opts.profile);
       if (!result.success) {
         console.error(
-          `Invalid profile name: ${result.error.errors[0]?.message}`,
+          `Invalid profile name: ${result.error.issues[0]?.message}`,
         );
         process.exit(1);
       }

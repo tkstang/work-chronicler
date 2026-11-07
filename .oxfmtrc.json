@@ -1,0 +1,29 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 80,
+  "tabWidth": 2,
+  "useTabs": false,
+  "singleQuote": true,
+  "semi": true,
+  "trailingComma": "all",
+  "arrowParens": "always",
+  "endOfLine": "lf",
+  "bracketSpacing": true,
+  "insertFinalNewline": true,
+  "sortImports": true,
+  "sortPackageJson": true,
+  "ignorePatterns": [
+    "dist",
+    "coverage",
+    "node_modules",
+    "pnpm-lock.yaml",
+    ".agents/**",
+    "documentation/**",
+    "**/AGENTS.md",
+    "CLAUDE.md",
+    "README.md",
+    "CONTRIBUTING.md",
+    "CHANGELOG.md",
+    ".github/PULL_REQUEST_TEMPLATE.md"
+  ]
+}

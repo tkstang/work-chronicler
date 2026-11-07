@@ -3,59 +3,126 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
+      - 'v*'
 
 permissions:
-  contents: write
-  id-token: write
+  contents: read
+
+# One shared release queue: releases run one at a time and are never
+# cancelled mid-publish. `queue: max` keeps up to 100 pending runs instead of
+# the default one, so a new tag never cancels a waiting one. GitHub orders the
+# queue by when each run starts waiting, not by tag, so the Publish step
+# handles an older version arriving after a newer one.
+concurrency:
+  group: release
+  cancel-in-progress: false
+  queue: max
+
+env:
+  GIT_HOOKS: '0'
 
 jobs:
   publish:
-    name: Publish to NPM
+    name: Publish to npm
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      # npm trusted publishing (GitHub OIDC); no stored npm token.
+      id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version-file: ".nvmrc"
+          node-version: 24
           cache: pnpm
-          registry-url: "https://registry.npmjs.org"
+          registry-url: 'https://registry.npmjs.org'
+
+      # Trusted publishing needs npm CLI 11.5.1 or later.
+      - name: Ensure npm supports trusted publishing
+        run: |
+          if ! node -e 'const [a,b,c]=process.argv[1].split(".").map(Number);process.exit(a>11||(a===11&&(b>5||(b===5&&c>=1)))?0:1)' "$(npm --version)"; then
+            npm install --global npm@11
+          fi
+          npm --version
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run checks
-        run: |
-          pnpm lint
-          pnpm type-check
+      # A failure in any check stops the npm publish and the GitHub Release.
+      - name: Lint
+        run: pnpm lint
 
-      - name: Run tests
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Type check
+        run: pnpm typecheck
+
+      - name: Test
         run: pnpm test
 
       - name: Build
         run: pnpm build
 
+      # npm never accepts the same version twice. Skipping an already
+      # published version lets a full re-run recover a failed GitHub Release.
       - name: Publish
-        run: pnpm publish --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          version="$(node -p 'require("./package.json").version')"
+          if [ "v${version}" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match package.json version ${version}"
+            exit 1
+          fi
+          if npm view "work-chronicler@${version}" version >/dev/null 2>&1; then
+            echo "work-chronicler@${version} is already on npm; skipping publish."
+            exit 0
+          fi
+          # npm only lets `latest` move forward. Prereleases go to `next`, and
+          # a version older than the current `latest` goes to `backport`.
+          dist_tag=latest
+          # The package already exists on npm, so a failed lookup is an error,
+          # never "no latest": guessing would let an old version take `latest`.
+          if ! current="$(npm view work-chronicler dist-tags.latest)" || [ -z "${current}" ]; then
+            echo "::error::Could not read the current npm latest dist-tag"
+            exit 1
+          fi
+          if [[ "${version}" == *-* ]]; then
+            dist_tag=next
+          elif node -e '
+            const parse = (v) => v.split("-")[0].split(".").map(Number);
+            const [a, b] = [parse(process.argv[1]), parse(process.argv[2])];
+            const cmp = a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+            process.exit(cmp < 0 ? 0 : 1);
+          ' "${version}" "${current}"; then
+            dist_tag=backport
+          fi
+          echo "Publishing work-chronicler@${version} with dist-tag ${dist_tag} (current latest: ${current})"
+          npm publish --access public --provenance --tag "${dist_tag}"
 
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: publish
+    permissions:
+      contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}

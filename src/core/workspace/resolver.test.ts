@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
+
 import {
   getReportAnalysisDir,
   getReportOutputsDir,
   getReportWorkLogDir,
   isManagerMode,
-} from '../../../src/core/workspace/resolver';
+} from './resolver';
 
 describe('resolver - manager mode', () => {
   describe('getReportWorkLogDir', () => {

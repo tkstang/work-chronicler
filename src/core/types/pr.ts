@@ -18,6 +18,16 @@ export type PRImpact = z.infer<typeof PRImpactSchema>;
 /**
  * Schema for a Pull Request stored in the work-log
  */
+/**
+ * ISO 8601 UTC timestamp. Zod 3's `.datetime()` accepted minute precision
+ * (`2025-01-01T12:00Z`); Zod 4 requires seconds unless asked otherwise, so
+ * both forms are accepted to keep existing work-log files readable.
+ */
+const IsoDateTimeSchema = z.union([
+  z.iso.datetime(),
+  z.iso.datetime({ precision: -1 }),
+]);
+
 export const PullRequestSchema = z.object({
   title: z.string(),
   prNumber: z.number(),
@@ -25,10 +35,10 @@ export const PullRequestSchema = z.object({
   org: z.string(),
   author: z.string(),
   state: z.enum(['open', 'closed', 'merged']),
-  createdAt: z.string().datetime(),
-  mergedAt: z.string().datetime().nullable(),
-  closedAt: z.string().datetime().nullable(),
-  url: z.string().url(),
+  createdAt: IsoDateTimeSchema,
+  mergedAt: IsoDateTimeSchema.nullable(),
+  closedAt: IsoDateTimeSchema.nullable(),
+  url: z.url(),
   additions: z.number(),
   deletions: z.number(),
   changedFiles: z.number(),

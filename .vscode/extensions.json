@@ -1,7 +1,3 @@
 {
-  "recommendations": [
-    "biomejs.biome",
-    "mikestead.dotenv",
-    "editorconfig.editorconfig"
-  ]
+  "recommendations": ["oxc.oxc-vscode", "mikestead.dotenv"]
 }

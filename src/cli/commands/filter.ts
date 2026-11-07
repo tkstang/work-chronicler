@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+
 import {
   DIRECTORIES,
   findConfigPath,
@@ -16,6 +17,7 @@ import { promptFilterInteractive } from '@prompts';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
+
 import {
   classifyPRImpact,
   detectProjects,

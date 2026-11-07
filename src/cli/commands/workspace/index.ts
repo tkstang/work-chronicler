@@ -1,4 +1,5 @@
 import { Command } from 'commander';
+
 import { analysisSubcommand } from './analysis';
 import { profileSubcommand } from './profile';
 import { rootSubcommand } from './root';

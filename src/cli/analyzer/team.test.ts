@@ -1,13 +1,12 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
+import type { ProjectGrouping } from '@wc-types/project';
+import { getReportAnalysisDir } from '@workspace/resolver';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import {
-  aggregateTeamProjects,
-  generateContributorMatrix,
-} from '../../../src/cli/analyzer/team';
-import type { ProjectGrouping } from '../../../src/core/types/project';
-import { getReportAnalysisDir } from '../../../src/core/workspace/resolver';
+
+import { aggregateTeamProjects, generateContributorMatrix } from './team';
 
 function project(name: string): ProjectGrouping {
   return {

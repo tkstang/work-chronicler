@@ -1,6 +1,7 @@
 import { checkbox, confirm, input, password, select } from '@inquirer/prompts';
 import { getGitHubNameProblem, normalizeGitHubName } from '@wc-types/github';
 import chalk from 'chalk';
+
 import type { PRLookbackDepth } from './init.utils';
 
 /**

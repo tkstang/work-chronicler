@@ -1,7 +1,9 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+
 import chalk from 'chalk';
 import { Command } from 'commander';
+
 import { findInstalledSkills, type InstalledSkill } from './installed';
 import { AI_TOOLS, type AIToolKey } from './types';
 

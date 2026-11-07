@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+
 import {
   ensureWorkspaceRoot,
   getGlobalConfigPath,
@@ -63,7 +64,7 @@ export function getActiveProfile(): string {
     const result = ProfileNameSchema.safeParse(envProfile);
     if (!result.success) {
       throw new Error(
-        `Invalid WORK_CHRONICLER_PROFILE: ${result.error.errors[0]?.message}`,
+        `Invalid WORK_CHRONICLER_PROFILE: ${result.error.issues[0]?.message}`,
       );
     }
     return envProfile;

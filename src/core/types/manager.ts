@@ -1,4 +1,5 @@
 import { z } from 'zod';
+
 import { GitHubNameSchema } from './github';
 
 /**
@@ -14,7 +15,7 @@ export const ReportConfigSchema = z.object({
   /** GitHub username */
   github: GitHubNameSchema,
   /** Email for commit/Jira attribution */
-  email: z.string().email(),
+  email: z.email(),
   /** Repos to fetch (no org prefix) */
   repos: z.array(z.string()).default([]),
   /** Jira projects to fetch */
@@ -42,7 +43,7 @@ export const ManagerConfigSchema = z.object({
   jira: z
     .object({
       host: z.string(),
-      email: z.string().email(),
+      email: z.email(),
       token: z.string().optional(), // Token stored in .env, not config
     })
     .optional(),

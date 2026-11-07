@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
+
 import type { PullRequest } from '@wc-types/pr';
 import type { JiraTicket } from '@wc-types/ticket';
 import { stringify as stringifyYaml } from 'yaml';

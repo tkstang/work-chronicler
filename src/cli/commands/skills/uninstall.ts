@@ -1,9 +1,11 @@
 import { rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+
 import { checkbox, confirm } from '@inquirer/prompts';
 import chalk from 'chalk';
 import { Command } from 'commander';
+
 import { findInstalledSkills } from './installed';
 import { AI_TOOLS, type AIToolKey } from './types';
 

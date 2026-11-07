@@ -1,8 +1,9 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
+import type { Config } from '@config/schema';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Config } from '../../../src/core/config/schema';
 
 // GitHub is the external system here: each repo maps to a canned response.
 const repoResponses = new Map<
@@ -43,9 +44,7 @@ vi.mock('@octokit/rest', () => ({
   },
 }));
 
-const { fetchGitHubPRs } = await import(
-  '../../../src/cli/commands/fetch/github/github.utils'
-);
+const { fetchGitHubPRs } = await import('./github.utils');
 
 function configFor(
   repos: string[],

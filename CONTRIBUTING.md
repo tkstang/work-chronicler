@@ -27,8 +27,9 @@ The `package.json` scripts are the source of truth for linting, formatting,
 type checking and tests. Before opening a pull request, run the lint, format,
 type-check and test scripts listed there, plus `pnpm build` when you change
 entry points, exports, path aliases or the published `files` list. CI runs
-lint, type checking, tests, the build and a publish dry-run on ready pull
-requests; draft pull requests skip CI.
+lint (oxlint), a format check (oxfmt), type checking, tests, the build and a
+publish dry-run on ready pull requests; draft pull requests skip CI. Tests are
+co-located as `src/**/*.test.ts`.
 
 ## Branches and commits
 

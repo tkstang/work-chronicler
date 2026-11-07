@@ -7,6 +7,9 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [main]
 
+permissions:
+  contents: read
+
 # Only replacement verification for the same ready PR cancels an earlier run.
 concurrency:
   group: >-
@@ -23,19 +26,24 @@ jobs:
   ci:
     if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
+      # pnpm 12 support needs pnpm/action-setup v6.1.0 or later. The version
+      # comes from package.json `packageManager`.
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version-file: ".nvmrc"
-          cache: "pnpm"
+          node-version: 24
+          cache: pnpm
           registry-url: >-
             ${{ github.event_name == 'pull_request' &&
             'https://registry.npmjs.org' ||
@@ -47,8 +55,11 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Format check
+        run: pnpm format:check
+
       - name: Type check
-        run: pnpm type-check
+        run: pnpm typecheck
 
       - name: Test
         run: pnpm test

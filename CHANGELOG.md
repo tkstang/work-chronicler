@@ -15,6 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking:** requires Node.js 22.22.1 or later (24 recommended).
+- **Breaking:** the package no longer has a programmatic entry point; importing
+  `work-chronicler` used to run the CLI and now fails. Use the
+  `work-chronicler` binary (including `work-chronicler mcp` for the MCP server).
+- Built-in validation messages follow Zod 4 wording, and commands reject
+  unexpected extra arguments (Commander 15).
+- Releases publish through npm trusted publishing with provenance.
+- Toolchain: pnpm 12, TypeScript 7, Zod 4, oxlint + oxfmt (replacing Biome),
+  Vitest with co-located tests, and security-only Dependabot.
 - Skills moved from `.agent/skills/` to `.agents/skills/`; `skills install`
   reads them from the new location.
 - The npm package now ships only `dist`, `bin` and the `work-chronicler-*`

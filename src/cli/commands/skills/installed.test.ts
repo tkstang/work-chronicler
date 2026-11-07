@@ -1,11 +1,10 @@
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import {
-  findInstalledSkills,
-  isPathOccupied,
-} from '../../../src/cli/commands/skills/installed';
+
+import { findInstalledSkills, isPathOccupied } from './installed';
 
 describe('installed skill discovery', () => {
   let root: string;

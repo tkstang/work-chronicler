@@ -66,7 +66,7 @@ per-feature charges. Replaces the flat overage fee.
 
 ## Quick start
 
-Requires Node.js 22.17 or later, a GitHub personal access token and, optionally,
+Requires Node.js 22.22.1 or later (24 recommended), a GitHub personal access token and, optionally,
 a JIRA API token.
 
 ```bash

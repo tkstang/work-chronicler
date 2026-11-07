@@ -1,6 +1,7 @@
+import { ManagerConfigSchema } from '@wc-types/manager';
 import { describe, expect, it } from 'vitest';
-import { ConfigSchema } from '../../../src/core/config/schema';
-import { ManagerConfigSchema } from '../../../src/core/types/manager';
+
+import { ConfigSchema } from './schema';
 
 const baseConfig = {
   fetch: { since: '2025-01-01' },

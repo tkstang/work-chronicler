@@ -6,6 +6,7 @@
 
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+
 import {
   DIRECTORIES,
   findConfigPath,
@@ -17,6 +18,7 @@ import { getActiveProfile } from '@workspace/global-config';
 import { isManagerMode } from '@workspace/resolver';
 import chalk from 'chalk';
 import { Command } from 'commander';
+
 import {
   buildReportConfig,
   getReportById,

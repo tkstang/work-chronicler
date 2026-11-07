@@ -1,5 +1,6 @@
 import { existsSync, lstatSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+
 import { SKILL_PREFIX } from './types';
 
 export interface InstalledSkill {

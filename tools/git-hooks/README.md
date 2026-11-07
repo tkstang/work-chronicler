@@ -11,10 +11,10 @@ Automated git hooks for code quality and consistency.
 
 ## Available Hooks
 
-- `pre-commit`: Runs `lint-staged` (linting, formatting, tests on staged files)
+- `pre-commit`: Runs `lint-staged` (`oxlint --fix` + `oxfmt --write` on staged files)
 - `commit-msg`: Validates commit messages with `commitlint`
-- `pre-push`: Runs full test suite before pushing
-- `post-checkout`: Runs `pnpm install` when switching branches with lockfile changes
+- `pre-push`: Runs `pnpm typecheck` (no test suite; run the full checks before opening a PR)
+- `post-checkout`: Runs `pnpm install --frozen-lockfile` after a branch switch, only when `pnpm-lock.yaml` changed
 
 ## Usage
 

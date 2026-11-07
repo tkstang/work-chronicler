@@ -1,4 +1,5 @@
 import { type Config, ConfigSchema } from '@core/index';
+
 import type { DataSource, TimeRange } from './init.prompts';
 
 /**
