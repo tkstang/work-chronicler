@@ -129,6 +129,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   previous month, and a PR merged late on Sunday local time (Monday in UTC)
   landed in the previous week. Re-run the timeline to regroup existing
   analysis.
+- Manager `fetch jira` and `fetch all` label a report whose JIRA project
+  failed as a yellow `⚠ <name> incomplete (...; JIRA failed for <projects>)`
+  instead of a green `✓ <name> complete`.
 
 ## [0.3.2] - 2026-03-10
 

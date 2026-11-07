@@ -14,6 +14,7 @@ import { Command } from 'commander';
 
 import {
   buildReportConfig,
+  formatReportOutcome,
   getReportById,
   loadManagerConfigForFetch,
   resolveReportIds,
@@ -188,8 +189,10 @@ async function fetchAllManagerMode(options: FetchAllOptions): Promise<void> {
       }
 
       console.log(
-        chalk.green(
-          `✓ ${report.name} complete (${totalPRs} PRs, ${totalTickets} tickets)\n`,
+        formatReportOutcome(
+          report.name,
+          `${totalPRs} PRs, ${totalTickets} tickets`,
+          jiraResults,
         ),
       );
     } catch (error) {

@@ -3,6 +3,7 @@
  */
 
 import { CliError } from '@cli/errors';
+import type { JiraFetchResult } from '@commands/fetch/jira/jira.types';
 import type { Config } from '@config/schema';
 import { select } from '@inquirer/prompts';
 import type { ManagerConfig, ReportConfig } from '@wc-types/manager';
@@ -183,4 +184,28 @@ export function buildReportConfig(
       },
     },
   };
+}
+
+/**
+ * The per-report summary line for a manager fetch: green "complete", or
+ * yellow "incomplete" naming the JIRA projects whose fetch failed.
+ *
+ * @param reportName - Report display name
+ * @param counts - What was fetched, e.g. "3 PRs, 2 tickets"
+ * @param jiraResults - The report's JIRA fetch results
+ */
+export function formatReportOutcome(
+  reportName: string,
+  counts: string,
+  jiraResults: JiraFetchResult[],
+): string {
+  const failed = jiraResults
+    .filter((result) => result.error !== undefined)
+    .map((result) => result.project);
+  if (failed.length === 0) {
+    return chalk.green(`✓ ${reportName} complete (${counts})\n`);
+  }
+  return chalk.yellow(
+    `⚠ ${reportName} incomplete (${counts}; JIRA failed for ${failed.join(', ')})\n`,
+  );
 }
