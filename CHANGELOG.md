@@ -14,7 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   server, with a `documentation/index.md` entry point.
 - `analyze team` writes a real `team-timeline.json`: each report's
   `analysis/timeline.json` merged by month and week, with team totals and
-  per-report attribution. Reports without a timeline are listed in
+  per-report attribution. Each week is filed under the month of its start
+  date, and a report listed twice counts once. Reports whose timeline is
+  missing, malformed or has non-canonical dates are listed in
   `skippedReports`. It used to be written as `{}`.
 
 ### Changed
@@ -77,6 +79,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fetch; the other projects are still fetched.
 - `fetch jira` prints its final summary line as a yellow warning, not a green
   success, when a project or report failed, as `fetch github` does.
+- `fetch jira` and `fetch all` count the tickets a project wrote before it
+  failed partway through, while still reporting it as incomplete and exiting
+  non-zero.
+- `init`'s first fetch lists an incomplete JIRA project in its summary instead
+  of printing `Done!`.
+- `link` ignores numbered standard names such as `SHA3-256` or `MD5-1` when no
+  JIRA projects are configured, and matches configured project keys even with
+  surrounding spaces.
+- Reading a PR or ticket file keeps blank lines at the start of the body;
+  only the separator the writer adds is removed.
 
 ### Removed
 
