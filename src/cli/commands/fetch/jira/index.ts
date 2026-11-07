@@ -7,6 +7,15 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { toCliError } from '@cli/errors';
+import {
+  buildReportConfig,
+  getReportById,
+  loadManagerConfigForFetch,
+  resolveReportIds,
+  resolveReportOutputDir,
+} from '@commands/fetch/fetch-manager.utils';
+import { RateLimitError } from '@commands/fetch/github/github.utils';
 import {
   DIRECTORIES,
   findConfigPath,
@@ -19,14 +28,6 @@ import { isManagerMode } from '@workspace/resolver';
 import chalk from 'chalk';
 import { Command } from 'commander';
 
-import {
-  buildReportConfig,
-  getReportById,
-  loadManagerConfigForFetch,
-  resolveReportIds,
-  resolveReportOutputDir,
-} from '../fetch-manager.utils';
-import { RateLimitError } from '../github/github.utils';
 import { fetchJiraTickets } from './jira.utils';
 
 interface FetchJiraOptions {
@@ -163,10 +164,6 @@ export const jiraCommand = new Command('jira')
       // IC mode - existing logic
       await fetchJiraICMode(options);
     } catch (error) {
-      console.error(
-        chalk.red('\n❌ Error:'),
-        error instanceof Error ? error.message : String(error),
-      );
-      process.exit(1);
+      throw toCliError(error, chalk.red('\n❌ Error:'));
     }
   });

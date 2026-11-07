@@ -10,6 +10,7 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { CliError } from '@cli/errors';
 import { checkbox, confirm, select } from '@inquirer/prompts';
 import chalk from 'chalk';
 import { Command } from 'commander';
@@ -135,10 +136,9 @@ export const installSubcommand = new Command('install')
     // Check for source skills
     const availableSkills = getAvailableSkills();
     if (availableSkills.length === 0) {
-      console.error(
+      throw new CliError(
         chalk.red('No skills found in package. Package may be corrupted.'),
       );
-      process.exit(1);
     }
 
     console.log(

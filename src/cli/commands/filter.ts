@@ -2,6 +2,14 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 import {
+  classifyPRImpact,
+  detectProjects,
+  generateStats,
+  generateTimeline,
+  IMPACT_HIERARCHY,
+} from '@analyzer/index';
+import { toCliError } from '@cli/errors';
+import {
   DIRECTORIES,
   findConfigPath,
   getGitHubNameProblem,
@@ -17,14 +25,6 @@ import { promptFilterInteractive } from '@prompts';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
-
-import {
-  classifyPRImpact,
-  detectProjects,
-  generateStats,
-  generateTimeline,
-  IMPACT_HIERARCHY,
-} from '../analyzer';
 
 export const filterCommand = new Command('filter')
   .description('Filter work-log to a subset based on criteria')
@@ -385,10 +385,6 @@ export const filterCommand = new Command('filter')
         `  Impact: ${chalk.magenta(stats.prs.byImpact.flagship)} flagship, ${chalk.green(stats.prs.byImpact.major)} major, ${chalk.yellow(stats.prs.byImpact.standard)} standard, ${chalk.gray(stats.prs.byImpact.minor)} minor`,
       );
     } catch (error) {
-      console.error(
-        chalk.red('Error:'),
-        error instanceof Error ? error.message : String(error),
-      );
-      process.exit(1);
+      throw toCliError(error, chalk.red('Error:'));
     }
   });

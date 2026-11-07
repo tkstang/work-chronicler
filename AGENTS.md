@@ -57,7 +57,8 @@ work-chronicler/
 │   │   ├── analyzer/           # Impact analysis and project detection
 │   │   └── prompts/            # Interactive CLI prompts
 │   ├── mcp/                    # MCP server for AI assistants
-│   │   └── server.ts           # MCP SDK, query tools
+│   │   ├── server.ts           # Config resolution and tool registration
+│   │   └── tools/              # One module per tool: name, schema, handler(input, context)
 │   └── core/                   # Shared types, config, storage
 │       ├── config/             # Config loading and schema (Zod)
 │       ├── storage/            # Markdown file reader/writer
@@ -167,7 +168,7 @@ reinstalls dependencies only when the lockfile changed.
 - `work-chronicler.example.yaml` - Example configuration file
 - `src/core/index.ts` - Main exports from core module
 - `src/cli/index.ts` - CLI entry point
-- `src/mcp/server.ts` - MCP server implementation
+- `src/mcp/server.ts` - MCP server setup; tool logic lives in `src/mcp/tools/`
 - `src/cli/commands/README.md` - Command organization conventions
 
 ## Tooling Architecture
@@ -209,7 +210,7 @@ The project has four layers:
 
 4. **MCP Server** (read-only data access for AI assistants):
    - Exposes work-log data to Claude Desktop, Cursor, etc. over stdio
-   - Tools (registered in `src/mcp/server.ts`): `search_prs`, `search_tickets`, `get_linked_work`, `list_repos`, `get_stats`, `get_projects`, `get_timeline`
+   - Tools (one module each in `src/mcp/tools/`, registered in `src/mcp/server.ts`): `search_prs`, `search_tickets`, `get_linked_work`, `list_repos`, `get_stats`, `get_projects`, `get_timeline`
 
 ## Data Storage
 

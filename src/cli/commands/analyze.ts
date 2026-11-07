@@ -2,6 +2,13 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 import {
+  classifyPRImpact,
+  detectProjects,
+  generateStats,
+  generateTimeline,
+} from '@analyzer/index';
+import { toCliError } from '@cli/errors';
+import {
   findConfigPath,
   getAnalysisFilePath,
   getEffectiveOutputDir,
@@ -16,12 +23,6 @@ import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
 
-import {
-  classifyPRImpact,
-  detectProjects,
-  generateStats,
-  generateTimeline,
-} from '../analyzer';
 import { reportsCommand } from './analyze/reports';
 import { teamCommand } from './analyze/team';
 
@@ -292,10 +293,6 @@ export const analyzeCommand = new Command('analyze')
         }
       }
     } catch (error) {
-      console.error(
-        chalk.red('Error:'),
-        error instanceof Error ? error.message : String(error),
-      );
-      process.exit(1);
+      throw toCliError(error, chalk.red('Error:'));
     }
   });

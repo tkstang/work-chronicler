@@ -2,6 +2,7 @@
  * reports list command
  */
 
+import { CliError, toCliError } from '@cli/errors';
 import type { ManagerConfig } from '@wc-types/manager';
 import { getActiveProfile } from '@workspace/global-config';
 import { listReports, loadManagerConfig } from '@workspace/report-manager';
@@ -19,12 +20,11 @@ export const listCommand = new Command('list')
       const activeProfile = getActiveProfile();
 
       if (!isManagerMode(activeProfile)) {
-        console.error(
+        throw new CliError(
           chalk.red(
             '\n❌ Error: "reports" commands only available in manager mode.',
           ),
         );
-        process.exit(1);
       }
 
       const profileName = activeProfile;
@@ -60,10 +60,6 @@ export const listCommand = new Command('list')
 
       console.log('');
     } catch (error) {
-      console.error(
-        chalk.red('\n❌ Error:'),
-        error instanceof Error ? error.message : String(error),
-      );
-      process.exit(1);
+      throw toCliError(error, chalk.red('\n❌ Error:'));
     }
   });

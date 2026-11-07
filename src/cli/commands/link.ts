@@ -1,3 +1,4 @@
+import { toCliError } from '@cli/errors';
 import { findConfigPath, getOutputDirectory, loadConfig } from '@core/index';
 import { linkPRsToTickets } from '@linker/index';
 import chalk from 'chalk';
@@ -23,10 +24,6 @@ export const linkCommand = new Command('link')
         `\n${chalk.green('✓')} Created ${chalk.cyan(result.linksFound)} links (${result.prsUpdated} PRs, ${result.ticketsUpdated} tickets updated)`,
       );
     } catch (error) {
-      console.error(
-        chalk.red('Error:'),
-        error instanceof Error ? error.message : String(error),
-      );
-      process.exit(1);
+      throw toCliError(error, chalk.red('Error:'));
     }
   });

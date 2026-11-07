@@ -1,83 +1,108 @@
-import { type PullRequestFile, readAllPRs } from '@core/index';
+import { readAllPRs } from '@core/index';
+import { z } from 'zod';
 
-export interface SearchPRsInput {
-  query?: string;
-  org?: string;
-  repo?: string;
-  since?: string;
-  until?: string;
-  limit?: number;
-}
+import { defineTool, jsonResult, parseAndValidateDate } from './types';
 
-export interface SearchPRsOutput {
-  prs: PullRequestFile[];
-  total: number;
-}
+export const searchPrsTool = defineTool({
+  name: 'search_prs',
+  description:
+    'Search pull requests by date range, repository, keywords, or impact level',
+  inputSchema: {
+    query: z.string().optional().describe('Search term for title and body'),
+    org: z.string().optional().describe('Filter by organization name'),
+    repo: z.string().optional().describe('Filter by repository name'),
+    impact: z
+      .enum(['flagship', 'major', 'standard', 'minor'])
+      .optional()
+      .describe('Filter by impact level'),
+    state: z
+      .enum(['merged', 'open', 'closed'])
+      .optional()
+      .describe('Filter by PR state'),
+    since: z
+      .string()
+      .optional()
+      .describe('Start date (ISO format, e.g., 2025-01-01)'),
+    until: z
+      .string()
+      .optional()
+      .describe('End date (ISO format, e.g., 2025-12-31)'),
+    limit: z.number().optional().describe('Maximum number of results'),
+  },
+  handler: async (input, { outputDir }) => {
+    let filtered = await readAllPRs(outputDir);
 
-/**
- * Search PRs by various criteria
- */
-export async function searchPRs(
-  outputDir: string,
-  input: SearchPRsInput,
-): Promise<SearchPRsOutput> {
-  const allPRs = await readAllPRs(outputDir);
+    if (input.org) {
+      filtered = filtered.filter((pr) => pr.frontmatter.org === input.org);
+    }
 
-  let filtered = allPRs;
+    if (input.repo) {
+      const repo = input.repo;
+      filtered = filtered.filter((pr) =>
+        pr.frontmatter.repository.includes(repo),
+      );
+    }
 
-  // Filter by org
-  if (input.org) {
-    filtered = filtered.filter((pr) => pr.frontmatter.org === input.org);
-  }
+    if (input.impact) {
+      filtered = filtered.filter(
+        (pr) => pr.frontmatter.impact === input.impact,
+      );
+    }
 
-  // Filter by repo
-  if (input.repo) {
-    const repo = input.repo;
-    filtered = filtered.filter((pr) =>
-      pr.frontmatter.repository.includes(repo),
+    if (input.state) {
+      filtered = filtered.filter((pr) => pr.frontmatter.state === input.state);
+    }
+
+    if (input.since) {
+      const sinceDate = parseAndValidateDate(input.since, 'since');
+      filtered = filtered.filter(
+        (pr) => new Date(pr.frontmatter.createdAt) >= sinceDate,
+      );
+    }
+
+    if (input.until) {
+      const untilDate = parseAndValidateDate(input.until, 'until');
+      filtered = filtered.filter(
+        (pr) => new Date(pr.frontmatter.createdAt) <= untilDate,
+      );
+    }
+
+    if (input.query) {
+      const queryLower = input.query.toLowerCase();
+      filtered = filtered.filter(
+        (pr) =>
+          pr.frontmatter.title.toLowerCase().includes(queryLower) ||
+          pr.body.toLowerCase().includes(queryLower),
+      );
+    }
+
+    // Sort by date descending
+    filtered.sort(
+      (a, b) =>
+        new Date(b.frontmatter.createdAt).getTime() -
+        new Date(a.frontmatter.createdAt).getTime(),
     );
-  }
 
-  // Filter by date range
-  if (input.since) {
-    const sinceDate = new Date(input.since);
-    filtered = filtered.filter(
-      (pr) => new Date(pr.frontmatter.createdAt) >= sinceDate,
-    );
-  }
+    const total = filtered.length;
+    if (input.limit && input.limit > 0) {
+      filtered = filtered.slice(0, input.limit);
+    }
 
-  if (input.until) {
-    const untilDate = new Date(input.until);
-    filtered = filtered.filter(
-      (pr) => new Date(pr.frontmatter.createdAt) <= untilDate,
-    );
-  }
+    // Format results for LLM consumption
+    const results = filtered.map((pr) => ({
+      title: pr.frontmatter.title,
+      url: pr.frontmatter.url,
+      repository: pr.frontmatter.repository,
+      state: pr.frontmatter.state,
+      impact: pr.frontmatter.impact,
+      createdAt: pr.frontmatter.createdAt,
+      mergedAt: pr.frontmatter.mergedAt,
+      additions: pr.frontmatter.additions,
+      deletions: pr.frontmatter.deletions,
+      jiraTickets: pr.frontmatter.jiraTickets,
+      body: pr.body.slice(0, 500) + (pr.body.length > 500 ? '...' : ''),
+    }));
 
-  // Filter by query (search in title and body)
-  if (input.query) {
-    const queryLower = input.query.toLowerCase();
-    filtered = filtered.filter(
-      (pr) =>
-        pr.frontmatter.title.toLowerCase().includes(queryLower) ||
-        pr.body.toLowerCase().includes(queryLower),
-    );
-  }
-
-  // Sort by date descending
-  filtered.sort(
-    (a, b) =>
-      new Date(b.frontmatter.createdAt).getTime() -
-      new Date(a.frontmatter.createdAt).getTime(),
-  );
-
-  // Apply limit
-  const total = filtered.length;
-  if (input.limit && input.limit > 0) {
-    filtered = filtered.slice(0, input.limit);
-  }
-
-  return {
-    prs: filtered,
-    total,
-  };
-}
+    return jsonResult({ results, total, returned: results.length });
+  },
+});

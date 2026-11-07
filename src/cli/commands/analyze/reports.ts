@@ -13,6 +13,7 @@ import {
   generateStats,
   generateTimeline,
 } from '@cli/analyzer';
+import { CliError, toCliError } from '@cli/errors';
 import { readAllPRs, readAllTickets, writeMarkdownFile } from '@core/index';
 import { select } from '@inquirer/prompts';
 import { getActiveProfile } from '@workspace/global-config';
@@ -42,15 +43,16 @@ export const reportsCommand = new Command('reports')
       const activeProfile = getActiveProfile();
 
       if (!isManagerMode(activeProfile)) {
-        console.error(
+        throw new CliError(
           chalk.red(
             '\n❌ Error: "analyze reports" command only available in manager mode.',
           ),
+          {
+            hint: chalk.gray(
+              'Use "analyze" without subcommands for IC mode analysis.',
+            ),
+          },
         );
-        console.log(
-          chalk.gray('Use "analyze" without subcommands for IC mode analysis.'),
-        );
-        process.exit(1);
       }
 
       const profileName = activeProfile;
@@ -59,9 +61,9 @@ export const reportsCommand = new Command('reports')
       if (!reportId) {
         const reports = listReports(profileName);
         if (reports.length === 0) {
-          console.error(chalk.red('\n❌ No reports configured.'));
-          console.log(chalk.gray('Add reports with "reports add"'));
-          process.exit(1);
+          throw new CliError(chalk.red('\n❌ No reports configured.'), {
+            hint: chalk.gray('Add reports with "reports add"'),
+          });
         }
 
         reportId = await select({
@@ -79,13 +81,12 @@ export const reportsCommand = new Command('reports')
 
       // Ensure directories exist
       if (!existsSync(workLogDir)) {
-        console.error(
+        throw new CliError(
           chalk.red(
             `\n❌ Error: Work-log directory not found for report "${reportId}"`,
           ),
+          { hint: chalk.gray(`Expected: ${workLogDir}`) },
         );
-        console.log(chalk.gray(`Expected: ${workLogDir}`));
-        process.exit(1);
       }
 
       if (!existsSync(analysisDir)) {
@@ -344,10 +345,6 @@ export const reportsCommand = new Command('reports')
 
       console.log(chalk.green('\n✓ Report analysis generated successfully'));
     } catch (error) {
-      console.error(
-        chalk.red('\n❌ Error:'),
-        error instanceof Error ? error.message : String(error),
-      );
-      process.exit(1);
+      throw toCliError(error, chalk.red('\n❌ Error:'));
     }
   });

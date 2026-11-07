@@ -4,6 +4,7 @@
  * Fetches both GitHub PRs and JIRA tickets, then links them.
  */
 
+import { toCliError } from '@cli/errors';
 import { findConfigPath, getOutputDirectory, loadConfig } from '@core/index';
 import { linkPRsToTickets } from '@linker/index';
 import { getActiveProfile } from '@workspace/global-config';
@@ -230,10 +231,6 @@ export const allCommand = new Command('all')
       // IC mode - existing logic
       await fetchAllICMode(options);
     } catch (error) {
-      console.error(
-        chalk.red('\n❌ Error:'),
-        error instanceof Error ? error.message : String(error),
-      );
-      process.exit(1);
+      throw toCliError(error, chalk.red('\n❌ Error:'));
     }
   });
