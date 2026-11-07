@@ -61,8 +61,41 @@ oat_generated: false
 **Status:** in_progress
 **Base:** a3b950d7c33b3bc829994c3f98d9537f974fc483
 **Executor:** phase-implementer:wce-p01-impl-1
+**Head:** 8f8e9883f370e5c748b2e4992db332befb411a3c
 
 Worktree: `/Users/thomas.stang/.t3/worktrees/work-chronicler/fix-github-org-at-prefix` on `oat/evidence-expansion-m01`; committing owner: the phase implementer (code commits). The root owns this journal (synced OAT project, outside the code branch) and writes execution records from the implementer's report. Parallelism: no declared group; root fan-out rejected because the renames, installer migration and docs share `src/cli/commands/skills/` and cross-referencing docs; one phase implementer.
+
+Verification at Head: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build` pass (187 tests); `npm pack --dry-run` lists only new skill names; `rg` finds old names only in `types.ts` (migration map), `install.test.ts` and `CHANGELOG.md`. Root re-ran typecheck, the test suite and the `rg` check at Head: pass.
+
+Packaged smoke run (temp `HOME`/`WORK_CHRONICLER_HOME`, network available): seeded the ten 0.4.0 skills as copies in `.claude/skills` and symlinks in `.codex/skills`; installed the packed branch tarball; `skills list` flagged the 5 old names; `skills install --tool claude codex --method copy --yes` exited 0, installed 5 new names and removed 5 old per host; symlink targets intact; repeat install was a no-op; temp dirs deleted.
+
+Known Unknown settled (p01): all four hosts use `~/.<tool>/skills/<name>`; old names are detected by `lstat` against the explicit `RENAMED_SKILLS` map (copy, live link, dangling link); host caching not verified empirically, so docs and installer output tell users to restart their assistant.
+
+Implementer notes: added `--overwrite` and `--keep-old` beyond the brief's flag list so every prompt has a no-prompt form; fixed the overwrite prompt counting old names as conflicts. A smoke `npm install` briefly wrote into a stray `/tmp/package.json` fixture outside the repo; the implementer restored it and removed the artifacts (root confirmed the file content).
+
+### Task p01-t01: Verb-first skill renames
+
+**Status:** completed
+**Commit:** ad75f398741ed82207578c1b9f4812c8246a0ec7
+**Executor:** phase-implementer:wce-p01-impl-1
+
+Renamed five skill directories, frontmatter names, cross-references, docs, AGENTS.md naming rule, CHANGELOG breaking entry. Proof: `pnpm format:check && pnpm lint` plus a name/frontmatter consistency script.
+
+### Task p01-t02: Install migration and no-prompt flags
+
+**Status:** completed
+**Commit:** e2a08d2492f1f535517eeaa7cc748074b4090fca
+**Executor:** phase-implementer:wce-p01-impl-1
+
+`RENAMED_SKILLS` map, verified-replacement-then-remove migration, symlink-safe removal, confirmed old-name removal, `--tool/--method/--yes/--overwrite/--keep-old`, `skills list` flags old names. Proof: `pnpm exec vitest run src/cli/commands/skills` (11 pass), typecheck, lint.
+
+### Task p01-t03: Upgrade-note fix
+
+**Status:** completed
+**Commit:** 8f8e9883f370e5c748b2e4992db332befb411a3c
+**Executor:** phase-implementer:wce-p01-impl-1
+
+Documented that `--yes` without `--overwrite` keeps unchanged copied skills. Found by the smoke run.
 
 ---
 
@@ -131,6 +164,8 @@ Worktree: `/Users/thomas.stang/.t3/worktrees/work-chronicler/fix-github-org-at-p
 <!-- One line per dispatch request id, rendered by `oat project dispatch record --format line` and written as a list item. Update that line in place with the terminal outcome; never paste the record or event JSON. -->
 
 <!-- orchestration-runs-start -->
+
+- run/v1 · request=wce-p01-impl-1 · scope=p01 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p01 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 <!-- orchestration-runs-end -->
 
