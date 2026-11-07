@@ -1,19 +1,22 @@
 ## Purpose
 
-<!-- Brief description of what this PR does and why -->
+<!-- What problem does this PR solve, and why now? -->
 
 ## Changes
 
-- [ ] Change 1
-- [ ] Change 2
+<!-- The notable changes, one bullet each. -->
+
+-
 
 ## Testing
 
-<!-- How was this tested? -->
+<!-- Tick what you ran; add commands and results where useful. -->
 
-- [ ] Unit tests
-- [ ] Manual testing
+- [ ] Lint, format and type checks pass
+- [ ] Tests pass
+- [ ] Build passes (needed when entry points, exports, aliases or published files change)
+- [ ] Manual check of the affected CLI command or MCP tool
 
 ## Notes
 
-<!-- Any additional context, screenshots, or information for reviewers -->
+<!-- Follow-ups, risks, judgment calls, or anything reviewers should know. -->

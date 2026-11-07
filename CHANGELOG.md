@@ -1,0 +1,127 @@
+# Changelog
+
+All notable changes to this project are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+
+- MIT `LICENSE` file, `CONTRIBUTING.md` and this changelog.
+- `documentation/` pages for configuration, the command reference and the MCP
+  server, with a `documentation/index.md` entry point.
+
+### Changed
+
+- Skills moved from `.agent/skills/` to `.agents/skills/`; `skills install`
+  reads them from the new location.
+- The npm package now ships only `dist`, `bin` and the `work-chronicler-*`
+  skills. The repo-local `release-notes` skill and other agent files are no
+  longer published.
+- README rewritten around a pipeline overview, a sample work-log file and a
+  scoped feature list; detailed reference moved to `documentation/`.
+- Package description, keywords, `homepage` and `bugs` metadata updated.
+- Pull request template follows the Purpose / Changes / Testing / Notes shape.
+
+### Removed
+
+- `CLAUDE.md`; `AGENTS.md` is the only agent instruction file.
+- Legacy agent scaffolding: `.agent/README.md`, `.agent/projects/`,
+  `.agent/scripts/`, `.agents/projects/`, `.claude/commands/`, `.cursor/` and
+  `.cursorignore`.
+
+### Fixed
+
+- fix(github): normalize @-prefixed org names, warn and exit non-zero when an
+  org fetches nothing (#14)
+- Manager-mode and skills guides no longer show CLI flags that do not exist
+  (`--since`, `--until`, `--no-cache`, `--discover-repos`, `--skip-fetch`).
+
+## [0.3.2] - 2026-03-10
+
+### Fixed
+
+- `analyze reports` no longer requires a report ID; it prompts for one.
+
+## [0.3.1] - 2026-03-10
+
+### Fixed
+
+- Manager-mode `fetch all`, `fetch github` and `fetch jira` no longer fail
+  config validation.
+- The manager `init` wizard asks for the fetch date range.
+
+### Changed
+
+- All skills save generated documents to `outputs/` and also reply in the
+  conversation.
+- GitHub token scope guidance (`read:org` for org discovery) is clearer in the
+  wizard and in error messages.
+
+## [0.3.0] - 2026-02-13
+
+### Added
+
+- `work-chronicler-mgmt-write-peer-review` skill, with a quick mode that needs no
+  setup and a full mode that cites a colleague's work log.
+- `documentation/available-skills.md` skills guide.
+
+## [0.2.2] - 2026-02-11
+
+### Fixed
+
+- The CLI reads its version from `package.json` instead of a hard-coded value.
+
+## [0.2.1] - 2026-02-10
+
+### Added
+
+- Repo-local `release-notes` skill for maintainers.
+
+### Changed
+
+- Quick start and `init` next steps walk through fetch, status, filter, analyze
+  and skills install.
+
+## [0.2.0] - 2026-02-10
+
+### Added
+
+- Interactive `init` wizard with GitHub repo discovery.
+- Profiles: `profile list|switch|delete` and the global `--profile` option.
+- `workspace` command for resolving profile paths.
+- `skills install|uninstall|list` and six IC skills.
+- Manager mode: `init --mode manager`, `reports add|list|update|remove`,
+  `--report` and `--all-reports` on fetch commands, `analyze reports` and
+  `analyze team`, and three manager skills.
+
+### Security
+
+- Profile `.env` files are written with mode `600`, and profile names are
+  validated.
+
+## [0.1.1] - 2026-01-28
+
+### Changed
+
+- Prompts migrated to `@inquirer/prompts`; default output directory updated.
+
+## [0.1.0] - 2026-01-20
+
+### Added
+
+- First release: `init`, `fetch github`, `fetch jira`, `fetch all`, `link`,
+  `analyze`, `filter`, `status`, the MCP server, and Claude Code and Cursor
+  commands for summaries, resume bullets, self-reviews, projects and themes.
+
+[Unreleased]: https://github.com/tkstang/work-chronicler/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/tkstang/work-chronicler/compare/v0.3.1...v0.3.2
+[0.3.1]: https://github.com/tkstang/work-chronicler/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/tkstang/work-chronicler/compare/v0.2.2...v0.3.0
+[0.2.2]: https://github.com/tkstang/work-chronicler/compare/v0.2.1...v0.2.2
+[0.2.1]: https://github.com/tkstang/work-chronicler/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/tkstang/work-chronicler/compare/v0.1.1...v0.2.0
+[0.1.1]: https://github.com/tkstang/work-chronicler/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/tkstang/work-chronicler/releases/tag/v0.1.0

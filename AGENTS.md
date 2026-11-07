@@ -14,14 +14,37 @@ Performance review time comes and you need to remember everything you accomplish
 
 Fetch PR descriptions and JIRA tickets, store them as searchable markdown files, and provide AI-ready tooling to analyze and summarize work.
 
+User-facing docs: `README.md` (overview and quick start) and `documentation/index.md` (configuration, command reference, MCP server, skills, manager mode).
+
+## Non-Negotiables
+
+- **Code is the source of truth for docs.** Every command, flag, path or MCP tool named in `README.md`, `documentation/` or a skill must exist in `src/`. Update the docs in the same PR as the behavior change.
+- **Never touch real user data.** Do not read, write or run the CLI against `~/.work-chronicler/`. Set `WORK_CHRONICLER_HOME` to a temporary directory for manual runs.
+- **Never commit secrets** (tokens, `.env`, `.mcp.json`) or build output (`dist/`).
+- **AGENTS.md only.** Do not add a `CLAUDE.md` at any level.
+- **Conventional Commits** on every commit (enforced by the `commit-msg` hook).
+- **The published package ships only `dist`, `bin` and `.agents/skills/work-chronicler-*`.** Repo-local skills and other agent files must stay out of the npm tarball.
+- **The CLI and MCP server never call an LLM.** AI work happens in skills, inside the user's assistant.
+- **Ask before** changing dependencies, CI workflows, the release process or the config schema in a breaking way.
+
+## Definition of Done
+
+- Use focused checks while editing; before handoff, run one final batch: lint, format, type-check and the test suite (see "Before Committing").
+- Run `pnpm build` when entry points, exports, path aliases or package `files` change. When packaging or skills paths change, also check `npm pack --dry-run` and that `skills install` still finds the packaged skills.
+- Record commands and results in the PR's Testing section. Re-run affected checks after any input changes.
+- CI on the ready PR is the independent proof; a skipped draft run is not verification.
+- User-visible changes get an entry under `## [Unreleased]` in `CHANGELOG.md`.
+
 ## Project Structure
 
 ```
 work-chronicler/
-├── .agent/
+├── .agents/
 │   └── skills/
-│       ├── work-chronicler-*/    # Package skills (installed via `skills install`)
-│       └── release-notes/        # Repo-local dev workflow skills
+│       ├── work-chronicler-*/    # Package skills (published; installed via `skills install`)
+│       └── release-notes/        # Repo-local dev workflow skill (not published)
+├── .github/                    # CI and release workflows, PR template
+├── documentation/              # User docs (index.md is the entry point)
 ├── src/
 │   ├── cli/                    # CLI application (Commander)
 │   │   ├── commands/           # CLI commands (see commands/README.md)
@@ -43,8 +66,13 @@ work-chronicler/
 ├── bin/
 │   ├── work-chronicler.js      # CLI entry point
 │   └── mcp.js                  # Direct MCP server entry point
+├── tests/                      # Vitest suites
 ├── tools/
 │   └── git-hooks/              # Git hook management
+├── AGENTS.md                   # This file (no CLAUDE.md)
+├── CHANGELOG.md                # Keep a Changelog
+├── CONTRIBUTING.md             # Human contributor guide
+├── work-chronicler.example.yaml
 ├── tsconfig.json               # TypeScript configuration
 ├── biome.json                  # Linting/formatting config
 └── package.json                # Single package (published as work-chronicler)
@@ -135,7 +163,7 @@ Git hooks will also run lint-staged on commit, but running these manually first 
 
 ## Tooling Architecture
 
-The project has three layers:
+The project has four layers:
 
 1. **CLI Commands** (programmatic, no AI):
    - `fetch github`, `fetch jira`, `fetch all` - Pull data from sources
@@ -153,20 +181,26 @@ The project has three layers:
    - `workspace profile|work-log|analysis|root` - Output workspace paths
    - `skills install|uninstall|list` - Manage AI skills
 
-2. **AI Skills** (portable, installed via `skills install`):
-   - `/work-chronicler-summarize-work` - Summarize PRs for time period
-   - `/work-chronicler-generate-resume-bullets` - Create achievement-focused bullet points
-   - `/work-chronicler-update-resume` - Update existing resume with new accomplishments
-   - `/work-chronicler-write-self-review` - Draft self-review for performance reviews
-   - `/work-chronicler-detect-projects` - Identify major project groupings
-   - `/work-chronicler-detect-themes` - Identify recurring themes across work
+2. **AI Skills** (package skills in `.agents/skills/`, installed via `skills install`):
+   - IC mode:
+     - `/work-chronicler-summarize-work` - Summarize PRs for time period
+     - `/work-chronicler-generate-resume-bullets` - Create achievement-focused bullet points
+     - `/work-chronicler-update-resume` - Update existing resume with new accomplishments
+     - `/work-chronicler-write-self-review` - Draft self-review for performance reviews
+     - `/work-chronicler-detect-projects` - Identify major project groupings
+     - `/work-chronicler-detect-themes` - Identify recurring themes across work
+   - Manager mode:
+     - `/work-chronicler-mgmt-write-review-packet` - Evidence-based review content for a direct report
+     - `/work-chronicler-mgmt-write-peer-review` - Peer reviews, with or without work-log data
+     - `/work-chronicler-mgmt-quarterly-highlights` - Quarterly highlights for one report
+     - `/work-chronicler-mgmt-team-summary` - Team-level overview across reports
 
 3. **Repo-local Skills** (dev workflows, not distributed with package):
    - `/release-notes` - Use after tagging a release to generate and update GitHub release notes
 
 4. **MCP Server** (read-only data access for AI assistants):
-   - Exposes work-log data to Claude Desktop, Cursor, etc.
-   - Tools: search_prs, search_tickets, get_linked_work, list_repos, get_stats, get_projects, get_timeline
+   - Exposes work-log data to Claude Desktop, Cursor, etc. over stdio
+   - Tools (registered in `src/mcp/server.ts`): `search_prs`, `search_tickets`, `get_linked_work`, `list_repos`, `get_stats`, `get_projects`, `get_timeline`
 
 ## Data Storage
 
@@ -222,8 +256,7 @@ Note: Manager mode uses `reports/<id>/outputs/` for per-report generated documen
 
 Key dependencies:
 
-- **CLI**: commander, @octokit/rest, jira.js, chalk, inquirer
-- **Google Docs**: googleapis, google-auth-library
+- **CLI**: commander, @octokit/rest, @octokit/graphql, @inquirer/prompts, chalk, ora, dotenv (JIRA uses its REST API directly; no JIRA client library)
 - **MCP**: @modelcontextprotocol/sdk
 - **Core**: zod, yaml, gray-matter
 
@@ -247,7 +280,7 @@ After the CI release is created, run `/release-notes` to generate meaningful rel
 
 ## Skill Conventions
 
-Skills live in `.agent/skills/<name>/skill.md`. There are two kinds:
+Skills live in `.agents/skills/<name>/` with a `SKILL.md` (some older skills use `skill.md`). `src/cli/commands/skills/install.ts` resolves this directory relative to the package root, and `package.json` `files` publishes only the `work-chronicler-*` directories. There are two kinds:
 
 - **Package skills** (`work-chronicler-*`): Distributed with the npm package via `skills install`. These operate on work-log data and are user-facing.
 - **Repo-local skills** (no prefix): Dev workflow skills that live in the repo but are not distributed. These help with development tasks like releasing.
