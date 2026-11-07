@@ -108,9 +108,28 @@ async function main(): Promise<void> {
   await createProgram().parseAsync();
 }
 
-main().catch((error: unknown) => {
+/**
+ * Resolve once everything already queued on a stream has been handed to the
+ * OS, so a forced exit does not cut off output to a slow pipe.
+ */
+function drain(stream: NodeJS.WriteStream): Promise<void> {
+  return new Promise((resolve) => {
+    if (!stream.writable) {
+      resolve();
+      return;
+    }
+    stream.write('', () => resolve());
+  });
+}
+
+main().catch(async (error: unknown) => {
   process.exitCode = handleCliError(error);
   // Exit now, as each command's process.exit(1) used to: a spinner or prompt
-  // left open by the failure would otherwise keep the process alive.
+  // left open by the failure would otherwise keep the process alive. Flush
+  // stdout/stderr first (bounded, in case the reader never drains the pipe).
+  await Promise.race([
+    Promise.all([drain(process.stdout), drain(process.stderr)]),
+    new Promise((resolve) => setTimeout(resolve, 5000).unref()),
+  ]);
   process.exit();
 });
