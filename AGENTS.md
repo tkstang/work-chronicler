@@ -280,7 +280,7 @@ After the CI release is created, run `/release-notes` to generate meaningful rel
 
 ## Skill Conventions
 
-Skills live in `.agents/skills/<name>/` with a `SKILL.md` (some older skills use `skill.md`). `src/cli/commands/skills/install.ts` resolves this directory relative to the package root, and `package.json` `files` publishes only the `work-chronicler-*` directories. There are two kinds:
+Skills live in `.agents/skills/<name>/` with a `SKILL.md` (uppercase; hosts on case-sensitive filesystems look for that exact name). `src/cli/commands/skills/install.ts` resolves this directory relative to the package root, and `package.json` `files` publishes only the `work-chronicler-*` directories. There are two kinds:
 
 - **Package skills** (`work-chronicler-*`): Distributed with the npm package via `skills install`. These operate on work-log data and are user-facing.
 - **Repo-local skills** (no prefix): Dev workflow skills that live in the repo but are not distributed. These help with development tasks like releasing.
