@@ -268,7 +268,7 @@ the exception: the CLI already talks to GitHub, so they are fetched directly.
 ## Phase p01: Verb-first skill names and install migration
 
 **Intent:** Rename the five package skills to the verb-first rule (directories, frontmatter `name`, invocation examples, cross-references, README, `documentation/`, AGENTS.md naming rule), and teach `skills install` an explicit old → new migration that is safe per selected host.
-**Exit evidence:** Migration tests for copy, live symlink, dangling symlink, replacement conflict, overwrite refusal, declined old-name removal (both kept, notice printed) and repeat install across hosts pass; a packaged-install smoke run (recorded in the journal; needs network for dependencies) seeds old-name skills in a temp `HOME` from the published 0.4.0 package, then installs the `npm pack` tarball there and, using the new non-interactive flags, installs only new names and migrates old ones; `rg` shows old names only in the migration map, its tests and CHANGELOG/upgrade notes; full DoD batch green.
+**Exit evidence:** Migration tests for copy, live symlink, dangling symlink, replacement conflict, overwrite refusal, declined old-name removal (both kept, notice printed) and repeat install across hosts pass; a packaged-install smoke run (recorded in the journal; needs network for dependencies) seeds old-name skills in a temp `HOME` by copying the `work-chronicler-*` directories from the published 0.4.0 tarball (`npm pack work-chronicler@0.4.0`) into one host's skills path and symlinking them into another, then installs the `npm pack` tarball there and, using the new non-interactive flags, installs only new names and migrates old ones; `rg` shows old names only in the migration map, its tests and CHANGELOG/upgrade notes; full DoD batch green.
 **Provisional:** no
 
 ## Phase p02: PR reviews given (IC)
@@ -349,13 +349,13 @@ Default is `[]` (fully sequential, no worktrees).
 
 ## Reviews
 
-| Scope | Type     | Status  | Date | Artifact | Reviewed Head | Invocation | Gate Target |
-| ----- | -------- | ------- | ---- | -------- | ------------- | ---------- | ----------- |
-| plan  | artifact | pending | -    | -        | -             | -          | -           |
-| p01   | code     | pending | -    | -        | -             | -          | -           |
-| p02   | code     | pending | -    | -        | -             | -          | -           |
-| p03   | code     | pending | -    | -        | -             | -          | -           |
-| final | code     | pending | -    | -        | -             | -          | -           |
+| Scope | Type     | Status  | Date       | Artifact                                                                                           | Reviewed Head                            | Invocation                               | Gate Target |
+| ----- | -------- | ------- | ---------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------- | ---------------------------------------- | ----------- |
+| plan  | artifact | passed  | 2026-11-07 | structured (no file); 3 attempts, 0 Critical/High residual; attempt-3 Low folded without re-review | 723168a978b9e76cf9eda18afebf3b1c264bc48e | oat-reviewer-claude-claude-opus-5-5-high | -           |
+| p01   | code     | pending | -          | -                                                                                                  | -                                        | -                                        | -           |
+| p02   | code     | pending | -          | -                                                                                                  | -                                        | -                                        | -           |
+| p03   | code     | pending | -          | -                                                                                                  | -                                        | -                                        | -           |
+| final | code     | pending | -          | -                                                                                                  | -                                        | -                                        | -           |
 
 Add one `code` row per phase as phases become concrete. For code-review events,
 `Reviewed Head` is the full 40-character SHA at the head of the reviewed range.
