@@ -26,11 +26,11 @@ const __dirname = dirname(__filename);
  * Get the source skills directory (from the package)
  */
 function getSourceSkillsDir(): string {
-  // Navigate from dist/cli/commands/skills/ to .agent/skills/
-  // In development: src/cli/commands/skills/ -> .agent/skills/
-  // In production: dist/cli/commands/skills/ -> .agent/skills/
+  // Navigate from dist/cli/commands/skills/ to .agents/skills/
+  // In development: src/cli/commands/skills/ -> .agents/skills/
+  // In production: dist/cli/commands/skills/ -> .agents/skills/
   const packageRoot = join(__dirname, '..', '..', '..', '..');
-  return join(packageRoot, '.agent', 'skills');
+  return join(packageRoot, '.agents', 'skills');
 }
 
 /**
