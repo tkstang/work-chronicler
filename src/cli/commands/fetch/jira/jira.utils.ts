@@ -240,9 +240,14 @@ async function fetchProjectTickets(
     }
 
     // Use token-based pagination. A token already sent would fetch the same
-    // page again forever, so treat it as the end of the results.
+    // page again forever, and the pages after it are unreachable, so the
+    // project's results are incomplete.
     if (response.isLast || !response.nextPageToken) break;
-    if (seenPageTokens.has(response.nextPageToken)) break;
+    if (seenPageTokens.has(response.nextPageToken)) {
+      throw new Error(
+        `JIRA pagination error: the server repeated page token "${response.nextPageToken}" before the last page, so results are incomplete`,
+      );
+    }
     seenPageTokens.add(response.nextPageToken);
     nextPageToken = response.nextPageToken;
   }

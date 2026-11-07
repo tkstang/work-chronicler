@@ -149,18 +149,30 @@ describe('fetchJiraTickets pagination', () => {
     expect(await storedKeys()).toEqual(['PAY-1']);
   });
 
-  it('stops instead of looping when the server repeats a page token', async () => {
+  // A repeated token means the rest of the results are unreachable, so the
+  // project must be reported as incomplete rather than as a success.
+  it('fails the project instead of looping when the server repeats a page token', async () => {
     serve({
       PAY: [
         { keys: ['PAY-1'], nextPageToken: 't2', isLast: false },
         { keys: ['PAY-2'], nextPageToken: 't2', isLast: false },
       ],
+      OPS: [{ keys: ['OPS-1'], isLast: true }],
     });
 
-    await fetchJiraTickets({ config: config(['PAY']), outputDir });
+    const results = await fetchJiraTickets({
+      config: config(['PAY', 'OPS']),
+      outputDir,
+    });
 
-    expect(requests).toHaveLength(2);
-    expect(await storedKeys()).toEqual(['PAY-1', 'PAY-2']);
+    expect(requests.filter((r) => r.project === 'PAY')).toHaveLength(2);
+    const warning = logs.find(
+      (line) => line.includes('PAY') && line.includes('page token'),
+    );
+    expect(warning).toContain('t2');
+    expect(results.map((r) => r.project)).toEqual(['OPS']);
+    expect(await storedKeys()).toEqual(['OPS-1', 'PAY-1', 'PAY-2']);
+    expect(process.exitCode).toBe(1);
   });
 });
 
