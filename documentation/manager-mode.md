@@ -151,22 +151,14 @@ This prompts for:
 **Non-interactive mode** (for scripting):
 
 ```bash
-work-chronicler reports add alice-smith \
+work-chronicler reports add "Alice Smith" \
   --github alice \
   --email alice@acme.com \
   --repos frontend,backend,infra \
   --jira-projects PLAT,AUTH
 ```
 
-**Auto-discovery:**
-
-```bash
-# Let work-chronicler find repos automatically
-work-chronicler reports add bob-jones \
-  --github bjones \
-  --email bob@acme.com \
-  --discover-repos
-```
+The optional `[name]` argument is the display name (the report ID is derived from it, e.g. `alice-smith`). The command only runs non-interactively when both `--github` and `--email` are given; otherwise it prompts. Repo auto-discovery is available only in the interactive prompts (choose **Auto-discover**).
 
 ### Listing Reports
 
@@ -270,7 +262,7 @@ Fetch data for all reports at once:
 work-chronicler fetch all
 
 # Non-interactive (fetch all reports)
-work-chronicler fetch all --all-reports --no-cache
+work-chronicler fetch all --all-reports
 
 # Also works with github and jira commands
 work-chronicler fetch github --all-reports
@@ -357,15 +349,16 @@ Analyze work for a specific report:
 # Interactive selection
 work-chronicler analyze reports
 
-? Which report?
+? Select a report to analyze:
   ◉ Alice Smith (alice-smith)
   ◯ Bob Jones (bob-jones)
   ◯ Charlie Davis (charlie-davis)
-  ◯ All reports
 
 # Non-interactive
 work-chronicler analyze reports alice-smith
 ```
+
+`analyze reports` analyzes one report at a time. With no flags it runs all analysis types; `--all` explicitly runs all analysis types (`--tag-prs`, `--projects`, `--timeline`) for that report, not all reports.
 
 **Generated files** (per report):
 
@@ -412,12 +405,11 @@ profiles/manager/analysis/
 Run both per-report and team analysis:
 
 ```bash
-# Analyze all reports + generate team aggregations
-work-chronicler analyze reports --all
+# Analyze each report, then generate team aggregations
+work-chronicler analyze reports alice-smith
+work-chronicler analyze reports bob-jones
+work-chronicler analyze reports charlie-davis
 work-chronicler analyze team
-
-# Or use the --all flag
-work-chronicler analyze --all
 ```
 
 ### Understanding Analysis Output
@@ -531,10 +523,11 @@ work-chronicler init --mode manager
 # Follow prompts to configure GitHub, Jira, add reports
 
 # 2. Fetch data for Q1 (January 1 - March 31)
-work-chronicler fetch all --all-reports --since 2026-01-01 --until 2026-03-31
+# First set fetch.since: 2026-01-01 and fetch.until: 2026-03-31 in the profile config.yaml
+work-chronicler fetch all --all-reports
 
-# 3. Generate analysis for all reports
-work-chronicler analyze reports --all
+# 3. Generate analysis for each report
+work-chronicler analyze reports alice-smith
 
 # 4. Generate team-level insights
 work-chronicler analyze team
@@ -547,7 +540,7 @@ work-chronicler analyze team
 
 # 6. Use AI skills to generate review packets
 # (In Claude Code, Cursor, etc. with installed skills)
-/work-chronicler-write-review-packet alice-smith --quarter Q1-2026
+/work-chronicler-mgmt-write-review-packet alice-smith --quarter Q1-2026
 ```
 
 ### Example 2: New Manager Getting Started
@@ -557,19 +550,13 @@ work-chronicler analyze team
 work-chronicler init --mode manager
 
 # 2. Add first report with auto-discovery
-work-chronicler reports add alice-smith \
-  --github alice \
-  --email alice@acme.com \
-  --discover-repos \
-  --jira-projects PLAT,AUTH
+# (run interactively and choose "Auto-discover" for repos)
+work-chronicler reports add "Alice Smith"
 
 # 3. Add more reports
-work-chronicler reports add bob-jones \
-  --github bjones \
-  --email bob@acme.com \
-  --discover-repos
+work-chronicler reports add "Bob Jones"
 
-work-chronicler reports add charlie-davis \
+work-chronicler reports add "Charlie Davis" \
   --github cdavis \
   --email charlie@acme.com \
   --repos frontend,mobile
@@ -581,7 +568,9 @@ work-chronicler reports list
 work-chronicler fetch all --all-reports
 
 # 6. Generate baseline analysis
-work-chronicler analyze reports --all
+work-chronicler analyze reports alice-smith
+work-chronicler analyze reports bob-jones
+work-chronicler analyze reports charlie-davis
 work-chronicler analyze team
 ```
 
@@ -589,14 +578,11 @@ work-chronicler analyze team
 
 ```bash
 # 1. Add new report
-work-chronicler reports add dana-martinez \
-  --github dmart \
-  --email dana@acme.com \
-  --discover-repos \
-  --jira-projects PLAT
+# (run interactively and choose "Auto-discover" for repos)
+work-chronicler reports add "Dana Martinez"
 
-# 2. Fetch their data (YTD)
-work-chronicler fetch all --report dana-martinez --since 2026-01-01
+# 2. Fetch their data (YTD; date range comes from fetch.since in the profile config)
+work-chronicler fetch all --report dana-martinez
 
 # 3. Generate analysis for new report
 work-chronicler analyze reports dana-martinez
@@ -612,12 +598,12 @@ work-chronicler analyze team
 work-chronicler fetch all --all-reports --cache
 
 # 2. Regenerate analysis
-work-chronicler analyze reports --all
+work-chronicler analyze reports alice-smith
 work-chronicler analyze team
 
 # 3. Generate summary for 1:1s
 # (Using AI skills)
-/work-chronicler-summarize-report alice-smith --since 2026-02-01
+/work-chronicler-mgmt-quarterly-highlights alice-smith
 ```
 
 ---
@@ -629,11 +615,11 @@ work-chronicler analyze team
 **Goal**: Generate evidence-based performance reviews for all reports.
 
 **Workflow**:
-1. Fetch data for the quarter: `fetch all --all-reports --since YYYY-MM-DD --until YYYY-MM-DD`
-2. Analyze per-report: `analyze reports --all`
+1. Fetch data for the quarter: set `fetch.since` / `fetch.until` in the profile config, then `fetch all --all-reports`
+2. Analyze per-report: `analyze reports <report-id>`
 3. Upload past reviews to `performance-reviews/` directories
 4. Add manager notes to `notes/` directories
-5. Use AI skills: `/work-chronicler-write-review-packet <report-id> --quarter Q1-2026`
+5. Use AI skills: `/work-chronicler-mgmt-write-review-packet <report-id> --quarter Q1-2026`
 
 **Output**: Evidence-based review packets with:
 - Key accomplishments with PR citations
@@ -666,8 +652,8 @@ work-chronicler analyze team
 **Steps**:
 1. `init --mode manager` - Create profile
 2. Add all reports: `reports add` (interactive, repeat for each person)
-3. Fetch historical data: `fetch all --all-reports --since <hire-date>`
-4. Generate baseline: `analyze reports --all && analyze team`
+3. Fetch historical data: set `fetch.since` in the profile config to the hire date, then `fetch all --all-reports`
+4. Generate baseline: `analyze reports <report-id>` for each report, then `analyze team`
 5. Install AI skills: `skills install`
 6. Add context: Upload past reviews, add notes about each report
 
@@ -680,10 +666,10 @@ work-chronicler analyze team
 **Workflow**:
 1. Ensure data is current: `fetch all --all-reports --cache`
 2. Generate team analysis: `analyze team`
-3. Generate per-report highlights: `analyze reports --all`
+3. Generate per-report highlights: `analyze reports <report-id>`
 4. Use AI skills for summaries:
-   - `/work-chronicler-quarterly-highlights <report-id>` - Key wins per person
-   - `/work-chronicler-team-summary` - Team overview for leadership
+   - `/work-chronicler-mgmt-quarterly-highlights <report-id>` - Key wins per person
+   - `/work-chronicler-mgmt-team-summary` - Team overview for leadership
 
 **Output**: Concise summaries with evidence for calibration discussions.
 
@@ -693,7 +679,7 @@ work-chronicler analyze team
 
 **Workflow**:
 1. Fetch data: `fetch all --all-reports`
-2. Analyze: `analyze reports --all`
+2. Analyze: `analyze reports <report-id>`
 3. Review `stats.json` for each report - filter by impact:
    - `flagship` - Biggest initiatives
    - `major` - Significant features
@@ -711,9 +697,9 @@ work-chronicler analyze team
 
 ### Fetching Strategy
 
-- **Initial setup**: Full fetch without cache (`fetch all --all-reports --no-cache`)
+- **Initial setup**: Full fetch without cache (`fetch all --all-reports`)
 - **Regular updates**: Use cache mode (`fetch all --all-reports --cache`)
-- **Quarterly reviews**: Fetch specific date ranges (`--since`, `--until`)
+- **Quarterly reviews**: Fetch specific date ranges (set `fetch.since` / `fetch.until` in the profile config)
 - **Frequency**: Weekly or bi-weekly fetches keep data current
 
 ### Context Management
@@ -741,7 +727,7 @@ work-chronicler analyze team
 - **Cache mode**: Skip already-fetched items for faster updates
 - **Targeted fetches**: Use `--report <id>` for single-person updates
 - **Analysis on-demand**: Only run team analysis when needed
-- **Date ranges**: Limit fetch ranges for quarterly/annual reviews
+- **Date ranges**: Limit fetch ranges for quarterly/annual reviews via `fetch.since` / `fetch.until`
 
 ---
 
@@ -760,12 +746,12 @@ work-chronicler analyze team
 **Possible causes**:
 - GitHub username is incorrect
 - Person hasn't contributed to org repos recently
-- Date range is too narrow (use `--since` to expand)
+- Date range is too narrow (the auto-discovery lookback is fixed at 6 months)
 
 **Solution**:
 - Verify GitHub username: `reports list`
 - Use manual repo specification: `reports update <id> --add-repo <repo>`
-- Expand date range during discovery
+- Add repos manually with `reports update` if discovery misses them
 
 ### Fetch fails for one report
 
@@ -774,7 +760,7 @@ work-chronicler analyze team
 **Behavior**: work-chronicler continues with other reports and logs errors. If every repository in the manager org fails to fetch for a report (or the org cannot be listed), it prints a warning naming the org and exits with status 1 after processing the remaining reports.
 
 **Check**:
-- Error log: `profiles/manager/reports/<id>/.fetch-errors.json`
+- Errors: printed to the terminal for each failing repo (no error log file is written)
 - Verify report config: `reports list`
 
 **Common causes**:
@@ -805,8 +791,8 @@ work-chronicler analyze team
 ## Next Steps
 
 - **Try it**: `work-chronicler init --mode manager`
-- **Explore AI skills**: `skills install` and try `/work-chronicler-write-review-packet`
-- **Read more**: See [README.md](../README.md) for CLI reference and [AGENTS.md](../AGENTS.md) for project structure
+- **Explore AI skills**: `skills install` and try `/work-chronicler-mgmt-write-review-packet`
+- **Read more**: See the [command reference](commands.md) for every CLI flag and the [documentation index](index.md) for the other guides
 
 ---
 
