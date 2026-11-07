@@ -7,12 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `skills install` migrates skills installed under old names on each tool you
+  select: it installs and checks the new name first, then asks before removing
+  the old one (declining keeps both). Old symlinks, working or broken, are
+  unlinked without touching their targets; old copies are removed only after
+  the new name is in place, and are kept when the new name is held by
+  something else or fails to install. Tools you do not select are left alone
+  and named so you can migrate them separately. `skills list` flags old names.
+- `skills install` flags for running without prompts: `--tool <tool...>`,
+  `--method <copy|symlink>`, `--yes`, `--overwrite` and `--keep-old`. Without
+  flags it prompts as before.
+
 ### Changed
 
+- `skills install` asks about overwriting only when a skill it is about to
+  install already exists; skills under old names no longer trigger the
+  prompt.
 - **Breaking:** five package skills are renamed to follow one rule,
   `work-chronicler-[manager-]<verb>-<object>`. Re-run
-  `work-chronicler skills install` after upgrading, then restart your AI tool
-  so it reloads its skill list:
+  `work-chronicler skills install` after upgrading on every AI tool that has
+  the skills (it replaces the old names), then restart the tool so it reloads
+  its skill list:
 
   | Old name                                    | New name                                             |
   | ------------------------------------------- | ---------------------------------------------------- |

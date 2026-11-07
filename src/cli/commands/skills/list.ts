@@ -5,7 +5,7 @@ import chalk from 'chalk';
 import { Command } from 'commander';
 
 import { findInstalledSkills, type InstalledSkill } from './installed';
-import { AI_TOOLS, type AIToolKey } from './types';
+import { AI_TOOLS, type AIToolKey, RENAMED_SKILLS } from './types';
 
 function getInstalledSkills(toolKey: AIToolKey): InstalledSkill[] {
   const tool = AI_TOOLS[toolKey];
@@ -35,6 +35,15 @@ export const listSubcommand = new Command('list')
             console.log(
               chalk.yellow(
                 `  ✗ ${skill.name} (broken symlink — run \`skills install\` to repair)`,
+              ),
+            );
+            continue;
+          }
+          const newName = RENAMED_SKILLS[skill.name];
+          if (newName !== undefined) {
+            console.log(
+              chalk.yellow(
+                `  ! ${skill.name} (renamed to ${newName} — run \`skills install\` to migrate)`,
               ),
             );
             continue;

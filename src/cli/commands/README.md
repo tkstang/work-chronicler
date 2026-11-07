@@ -50,9 +50,11 @@ commands/
 ├── skills/                 # Command with simple subcommands + shared types
 │   ├── index.ts            # Parent command
 │   ├── install.ts          # skills install subcommand
+│   ├── installed.ts        # Find installed skills (including broken symlinks)
+│   ├── migrate.ts          # Rename migration (old-name detection and removal)
 │   ├── list.ts             # skills list subcommand
 │   ├── uninstall.ts        # skills uninstall subcommand
-│   └── types.ts            # Shared types (AI tool definitions)
+│   └── types.ts            # Shared types (AI tools, renamed-skill map)
 │
 └── workspace/              # Command with simple subcommands
     ├── index.ts            # Parent command

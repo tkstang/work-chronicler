@@ -59,6 +59,34 @@ The installer auto-detects which AI assistants you have and installs to:
 - **Codex**: `~/.codex/skills/`
 - **Gemini**: `~/.gemini/skills/`
 
+For scripts and agents, flags skip the prompts:
+
+```bash
+# Copy the skills into Claude Code and Codex without any prompt
+work-chronicler skills install --tool claude codex --method copy --yes
+```
+
+See the [command reference](commands.md#ai-skills-and-paths) for every flag.
+
+### Upgrading and renamed skills
+
+Re-run `work-chronicler skills install` after every upgrade, then restart your
+AI tool so it reloads its skill list. When a release renames a skill (0.5.0
+renamed five; see `CHANGELOG.md`), the installer migrates it on each tool you
+select:
+
+1. It installs the new name and checks that it is the packaged skill.
+2. It asks before removing the old name (`--yes` removes it, `--keep-old`
+   keeps it). Declining keeps both names and prints a notice.
+3. Old symlinks, working or broken, are unlinked; whatever they point to is not
+   touched. Old copies are deleted only after the new name is in place.
+4. If the new name is held by something else and you refuse to overwrite it, or
+   the install fails, the old name is kept.
+
+Tools you do not select are left unchanged; the installer names any that still
+have old names so you can run `skills install --tool <tool>` for them.
+`skills list` flags old names too.
+
 ### Prerequisites
 
 Before using skills, you need data:

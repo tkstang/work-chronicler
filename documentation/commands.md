@@ -8,9 +8,10 @@ description: Every work-chronicler CLI command, argument and flag, grouped by ta
 Run `work-chronicler <command> --help` for the same information from the CLI.
 From a source checkout, use `pnpm cli <command>`.
 
-Some commands are interactive by design: `init`, `skills install` and
-`skills uninstall` always prompt, even when you pass flags. Most other commands
-prompt only for a choice you did not give as a flag. When a `filtered/` subset
+Some commands are interactive by design: `init` and `skills uninstall` always
+prompt, even when you pass flags. `skills install` prompts unless you pass its
+flags (`--yes` runs it with no prompts). Most other commands prompt only for a
+choice you did not give as a flag. When a `filtered/` subset
 exists, `analyze` asks whether to use it unless you pass `--full`, so use
 `analyze --all --full` for an unattended analysis of the full work log.
 
@@ -116,8 +117,13 @@ These commands need a manager profile. See [Manager mode](manager-mode.md).
 
 | Command | Meaning |
 | --- | --- |
-| `skills install` | Copy or symlink the packaged skills into Claude Code, Cursor, Codex or Gemini. |
-| `skills list` | Show which tools have the skills installed. |
+| `skills install` | Copy or symlink the packaged skills into Claude Code, Cursor, Codex or Gemini, and migrate skills installed under old names. Prompts for anything not given as a flag. |
+| `skills install --tool <tool...>` | Install for these tools: `claude`, `cursor`, `codex`, `gemini` or `all`. Skips the tool prompt. |
+| `skills install --method <method>` | `copy` or `symlink`. Skips the method prompt. |
+| `skills install --yes` | Never prompt: install for the detected tools (unless `--tool` is given) by copy (unless `--method` is given), keep existing skills with the same name and remove old-name skills once their replacement is installed. |
+| `skills install --overwrite` | Replace existing skills with the same name without asking. |
+| `skills install --keep-old` | Keep skills installed under old names without asking. |
+| `skills list` | Show which tools have the skills installed, flagging old names that `skills install` will migrate. |
 | `skills uninstall` | Remove installed skills. |
 | `workspace profile` | Print the active profile name. |
 | `workspace root` | Print the active profile directory. |
