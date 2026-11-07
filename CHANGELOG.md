@@ -72,6 +72,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the remaining projects fetch.
 - `fetch jira` and `fetch all` exit non-zero when a JIRA project fails to
   fetch; the other projects are still fetched.
+- `fetch jira` prints its final summary line as a yellow warning, not a green
+  success, when a project or report failed, as `fetch github` does.
 
 ### Removed
 
