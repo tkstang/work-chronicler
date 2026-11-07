@@ -214,7 +214,13 @@ describe('fetchJiraTickets pagination', () => {
     });
 
     expect(n).toBe(MAX_PAGES);
-    expect(results).toEqual([]);
+    expect(results).toMatchObject([
+      {
+        project: 'PAY',
+        ticketsWritten: 0,
+        error: expect.stringContaining('no last page'),
+      },
+    ]);
     expect(logs.some((line) => line.includes('JIRA pagination error'))).toBe(
       true,
     );
@@ -242,7 +248,17 @@ describe('fetchJiraTickets pagination', () => {
       (line) => line.includes('PAY') && line.includes('page token'),
     );
     expect(warning).toContain('t2');
-    expect(results.map((r) => r.project)).toEqual(['OPS']);
+    // The two PAY tickets written before the repeat still count, but PAY is
+    // flagged as incomplete.
+    expect(results).toMatchObject([
+      {
+        project: 'PAY',
+        ticketsWritten: 2,
+        error: expect.stringContaining('page token'),
+      },
+      { project: 'OPS', ticketsWritten: 1 },
+    ]);
+    expect(results[1]).not.toHaveProperty('error');
     expect(await storedKeys()).toEqual(['OPS-1', 'PAY-1', 'PAY-2']);
     expect(process.exitCode).toBe(1);
   });
@@ -267,7 +283,14 @@ describe('fetchJiraTickets errors', () => {
       (line) => line.includes('PAY') && line.includes('401'),
     );
     expect(failure).toContain('Unauthorized');
-    expect(results.map((r) => r.project)).toEqual(['OPS']);
+    expect(results).toMatchObject([
+      {
+        project: 'PAY',
+        ticketsWritten: 1,
+        error: expect.stringContaining('401'),
+      },
+      { project: 'OPS', ticketsWritten: 1 },
+    ]);
     expect(await storedKeys()).toEqual(['OPS-1', 'PAY-1']);
     expect(process.exitCode).toBe(1);
   });

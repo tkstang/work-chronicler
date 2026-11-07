@@ -14,6 +14,11 @@ export interface JiraFetchResult {
   ticketsWritten: number;
   ticketsSkipped: number;
   ticketsCached: number;
+  /**
+   * Why the project's fetch stopped early. The counts above still cover the
+   * tickets written before the failure, but the project is incomplete.
+   */
+  error?: string;
 }
 
 /** Options for fetching JIRA tickets */

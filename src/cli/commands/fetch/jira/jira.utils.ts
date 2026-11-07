@@ -156,12 +156,43 @@ interface FetchProjectTicketsParams {
   verbose?: boolean;
 }
 
+interface ProjectTicketCounts {
+  written: number;
+  skipped: number;
+  cached: number;
+}
+
 /**
- * Fetch tickets for a single project
+ * Fetch tickets for a single project.
+ *
+ * A failure partway through returns the counts so far with `error` set, so
+ * tickets already written still count. A rate limit is rethrown because every
+ * other project would hit it too.
  */
 async function fetchProjectTickets(
   params: FetchProjectTicketsParams,
-): Promise<{ written: number; skipped: number; cached: number }> {
+): Promise<ProjectTicketCounts & { error?: string }> {
+  const counts: ProjectTicketCounts = { written: 0, skipped: 0, cached: 0 };
+  try {
+    await fetchProjectPages(params, counts);
+    return counts;
+  } catch (error) {
+    if (error instanceof RateLimitError) throw error;
+    return {
+      ...counts,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+/**
+ * Page through one project's search results, writing each ticket and
+ * updating `counts` as it goes.
+ */
+async function fetchProjectPages(
+  params: FetchProjectTicketsParams,
+  counts: ProjectTicketCounts,
+): Promise<void> {
   const {
     baseUrl,
     email,
@@ -176,9 +207,6 @@ async function fetchProjectTickets(
     verbose,
   } = params;
 
-  let written = 0;
-  let skipped = 0;
-  let cached = 0;
   let nextPageToken: string | undefined;
   const seenPageTokens = new Set<string>();
   const maxResults = 50;
@@ -239,14 +267,14 @@ async function fetchProjectTickets(
     for (const issue of issues) {
       const fields = issue.fields;
       if (!fields) {
-        skipped++;
+        counts.skipped++;
         continue;
       }
 
       // Skip if already cached
       const cacheKey = `${instanceName}/${issue.key}`;
       if (cachedTickets.has(cacheKey)) {
-        cached++;
+        counts.cached++;
         continue;
       }
 
@@ -295,7 +323,7 @@ async function fetchProjectTickets(
       }
 
       writeMarkdownFile(filePath, ticketData, body);
-      written++;
+      counts.written++;
 
       if (verbose) {
         spinner.stop();
@@ -316,8 +344,6 @@ async function fetchProjectTickets(
     seenPageTokens.add(response.nextPageToken);
     nextPageToken = response.nextPageToken;
   }
-
-  return { written, skipped, cached };
 }
 
 /**
@@ -404,48 +430,50 @@ async function fetchInstanceTickets(
   }
 
   for (const project of instanceConfig.projects) {
-    try {
-      spinner.text = `Fetching ${chalk.gray(instanceName)}/${chalk.cyan(project)}...`;
+    spinner.text = `Fetching ${chalk.gray(instanceName)}/${chalk.cyan(project)}...`;
 
-      const { written, skipped, cached } = await fetchProjectTickets({
-        baseUrl: instanceConfig.url,
-        email,
-        token,
-        instanceName,
-        project,
-        since,
-        until,
-        outputDir,
-        spinner,
-        cachedTickets,
-        verbose,
-      });
+    // A rate limit propagates: the next project would hit it too.
+    const { written, skipped, cached, error } = await fetchProjectTickets({
+      baseUrl: instanceConfig.url,
+      email,
+      token,
+      instanceName,
+      project,
+      since,
+      until,
+      outputDir,
+      spinner,
+      cachedTickets,
+      verbose,
+    });
 
-      results.push({
-        instance: instanceName,
-        project,
-        ticketsWritten: written,
-        ticketsSkipped: skipped,
-        ticketsCached: cached,
-      });
+    results.push({
+      instance: instanceName,
+      project,
+      ticketsWritten: written,
+      ticketsSkipped: skipped,
+      ticketsCached: cached,
+      ...(error === undefined ? {} : { error }),
+    });
 
-      if (written > 0 || cached > 0) {
-        spinner.stop();
-        const cacheInfo = cached > 0 ? chalk.gray(` (${cached} cached)`) : '';
-        console.log(
-          `  ${chalk.green('✓')} ${chalk.gray(instanceName)}/${chalk.cyan(project)}: ${chalk.green(written)} tickets${cacheInfo}`,
-        );
-        spinner.start();
-      }
-    } catch (error) {
-      // The next project would hit the same rate limit, so stop the fetch
-      if (error instanceof RateLimitError) throw error;
-      // Keep fetching the other projects, but fail the run so a missing
-      // project is never mistaken for a complete work log.
+    if (error !== undefined) {
+      // Keep fetching the other projects, but fail the run so a missing or
+      // partial project is never mistaken for a complete work log.
       process.exitCode = 1;
       spinner.stop();
+      const partial =
+        written > 0
+          ? chalk.gray(` (${written} tickets written before the failure)`)
+          : '';
       console.log(
-        `  ${chalk.red('✗')} ${chalk.gray(instanceName)}/${chalk.cyan(project)}: ${chalk.red(error instanceof Error ? error.message : String(error))}`,
+        `  ${chalk.red('✗')} ${chalk.gray(instanceName)}/${chalk.cyan(project)}: ${chalk.red(error)}${partial}`,
+      );
+      spinner.start();
+    } else if (written > 0 || cached > 0) {
+      spinner.stop();
+      const cacheInfo = cached > 0 ? chalk.gray(` (${cached} cached)`) : '';
+      console.log(
+        `  ${chalk.green('✓')} ${chalk.gray(instanceName)}/${chalk.cyan(project)}: ${chalk.green(written)} tickets${cacheInfo}`,
       );
       spinner.start();
     }
