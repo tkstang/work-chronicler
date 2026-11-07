@@ -73,12 +73,14 @@ export async function discoverRepos(
     const untilDate = until ? new Date(`${until}T23:59:59Z`) : null;
 
     spinner.text = `Listing repos updated since ${since}...`;
-    const reposInRange = await listReposUpdatedInRange({
+    // Only `since` bounds the repo list: a repo's updatedAt is its latest
+    // activity, which can fall after `until` even when the user's PRs inside
+    // the range are older. The PR check below applies both bounds.
+    const reposInRange = await listReposUpdatedSince({
       graphqlWithAuth,
       org,
       isOrg,
       sinceDate,
-      untilDate,
     });
 
     if (reposInRange.length === 0) {
@@ -138,12 +140,11 @@ interface RepoRef {
   updatedAt: string;
 }
 
-async function listReposUpdatedInRange(options: {
+async function listReposUpdatedSince(options: {
   graphqlWithAuth: typeof graphql;
   org: string;
   isOrg: boolean;
   sinceDate: Date;
-  untilDate: Date | null;
 }): Promise<RepoRef[]> {
   const repos: RepoRef[] = [];
   let cursor: string | null = null;
@@ -190,10 +191,6 @@ async function listReposUpdatedInRange(options: {
       // Repos are returned in UPDATED_AT DESC order; once we go older than since we can stop.
       if (updatedAt < options.sinceDate) {
         return repos;
-      }
-
-      if (options.untilDate && updatedAt > options.untilDate) {
-        continue;
       }
 
       const [owner, name] = node.nameWithOwner.split('/');

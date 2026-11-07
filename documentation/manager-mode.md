@@ -55,7 +55,7 @@ Initialize work-chronicler with manager mode:
 work-chronicler init --mode manager
 
 # This will guide you through:
-# 1. Creating the "manager" profile
+# 1. Naming the profile (default "manager"; any name works)
 # 2. Configuring GitHub org and token
 # 3. Optionally configuring Jira
 # 4. Adding your first reports
@@ -409,6 +409,10 @@ profiles/manager/analysis/
 Run `analyze reports <id>` for each report first; team analysis only reads
 those per-report files.
 
+`analyze reports --tag-prs` uses the default impact thresholds unless the
+manager profile's `config.yaml` sets `analysis.thresholds`, in the same shape as
+an IC profile (see [Impact thresholds](configuration.md#impact-thresholds)).
+
 ### Analyze Everything
 
 Run both per-report and team analysis:
@@ -425,10 +429,12 @@ work-chronicler analyze team
 
 **Impact Tiers:**
 
-- **Flagship**: Large initiatives (500+ lines or 15+ files), migrations, platform changes
+- **Flagship**: Large initiatives (500+ lines or 15+ files), breaking changes (`feat!:`), migrations, platform changes
 - **Major**: Significant features (200+ lines or 8+ files), `feat:` or `refactor:` commits
 - **Standard**: Regular work, bug fixes, `fix:` or `test:` commits
-- **Minor**: Small changes (<20 lines), docs, chores, dependency updates
+- **Minor**: Small changes (<20 lines), docs and chores below major size, dependency updates at any size
+
+See [Impact thresholds](configuration.md#impact-thresholds) for the full rule order.
 
 **Project Detection:**
 

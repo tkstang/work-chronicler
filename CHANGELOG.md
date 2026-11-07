@@ -42,6 +42,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   scoped feature list; detailed reference moved to `documentation/`.
 - Package description, keywords, `homepage` and `bugs` metadata updated.
 - Pull request template follows the Purpose / Changes / Testing / Notes shape.
+- Impact classification (`analyze --tag-prs`) was relabeled. A breaking
+  marker (`feat!:`, `feat(api)!:`) is flagship. Dependency updates (a
+  dependency label, or a `chore(deps)` / `build(deps)` title) stay minor at
+  any size. A flagship keyword such as `migration` or `platform` no longer
+  promotes a PR that is otherwise minor (`fix typo in migration guide`,
+  `docs: platform setup guide`). A `chore`, `docs`, `style`, `ci` or `build`
+  PR of major size is now major instead of minor. Re-run
+  `analyze --tag-prs` to relabel existing PRs.
+
+### Removed
+
+- `CLAUDE.md`; `AGENTS.md` is the only agent instruction file.
+- Legacy agent scaffolding: `.agent/README.md`, `.agent/projects/`,
+  `.agent/scripts/`, `.agents/projects/`, `.claude/commands/`, `.cursor/` and
+  `.cursorignore`.
 
 ### Fixed
 
@@ -89,20 +104,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   surrounding spaces.
 - Reading a PR or ticket file keeps blank lines at the start of the body;
   only the separator the writer adds is removed.
-
-### Removed
-
-- `CLAUDE.md`; `AGENTS.md` is the only agent instruction file.
-- Legacy agent scaffolding: `.agent/README.md`, `.agent/projects/`,
-  `.agent/scripts/`, `.agents/projects/`, `.claude/commands/`, `.cursor/` and
-  `.cursorignore`.
-
-### Fixed
-
-- fix(github): normalize @-prefixed org names, warn and exit non-zero when an
-  org fetches nothing (#14)
+- GitHub org names with a leading `@` are normalized, and `fetch github` and
+  `fetch all` warn and exit non-zero when an org fetches nothing (#14).
 - Manager-mode and skills guides no longer show CLI flags that do not exist
   (`--since`, `--until`, `--no-cache`, `--discover-repos`, `--skip-fetch`).
+- MCP `get_linked_work` no longer returns PR 123 when asked for `23` or for a
+  `…/pull/23` URL. It matches the exact URL first, and treats bare digits as
+  the whole PR number; a number shared by several repos asks for the full URL.
+- Manager mode is read from `mode: manager` in the profile's `config.yaml`
+  instead of the profile being named `manager`. A manager profile with another
+  name (as `init --mode manager` allows) now works with `reports`,
+  `analyze reports`, `analyze team` and the manager `fetch` paths, and an IC
+  profile named `manager` is no longer treated as a manager profile.
+- `analyze team` prints the team analysis directory as its output path, not
+  a report directory named after the profile.
+- `init --mode manager` auto-discovers a report's repos with the GitHub token
+  entered in the wizard, instead of failing when `GITHUB_TOKEN` is not set. The
+  token is still saved only to the profile's `.env`.
+- `analyze team` lists a report in `skippedReports` when its timeline's date
+  range is reversed or is not a real `YYYY-MM-DD` date (such as `2025-02-30`),
+  instead of merging it into the team date range.
+- `analyze --timeline` and `analyze reports --timeline` compute weeks and
+  months in UTC. West of UTC, a week starting on the 1st was filed under the
+  previous month, and a PR merged late on Sunday local time (Monday in UTC)
+  landed in the previous week. Re-run the timeline to regroup existing
+  analysis.
+- Manager `fetch jira` and `fetch all` label a report whose JIRA project
+  failed as a yellow `⚠ <name> incomplete (...; JIRA failed for <projects>)`
+  instead of a green `✓ <name> complete`.
+- JIRA project keys in `config.yaml` (`jira.instances[].projects`) and in
+  manager reports (`jiraProjects`) are trimmed when the config is read, so
+  `fetch jira` no longer queries `" PROJ "` or stores tickets under a
+  directory with stray spaces. Case is kept, so existing tickets stay in their
+  project directory; `link` already matches keys case-insensitively.
+- Repo auto-discovery in `reports add` and `init --mode manager` searches the
+  profile's `fetch.since`/`fetch.until` range. It used to pass an invalid
+  date, so it listed repos and PRs of any age.
+- Repo auto-discovery with a `fetch.until` date no longer skips a repo whose
+  latest activity is after `until` when the user has PRs inside the range.
+- `reports update --add-jira-project` and `--remove-jira-project` trim the
+  key they are given, so ` PROJ ` removes the stored `PROJ` and adding an
+  existing key no longer stores it twice.
+- `analyze reports --tag-prs` classifies with `analysis.thresholds` from the
+  manager profile's `config.yaml`, as `analyze --tag-prs` does for IC profiles.
+  The manager config used to drop the setting and always apply the defaults.
+  PRs are classified before `stats.json` and `timeline.json` are written, so
+  both report the same impact as the tagged PR files; untagged PRs use the
+  profile's thresholds there too.
 
 ## [0.3.2] - 2026-03-10
 

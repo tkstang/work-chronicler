@@ -1,6 +1,8 @@
+import { AnalysisConfigSchema } from '@config/schema';
 import { z } from 'zod';
 
 import { GitHubNameSchema } from './github';
+import { JiraProjectKeySchema } from './ticket';
 
 /**
  * Manager mode types and schemas
@@ -19,7 +21,7 @@ export const ReportConfigSchema = z.object({
   /** Repos to fetch (no org prefix) */
   repos: z.array(z.string()).default([]),
   /** Jira projects to fetch */
-  jiraProjects: z.array(z.string()).default([]),
+  jiraProjects: z.array(JiraProjectKeySchema).default([]),
 });
 export type ReportConfig = z.infer<typeof ReportConfigSchema>;
 
@@ -48,6 +50,8 @@ export const ManagerConfigSchema = z.object({
     })
     .optional(),
   fetch: ManagerFetchConfigSchema,
+  /** Impact thresholds for `analyze reports`; defaults apply when omitted */
+  analysis: AnalysisConfigSchema.optional(),
   reports: z.array(ReportConfigSchema).default([]),
 });
 export type ManagerConfig = z.infer<typeof ManagerConfigSchema>;

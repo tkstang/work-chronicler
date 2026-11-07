@@ -1,7 +1,8 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { ConfigSchema } from '@config/schema';
 import { type Config, readAllTickets } from '@core/index';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -318,5 +319,38 @@ describe('fetchJiraTickets errors', () => {
     await expect(fetching).rejects.toThrow(/rate limit.*30 seconds/i);
     expect(requests.map((r) => r.project)).toEqual(['PAY', 'PAY']);
     expect(await storedKeys()).toEqual(['PAY-1']);
+  });
+});
+
+describe('fetchJiraTickets storage path for configured project keys', () => {
+  // Existing work logs store tickets under the configured key's directory.
+  // Changing that key's case at config load would write a second copy of every
+  // ticket (`proj/` next to `PROJ/`), and readAllTickets does not dedupe.
+  it('keeps a lower-case configured key in its existing lower-case directory', async () => {
+    const parsed = ConfigSchema.parse({
+      ...config([]),
+      jira: {
+        instances: [
+          {
+            name: 'acme',
+            url: 'https://acme.atlassian.net',
+            email: 'dev@example.com',
+            token: 'test-token',
+            projects: [' proj '],
+          },
+        ],
+      },
+    });
+    serve({ proj: [{ keys: ['PROJ-1'], isLast: true }] });
+
+    await fetchJiraTickets({ config: parsed, outputDir });
+
+    expect(requests).toEqual([{ project: 'proj', nextPageToken: undefined }]);
+    // Compare listed names: macOS filesystems are case-insensitive, so an
+    // existence check would accept `PROJ/` too.
+    expect(readdirSync(join(outputDir, 'jira', 'acme'))).toEqual(['proj']);
+    expect(readdirSync(join(outputDir, 'jira', 'acme', 'proj'))).toEqual([
+      'PROJ-1.md',
+    ]);
   });
 });

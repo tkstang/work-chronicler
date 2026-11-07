@@ -9,7 +9,7 @@ import chalk from 'chalk';
  *
  * Shared by `reports add` and `init --mode manager`.
  *
- * @param config - Manager config (GitHub org and token are used for repo auto-discovery)
+ * @param config - Manager config (GitHub org, token and fetch range are used for repo auto-discovery)
  * @returns The report to add
  */
 export async function promptForReport(
@@ -68,14 +68,15 @@ export async function promptForReport(
       throw new Error('GitHub org not found in config');
     }
 
-    // Use existing discovery logic
+    // Discover over the profile's fetch range, the same window that
+    // `fetch github` will later pull this report's PRs from.
     const result = await discoverRepos(
       token,
       org,
       github,
       50, // prCount
-      '6months', // since (6 months ago)
-      null, // until
+      config.fetch.since,
+      config.fetch.until,
     );
 
     repos = result.repos;

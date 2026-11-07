@@ -46,7 +46,7 @@ async function readReportProjects(
  * - PR URLs and ticket keys are merged
  * - Stats are summed
  *
- * @param profileName - Profile name (must be 'manager')
+ * @param profileName - Manager profile name
  * @param reportIds - List of report IDs to aggregate (duplicates are ignored)
  * @returns Array of aggregated ProjectGrouping objects
  */
@@ -123,7 +123,7 @@ export async function aggregateTeamProjects(
  * The matrix shows which projects each team member contributed to,
  * useful for understanding team collaboration patterns.
  *
- * @param profileName - Profile name (must be 'manager')
+ * @param profileName - Manager profile name
  * @param reportIds - List of report IDs to aggregate
  * @returns Record mapping contributor name to array of project names
  */
@@ -240,17 +240,17 @@ function isCalendarDate(value: string): boolean {
 }
 
 /**
- * Whether a parsed timeline can be merged: its date range is non-empty and
- * parseable, its months are `YYYY-MM` and its week starts are `YYYY-MM-DD`.
- * The merge keys and sorts periods by these strings, so a non-canonical key
- * would create a duplicate period or sort out of order.
+ * Whether a parsed timeline can be merged: its date range is two real
+ * `YYYY-MM-DD` calendar dates with `since <= until`, its months are `YYYY-MM`
+ * and its week starts are `YYYY-MM-DD`. The merge keys and sorts periods by
+ * these strings, so a non-canonical key would create a duplicate period or
+ * sort out of order, and a bad range would stretch or invert the team range.
  */
 function isMergeableTimeline(timeline: TimelineAnalysis): boolean {
   const { since, until } = timeline.dateRange;
-  if (!since || !until) return false;
-  if (Number.isNaN(Date.parse(since)) || Number.isNaN(Date.parse(until))) {
-    return false;
-  }
+  if (!isCalendarDate(since) || !isCalendarDate(until)) return false;
+  // Canonical YYYY-MM-DD strings compare in chronological order.
+  if (since > until) return false;
   return timeline.months.every(
     (month) =>
       MONTH_KEY.test(month.month) &&
@@ -305,7 +305,7 @@ async function readReportTimeline(
  * report's own numbers and items so no work is credited to the wrong person.
  * Reports without a usable timeline are listed in `skippedReports`.
  *
- * @param profileName - Profile name (must be 'manager')
+ * @param profileName - Manager profile name
  * @param reportIds - List of report IDs to aggregate (duplicates are ignored)
  * @returns Team timeline, months and weeks in chronological order
  */
@@ -404,9 +404,10 @@ export async function aggregateTeamTimeline(
     }
   }
 
-  const byTime = (a: string, b: string) => Date.parse(a) - Date.parse(b);
-  const since = sinces.sort(byTime)[0];
-  const until = untils.sort(byTime).at(-1);
+  // Ranges are validated as canonical YYYY-MM-DD, so string order is
+  // chronological order.
+  const since = sinces.sort()[0];
+  const until = untils.sort().at(-1);
 
   return {
     generatedAt: new Date().toISOString(),
@@ -431,7 +432,7 @@ export async function aggregateTeamTimeline(
  * - contributor-matrix.json: Contributor to project mapping
  * - team-timeline.json: Team timeline merged from each report's timeline.json
  *
- * @param profileName - Profile name (must be 'manager')
+ * @param profileName - Manager profile name
  * @param reportIds - List of report IDs to aggregate
  */
 export async function writeTeamAnalysis(

@@ -11,59 +11,72 @@ import type {
 
 import { classifyPRImpact } from './classifier';
 
+// Every period key is computed in UTC: PR and ticket dates are formatted as
+// UTC days, so week and month boundaries must be UTC too, or a week could be
+// filed under the wrong month depending on where `analyze` ran.
+
 /**
- * Get ISO week number for a date
+ * Get ISO week number for a date (UTC)
  * Week 1 is the week containing January 4th
  */
 function getISOWeek(date: Date): number {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
-  const yearStart = new Date(d.getFullYear(), 0, 1);
-  return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  const d = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const yearStart = Date.UTC(d.getUTCFullYear(), 0, 1);
+  return Math.ceil(((d.getTime() - yearStart) / 86400000 + 1) / 7);
 }
 
 /**
- * Get the Monday of the week containing a date
+ * Get the Monday (UTC midnight) of the UTC week containing a date
  */
 function getWeekStart(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday
-  return new Date(d.setDate(diff));
+  const day = date.getUTCDay();
+  const diff = day === 0 ? -6 : 1 - day; // back to Monday
+  return new Date(
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate() + diff,
+    ),
+  );
 }
 
 /**
- * Get the Sunday of the week containing a date
+ * Get the Sunday (UTC midnight) of the UTC week containing a date
  */
 function getWeekEnd(date: Date): Date {
-  const start = getWeekStart(date);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 6);
+  const end = getWeekStart(date);
+  end.setUTCDate(end.getUTCDate() + 6);
   return end;
 }
 
 /**
- * Format date as YYYY-MM-DD
+ * Format date as a UTC YYYY-MM-DD
  */
 function formatDate(date: Date): string {
   return date.toISOString().split('T')[0] ?? '';
 }
 
 /**
- * Format month as YYYY-MM
+ * Format month as a UTC YYYY-MM
  */
 function formatMonth(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
   return `${year}-${month}`;
 }
 
 /**
- * Get human-readable month name
+ * Get human-readable month name for a UTC month
  */
 function getMonthName(date: Date): string {
-  return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  return date.toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
 }
 
 /**
@@ -132,7 +145,7 @@ export function generateTimeline(
         weekStart: weekKey,
         weekEnd: formatDate(getWeekEnd(pr.dateObj)),
         weekNumber: getISOWeek(pr.dateObj),
-        year: weekStart.getFullYear(),
+        year: weekStart.getUTCFullYear(),
         prs: [],
         tickets: [],
         stats: {
@@ -168,7 +181,7 @@ export function generateTimeline(
         weekStart: weekKey,
         weekEnd: formatDate(getWeekEnd(ticket.dateObj)),
         weekNumber: getISOWeek(ticket.dateObj),
-        year: weekStart.getFullYear(),
+        year: weekStart.getUTCFullYear(),
         prs: [],
         tickets: [],
         stats: {
@@ -205,7 +218,7 @@ export function generateTimeline(
   const monthMap = new Map<string, TimelineMonth>();
 
   for (const week of sortedWeeks) {
-    // Use week start date for month grouping
+    // Use week start date for month grouping ("YYYY-MM-DD" parses as UTC)
     const weekStartDate = new Date(week.weekStart);
     const monthKey = formatMonth(weekStartDate);
 

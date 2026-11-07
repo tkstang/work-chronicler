@@ -10,6 +10,7 @@ import type {
   ReportMetadata,
 } from '@wc-types/manager';
 import { ManagerConfigSchema } from '@wc-types/manager';
+import { JiraProjectKeySchema } from '@wc-types/ticket';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
 import { generateReportId, validateReportName } from './report-utils';
@@ -23,7 +24,7 @@ import {
 /**
  * Load manager config from profile
  *
- * @param profileName - Profile name (must be 'manager')
+ * @param profileName - Manager profile name
  * @returns Manager config
  * @throws Error if profile is not in manager mode or config is invalid
  */
@@ -50,7 +51,7 @@ export function loadManagerConfig(profileName: string): ManagerConfig {
 /**
  * Save manager config to profile
  *
- * @param profileName - Profile name (must be 'manager')
+ * @param profileName - Manager profile name
  * @param config - Manager config to save
  * @throws Error if profile is not in manager mode
  */
@@ -188,16 +189,24 @@ export function updateReport(
     report.repos = report.repos.filter((r) => r !== options.removeRepo);
   }
 
-  if (
-    options.addJiraProject &&
-    !report.jiraProjects.includes(options.addJiraProject)
-  ) {
-    report.jiraProjects.push(options.addJiraProject);
+  // Stored keys are normalized when the config loads; normalize the
+  // command-line keys the same way so they name the same project.
+  const addJiraProject =
+    options.addJiraProject === undefined
+      ? undefined
+      : JiraProjectKeySchema.parse(options.addJiraProject);
+  const removeJiraProject =
+    options.removeJiraProject === undefined
+      ? undefined
+      : JiraProjectKeySchema.parse(options.removeJiraProject);
+
+  if (addJiraProject && !report.jiraProjects.includes(addJiraProject)) {
+    report.jiraProjects.push(addJiraProject);
   }
 
-  if (options.removeJiraProject) {
+  if (removeJiraProject) {
     report.jiraProjects = report.jiraProjects.filter(
-      (p) => p !== options.removeJiraProject,
+      (p) => p !== removeJiraProject,
     );
   }
 

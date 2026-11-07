@@ -60,6 +60,12 @@ const originalHome = process.env.WORK_CHRONICLER_HOME;
 beforeEach(() => {
   home = mkdtempSync(join(tmpdir(), 'wc-team-'));
   process.env.WORK_CHRONICLER_HOME = home;
+  // Manager mode comes from the profile config, not the profile name.
+  mkdirSync(join(home, 'profiles', 'manager'), { recursive: true });
+  writeFileSync(
+    join(home, 'profiles', 'manager', 'config.yaml'),
+    'mode: manager\n',
+  );
 });
 
 afterEach(() => {
@@ -319,6 +325,49 @@ describe('team timeline', () => {
     ]);
     expect(timeline.months.map((m) => m.month)).toEqual(['2025-03']);
     expect(timeline.summary.totalWeeks).toBe(1);
+  });
+
+  // The team date range is the earliest since and latest until, so one bad
+  // range would stretch or invert it for the whole team.
+  it('skips reports whose date range is reversed or not a real calendar date', async () => {
+    writeTimeline(
+      'alice',
+      { since: '2025-03-01', until: '2025-03-31' },
+      { '2025-03': week('2025-03-03', '2025-03-09', [alicePR]) },
+    );
+    writeTimeline(
+      'reversed',
+      { since: '2025-03-31', until: '2025-03-01' },
+      { '2025-03': week('2025-03-03', '2025-03-09', [bobPR]) },
+    );
+    writeTimeline(
+      'impossible',
+      { since: '2025-02-30', until: '2025-03-31' },
+      { '2025-03': week('2025-03-03', '2025-03-09', [bobPR]) },
+    );
+    writeTimeline(
+      'not-a-day',
+      { since: 'March 2025', until: '2025-03-31' },
+      { '2025-03': week('2025-03-03', '2025-03-09', [bobPR]) },
+    );
+
+    const timeline = await aggregateTeamTimeline('manager', [
+      'alice',
+      'reversed',
+      'impossible',
+      'not-a-day',
+    ]);
+
+    expect(timeline.reports).toEqual(['alice']);
+    expect(timeline.skippedReports).toEqual([
+      'reversed',
+      'impossible',
+      'not-a-day',
+    ]);
+    expect(timeline.dateRange).toEqual({
+      since: '2025-03-01',
+      until: '2025-03-31',
+    });
   });
 
   it('counts a report listed twice only once', async () => {

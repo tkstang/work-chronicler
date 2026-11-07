@@ -13,7 +13,8 @@ export const DEFAULT_THRESHOLDS = {
  * Conventional commit prefixes and their default impact
  */
 const CONVENTIONAL_COMMIT_MAP: Record<string, PRImpact> = {
-  // Minor by default (can be upgraded by size)
+  // Minor by default; major or flagship size still promotes them, except
+  // dependency updates (see isDependencyUpdate)
   chore: 'minor',
   docs: 'minor',
   style: 'minor',
@@ -43,6 +44,13 @@ const MINOR_PATTERNS = [
   /^dependabot/i,
 ];
 
+/** Labels that mark a dependency update (minor at any size) */
+const DEPENDENCY_LABELS = ['dependencies', 'renovate', 'dependabot'];
+
+/** Conventional types whose `deps` scope marks a dependency update */
+const DEPENDENCY_TYPES = new Set(['chore', 'build']);
+const DEPENDENCY_SCOPES = new Set(['deps', 'deps-dev']);
+
 const MINOR_LABELS = [
   'dependencies',
   'chore',
@@ -69,24 +77,59 @@ const FLAGSHIP_PATTERNS = [
   /rewrite/i,
 ];
 
+interface ConventionalPrefix {
+  type: string;
+  scope: string | null;
+  breaking: boolean;
+}
+
 /**
- * Extract conventional commit type from PR title
- * Handles: "feat: message", "feat(scope): message", "[feat] message"
+ * Parse the conventional commit prefix of a PR title.
+ * Handles: "feat: message", "feat(scope): message", "feat!: message",
+ * "feat(scope)!: message" and "[feat] message".
  */
-function extractConventionalType(title: string): string | null {
-  // Match "type:" or "type(scope):"
-  const conventionalMatch = title.match(/^(\w+)(?:\([^)]*\))?:\s*/i);
+function parseConventionalPrefix(title: string): ConventionalPrefix | null {
+  const conventionalMatch = title.match(/^(\w+)(?:\(([^)]*)\))?(!)?:\s*/i);
   if (conventionalMatch?.[1]) {
-    return conventionalMatch[1].toLowerCase();
+    return {
+      type: conventionalMatch[1].toLowerCase(),
+      scope: conventionalMatch[2]?.trim().toLowerCase() ?? null,
+      breaking: conventionalMatch[3] === '!',
+    };
   }
 
-  // Match "[type]"
   const bracketMatch = title.match(/^\[(\w+)\]/i);
   if (bracketMatch?.[1]) {
-    return bracketMatch[1].toLowerCase();
+    return {
+      type: bracketMatch[1].toLowerCase(),
+      scope: null,
+      breaking: false,
+    };
   }
 
   return null;
+}
+
+/**
+ * Whether a PR is a dependency update: a dependency label, or a
+ * `chore(deps)` / `build(deps)` title. Lockfile bumps can be any size, so
+ * these stay minor regardless of lines or files.
+ */
+function isDependencyUpdate(
+  pr: PullRequest,
+  prefix: ConventionalPrefix | null,
+): boolean {
+  if (
+    pr.labels.some((label) => DEPENDENCY_LABELS.includes(label.toLowerCase()))
+  ) {
+    return true;
+  }
+  return (
+    prefix !== null &&
+    DEPENDENCY_TYPES.has(prefix.type) &&
+    prefix.scope !== null &&
+    DEPENDENCY_SCOPES.has(prefix.scope)
+  );
 }
 
 /**
@@ -107,75 +150,84 @@ export function classifyPRImpact(
 
   const totalLines = pr.additions + pr.deletions;
   const title = pr.title;
+  const prefix = parseConventionalPrefix(title);
 
-  // Check size thresholds first for flagship
+  // 1. An explicit breaking marker (`feat!:`, `feat(api)!:`) is flagship,
+  //    ahead of every other rule.
+  if (prefix?.breaking) {
+    return 'flagship';
+  }
+
+  // 2. Dependency updates stay minor at any size.
+  if (isDependencyUpdate(pr, prefix)) {
+    return 'minor';
+  }
+
+  // 3. Flagship size promotes anything else.
   const isFlagshipSize =
     (thresholds.flagship.minLines &&
       totalLines >= thresholds.flagship.minLines) ||
     (thresholds.flagship.minFiles &&
       pr.changedFiles >= thresholds.flagship.minFiles);
 
-  // Check flagship patterns
-  const hasFlagshipPattern = FLAGSHIP_PATTERNS.some((p) => p.test(title));
-
-  if (isFlagshipSize || hasFlagshipPattern) {
+  if (isFlagshipSize) {
     return 'flagship';
   }
 
-  // Check conventional commit type
-  const conventionalType = extractConventionalType(title);
   let baseImpact: PRImpact | null = null;
-
-  if (conventionalType && conventionalType in CONVENTIONAL_COMMIT_MAP) {
-    baseImpact = CONVENTIONAL_COMMIT_MAP[conventionalType] ?? null;
+  if (prefix && prefix.type in CONVENTIONAL_COMMIT_MAP) {
+    baseImpact = CONVENTIONAL_COMMIT_MAP[prefix.type] ?? null;
   }
 
-  // Check for minor patterns and labels
   const hasMinorPattern = MINOR_PATTERNS.some((p) => p.test(title));
   const hasMinorLabel = pr.labels.some((label) =>
     MINOR_LABELS.includes(label.toLowerCase()),
   );
 
-  // Check size for minor
   const isMinorSize =
     thresholds.minor.maxLines &&
     totalLines <= thresholds.minor.maxLines &&
     thresholds.minor.maxFiles &&
     pr.changedFiles <= thresholds.minor.maxFiles;
 
-  // If conventional commit says minor, or patterns say minor with small size
-  if (
-    baseImpact === 'minor' ||
-    ((hasMinorPattern || hasMinorLabel) && isMinorSize)
-  ) {
-    return 'minor';
-  }
-
-  // Very small changes are minor regardless
-  if (totalLines <= 10 && pr.changedFiles <= 2) {
-    return 'minor';
-  }
-
-  // Check for major size
   const isMajorSize =
     (thresholds.major.minLines && totalLines >= thresholds.major.minLines) ||
     (thresholds.major.minFiles && pr.changedFiles >= thresholds.major.minFiles);
 
-  // Check for major patterns
+  const isTinyChange = totalLines <= 10 && pr.changedFiles <= 2;
+  const hasMinorTitleOrLabel =
+    (hasMinorPattern || hasMinorLabel) && isMinorSize;
+
+  // 4. A flagship keyword ("migration", "platform", ...) promotes only when
+  //    nothing marks the PR as minor: "fix typo in migration guide" is not
+  //    flagship work.
+  const hasMinorSignal =
+    baseImpact === 'minor' || hasMinorTitleOrLabel || isTinyChange;
+  const hasFlagshipPattern = FLAGSHIP_PATTERNS.some((p) => p.test(title));
+
+  if (hasFlagshipPattern && !hasMinorSignal) {
+    return 'flagship';
+  }
+
+  // 5. Minor: a minor conventional type below major size, a minor title or
+  //    label at minor size, or a very small change of any type.
+  if (
+    (baseImpact === 'minor' && !isMajorSize) ||
+    hasMinorTitleOrLabel ||
+    isTinyChange
+  ) {
+    return 'minor';
+  }
+
+  // 6. Major: a major conventional type, major size or a major title pattern.
   const hasMajorPattern = MAJOR_PATTERNS.some((p) => p.test(title));
 
-  // If conventional commit says major, or patterns/size indicate major
   if (baseImpact === 'major' || isMajorSize || hasMajorPattern) {
     return 'major';
   }
 
-  // If conventional commit gave us a base impact, use it
-  if (baseImpact) {
-    return baseImpact;
-  }
-
-  // Everything else is standard
-  return 'standard';
+  // 7. Otherwise the conventional type's tier, or standard.
+  return baseImpact ?? 'standard';
 }
 
 /**

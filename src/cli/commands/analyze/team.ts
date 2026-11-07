@@ -55,7 +55,7 @@ export const teamCommand = new Command('team')
       console.log(chalk.green('\n✓ Team analysis generated successfully'));
       console.log(
         chalk.gray(
-          `\nOutput: ${getReportAnalysisDir('manager', profileName)}/team-*.json`,
+          `\nOutput: ${getReportAnalysisDir(profileName, '')}/team-*.json`,
         ),
       );
     } catch (error) {

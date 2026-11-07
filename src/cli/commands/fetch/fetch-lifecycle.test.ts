@@ -162,4 +162,86 @@ describe('fetch command lifecycle', () => {
     expect(result.stderr).toContain('GitHub API rate limit exceeded.');
     expect(pullsRequested).toEqual(['voxmedia/alpha']);
   });
+
+  describe('manager reports with a failed JIRA project', () => {
+    beforeEach(() => {
+      vi.stubEnv('WORK_CHRONICLER_PROFILE', 'manager');
+      writeProfileConfig(
+        'manager',
+        [
+          'mode: manager',
+          'github:',
+          '  token: test-token',
+          '  org: voxmedia',
+          'jira:',
+          '  host: acme.atlassian.net',
+          '  email: manager@example.com',
+          '  token: jira-token',
+          'fetch:',
+          '  since: "2025-01-01"',
+          '  until: "2025-06-01"',
+          'reports:',
+          '  - name: Alice Smith',
+          '    github: alice',
+          '    email: alice@example.com',
+          '    repos: [alpha]',
+          '    jiraProjects: [BROKEN]',
+          '  - name: Bob Jones',
+          '    github: bob',
+          '    email: bob@example.com',
+          '    repos: [beta]',
+          '    jiraProjects: [OK]',
+        ].join('\n'),
+      );
+      repoResponses.set('alpha', 'empty');
+      repoResponses.set('beta', 'empty');
+      // JIRA is the other external system: project BROKEN fails with a 500,
+      // every other project returns one empty last page.
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (_url: string, init: RequestInit) =>
+          String(init.body).includes('project = \\"BROKEN\\"')
+            ? new Response('boom', { status: 500 })
+            : Response.json({ issues: [], isLast: true }),
+        ),
+      );
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    const reportLine = (name: string) =>
+      logs.find(
+        (line) =>
+          line.includes(`${name} complete`) ||
+          line.includes(`${name} incomplete`),
+      );
+
+    it.each([
+      [
+        'jira',
+        ['fetch', 'jira', '--all-reports', '--cache'],
+        '0 tickets fetched',
+      ],
+      [
+        'all',
+        ['fetch', 'all', '--all-reports', '--cache', '--no-link'],
+        '0 PRs, 0 tickets',
+      ],
+    ])(
+      '`fetch %s` labels the report whose JIRA project failed incomplete, not complete',
+      async (_subcommand, args, counts) => {
+        const result = await runCli(args);
+
+        expect(result.exitCode).toBe(1);
+        expect(reportLine('Alice Smith')).toContain(
+          `⚠ Alice Smith incomplete (${counts}; JIRA failed for BROKEN)`,
+        );
+        expect(reportLine('Bob Jones')).toContain(
+          `✓ Bob Jones complete (${counts})`,
+        );
+      },
+    );
+  });
 });

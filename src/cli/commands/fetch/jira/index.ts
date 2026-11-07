@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { toCliError } from '@cli/errors';
 import {
   buildReportConfig,
+  formatReportOutcome,
   getReportById,
   loadManagerConfigForFetch,
   resolveReportIds,
@@ -122,8 +123,10 @@ async function fetchJiraManagerMode(options: FetchJiraOptions): Promise<void> {
       );
 
       console.log(
-        chalk.green(
-          `✓ ${report.name} complete (${totalWritten} tickets fetched)\n`,
+        formatReportOutcome(
+          report.name,
+          `${totalWritten} tickets fetched`,
+          results,
         ),
       );
     } catch (error) {

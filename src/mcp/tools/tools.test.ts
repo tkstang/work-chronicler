@@ -133,8 +133,13 @@ const TICKETS: { frontmatter: JiraTicket; body: string }[] = [
 let root: string;
 let ctx: ToolContext;
 
-function writeWorkLog(outputDir: string) {
-  for (const { frontmatter, body } of PRS) {
+function writePRs(
+  outputDir: string,
+  prs: Array<PullRequest | { frontmatter: PullRequest; body: string }>,
+) {
+  for (const entry of prs) {
+    const { frontmatter, body } =
+      'frontmatter' in entry ? entry : { frontmatter: entry, body: '' };
     const [org = '', repo = ''] = frontmatter.repository.split('/');
     writeMarkdownFile(
       getPRFilePath(
@@ -148,6 +153,10 @@ function writeWorkLog(outputDir: string) {
       body,
     );
   }
+}
+
+function writeWorkLog(outputDir: string) {
+  writePRs(outputDir, PRS);
   for (const { frontmatter, body } of TICKETS) {
     writeMarkdownFile(
       getTicketFilePath(
@@ -292,6 +301,48 @@ describe('get_linked_work', () => {
     expect(
       out.linkedPRs.map((p: { prNumber: number }) => p.prNumber).sort(),
     ).toEqual([1, 3]);
+  });
+
+  describe('PR lookup with PRs 23 and 123', () => {
+    beforeEach(() => {
+      // acme/api sorts before acme/web-app, so PR 123 is read first: a
+      // suffix match on "23" would find it before PR 23.
+      writePRs(ctx.outputDir, [
+        pr({ prNumber: 123, repository: 'acme/api' }),
+        pr({ prNumber: 23, repository: 'acme/web-app' }),
+      ]);
+    });
+
+    const lookUp = async (prUrl: string) =>
+      parse(await getLinkedWorkTool.handler({ prUrl }, ctx));
+
+    it('matches the exact URL', async () => {
+      const out = await lookUp('https://github.com/acme/web-app/pull/23');
+      expect(out.pr.url).toBe('https://github.com/acme/web-app/pull/23');
+    });
+
+    it('matches bare digits against the whole PR number', async () => {
+      const out = await lookUp('23');
+      expect(out.pr.url).toBe('https://github.com/acme/web-app/pull/23');
+    });
+
+    it('does not suffix-match a URL that is not in the work log', async () => {
+      expect(await lookUp('https://github.com/acme/other/pull/23')).toEqual({
+        error: 'PR not found',
+      });
+    });
+
+    it('asks for the full URL when bare digits match several PRs', async () => {
+      writePRs(ctx.outputDir, [pr({ prNumber: 23, repository: 'acme/api' })]);
+      const out = await lookUp('23');
+      expect(out.error).toBe(
+        'PR number 23 matches several PRs; pass the full URL',
+      );
+      expect(out.matches.sort()).toEqual([
+        'https://github.com/acme/api/pull/23',
+        'https://github.com/acme/web-app/pull/23',
+      ]);
+    });
   });
 
   it('reports missing input and unknown records', async () => {

@@ -139,9 +139,15 @@ export async function runManagerInit(cliProfileName?: string): Promise<void> {
   });
 
   if (addReportsNow) {
+    // Repo auto-discovery needs the token just entered. It lives in .env, not
+    // the saved YAML, so hand discovery a copy of the config that carries it.
+    const discoveryConfig: ManagerConfig = {
+      ...config,
+      github: { ...config.github, token: githubToken },
+    };
     let addMore = true;
     while (addMore) {
-      const report = await promptForReport(config);
+      const report = await promptForReport(discoveryConfig);
       await addReport(profileName, report);
       console.log(chalk.green(`✓ ${report.name} added`));
 
