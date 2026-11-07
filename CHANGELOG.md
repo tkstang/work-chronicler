@@ -27,6 +27,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking:** the package no longer has a programmatic entry point; importing
   `work-chronicler` used to run the CLI and now fails. Use the
   `work-chronicler` binary (including `work-chronicler mcp` for the MCP server).
+- **Breaking:** stricter config validation. A profile with `github.orgs`
+  configured now needs a non-empty `github.username`, and every manager report
+  needs a non-empty `github` name (an empty one stops the whole manager config
+  from loading, including JIRA-only commands). GitHub names are trimmed and a
+  leading `@` is dropped; a name still containing `@` (such as `@@acme`) is
+  rejected. Fix the reported field in `config.yaml` and re-run.
+- **Breaking:** skills installed as symlinks before 0.4 point into the removed
+  `.agent/skills/` directory and stop working after the upgrade. Run
+  `work-chronicler skills install` again to replace them.
 - An unexpected error thrown outside a command's own error handling (for
   example a prompt closed on non-interactive stdin) now prints
   `Error: <message>` and exits 1 instead of dumping a Node.js stack trace.
@@ -107,7 +116,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reading a PR or ticket file keeps blank lines at the start of the body;
   only the separator the writer adds is removed.
 - GitHub org names with a leading `@` are normalized, and `fetch github` and
-  `fetch all` warn and exit non-zero when an org fetches nothing (#14).
+  `fetch all` warn and exit non-zero when an org's repositories cannot be
+  listed or every selected repository fails. An org whose repositories have
+  no matching PRs still succeeds (#14).
 - Manager-mode and skills guides no longer show CLI flags that do not exist
   (`--since`, `--until`, `--no-cache`, `--discover-repos`, `--skip-fetch`).
 - MCP `get_linked_work` no longer returns PR 123 when asked for `23` or for a
