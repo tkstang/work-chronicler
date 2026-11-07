@@ -43,6 +43,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Package description, keywords, `homepage` and `bugs` metadata updated.
 - Pull request template follows the Purpose / Changes / Testing / Notes shape.
 
+### Removed
+
+- `CLAUDE.md`; `AGENTS.md` is the only agent instruction file.
+- Legacy agent scaffolding: `.agent/README.md`, `.agent/projects/`,
+  `.agent/scripts/`, `.agents/projects/`, `.claude/commands/`, `.cursor/` and
+  `.cursorignore`.
+
 ### Fixed
 
 - MCP `get_stats`, `get_projects` and `get_timeline` looked for
@@ -89,18 +96,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   surrounding spaces.
 - Reading a PR or ticket file keeps blank lines at the start of the body;
   only the separator the writer adds is removed.
-
-### Removed
-
-- `CLAUDE.md`; `AGENTS.md` is the only agent instruction file.
-- Legacy agent scaffolding: `.agent/README.md`, `.agent/projects/`,
-  `.agent/scripts/`, `.agents/projects/`, `.claude/commands/`, `.cursor/` and
-  `.cursorignore`.
-
-### Fixed
-
-- fix(github): normalize @-prefixed org names, warn and exit non-zero when an
-  org fetches nothing (#14)
+- GitHub org names with a leading `@` are normalized, and `fetch github` and
+  `fetch all` warn and exit non-zero when an org fetches nothing (#14).
 - Manager-mode and skills guides no longer show CLI flags that do not exist
   (`--since`, `--until`, `--no-cache`, `--discover-repos`, `--skip-fetch`).
 
