@@ -18,7 +18,7 @@ import {
   resolveReportIds,
   resolveReportOutputDir,
 } from './fetch-manager.utils';
-import { fetchGitHubPRs } from './github/github.utils';
+import { fetchGitHubPRs, RateLimitError } from './github/github.utils';
 import { fetchJiraTickets } from './jira/jira.utils';
 
 interface FetchAllOptions {
@@ -191,6 +191,9 @@ async function fetchAllManagerMode(options: FetchAllOptions): Promise<void> {
         ),
       );
     } catch (error) {
+      // Later reports share the same token, so a rate limit stops the run
+      if (error instanceof RateLimitError) throw error;
+      process.exitCode = 1;
       console.error(
         chalk.red(`✗ ${report.name} failed:`),
         error instanceof Error ? error.message : String(error),

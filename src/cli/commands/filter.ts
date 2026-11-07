@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path';
 import {
   DIRECTORIES,
   findConfigPath,
+  getGitHubNameProblem,
   getOutputDirectory,
   loadConfig,
   normalizeGitHubName,
@@ -183,15 +184,30 @@ export const filterCommand = new Command('filter')
       // Normalize like the config schema so `--org @acme` matches `acme`
       // and `--repo @acme/web` matches `acme/web`
       const toFilterKey = (o: string) => normalizeGitHubName(o).toLowerCase();
+      // Reject selectors that can never match a stored org (e.g. `@`, `@@acme`)
+      const toOrgSelector = (o: string) => {
+        const problem = getGitHubNameProblem(normalizeGitHubName(o));
+        if (problem) throw new Error(`Invalid org selector "${o}": ${problem}`);
+        return toFilterKey(o);
+      };
+      const toRepoSelector = (r: string) => {
+        const [org, repo, ...rest] = r.split('/');
+        if (!org || !repo?.trim() || rest.length > 0) {
+          throw new Error(`Invalid repo selector "${r}": use org/repo`);
+        }
+        return `${toOrgSelector(org)}/${repo.trim().toLowerCase()}`;
+      };
       const includeOrgs = options.org
-        ? new Set(options.org.map(toFilterKey))
+        ? new Set(options.org.map(toOrgSelector))
         : null;
-      const excludeOrgs = new Set((options.excludeOrg ?? []).map(toFilterKey));
+      const excludeOrgs = new Set(
+        (options.excludeOrg ?? []).map(toOrgSelector),
+      );
       const includeRepos = options.repo
-        ? new Set(options.repo.map(toFilterKey))
+        ? new Set(options.repo.map(toRepoSelector))
         : null;
       const excludeRepos = new Set(
-        (options.excludeRepo ?? []).map(toFilterKey),
+        (options.excludeRepo ?? []).map(toRepoSelector),
       );
 
       const filteredPRs = allPRs.filter((pr) => {

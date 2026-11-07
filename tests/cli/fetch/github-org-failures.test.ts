@@ -5,7 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Config } from '../../../src/core/config/schema';
 
 // GitHub is the external system here: each repo maps to a canned response.
-const repoResponses = new Map<string, 'not-found' | 'empty'>();
+const repoResponses = new Map<
+  string,
+  'not-found' | 'empty' | 'rate-limited' | 'server-error'
+>();
 
 const notFound = () => Object.assign(new Error('Not Found'), { status: 404 });
 let listingError: () => Error = notFound;
@@ -26,7 +29,14 @@ vi.mock('@octokit/rest', () => ({
     pulls = {
       list: async ({ repo }: { repo: string }) => {
         pullsListedFor.push(repo);
-        if (repoResponses.get(repo) === 'empty') return { data: [] };
+        const response = repoResponses.get(repo);
+        if (response === 'empty') return { data: [] };
+        if (response === 'rate-limited') {
+          throw Object.assign(new Error('Too Many Requests'), { status: 429 });
+        }
+        if (response === 'server-error') {
+          throw Object.assign(new Error('Bad Gateway'), { status: 502 });
+        }
         throw notFound();
       },
     };
@@ -109,6 +119,27 @@ describe('fetchGitHubPRs org failure reporting', () => {
       }),
     ).rejects.toThrow(/rate limit/);
     expect(pullsListedFor).toEqual([]);
+  });
+
+  it('aborts the run when a repo request is rate limited', async () => {
+    repoResponses.set('a', 'rate-limited');
+
+    await expect(
+      fetchGitHubPRs({ config: configFor(['a', 'b']), outputDir }),
+    ).rejects.toThrow(/rate limit/);
+    expect(pullsListedFor).toEqual(['a']);
+  });
+
+  it('points at the repo errors, not the token, when failures are not access errors', async () => {
+    repoResponses.set('a', 'server-error');
+    repoResponses.set('b', 'server-error');
+
+    await fetchGitHubPRs({ config: configFor(['a', 'b']), outputDir });
+
+    const warning = logs.find((line) => line.includes('All 2 repositories'));
+    expect(warning).toContain('See the repository errors above');
+    expect(warning).not.toContain('token');
+    expect(process.exitCode).toBe(1);
   });
 
   it('does not warn when only some repos error', async () => {
