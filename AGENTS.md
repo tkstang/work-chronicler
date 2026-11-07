@@ -44,6 +44,7 @@ work-chronicler/
 │       ├── work-chronicler-*/    # Package skills (published; installed via `skills install`)
 │       └── release-notes/        # Repo-local dev workflow skill (not published)
 ├── .github/                    # CI and release workflows, PR template
+├── .oat/                       # OAT project tracking (shared projects tracked; local state ignored)
 ├── documentation/              # User docs (index.md is the entry point)
 ├── src/
 │   ├── cli/                    # CLI application (Commander)
