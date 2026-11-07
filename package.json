@@ -46,7 +46,7 @@
     "gray-matter": "^4.0.3",
     "ora": "^9.0.0",
     "yaml": "^2.4.0",
-    "zod": "^3.25.76"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@biomejs/biome": "2.3.11",
