@@ -25,6 +25,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Package description, keywords, `homepage` and `bugs` metadata updated.
 - Pull request template follows the Purpose / Changes / Testing / Notes shape.
 
+### Fixed
+
+- MCP `get_stats`, `get_projects` and `get_timeline` looked for
+  `stats.json.json`-style paths and never found generated analysis.
+- `analyze reports` wrote per-report analysis to `analysis/.analysis/`, where
+  `analyze team` and the manager skills never looked; it now writes to
+  `reports/<id>/analysis/`.
+- The team contributor matrix credited every report with every project; each
+  report now lists only the projects from its own analysis.
+- `skills list`, `install` and `uninstall` now see symlinked skills whose target
+  is gone (such as links into the old `.agent/skills/` path) and replace or
+  remove them instead of failing with `EEXIST`.
+
 ### Removed
 
 - `CLAUDE.md`; `AGENTS.md` is the only agent instruction file.

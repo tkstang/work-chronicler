@@ -8,8 +8,10 @@ description: Every work-chronicler CLI command, argument and flag, grouped by ta
 Run `work-chronicler <command> --help` for the same information from the CLI.
 From a source checkout, use `pnpm cli <command>`.
 
-Commands that need a choice and get no flags prompt for it. Pass flags to run
-them non-interactively.
+Commands that need a choice and get no flags prompt for it. Flags skip most
+prompts, with one exception: when a `filtered/` subset exists, `analyze` asks
+whether to use it unless you pass `--full`. Use `analyze --all --full` for an
+unattended analysis of the full work log.
 
 ## Global options
 

@@ -114,7 +114,8 @@ What exists today:
   detection from shared ticket references, a week/month timeline, and filtered
   subsets. None of these call an AI model.
 - **IC and manager modes:** an individual work log per profile, or per-report
-  work logs plus team-level analysis for people managers.
+  work logs plus team-level project rollups for people managers (team
+  timeline aggregation is not implemented yet).
 - **MCP server:** seven read-only query tools over the work log.
 - **AI skills:** ten skills (six IC, four manager) that read the work log and
   write documents to the profile's `outputs/` directory.
