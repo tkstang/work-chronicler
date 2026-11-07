@@ -143,6 +143,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `analyze reports --tag-prs` classifies with `analysis.thresholds` from the
   manager profile's `config.yaml`, as `analyze --tag-prs` does for IC profiles.
   The manager config used to drop the setting and always apply the defaults.
+  PRs are classified before `stats.json` and `timeline.json` are written, so
+  both report the same impact as the tagged PR files; untagged PRs use the
+  profile's thresholds there too.
 
 ## [0.3.2] - 2026-03-10
 

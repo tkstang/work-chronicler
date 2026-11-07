@@ -154,6 +154,50 @@ export const reportsCommand = new Command('reports')
       console.log(`${chalk.gray('Date range:')} ${since} to ${until}`);
       console.log();
 
+      // Classify once, before any output, so the PR files, stats.json and
+      // timeline.json all report the same impact. --tag-prs reclassifies
+      // every PR with the profile's thresholds and writes the result; without
+      // it, stored tags are kept and untagged PRs are classified in memory.
+      if (analyzeOpts.tagPrs) {
+        spinner.start('Tagging PRs with impact levels...');
+      }
+      let updated = 0;
+      let skipped = 0;
+
+      for (const pr of prs) {
+        const currentImpact = pr.frontmatter.impact;
+        if (!analyzeOpts.tagPrs && currentImpact) continue;
+
+        const newImpact = classifyPRImpact(
+          pr.frontmatter,
+          managerConfig.analysis,
+        );
+        pr.frontmatter = { ...pr.frontmatter, impact: newImpact };
+        if (!analyzeOpts.tagPrs) continue;
+
+        // Only write if not already tagged or if impact changed
+        if (currentImpact !== newImpact) {
+          writeMarkdownFile(pr.filePath, pr.frontmatter, pr.body);
+          updated++;
+
+          if (options.verbose) {
+            spinner.stop();
+            console.log(
+              `  ${chalk.green('✓')} ${pr.frontmatter.org}/${pr.frontmatter.repository}#${pr.frontmatter.prNumber}: ${chalk.yellow(newImpact)}`,
+            );
+            spinner.start('Tagging PRs with impact levels...');
+          }
+        } else {
+          skipped++;
+        }
+      }
+
+      if (analyzeOpts.tagPrs) {
+        spinner.succeed(
+          `Tagged ${chalk.green(updated)} PRs${skipped > 0 ? chalk.gray(` (${skipped} already tagged)`) : ''}`,
+        );
+      }
+
       // Generate stats
       spinner.start('Generating statistics...');
       const stats = generateStats(prs, tickets, since, until);
@@ -165,45 +209,6 @@ export const reportsCommand = new Command('reports')
       const statsPath = join(analysisDir, 'stats.json');
       writeFileSync(statsPath, JSON.stringify(stats, null, 2));
       console.log(`${chalk.green('✓')} Wrote ${chalk.cyan(statsPath)}`);
-
-      // Optionally tag PRs with impact
-      if (analyzeOpts.tagPrs) {
-        spinner.start('Tagging PRs with impact levels...');
-        let updated = 0;
-        let skipped = 0;
-
-        for (const pr of prs) {
-          const currentImpact = pr.frontmatter.impact;
-          const newImpact = classifyPRImpact(
-            pr.frontmatter,
-            managerConfig.analysis,
-          );
-
-          // Only update if not already tagged or if impact changed
-          if (currentImpact !== newImpact) {
-            const updatedFrontmatter = {
-              ...pr.frontmatter,
-              impact: newImpact,
-            };
-            writeMarkdownFile(pr.filePath, updatedFrontmatter, pr.body);
-            updated++;
-
-            if (options.verbose) {
-              spinner.stop();
-              console.log(
-                `  ${chalk.green('✓')} ${pr.frontmatter.org}/${pr.frontmatter.repository}#${pr.frontmatter.prNumber}: ${chalk.yellow(newImpact)}`,
-              );
-              spinner.start('Tagging PRs with impact levels...');
-            }
-          } else {
-            skipped++;
-          }
-        }
-
-        spinner.succeed(
-          `Tagged ${chalk.green(updated)} PRs${skipped > 0 ? chalk.gray(` (${skipped} already tagged)`) : ''}`,
-        );
-      }
 
       // Print summary
       console.log();

@@ -1,4 +1,10 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -47,7 +53,9 @@ describe('analyze reports --tag-prs', () => {
 
   // 150 lines across 4 files, no conventional prefix: standard under the
   // default thresholds (major from 200 lines or 8 files).
-  async function tagAlicesPR(): Promise<string | undefined> {
+  async function tagAlicesPR(
+    args: string[] = ['--tag-prs'],
+  ): Promise<string | undefined> {
     const { getPRFilePath, readAllPRs, writeMarkdownFile } =
       await import('@core/index');
     const workLog = join(
@@ -81,7 +89,7 @@ describe('analyze reports --tag-prs', () => {
     );
 
     const { reportsCommand } = await import('./reports');
-    await reportsCommand.parseAsync(['alice-smith', '--tag-prs'], {
+    await reportsCommand.parseAsync(['alice-smith', ...args], {
       from: 'user',
     });
 
@@ -103,5 +111,44 @@ describe('analyze reports --tag-prs', () => {
     writeManagerConfig([]);
 
     expect(await tagAlicesPR()).toBe('standard');
+  });
+
+  // stats.json and timeline.json are read by `analyze team` and the mgmt-*
+  // skills, so they must agree with the impact written to the PR file.
+  it('writes the configured impact to the PR file, stats.json and timeline.json alike', async () => {
+    writeManagerConfig([
+      'analysis:',
+      '  thresholds:',
+      '    major: { minLines: 100, minFiles: 8 }',
+    ]);
+
+    expect(await tagAlicesPR(['--tag-prs', '--timeline'])).toBe('major');
+
+    const analysisDir = join(
+      workspace,
+      'profiles',
+      'team-leads',
+      'reports',
+      'alice-smith',
+      'analysis',
+    );
+    const stats = JSON.parse(
+      readFileSync(join(analysisDir, 'stats.json'), 'utf8'),
+    );
+    expect(stats.prs.byImpact).toEqual({
+      flagship: 0,
+      major: 1,
+      standard: 0,
+      minor: 0,
+    });
+    const timeline = JSON.parse(
+      readFileSync(join(analysisDir, 'timeline.json'), 'utf8'),
+    );
+    type Week = { prs: Array<{ impact: string }> };
+    const timelineImpacts = timeline.months.flatMap(
+      (month: { weeks: Week[] }) =>
+        month.weeks.flatMap((week) => week.prs.map((pr) => pr.impact)),
+    );
+    expect(timelineImpacts).toEqual(['major']);
   });
 });
