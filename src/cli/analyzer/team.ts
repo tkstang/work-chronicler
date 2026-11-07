@@ -4,6 +4,27 @@ import type { ProjectGrouping } from '@core/index';
 import { getReportAnalysisDir } from '@workspace/resolver';
 
 /**
+ * Read one report's detected projects from `reports/<id>/analysis/projects.json`.
+ * Returns an empty list when the report has not been analyzed yet.
+ */
+async function readReportProjects(
+  profileName: string,
+  reportId: string,
+): Promise<ProjectGrouping[]> {
+  try {
+    const projectsPath = join(
+      getReportAnalysisDir(profileName, reportId),
+      'projects.json',
+    );
+    const data = JSON.parse(await readFile(projectsPath, 'utf-8'));
+    return data.projects || [];
+  } catch {
+    // Skip reports without analysis (file not found, parse error, etc.)
+    return [];
+  }
+}
+
+/**
  * Aggregate projects across all reports in a manager profile.
  *
  * Projects with the same name (case-insensitive) are merged:
@@ -22,67 +43,55 @@ export async function aggregateTeamProjects(
   const projectsByName = new Map<string, ProjectGrouping>();
 
   for (const reportId of reportIds) {
-    try {
-      const analysisDir = getReportAnalysisDir(profileName, reportId);
-      const projectsPath = join(analysisDir, 'projects.json');
+    const projects = await readReportProjects(profileName, reportId);
 
-      // Read projects file
-      const content = await readFile(projectsPath, 'utf-8');
-      const data = JSON.parse(content);
-      const projects: ProjectGrouping[] = data.projects || [];
+    // Merge projects by name (case-insensitive)
+    for (const project of projects) {
+      const nameKey = project.name.toLowerCase();
+      const existing = projectsByName.get(nameKey);
 
-      // Merge projects by name (case-insensitive)
-      for (const project of projects) {
-        const nameKey = project.name.toLowerCase();
-        const existing = projectsByName.get(nameKey);
+      if (existing) {
+        // Merge into existing project
+        existing.prUrls = [...new Set([...existing.prUrls, ...project.prUrls])];
+        existing.ticketKeys = [
+          ...new Set([...existing.ticketKeys, ...project.ticketKeys]),
+        ];
 
-        if (existing) {
-          // Merge into existing project
-          existing.prUrls = [
-            ...new Set([...existing.prUrls, ...project.prUrls]),
-          ];
-          existing.ticketKeys = [
-            ...new Set([...existing.ticketKeys, ...project.ticketKeys]),
-          ];
-
-          // Merge signals
-          existing.signals.sharedTickets = [
-            ...new Set([
-              ...existing.signals.sharedTickets,
-              ...project.signals.sharedTickets,
-            ]),
-          ];
-          if (project.signals.jiraProject) {
-            existing.signals.jiraProject = project.signals.jiraProject;
-          }
-          existing.signals.sharedLabels = [
-            ...new Set([
-              ...existing.signals.sharedLabels,
-              ...project.signals.sharedLabels,
-            ]),
-          ];
-          existing.signals.commonKeywords = [
-            ...new Set([
-              ...existing.signals.commonKeywords,
-              ...project.signals.commonKeywords,
-            ]),
-          ];
-
-          // Merge stats
-          existing.stats.prCount += project.stats.prCount;
-          existing.stats.ticketCount += project.stats.ticketCount;
-          existing.stats.totalAdditions += project.stats.totalAdditions;
-          existing.stats.totalDeletions += project.stats.totalDeletions;
-          existing.stats.repos = [
-            ...new Set([...existing.stats.repos, ...project.stats.repos]),
-          ];
-        } else {
-          // Add new project
-          projectsByName.set(nameKey, { ...project });
+        // Merge signals
+        existing.signals.sharedTickets = [
+          ...new Set([
+            ...existing.signals.sharedTickets,
+            ...project.signals.sharedTickets,
+          ]),
+        ];
+        if (project.signals.jiraProject) {
+          existing.signals.jiraProject = project.signals.jiraProject;
         }
+        existing.signals.sharedLabels = [
+          ...new Set([
+            ...existing.signals.sharedLabels,
+            ...project.signals.sharedLabels,
+          ]),
+        ];
+        existing.signals.commonKeywords = [
+          ...new Set([
+            ...existing.signals.commonKeywords,
+            ...project.signals.commonKeywords,
+          ]),
+        ];
+
+        // Merge stats
+        existing.stats.prCount += project.stats.prCount;
+        existing.stats.ticketCount += project.stats.ticketCount;
+        existing.stats.totalAdditions += project.stats.totalAdditions;
+        existing.stats.totalDeletions += project.stats.totalDeletions;
+        existing.stats.repos = [
+          ...new Set([...existing.stats.repos, ...project.stats.repos]),
+        ];
+      } else {
+        // Add new project
+        projectsByName.set(nameKey, { ...project });
       }
-    } catch {
-      // Skip reports without analysis (file not found, parse error, etc.)
     }
   }
 
@@ -94,7 +103,8 @@ export async function aggregateTeamProjects(
 }
 
 /**
- * Generate a contributor matrix mapping each contributor to their projects.
+ * Generate a contributor matrix mapping each report ID to the projects
+ * detected in that report's own analysis.
  *
  * The matrix shows which projects each team member contributed to,
  * useful for understanding team collaboration patterns.
@@ -107,27 +117,13 @@ export async function generateContributorMatrix(
   profileName: string,
   reportIds: string[],
 ): Promise<Record<string, string[]>> {
-  const projects = await aggregateTeamProjects(profileName, reportIds);
   const matrix: Record<string, string[]> = {};
 
-  // Build reverse mapping: contributor -> projects
-  for (const project of projects) {
-    // Extract contributors from PRs by parsing report IDs from context
-    // Since we don't have direct contributor info in ProjectGrouping,
-    // we'll need to infer from the report IDs that contributed to this project
-    // For now, we'll track which reports have PRs in this project
-
-    // This is a simplified version - in a real implementation,
-    // you'd need to track which report contributed which PRs
-    // and map report IDs back to contributor names
-    for (const reportId of reportIds) {
-      if (!matrix[reportId]) {
-        matrix[reportId] = [];
-      }
-      // Check if this report contributed to this project
-      // (This would require more sophisticated tracking in aggregateTeamProjects)
-      matrix[reportId].push(project.name);
-    }
+  // Each report is credited only with the projects detected in its own
+  // work log, never with projects that exist elsewhere on the team.
+  for (const reportId of reportIds) {
+    const projects = await readReportProjects(profileName, reportId);
+    matrix[reportId] = [...new Set(projects.map((project) => project.name))];
   }
 
   return matrix;
