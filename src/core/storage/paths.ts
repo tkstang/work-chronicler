@@ -14,6 +14,11 @@ import { getGitHubNameProblem, normalizeGitHubName } from '@wc-types/github';
  */
 export const DIRECTORIES = {
   PULL_REQUESTS: 'pull-requests',
+  /**
+   * Reviews the user gave on other people's PRs. Deliberately outside
+   * `pull-requests/` so no authored-PR reader ever sees them.
+   */
+  PR_REVIEWS: 'pr-reviews',
   JIRA: 'jira',
   PERFORMANCE_REVIEWS: 'performance-reviews',
   ANALYSIS: '.analysis',
@@ -88,6 +93,38 @@ export function getPRFilePath(
     toOrgDirectory(org),
     repo,
     fileName,
+  );
+}
+
+/**
+ * Get the file path for a review record: the reviews the user gave on one
+ * PR. Keyed by the PR's identity (org, repo, number), never by a date, so
+ * every fetch of the same PR updates the same file.
+ *
+ * @param outputDir - Base work-log output directory
+ * @param org - Org or user that owns the reviewed PR's repository
+ * @param repo - Repository name
+ * @param prNumber - Reviewed PR number
+ * @returns Full path like `{outputDir}/pr-reviews/{org}/{repo}/{prNumber}.md`
+ */
+export function getPRReviewFilePath(
+  outputDir: string,
+  org: string,
+  repo: string,
+  prNumber: number,
+): string {
+  if (!repo || repo === '.' || repo === '..' || /[/\\]/.test(repo)) {
+    throw new Error(`Invalid repository name "${repo}"`);
+  }
+  if (!Number.isInteger(prNumber) || prNumber <= 0) {
+    throw new Error(`Invalid PR number "${prNumber}"`);
+  }
+  return join(
+    outputDir,
+    DIRECTORIES.PR_REVIEWS,
+    toOrgDirectory(org),
+    repo,
+    `${prNumber}.md`,
   );
 }
 

@@ -3,11 +3,19 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import type { PullRequest } from '@wc-types/pr';
+import type { PRReviewRecord } from '@wc-types/pr-review';
 import type { JiraTicket } from '@wc-types/ticket';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { getPRFilePath, getTicketFilePath } from './paths';
-import { readAllPRs, readAllTickets, readPR, readTicket } from './reader';
+import { getPRFilePath, getPRReviewFilePath, getTicketFilePath } from './paths';
+import {
+  readAllPRReviews,
+  readAllPRs,
+  readAllTickets,
+  readPR,
+  readPRReview,
+  readTicket,
+} from './reader';
 import { writeMarkdownFile } from './writer';
 
 // The work log is the user's only durable record of their work, so a write
@@ -176,5 +184,90 @@ describe('ticket storage round trip', () => {
 
     const [read] = await readAllTickets(outputDir);
     expect(read).toEqual({ frontmatter, body: '', filePath: path });
+  });
+});
+
+function reviewRecord(text: string): PRReviewRecord {
+  return {
+    type: 'pr-review',
+    reviewer: 'me',
+    pr: {
+      url: 'https://github.com/acme/app/pull/42',
+      org: 'acme',
+      repository: 'app',
+      prNumber: 42,
+      title: text,
+      author: 'alice',
+      state: 'open',
+    },
+    prUpdatedAt: '2025-03-05T10:00:00Z',
+    reviews: [
+      {
+        reviewId: 9001,
+        state: 'CHANGES_REQUESTED',
+        submittedAt: '2025-03-04T10:00:00Z',
+        url: 'https://github.com/acme/app/pull/42#pullrequestreview-9001',
+        body: `${text}\n\n${body}`,
+      },
+      {
+        reviewId: 9002,
+        state: 'APPROVED',
+        submittedAt: '2025-03-05T09:00:00Z',
+        url: 'https://github.com/acme/app/pull/42#pullrequestreview-9002',
+        body: '',
+      },
+    ],
+    comments: [
+      {
+        commentId: 9001,
+        reviewId: 9001,
+        inReplyToId: null,
+        path: 'src/a b.ts',
+        line: null,
+        createdAt: '2025-03-04T10:00:00Z',
+        updatedAt: '2025-03-04T11:00:00Z',
+        url: 'https://github.com/acme/app/pull/42#discussion_r9001',
+        body: text,
+      },
+    ],
+  };
+}
+
+describe('review record storage', () => {
+  it.each(trickyTitles)(
+    'keeps reviews and comments with text %j',
+    async (text) => {
+      const frontmatter = reviewRecord(text);
+      const path = getPRReviewFilePath(outputDir, 'acme', 'app', 42);
+
+      writeMarkdownFile(path, frontmatter, body);
+
+      expect(await readPRReview(path)).toEqual({
+        frontmatter,
+        body,
+        filePath: path,
+      });
+    },
+  );
+
+  it('keeps review records out of the authored-PR reader', async () => {
+    const authored = pr('Authored');
+    writeMarkdownFile(
+      getPRFilePath(outputDir, 'acme', 'app', new Date(authored.createdAt), 42),
+      authored,
+      '',
+    );
+    writeMarkdownFile(
+      getPRReviewFilePath(outputDir, 'acme', 'app', 42),
+      reviewRecord('Reviewed'),
+      '',
+    );
+
+    expect((await readAllPRs(outputDir)).map((p) => p.frontmatter)).toEqual([
+      authored,
+    ]);
+    expect(
+      (await readAllPRReviews(outputDir)).map((r) => r.frontmatter.pr.title),
+    ).toEqual(['Reviewed']);
   });
 });

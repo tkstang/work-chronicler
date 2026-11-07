@@ -23,7 +23,7 @@ export type PRImpact = z.infer<typeof PRImpactSchema>;
  * (`2025-01-01T12:00Z`); Zod 4 requires seconds unless asked otherwise, so
  * both forms are accepted to keep existing work-log files readable.
  */
-const IsoDateTimeSchema = z.union([
+export const IsoDateTimeSchema = z.union([
   z.iso.datetime(),
   z.iso.datetime({ precision: -1 }),
 ]);

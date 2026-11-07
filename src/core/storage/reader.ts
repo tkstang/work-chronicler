@@ -2,6 +2,10 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { type PullRequestFile, PullRequestSchema } from '@wc-types/pr';
+import {
+  type PRReviewRecordFile,
+  PRReviewRecordSchema,
+} from '@wc-types/pr-review';
 import { type JiraTicketFile, JiraTicketSchema } from '@wc-types/ticket';
 import matter from 'gray-matter';
 
@@ -217,6 +221,69 @@ export async function readTicket(
       };
     }
     return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read every review record (reviews the user gave on others' PRs) from the
+ * work-log's `pr-reviews/` directory. Invalid files are logged with warnings
+ * but don't stop processing.
+ *
+ * Review records are never returned by `readAllPRs`: they describe review
+ * work, not authored PRs.
+ *
+ * @param outputDir - Base work-log output directory
+ * @returns Parsed review records with frontmatter, body, and file path
+ */
+export async function readAllPRReviews(
+  outputDir: string,
+): Promise<PRReviewRecordFile[]> {
+  const reviewDir = join(outputDir, DIRECTORIES.PR_REVIEWS);
+  const results: PRReviewRecordFile[] = [];
+
+  for (const filePath of findMarkdownFiles(reviewDir)) {
+    try {
+      const { data, content } = readMarkdownFile(filePath);
+      const parsed = PRReviewRecordSchema.safeParse(data);
+
+      if (parsed.success) {
+        results.push({
+          frontmatter: parsed.data,
+          body: normalizeBody(content),
+          filePath,
+        });
+      } else {
+        console.warn(
+          `Warning: Invalid frontmatter in ${filePath}: ${parsed.error.issues[0]?.message ?? 'unknown error'}`,
+        );
+      }
+    } catch (error) {
+      console.warn(
+        `Warning: Failed to parse ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Read a single review record by its path.
+ *
+ * @param filePath - Absolute path to the review record file
+ * @returns Parsed review record, or null if missing or invalid
+ */
+export async function readPRReview(
+  filePath: string,
+): Promise<PRReviewRecordFile | null> {
+  if (!existsSync(filePath)) return null;
+  try {
+    const { data, content } = readMarkdownFile(filePath);
+    const parsed = PRReviewRecordSchema.safeParse(data);
+    if (!parsed.success) return null;
+    return { frontmatter: parsed.data, body: normalizeBody(content), filePath };
   } catch {
     return null;
   }

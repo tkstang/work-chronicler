@@ -5,10 +5,18 @@ export {
   getJiraDirectory,
   getPRDirectory,
   getPRFilePath,
+  getPRReviewFilePath,
   getTicketFilePath,
 } from './paths';
 
-export { readAllPRs, readAllTickets, readPR, readTicket } from './reader';
+export {
+  readAllPRReviews,
+  readAllPRs,
+  readAllTickets,
+  readPR,
+  readPRReview,
+  readTicket,
+} from './reader';
 
 export {
   ensureDirectory,
