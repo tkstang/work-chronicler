@@ -136,10 +136,11 @@ async function jiraFetch<T>(params: JiraFetchParams): Promise<T> {
 }
 
 /**
- * Upper bound on pages per project (50 tickets each). It only guards against a
- * server that keeps returning fresh page tokens without ever reaching the end.
+ * Upper bound on pages per project. It only guards against a server that keeps
+ * returning fresh page tokens without ever reaching the end, so it sits far
+ * above any real history (pages can be small or even empty).
  */
-const MAX_PAGES = 1000;
+export const MAX_PAGES = 20_000;
 
 interface FetchProjectTicketsParams {
   baseUrl: string;

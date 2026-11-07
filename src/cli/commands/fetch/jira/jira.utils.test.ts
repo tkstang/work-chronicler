@@ -6,7 +6,7 @@ import { type Config, readAllTickets } from '@core/index';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RateLimitError } from '../github/github.utils';
-import { fetchJiraTickets } from './jira.utils';
+import { fetchJiraTickets, MAX_PAGES } from './jira.utils';
 
 // JIRA is the external system: each POST to /search/jql returns the next
 // canned response. A missed page silently drops tickets from the work log.
@@ -171,6 +171,29 @@ describe('fetchJiraTickets pagination', () => {
     expect(process.exitCode).toBeUndefined();
   });
 
+  it('completes a fetch that ends exactly on the page cap', async () => {
+    let n = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        n++;
+        return Response.json({
+          issues: [],
+          nextPageToken: `t${n}`,
+          isLast: n === MAX_PAGES,
+        });
+      }),
+    );
+
+    await fetchJiraTickets({ config: config(['PAY']), outputDir });
+
+    expect(n).toBe(MAX_PAGES);
+    expect(logs.some((line) => line.includes('JIRA pagination error'))).toBe(
+      false,
+    );
+    expect(process.exitCode).toBeUndefined();
+  });
+
   it('fails the project when the server never reaches a last page', async () => {
     let n = 0;
     vi.stubGlobal(
@@ -190,8 +213,7 @@ describe('fetchJiraTickets pagination', () => {
       outputDir,
     });
 
-    expect(n).toBeGreaterThan(1);
-    expect(n).toBeLessThanOrEqual(1000);
+    expect(n).toBe(MAX_PAGES);
     expect(results).toEqual([]);
     expect(logs.some((line) => line.includes('JIRA pagination error'))).toBe(
       true,
