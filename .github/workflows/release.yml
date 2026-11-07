@@ -8,9 +8,11 @@ on:
 permissions:
   contents: read
 
-# Releases queue behind each other and are never cancelled mid-publish.
+# One group per tag: a re-run of the same tag waits for the running one and
+# is never cancelled mid-publish, while different tags never displace each
+# other (a shared group keeps only one pending run and drops the rest).
 concurrency:
-  group: release
+  group: release-${{ github.ref_name }}
   cancel-in-progress: false
 
 env:
@@ -68,8 +70,20 @@ jobs:
       - name: Build
         run: pnpm build
 
+      # npm never accepts the same version twice. Skipping an already
+      # published version lets a full re-run recover a failed GitHub Release.
       - name: Publish
-        run: npm publish --access public --provenance
+        run: |
+          version="$(node -p 'require("./package.json").version')"
+          if [ "v${version}" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match package.json version ${version}"
+            exit 1
+          fi
+          if npm view "work-chronicler@${version}" version >/dev/null 2>&1; then
+            echo "work-chronicler@${version} is already on npm; skipping publish."
+          else
+            npm publish --access public --provenance
+          fi
 
   create-release:
     name: Create GitHub Release
