@@ -4,7 +4,7 @@
 
 import { discoverRepos } from '@commands/init/init.utils';
 import { input, select } from '@inquirer/prompts';
-import { normalizeGitHubName } from '@wc-types/github';
+import { getGitHubNameProblem, normalizeGitHubName } from '@wc-types/github';
 import type { ManagerConfig, ReportConfig } from '@wc-types/manager';
 import { getActiveProfile } from '@workspace/global-config';
 import { addReport, loadManagerConfig } from '@workspace/report-manager';
@@ -50,6 +50,10 @@ export const addCommand = new Command('add')
 
       if (options.github && options.email) {
         // Non-interactive mode
+        const githubProblem = getGitHubNameProblem(
+          normalizeGitHubName(options.github),
+        );
+        if (githubProblem) throw new Error(githubProblem);
         report = {
           name: name || normalizeGitHubName(options.github),
           github: normalizeGitHubName(options.github),
@@ -96,8 +100,7 @@ async function promptForReport(config: ManagerConfig): Promise<ReportConfig> {
     await input({
       message: 'GitHub username:',
       validate: (value) => {
-        if (!normalizeGitHubName(value)) return 'GitHub username is required';
-        return true;
+        return getGitHubNameProblem(normalizeGitHubName(value)) ?? true;
       },
     }),
   );

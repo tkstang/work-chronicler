@@ -10,7 +10,8 @@ github:
   # Required scopes: repo (or public_repo for public repos only)
   # token: "ghp_xxxxx"
 
-  # Organizations and repositories to fetch from
+  # Organizations and repositories to fetch from.
+  # Use the org login from github.com/<org> (a leading "@" is ignored).
   orgs:
     # Fetch specific repos from an org
     - name: "your-company"

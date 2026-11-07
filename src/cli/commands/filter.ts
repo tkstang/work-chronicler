@@ -181,18 +181,21 @@ export const filterCommand = new Command('filter')
 
       // Build org/repo filter sets
       // Normalize like the config schema so `--org @acme` matches `acme`
-      const toOrgKey = (o: string) => normalizeGitHubName(o).toLowerCase();
+      // and `--repo @acme/web` matches `acme/web`
+      const toFilterKey = (o: string) => normalizeGitHubName(o).toLowerCase();
       const includeOrgs = options.org
-        ? new Set(options.org.map(toOrgKey))
+        ? new Set(options.org.map(toFilterKey))
         : null;
-      const excludeOrgs = new Set((options.excludeOrg ?? []).map(toOrgKey));
+      const excludeOrgs = new Set((options.excludeOrg ?? []).map(toFilterKey));
       const includeRepos = options.repo
-        ? new Set(options.repo.map(toOrgKey))
+        ? new Set(options.repo.map(toFilterKey))
         : null;
-      const excludeRepos = new Set((options.excludeRepo ?? []).map(toOrgKey));
+      const excludeRepos = new Set(
+        (options.excludeRepo ?? []).map(toFilterKey),
+      );
 
       const filteredPRs = allPRs.filter((pr) => {
-        const prOrg = toOrgKey(pr.frontmatter.org);
+        const prOrg = toFilterKey(pr.frontmatter.org);
         const prRepoKey = `${prOrg}/${pr.frontmatter.repository.toLowerCase()}`;
 
         // Check org inclusion (if specified, must be in the list)

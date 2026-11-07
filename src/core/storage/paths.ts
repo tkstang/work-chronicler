@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { normalizeGitHubName } from '@wc-types/github';
+import { getGitHubNameProblem, normalizeGitHubName } from '@wc-types/github';
 
 /**
  * Standard directory names within the work-log structure.
@@ -18,6 +18,17 @@ export const DIRECTORIES = {
   ANALYSIS: '.analysis',
   FILTERED: 'filtered',
 } as const;
+
+/**
+ * Normalize an org for use as a directory name, refusing names that would
+ * still produce an `@`-prefixed or empty directory.
+ */
+function toOrgDirectory(org: string): string {
+  const normalized = normalizeGitHubName(org);
+  const problem = getGitHubNameProblem(normalized);
+  if (problem) throw new Error(`Invalid GitHub org "${org}": ${problem}`);
+  return normalized;
+}
 
 /**
  * Get the effective output directory, preferring filtered data if available.
@@ -73,7 +84,7 @@ export function getPRFilePath(
   return join(
     outputDir,
     DIRECTORIES.PULL_REQUESTS,
-    normalizeGitHubName(org),
+    toOrgDirectory(org),
     repo,
     fileName,
   );
@@ -125,7 +136,7 @@ export function getPRDirectory(
   org: string,
   repo?: string,
 ): string {
-  const orgDir = normalizeGitHubName(org);
+  const orgDir = toOrgDirectory(org);
   if (repo) {
     return join(outputDir, DIRECTORIES.PULL_REQUESTS, orgDir, repo);
   }

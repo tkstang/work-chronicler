@@ -7,12 +7,24 @@ import type { Config } from '../../../src/core/config/schema';
 // GitHub is the external system here: each repo maps to a canned response.
 const repoResponses = new Map<string, 'not-found' | 'empty'>();
 
+const notFound = () => Object.assign(new Error('Not Found'), { status: 404 });
+
 vi.mock('@octokit/rest', () => ({
   Octokit: class {
+    users = {
+      getByUsername: async () => {
+        throw notFound();
+      },
+    };
+    repos = {
+      listForOrg: async () => {
+        throw notFound();
+      },
+    };
     pulls = {
       list: async ({ repo }: { repo: string }) => {
         if (repoResponses.get(repo) === 'empty') return { data: [] };
-        throw Object.assign(new Error('Not Found'), { status: 404 });
+        throw notFound();
       },
     };
   },
@@ -22,12 +34,15 @@ const { fetchGitHubPRs } = await import(
   '../../../src/cli/commands/fetch/github/github.utils'
 );
 
-function configFor(repos: string[]): Config {
+function configFor(
+  repos: string[],
+  extraOrgs: Config['github']['orgs'] = [],
+): Config {
   return {
     github: {
       username: 'octocat',
       token: 'test-token',
-      orgs: [{ name: 'voxmedia', repos }],
+      orgs: [{ name: 'voxmedia', repos }, ...extraOrgs],
     },
     output: { directory: './work-log' },
     fetch: { since: '2025-01-01', until: '2025-06-01' },
@@ -58,9 +73,23 @@ describe('fetchGitHubPRs org failure reporting', () => {
   it('warns about the org and fails the run when every repo errors', async () => {
     await fetchGitHubPRs({ config: configFor(['a', 'b']), outputDir });
 
-    const warning = logs.find((line) => line.includes('failed to fetch'));
+    const warning = logs.find((line) => line.includes('All 2 repositories'));
     expect(warning).toContain('voxmedia');
     expect(warning).toContain('token');
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('warns and keeps going when an org cannot even be listed', async () => {
+    repoResponses.set('web', 'empty');
+
+    await fetchGitHubPRs({
+      config: configFor(['*'], [{ name: 'acme', repos: ['web'] }]),
+      outputDir,
+    });
+
+    const warning = logs.find((line) => line.includes('Could not list'));
+    expect(warning).toContain('voxmedia');
+    expect(logs.some((line) => line.includes('acme'))).toBe(true);
     expect(process.exitCode).toBe(1);
   });
 
@@ -69,7 +98,7 @@ describe('fetchGitHubPRs org failure reporting', () => {
 
     await fetchGitHubPRs({ config: configFor(['a', 'b']), outputDir });
 
-    expect(logs.some((line) => line.includes('failed to fetch'))).toBe(false);
+    expect(logs.some((line) => line.includes('token can access'))).toBe(false);
     expect(process.exitCode).toBeUndefined();
   });
 });

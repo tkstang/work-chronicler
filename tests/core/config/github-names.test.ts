@@ -33,4 +33,25 @@ describe('GitHub name normalization at the config boundary', () => {
     expect(config.github.org).toBe('voxmedia');
     expect(config.reports[0]?.github).toBe('alice');
   });
+
+  it('rejects names that would still not be a valid GitHub name', () => {
+    const withOrg = (name: string, username = 'octocat') =>
+      ConfigSchema.safeParse({
+        ...baseConfig,
+        github: { username, orgs: [{ name }] },
+      }).success;
+
+    expect(withOrg('@')).toBe(false);
+    expect(withOrg('@@voxmedia')).toBe(false);
+    expect(withOrg('voxmedia', '@')).toBe(false);
+  });
+
+  it('still allows an empty username when no orgs are configured', () => {
+    const config = ConfigSchema.parse({
+      ...baseConfig,
+      github: { username: '', orgs: [] },
+    });
+
+    expect(config.github.username).toBe('');
+  });
 });

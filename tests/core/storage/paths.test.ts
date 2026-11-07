@@ -12,5 +12,6 @@ describe('PR storage paths', () => {
     expect(getPRDirectory('/wl', '@voxmedia')).toBe(
       join('/wl', 'pull-requests', 'voxmedia'),
     );
+    expect(() => getPRDirectory('/wl', '@@voxmedia')).toThrow(/@/);
   });
 });

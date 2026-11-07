@@ -18,6 +18,40 @@ export function normalizeGitHubName(name: string): string {
 }
 
 /**
- * A GitHub org or user name, normalized at parse time.
+ * Describe why a normalized GitHub name is unusable, or return null.
+ *
+ * GitHub names never contain `@`, so one that survives normalization
+ * (e.g. `@@voxmedia`) is a typo that would 404 every request.
  */
-export const GitHubNameSchema = z.string().transform(normalizeGitHubName);
+export function getGitHubNameProblem(normalized: string): string | null {
+  if (!normalized) return 'GitHub name is required';
+  if (normalized.includes('@')) {
+    return `"${normalized}" is not a valid GitHub name (it contains "@")`;
+  }
+  return null;
+}
+
+/**
+ * A required GitHub org or user name, normalized at parse time.
+ */
+export const GitHubNameSchema = z
+  .string()
+  .transform(normalizeGitHubName)
+  .superRefine((name, ctx) => {
+    const problem = getGitHubNameProblem(name);
+    if (problem)
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: problem });
+  });
+
+/**
+ * A GitHub name that may be empty (e.g. the IC username of a JIRA-only
+ * profile). Callers that need a value must check for emptiness themselves.
+ */
+export const OptionalGitHubNameSchema = z
+  .string()
+  .transform(normalizeGitHubName)
+  .superRefine((name, ctx) => {
+    const problem = name ? getGitHubNameProblem(name) : null;
+    if (problem)
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: problem });
+  });

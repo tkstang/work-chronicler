@@ -16,7 +16,7 @@ import {
 } from '@core/index';
 import { confirm, input, password, select } from '@inquirer/prompts';
 import { linkPRsToTickets } from '@linker/index';
-import { normalizeGitHubName } from '@wc-types/github';
+import { getGitHubNameProblem, normalizeGitHubName } from '@wc-types/github';
 import type { ManagerConfig, ReportConfig } from '@wc-types/manager';
 import { addReport } from '@workspace/report-manager';
 import chalk from 'chalk';
@@ -606,12 +606,8 @@ async function initManagerProfile(cliProfileName?: string): Promise<void> {
   // Step 3: GitHub configuration
   const githubOrg = await input({
     message: 'GitHub organization:',
-    validate: (value: string) => {
-      if (!normalizeGitHubName(value)) {
-        return 'GitHub organization is required';
-      }
-      return true;
-    },
+    validate: (value: string) =>
+      getGitHubNameProblem(normalizeGitHubName(value)) ?? true,
   });
 
   const githubToken = await promptGitHubTokenForManager();
@@ -783,8 +779,7 @@ async function promptForReport(config: ManagerConfig): Promise<ReportConfig> {
     await input({
       message: 'GitHub username:',
       validate: (value) => {
-        if (!normalizeGitHubName(value)) return 'GitHub username is required';
-        return true;
+        return getGitHubNameProblem(normalizeGitHubName(value)) ?? true;
       },
     }),
   );

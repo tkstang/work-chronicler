@@ -771,7 +771,7 @@ work-chronicler analyze team
 
 **Issue**: Fetch succeeds for some reports but fails for others.
 
-**Behavior**: work-chronicler continues with other reports and logs errors.
+**Behavior**: work-chronicler continues with other reports and logs errors. If every repository in the manager org fails to fetch for a report (or the org cannot be listed), it prints a warning naming the org and exits with status 1 after processing the remaining reports.
 
 **Check**:
 - Error log: `profiles/manager/reports/<id>/.fetch-errors.json`

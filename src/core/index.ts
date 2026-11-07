@@ -40,7 +40,7 @@ export {
   writeMarkdownFile,
 } from '@storage/index';
 export {
-  GitHubNameSchema,
+  getGitHubNameProblem,
   type JiraTicket,
   type JiraTicketFile,
   JiraTicketSchema,
