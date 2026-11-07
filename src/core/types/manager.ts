@@ -1,3 +1,4 @@
+import { AnalysisConfigSchema } from '@config/schema';
 import { z } from 'zod';
 
 import { GitHubNameSchema } from './github';
@@ -49,6 +50,8 @@ export const ManagerConfigSchema = z.object({
     })
     .optional(),
   fetch: ManagerFetchConfigSchema,
+  /** Impact thresholds for `analyze reports`; defaults apply when omitted */
+  analysis: AnalysisConfigSchema.optional(),
   reports: z.array(ReportConfigSchema).default([]),
 });
 export type ManagerConfig = z.infer<typeof ManagerConfigSchema>;

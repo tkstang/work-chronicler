@@ -409,6 +409,10 @@ profiles/manager/analysis/
 Run `analyze reports <id>` for each report first; team analysis only reads
 those per-report files.
 
+`analyze reports --tag-prs` uses the default impact thresholds unless the
+manager profile's `config.yaml` sets `analysis.thresholds`, in the same shape as
+an IC profile (see [Impact thresholds](configuration.md#impact-thresholds)).
+
 ### Analyze Everything
 
 Run both per-report and team analysis:

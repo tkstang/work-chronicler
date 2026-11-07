@@ -1,0 +1,107 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Isolate HOME and the workspace so nothing here touches ~/.work-chronicler.
+let root: string;
+let workspace: string;
+
+function writeManagerConfig(analysisYaml: string[]): void {
+  const dir = join(workspace, 'profiles', 'team-leads');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(
+    join(dir, 'config.yaml'),
+    [
+      'mode: manager',
+      'github:',
+      '  org: acme',
+      'fetch:',
+      '  since: "2025-01-01"',
+      ...analysisYaml,
+      'reports:',
+      '  - name: Alice Smith',
+      '    github: alice',
+      '    email: alice@example.com',
+    ].join('\n'),
+  );
+}
+
+describe('analyze reports --tag-prs', () => {
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), 'wc-analyze-reports-'));
+    workspace = join(root, 'workspace');
+    vi.stubEnv('HOME', join(root, 'home'));
+    vi.stubEnv('WORK_CHRONICLER_HOME', workspace);
+    vi.stubEnv('WORK_CHRONICLER_PROFILE', 'team-leads');
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  // 150 lines across 4 files, no conventional prefix: standard under the
+  // default thresholds (major from 200 lines or 8 files).
+  async function tagAlicesPR(): Promise<string | undefined> {
+    const { getPRFilePath, readAllPRs, writeMarkdownFile } =
+      await import('@core/index');
+    const workLog = join(
+      workspace,
+      'profiles',
+      'team-leads',
+      'reports',
+      'alice-smith',
+      'work-log',
+    );
+    writeMarkdownFile(
+      getPRFilePath(workLog, 'acme', 'app', new Date('2025-03-04'), 7),
+      {
+        title: 'Tweak search ranking',
+        prNumber: 7,
+        repository: 'app',
+        org: 'acme',
+        author: 'alice',
+        state: 'merged',
+        createdAt: '2025-03-04T12:00:00Z',
+        mergedAt: '2025-03-05T12:00:00Z',
+        closedAt: '2025-03-05T12:00:00Z',
+        url: 'https://github.com/acme/app/pull/7',
+        additions: 150,
+        deletions: 0,
+        changedFiles: 4,
+        jiraTickets: [],
+        labels: [],
+      },
+      '',
+    );
+
+    const { reportsCommand } = await import('./reports');
+    await reportsCommand.parseAsync(['alice-smith', '--tag-prs'], {
+      from: 'user',
+    });
+
+    const [pr] = await readAllPRs(workLog);
+    return pr?.frontmatter.impact;
+  }
+
+  it('classifies with the thresholds in the manager profile config', async () => {
+    writeManagerConfig([
+      'analysis:',
+      '  thresholds:',
+      '    major: { minLines: 100, minFiles: 8 }',
+    ]);
+
+    expect(await tagAlicesPR()).toBe('major');
+  });
+
+  it('uses the default thresholds when the config sets none', async () => {
+    writeManagerConfig([]);
+
+    expect(await tagAlicesPR()).toBe('standard');
+  });
+});

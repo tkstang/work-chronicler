@@ -136,6 +136,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   manager reports (`jiraProjects`) are trimmed and upper-cased when the config
   is read, so `fetch jira` no longer queries `" PROJ "` or stores tickets
   under a lower-case project; `link` already matched them that way.
+- `analyze reports --tag-prs` classifies with `analysis.thresholds` from the
+  manager profile's `config.yaml`, as `analyze --tag-prs` does for IC profiles.
+  The manager config used to drop the setting and always apply the defaults.
 
 ## [0.3.2] - 2026-03-10
 

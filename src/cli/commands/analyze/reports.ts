@@ -17,7 +17,7 @@ import { CliError, toCliError } from '@cli/errors';
 import { readAllPRs, readAllTickets, writeMarkdownFile } from '@core/index';
 import { select } from '@inquirer/prompts';
 import { getActiveProfile } from '@workspace/global-config';
-import { listReports } from '@workspace/report-manager';
+import { listReports, loadManagerConfig } from '@workspace/report-manager';
 import {
   getReportAnalysisDir,
   getReportWorkLogDir,
@@ -56,6 +56,7 @@ export const reportsCommand = new Command('reports')
       }
 
       const profileName = activeProfile;
+      const managerConfig = loadManagerConfig(profileName);
 
       // If no report ID provided, prompt to select one
       if (!reportId) {
@@ -173,8 +174,10 @@ export const reportsCommand = new Command('reports')
 
         for (const pr of prs) {
           const currentImpact = pr.frontmatter.impact;
-          // Use default thresholds for manager mode - could be configurable later
-          const newImpact = classifyPRImpact(pr.frontmatter);
+          const newImpact = classifyPRImpact(
+            pr.frontmatter,
+            managerConfig.analysis,
+          );
 
           // Only update if not already tagged or if impact changed
           if (currentImpact !== newImpact) {

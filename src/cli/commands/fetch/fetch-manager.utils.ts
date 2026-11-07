@@ -4,7 +4,7 @@
 
 import { CliError } from '@cli/errors';
 import type { JiraFetchResult } from '@commands/fetch/jira/jira.types';
-import type { Config } from '@config/schema';
+import { AnalysisConfigSchema, type Config } from '@config/schema';
 import { select } from '@inquirer/prompts';
 import type { ManagerConfig, ReportConfig } from '@wc-types/manager';
 import { getActiveProfile } from '@workspace/global-config';
@@ -176,13 +176,7 @@ export function buildReportConfig(
       since: managerConfig.fetch.since,
       until: managerConfig.fetch.until,
     },
-    analysis: {
-      thresholds: {
-        minor: { maxLines: 20, maxFiles: 3 },
-        major: { minLines: 200, minFiles: 8 },
-        flagship: { minLines: 500, minFiles: 15 },
-      },
-    },
+    analysis: managerConfig.analysis ?? AnalysisConfigSchema.parse({}),
   };
 }
 
