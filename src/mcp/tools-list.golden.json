@@ -1,0 +1,196 @@
+[
+  {
+    "name": "search_prs",
+    "description": "Search pull requests by date range, repository, keywords, or impact level",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "description": "Search term for title and body",
+          "type": "string"
+        },
+        "org": {
+          "description": "Filter by organization name",
+          "type": "string"
+        },
+        "repo": {
+          "description": "Filter by repository name",
+          "type": "string"
+        },
+        "impact": {
+          "description": "Filter by impact level",
+          "type": "string",
+          "enum": ["flagship", "major", "standard", "minor"]
+        },
+        "state": {
+          "description": "Filter by PR state",
+          "type": "string",
+          "enum": ["merged", "open", "closed"]
+        },
+        "since": {
+          "description": "Start date (ISO format, e.g., 2025-01-01)",
+          "type": "string"
+        },
+        "until": {
+          "description": "End date (ISO format, e.g., 2025-12-31)",
+          "type": "string"
+        },
+        "limit": {
+          "description": "Maximum number of results",
+          "type": "number"
+        }
+      },
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "search_tickets",
+    "description": "Search JIRA tickets by project, status, or keywords",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "description": "Search term for key, summary, and body",
+          "type": "string"
+        },
+        "org": {
+          "description": "Filter by organization name",
+          "type": "string"
+        },
+        "project": {
+          "description": "Filter by JIRA project key",
+          "type": "string"
+        },
+        "status": {
+          "description": "Filter by ticket status",
+          "type": "string"
+        },
+        "since": {
+          "description": "Start date (ISO format)",
+          "type": "string"
+        },
+        "until": {
+          "description": "End date (ISO format)",
+          "type": "string"
+        },
+        "limit": {
+          "description": "Maximum number of results",
+          "type": "number"
+        }
+      },
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "get_linked_work",
+    "description": "Get a PR with its linked JIRA tickets, or a ticket with its linked PRs",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "prUrl": {
+          "description": "GitHub PR URL to look up",
+          "type": "string"
+        },
+        "ticketKey": {
+          "description": "JIRA ticket key to look up",
+          "type": "string"
+        }
+      },
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "list_repos",
+    "description": "List all repositories with data and their statistics",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "get_stats",
+    "description": "Get summary statistics about work history, optionally filtered by date range",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "since": {
+          "description": "Start date (ISO format)",
+          "type": "string"
+        },
+        "until": {
+          "description": "End date (ISO format)",
+          "type": "string"
+        }
+      },
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "get_projects",
+    "description": "Get detected project groupings that cluster related PRs and tickets",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "confidence": {
+          "description": "Filter by confidence level",
+          "type": "string",
+          "enum": ["high", "medium", "low"]
+        },
+        "limit": {
+          "description": "Maximum number of projects",
+          "type": "number"
+        }
+      },
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "get_timeline",
+    "description": "Get chronological timeline of work grouped by week or month",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "granularity": {
+          "description": "Time grouping (default: week)",
+          "type": "string",
+          "enum": ["week", "month"]
+        },
+        "since": {
+          "description": "Start date (ISO format)",
+          "type": "string"
+        },
+        "until": {
+          "description": "End date (ISO format)",
+          "type": "string"
+        },
+        "limit": {
+          "description": "Maximum number of periods",
+          "type": "number"
+        }
+      },
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  }
+]

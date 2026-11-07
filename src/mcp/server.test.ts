@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -12,6 +12,12 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createServer } from './server';
+
+// Reviewed snapshot of the tools/list result from before the tools were split
+// into modules. MCP clients depend on these names, descriptions and schemas.
+const goldenTools = JSON.parse(
+  readFileSync(join(import.meta.dirname, 'tools-list.golden.json'), 'utf-8'),
+);
 
 function writePR(outputDir: string, prNumber: number, title: string) {
   const frontmatter: PullRequest = {
@@ -63,6 +69,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllEnvs();
   rmSync(root, { recursive: true, force: true });
 });
@@ -83,15 +90,7 @@ describe('MCP server over a transport', () => {
 
     try {
       const { tools } = await client.listTools();
-      expect(tools.map((t) => t.name)).toEqual([
-        'search_prs',
-        'search_tickets',
-        'get_linked_work',
-        'list_repos',
-        'get_stats',
-        'get_projects',
-        'get_timeline',
-      ]);
+      expect(tools).toEqual(goldenTools);
 
       const result = await client.callTool({
         name: 'search_prs',
