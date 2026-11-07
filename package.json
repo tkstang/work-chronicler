@@ -30,7 +30,7 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
     "clean": "rm -rf dist",
     "cli": "tsx src/cli/index.ts",
     "dev": "tsc -p tsconfig.build.json --watch",
