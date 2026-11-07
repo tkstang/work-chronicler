@@ -1,20 +1,8 @@
 {
-  "editor.defaultFormatter": "biomejs.biome",
+  "editor.defaultFormatter": "oxc.oxc-vscode",
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
-    "source.fixAll.biome": "explicit"
-  },
-  "[typescript]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "[javascript]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "[json]": {
-    "editor.defaultFormatter": "biomejs.biome"
-  },
-  "[jsonc]": {
-    "editor.defaultFormatter": "biomejs.biome"
+    "source.fixAll.oxc": "explicit"
   },
   "search.exclude": {
     "**/node_modules": true,
@@ -25,8 +13,10 @@
     "**/dist": true
   },
   "files.associations": {
-    "biome.json": "jsonc",
+    ".oxlintrc.json": "jsonc",
+    ".oxfmtrc.json": "jsonc",
     "tsconfig.json": "jsonc",
+    "tsconfig.build.json": "jsonc",
     "*.config.json": "jsonc"
   },
   "claudeCode.respectGitIgnore": false

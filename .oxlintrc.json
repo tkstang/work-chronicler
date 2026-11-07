@@ -1,0 +1,55 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "oxc", "unicorn", "import"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  },
+  "rules": {
+    "typescript/no-explicit-any": "warn",
+    "no-default-export": "error",
+    "prefer-const": "error",
+    "prefer-template": "error",
+    "eqeqeq": ["error", "smart"],
+    "no-empty": "error",
+    // `__dirname`/`__filename` ESM shims and `_exhaustive` never-checks are
+    // intentional names.
+    "no-underscore-dangle": "off",
+    // Off until a follow-up cleanup: these flag existing code, and fixing them
+    // changes behavior (toSorted/toReversed copy instead of mutating, and need
+    // an ES2023 lib) or touches error handling. Kept out of the toolchain
+    // migration.
+    "unicorn/no-array-sort": "off",
+    "unicorn/no-array-reverse": "off",
+    "unicorn/consistent-function-scoping": "off",
+    "preserve-caught-error": "off",
+    "no-shadow": "off"
+  },
+  "env": {
+    "builtin": true,
+    "es2024": true,
+    "node": true
+  },
+  "ignorePatterns": ["dist", "coverage", "node_modules"],
+  "overrides": [
+    {
+      "files": ["**/*.test.ts"],
+      "rules": {
+        "typescript/no-explicit-any": "off"
+      }
+    },
+    {
+      // The bin shim loads the CLI for its side effects.
+      "files": ["bin/*.js"],
+      "rules": {
+        "import/no-unassigned-import": "off"
+      }
+    },
+    {
+      "files": ["*.config.ts", "*.config.js", "*.config.mjs"],
+      "rules": {
+        "no-default-export": "off"
+      }
+    }
+  ]
+}
