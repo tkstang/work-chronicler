@@ -89,10 +89,15 @@ jobs:
           # npm only lets `latest` move forward. Prereleases go to `next`, and
           # a version older than the current `latest` goes to `backport`.
           dist_tag=latest
-          current="$(npm view work-chronicler dist-tags.latest 2>/dev/null || true)"
+          # The package already exists on npm, so a failed lookup is an error,
+          # never "no latest": guessing would let an old version take `latest`.
+          if ! current="$(npm view work-chronicler dist-tags.latest)" || [ -z "${current}" ]; then
+            echo "::error::Could not read the current npm latest dist-tag"
+            exit 1
+          fi
           if [[ "${version}" == *-* ]]; then
             dist_tag=next
-          elif [ -n "${current}" ] && node -e '
+          elif node -e '
             const parse = (v) => v.split("-")[0].split(".").map(Number);
             const [a, b] = [parse(process.argv[1]), parse(process.argv[2])];
             const cmp = a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
@@ -100,7 +105,7 @@ jobs:
           ' "${version}" "${current}"; then
             dist_tag=backport
           fi
-          echo "Publishing work-chronicler@${version} with dist-tag ${dist_tag} (current latest: ${current:-none})"
+          echo "Publishing work-chronicler@${version} with dist-tag ${dist_tag} (current latest: ${current})"
           npm publish --access public --provenance --tag "${dist_tag}"
 
   create-release:
