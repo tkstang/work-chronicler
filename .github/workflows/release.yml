@@ -8,10 +8,11 @@ on:
 permissions:
   contents: read
 
-# One shared release queue so versions publish in tag order (npm refuses to
-# move `latest` back to an older version). `queue: max` keeps up to 100
-# pending runs instead of the default one, so a new tag never cancels a
-# waiting one, and nothing is cancelled mid-publish.
+# One shared release queue: releases run one at a time and are never
+# cancelled mid-publish. `queue: max` keeps up to 100 pending runs instead of
+# the default one, so a new tag never cancels a waiting one. GitHub orders the
+# queue by when each run starts waiting, not by tag, so the Publish step
+# handles an older version arriving after a newer one.
 concurrency:
   group: release
   cancel-in-progress: false
@@ -83,9 +84,24 @@ jobs:
           fi
           if npm view "work-chronicler@${version}" version >/dev/null 2>&1; then
             echo "work-chronicler@${version} is already on npm; skipping publish."
-          else
-            npm publish --access public --provenance
+            exit 0
           fi
+          # npm only lets `latest` move forward. Prereleases go to `next`, and
+          # a version older than the current `latest` goes to `backport`.
+          dist_tag=latest
+          current="$(npm view work-chronicler dist-tags.latest 2>/dev/null || true)"
+          if [[ "${version}" == *-* ]]; then
+            dist_tag=next
+          elif [ -n "${current}" ] && node -e '
+            const parse = (v) => v.split("-")[0].split(".").map(Number);
+            const [a, b] = [parse(process.argv[1]), parse(process.argv[2])];
+            const cmp = a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+            process.exit(cmp < 0 ? 0 : 1);
+          ' "${version}" "${current}"; then
+            dist_tag=backport
+          fi
+          echo "Publishing work-chronicler@${version} with dist-tag ${dist_tag} (current latest: ${current:-none})"
+          npm publish --access public --provenance --tag "${dist_tag}"
 
   create-release:
     name: Create GitHub Release

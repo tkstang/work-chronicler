@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking:** requires Node.js 22.22.1 or later (24 recommended).
 - **Breaking:** the package no longer has a programmatic entry point; importing
   `work-chronicler` used to run the CLI and now fails. Use the
-  `work-chronicler` and `mcp` binaries.
+  `work-chronicler` binary (including `work-chronicler mcp` for the MCP server).
 - Built-in validation messages follow Zod 4 wording, and commands reject
   unexpected extra arguments (Commander 15).
 - Releases publish through npm trusted publishing with provenance.
