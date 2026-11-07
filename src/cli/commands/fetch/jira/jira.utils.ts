@@ -83,6 +83,12 @@ async function jiraFetch<T>(params: JiraFetchParams): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+/**
+ * Upper bound on pages per project (50 tickets each). It only guards against a
+ * server that keeps returning fresh page tokens without ever reaching the end.
+ */
+const MAX_PAGES = 1000;
+
 interface FetchProjectTicketsParams {
   baseUrl: string;
   email: string;
@@ -130,7 +136,12 @@ async function fetchProjectTickets(
   // JQL to find tickets assigned to current user within date range
   const jql = `project = "${project}" AND assignee = currentUser() AND created >= "${sinceStr}" AND created <= "${untilStr}" ORDER BY created DESC`;
 
-  while (true) {
+  for (let page = 1; ; page++) {
+    if (page > MAX_PAGES) {
+      throw new Error(
+        `JIRA pagination error: no last page after ${MAX_PAGES} pages, so results are incomplete`,
+      );
+    }
     spinner.text = `Fetching ${chalk.gray(instanceName)}/${chalk.cyan(project)}...`;
 
     // Use POST to /rest/api/3/search/jql (the new endpoint)
@@ -168,8 +179,9 @@ async function fetchProjectTickets(
       },
     });
 
+    // A page can be empty while more pages follow, so only the pagination
+    // fields below decide when to stop.
     const issues = response.issues || [];
-    if (issues.length === 0) break;
 
     for (const issue of issues) {
       const fields = issue.fields;

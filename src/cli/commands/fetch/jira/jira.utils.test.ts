@@ -149,6 +149,55 @@ describe('fetchJiraTickets pagination', () => {
     expect(await storedKeys()).toEqual(['PAY-1']);
   });
 
+  // Atlassian documents that a page can be empty while more pages follow.
+  it('keeps paging past an empty page that is not the last', async () => {
+    serve({
+      PAY: [
+        { keys: ['PAY-1'], nextPageToken: 't2', isLast: false },
+        { keys: [], nextPageToken: 't3', isLast: false },
+        { keys: ['PAY-3'], isLast: true },
+      ],
+    });
+
+    await fetchJiraTickets({ config: config(['PAY']), outputDir });
+
+    expect(requests.map((r) => r.nextPageToken)).toEqual([
+      undefined,
+      't2',
+      't3',
+    ]);
+    expect(await storedKeys()).toEqual(['PAY-1', 'PAY-3']);
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it('fails the project when the server never reaches a last page', async () => {
+    let n = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        n++;
+        return Response.json({
+          issues: [],
+          nextPageToken: `t${n}`,
+          isLast: false,
+        });
+      }),
+    );
+
+    const results = await fetchJiraTickets({
+      config: config(['PAY']),
+      outputDir,
+    });
+
+    expect(n).toBeGreaterThan(1);
+    expect(n).toBeLessThanOrEqual(1000);
+    expect(results).toEqual([]);
+    expect(logs.some((line) => line.includes('JIRA pagination error'))).toBe(
+      true,
+    );
+    expect(process.exitCode).toBe(1);
+  });
+
   // A repeated token means the rest of the results are unreachable, so the
   // project must be reported as incomplete rather than as a success.
   it('fails the project instead of looping when the server repeats a page token', async () => {

@@ -64,6 +64,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   property such as `constructor`.
 - `fetch jira` no longer requests the same page forever when JIRA repeats a
   page token; it reports the project as incomplete and exits non-zero.
+- `fetch jira` keeps paging past an empty page that JIRA does not mark as the
+  last one, instead of dropping the tickets on later pages.
 - `fetch jira` and `fetch all` exit non-zero when a JIRA project fails to
   fetch; the other projects are still fetched.
 
