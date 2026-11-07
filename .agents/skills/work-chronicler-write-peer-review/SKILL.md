@@ -32,9 +32,9 @@ Write peer reviews for colleagues from any profile. Quick mode needs no setup an
 ## Workspace
 
 **Active profile:** !`work-chronicler workspace profile`
-**Manager root:** !`work-chronicler workspace root`
+**Profile root:** !`work-chronicler workspace root`
 
-> **For non-Claude tools:** Run `work-chronicler workspace root` to get your manager profile path.
+> **For non-Claude tools:** Run `work-chronicler workspace root` to get your profile path.
 
 ## User Input
 
@@ -125,7 +125,8 @@ If they say no, use the template as-is and ask them to provide their overall tho
    - Show them: "To add them as a report, run these commands:"
      ```bash
      work-chronicler init --mode manager  # If not already in manager mode
-     work-chronicler reports add <their-id> --skip-fetch
+     work-chronicler reports add "<Their Name>"
+     work-chronicler reports list   # shows the report ID
 
      # Then optionally add supporting data:
      # - Add notes: reports/<their-id>/notes/observations.md

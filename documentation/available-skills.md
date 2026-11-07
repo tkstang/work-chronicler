@@ -77,9 +77,11 @@ are refreshed only if you answer yes to "Overwrite existing skills?" or pass
 renamed five; see `CHANGELOG.md`), the installer migrates it on each tool you
 select:
 
-1. It installs the new name and checks that it is the packaged skill.
+1. It installs the new name and checks that its `SKILL.md` declares that name.
 2. It asks before removing the old name (`--yes` removes it, `--keep-old`
-   keeps it). Declining keeps both names and prints a notice.
+   keeps it). Declining keeps both names and prints a notice. Removing an old
+   copy discards any local edits you made to it; use `--keep-old` and copy
+   your changes over first if you customized it.
 3. Old symlinks, working or broken, are unlinked; whatever they point to is not
    touched. Old copies are deleted only after the new name is in place.
 4. If the new name is held by something else and you refuse to overwrite it, or

@@ -297,8 +297,9 @@ Skills live in `.agents/skills/<name>/` with a `SKILL.md` (uppercase; hosts on c
 
 - **Package skills** (`work-chronicler-*`): Distributed with the npm package via `skills install`. These operate on work-log data and are user-facing.
 
-Package skill names follow `work-chronicler-[manager-]<verb>-<object>`: a verb from `setup`, `import`, `detect`, `summarize`, `write` or `update`, then the object (`work-chronicler-write-self-review`, `work-chronicler-manager-write-team-summary`). Add `manager-` only when the skill needs a manager profile. Repo-local skills such as `release-notes` are exempt. Renaming a package skill is breaking: add the old → new pair to `RENAMED_SKILLS` in `src/cli/commands/skills/types.ts` so `skills install` migrates it, and note the rename in `CHANGELOG.md`.
 - **Repo-local skills** (no prefix): Dev workflow skills that live in the repo but are not distributed. These help with development tasks like releasing.
+
+Package skill names follow `work-chronicler-[manager-]<verb>-<object>`: a verb from `setup`, `import`, `detect`, `summarize`, `write` or `update`, then the object (`work-chronicler-write-self-review`, `work-chronicler-manager-write-team-summary`). Add `manager-` only when the skill needs a manager profile. Repo-local skills such as `release-notes` are exempt. Renaming a package skill is breaking: add the old → new pair to `RENAMED_SKILLS` in `src/cli/commands/skills/types.ts` so `skills install` migrates it, and note the rename in `CHANGELOG.md`.
 
 When writing skill descriptions, use "Use when..." language to make skills discoverable by AI agents:
 - **Good**: `Use when releasing a new version, after tagging, or when the user asks to update release notes.`

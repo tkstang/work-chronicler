@@ -226,7 +226,7 @@ async function migrateRenamedSkills(
   if (blocked.length > 0) {
     console.log(
       chalk.yellow(
-        `  Kept ${blocked.length} old-name skill(s) in ${tool.name}: the new name is missing or is not the packaged skill.\n${formatRenames(blocked)}\n  Re-run with --overwrite to replace what occupies the new name.`,
+        `  Kept ${blocked.length} old-name skill(s) in ${tool.name}: the new name is missing or its SKILL.md does not declare that name.\n${formatRenames(blocked)}\n  Re-run with --overwrite to replace what occupies the new name.`,
       ),
     );
   }
