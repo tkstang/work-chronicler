@@ -15,6 +15,10 @@ Contract, entry grammar and roll-up: https://voxmedia.github.io/open-agent-toolk
 
 Activated m01 (p01, p02, p03); work-chronicler-evidence-expansion-activate-m01
 
+### 2026-11-07 · structural · oat-project-implement · p01
+
+p01 accepted: review passed (0 C/H, 5 Low fixed by root in 6014af5); fix loops 0; wce-p01-outcome
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
