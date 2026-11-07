@@ -71,7 +71,9 @@ See the [command reference](commands.md#ai-skills-and-paths) for every flag.
 ### Upgrading and renamed skills
 
 Re-run `work-chronicler skills install` after every upgrade, then restart your
-AI tool so it reloads its skill list. When a release renames a skill (0.5.0
+AI tool so it reloads its skill list. Copied skills whose names did not change
+are refreshed only if you answer yes to "Overwrite existing skills?" or pass
+`--overwrite`; `--yes` alone keeps them as they are. When a release renames a skill (0.5.0
 renamed five; see `CHANGELOG.md`), the installer migrates it on each tool you
 select:
 
