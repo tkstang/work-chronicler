@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { checkbox, confirm, select } from '@inquirer/prompts';
 import chalk from 'chalk';
 import { Command } from 'commander';
+import { findInstalledSkills, isPathOccupied } from './installed';
 import {
   AI_TOOLS,
   type AIToolKey,
@@ -64,25 +65,15 @@ function detectInstalledTools(): { key: AIToolKey; detected: boolean }[] {
 }
 
 /**
- * Check for existing skills at target
+ * Check for existing skills at target. Broken symlinks are excluded: they
+ * are always replaced, so they never need an overwrite prompt.
  */
 function getExistingSkills(toolKey: AIToolKey): string[] {
   const tool = AI_TOOLS[toolKey];
   const targetDir = join(homedir(), tool.configDir, tool.skillsDir);
-
-  if (!existsSync(targetDir)) {
-    return [];
-  }
-
-  try {
-    return readdirSync(targetDir, { withFileTypes: true })
-      .filter(
-        (entry) => entry.isDirectory() && entry.name.startsWith(SKILL_PREFIX),
-      )
-      .map((entry) => entry.name);
-  } catch {
-    return [];
-  }
+  return findInstalledSkills(targetDir)
+    .filter((skill) => !skill.isBroken)
+    .map((skill) => skill.name);
 }
 
 /**
@@ -106,12 +97,18 @@ function installSkills(
   let installed = 0;
   let skipped = 0;
 
+  const broken = new Set(
+    findInstalledSkills(targetDir)
+      .filter((skill) => skill.isBroken)
+      .map((skill) => skill.name),
+  );
+
   for (const skill of skills) {
     const sourcePath = join(sourceDir, skill);
     const targetPath = join(targetDir, skill);
 
-    if (existsSync(targetPath)) {
-      if (overwrite) {
+    if (isPathOccupied(targetPath)) {
+      if (overwrite || broken.has(skill)) {
         rmSync(targetPath, { recursive: true, force: true });
       } else {
         skipped++;

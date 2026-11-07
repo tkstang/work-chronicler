@@ -1,33 +1,13 @@
-import { existsSync, lstatSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import chalk from 'chalk';
 import { Command } from 'commander';
-import { AI_TOOLS, type AIToolKey, SKILL_PREFIX } from './types';
+import { findInstalledSkills, type InstalledSkill } from './installed';
+import { AI_TOOLS, type AIToolKey } from './types';
 
-function getInstalledSkills(
-  toolKey: AIToolKey,
-): { name: string; isSymlink: boolean }[] {
+function getInstalledSkills(toolKey: AIToolKey): InstalledSkill[] {
   const tool = AI_TOOLS[toolKey];
-  const skillsPath = join(homedir(), tool.configDir, tool.skillsDir);
-
-  if (!existsSync(skillsPath)) {
-    return [];
-  }
-
-  try {
-    const entries = readdirSync(skillsPath, { withFileTypes: true });
-    return entries
-      .filter(
-        (entry) => entry.isDirectory() && entry.name.startsWith(SKILL_PREFIX),
-      )
-      .map((entry) => ({
-        name: entry.name,
-        isSymlink: lstatSync(join(skillsPath, entry.name)).isSymbolicLink(),
-      }));
-  } catch {
-    return [];
-  }
+  return findInstalledSkills(join(homedir(), tool.configDir, tool.skillsDir));
 }
 
 export const listSubcommand = new Command('list')
@@ -49,6 +29,14 @@ export const listSubcommand = new Command('list')
       } else {
         anyInstalled = true;
         for (const skill of skills) {
+          if (skill.isBroken) {
+            console.log(
+              chalk.yellow(
+                `  ✗ ${skill.name} (broken symlink — run \`skills install\` to repair)`,
+              ),
+            );
+            continue;
+          }
           const suffix = skill.isSymlink ? chalk.dim(' (symlinked)') : '';
           console.log(chalk.green(`  ✓ ${skill.name}${suffix}`));
         }
