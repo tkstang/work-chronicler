@@ -515,7 +515,7 @@ function registerGetStatsTool(server: McpServer, outputDir: string) {
       // First try to load from stats.json if no date filter
       if (!input.since && !input.until) {
         try {
-          const statsPath = getAnalysisFilePath(outputDir, 'stats.json');
+          const statsPath = getAnalysisFilePath(outputDir, 'stats');
           const statsContent = await fs.readFile(statsPath, 'utf-8');
           return {
             content: [
@@ -652,7 +652,7 @@ function registerGetProjectsTool(server: McpServer, outputDir: string) {
     },
     async (input) => {
       try {
-        const projectsPath = getAnalysisFilePath(outputDir, 'projects.json');
+        const projectsPath = getAnalysisFilePath(outputDir, 'projects');
         const projectsContent = await fs.readFile(projectsPath, 'utf-8');
         const projectsData = JSON.parse(projectsContent);
 
@@ -711,7 +711,7 @@ function registerGetTimelineTool(server: McpServer, outputDir: string) {
     },
     async (input) => {
       try {
-        const timelinePath = getAnalysisFilePath(outputDir, 'timeline.json');
+        const timelinePath = getAnalysisFilePath(outputDir, 'timeline');
         const timelineContent = await fs.readFile(timelinePath, 'utf-8');
         const timelineData = JSON.parse(timelineContent) as {
           months: TimelineMonth[];

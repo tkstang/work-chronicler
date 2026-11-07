@@ -57,8 +57,9 @@ Manager mode team-level data:
 
 1. **Read team-level analysis**:
    - `team-projects.json` - All projects across the team
-   - `contributor-matrix.json` - Collaboration patterns (who worked with whom)
-   - `team-timeline.json` - Team-wide activity trends
+   - `contributor-matrix.json` - Report ID → projects detected in that report's own work
+   - `team-timeline.json` - Currently a placeholder (`{}`); read each report's
+     `analysis/timeline.json` for activity trends instead
 
 2. **Aggregate individual stats** (if needed for additional context):
    - Read each report's `analysis/stats.json`

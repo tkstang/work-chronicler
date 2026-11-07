@@ -1,31 +1,20 @@
-import { existsSync, readdirSync, rmSync } from 'node:fs';
+import { rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { checkbox, confirm } from '@inquirer/prompts';
 import chalk from 'chalk';
 import { Command } from 'commander';
-import { AI_TOOLS, type AIToolKey, SKILL_PREFIX } from './types';
+import { findInstalledSkills } from './installed';
+import { AI_TOOLS, type AIToolKey } from './types';
 
 /**
  * Get installed work-chronicler skills for a tool
  */
 function getInstalledSkills(toolKey: AIToolKey): string[] {
   const tool = AI_TOOLS[toolKey];
-  const skillsPath = join(homedir(), tool.configDir, tool.skillsDir);
-
-  if (!existsSync(skillsPath)) {
-    return [];
-  }
-
-  try {
-    return readdirSync(skillsPath, { withFileTypes: true })
-      .filter(
-        (entry) => entry.isDirectory() && entry.name.startsWith(SKILL_PREFIX),
-      )
-      .map((entry) => entry.name);
-  } catch {
-    return [];
-  }
+  return findInstalledSkills(
+    join(homedir(), tool.configDir, tool.skillsDir),
+  ).map((skill) => skill.name);
 }
 
 /**
