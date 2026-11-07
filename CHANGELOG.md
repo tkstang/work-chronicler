@@ -137,6 +137,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `fetch jira` no longer queries `" PROJ "` or stores tickets under a
   directory with stray spaces. Case is kept, so existing tickets stay in their
   project directory; `link` already matches keys case-insensitively.
+- `reports update --add-jira-project` and `--remove-jira-project` trim the
+  key they are given, so ` PROJ ` removes the stored `PROJ` and adding an
+  existing key no longer stores it twice.
 - `analyze reports --tag-prs` classifies with `analysis.thresholds` from the
   manager profile's `config.yaml`, as `analyze --tag-prs` does for IC profiles.
   The manager config used to drop the setting and always apply the defaults.
