@@ -18,7 +18,7 @@ import {
   resolveReportIds,
   resolveReportOutputDir,
 } from './fetch-manager.utils';
-import { fetchGitHubPRs } from './github/github.utils';
+import { fetchGitHubPRs, RateLimitError } from './github/github.utils';
 import { fetchJiraTickets } from './jira/jira.utils';
 
 interface FetchAllOptions {
@@ -110,7 +110,9 @@ async function fetchAllICMode(options: FetchAllOptions): Promise<void> {
   console.log(`${separator}\n`);
 
   console.log(
-    `${chalk.green('✓')} Done! Data saved to ${chalk.cyan(outputDir)}`,
+    process.exitCode
+      ? `${chalk.yellow('⚠')} Done, with warnings (see above). Data saved to ${chalk.cyan(outputDir)}`
+      : `${chalk.green('✓')} Done! Data saved to ${chalk.cyan(outputDir)}`,
   );
 }
 
@@ -189,6 +191,9 @@ async function fetchAllManagerMode(options: FetchAllOptions): Promise<void> {
         ),
       );
     } catch (error) {
+      // Later reports share the same token, so a rate limit stops the run
+      if (error instanceof RateLimitError) throw error;
+      process.exitCode = 1;
       console.error(
         chalk.red(`✗ ${report.name} failed:`),
         error instanceof Error ? error.message : String(error),
@@ -196,7 +201,11 @@ async function fetchAllManagerMode(options: FetchAllOptions): Promise<void> {
     }
   }
 
-  console.log(chalk.green('\n✓ All reports complete'));
+  console.log(
+    process.exitCode
+      ? chalk.yellow('\n⚠ All reports processed, with warnings (see above)')
+      : chalk.green('\n✓ All reports complete'),
+  );
 }
 
 export const allCommand = new Command('all')

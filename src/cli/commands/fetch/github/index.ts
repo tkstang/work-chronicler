@@ -24,7 +24,7 @@ import {
   resolveReportIds,
   resolveReportOutputDir,
 } from '../fetch-manager.utils';
-import { fetchGitHubPRs } from './github.utils';
+import { fetchGitHubPRs, RateLimitError } from './github.utils';
 
 interface FetchGitHubOptions {
   config?: string;
@@ -61,7 +61,7 @@ async function fetchGitHubICMode(options: FetchGitHubOptions): Promise<void> {
   const totalWritten = results.reduce((sum, r) => sum + r.prsWritten, 0);
 
   console.log(
-    `\n${chalk.green('✓')} Fetched ${chalk.cyan(totalWritten)} PRs to ${chalk.gray(outputDir)}`,
+    `\n${process.exitCode ? chalk.yellow('⚠') : chalk.green('✓')} Fetched ${chalk.cyan(totalWritten)} PRs to ${chalk.gray(outputDir)}`,
   );
 }
 
@@ -122,6 +122,9 @@ async function fetchGitHubManagerMode(
         ),
       );
     } catch (error) {
+      // Later reports share the same token, so a rate limit stops the run
+      if (error instanceof RateLimitError) throw error;
+      process.exitCode = 1;
       console.error(
         chalk.red(`✗ ${report.name} failed:`),
         error instanceof Error ? error.message : String(error),
@@ -129,7 +132,11 @@ async function fetchGitHubManagerMode(
     }
   }
 
-  console.log(chalk.green('\n✓ All reports complete'));
+  console.log(
+    process.exitCode
+      ? chalk.yellow('\n⚠ All reports processed, with warnings (see above)')
+      : chalk.green('\n✓ All reports complete'),
+  );
 }
 
 export const githubCommand = new Command('github')

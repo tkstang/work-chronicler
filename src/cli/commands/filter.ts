@@ -3,8 +3,10 @@ import { dirname, join } from 'node:path';
 import {
   DIRECTORIES,
   findConfigPath,
+  getGitHubNameProblem,
   getOutputDirectory,
   loadConfig,
+  normalizeGitHubName,
   type PRImpact,
   readAllPRs,
   readAllTickets,
@@ -179,21 +181,37 @@ export const filterCommand = new Command('filter')
         : 0;
 
       // Build org/repo filter sets
+      // Normalize like the config schema so `--org @acme` matches `acme`
+      // and `--repo @acme/web` matches `acme/web`
+      const toFilterKey = (o: string) => normalizeGitHubName(o).toLowerCase();
+      // Reject selectors that can never match a stored org (e.g. `@`, `@@acme`)
+      const toOrgSelector = (o: string) => {
+        const problem = getGitHubNameProblem(normalizeGitHubName(o));
+        if (problem) throw new Error(`Invalid org selector "${o}": ${problem}`);
+        return toFilterKey(o);
+      };
+      const toRepoSelector = (r: string) => {
+        const [org, repo, ...rest] = r.split('/');
+        if (!org || !repo?.trim() || rest.length > 0) {
+          throw new Error(`Invalid repo selector "${r}": use org/repo`);
+        }
+        return `${toOrgSelector(org)}/${repo.trim().toLowerCase()}`;
+      };
       const includeOrgs = options.org
-        ? new Set(options.org.map((o: string) => o.toLowerCase()))
+        ? new Set(options.org.map(toOrgSelector))
         : null;
       const excludeOrgs = new Set(
-        (options.excludeOrg ?? []).map((o: string) => o.toLowerCase()),
+        (options.excludeOrg ?? []).map(toOrgSelector),
       );
       const includeRepos = options.repo
-        ? new Set(options.repo.map((r: string) => r.toLowerCase()))
+        ? new Set(options.repo.map(toRepoSelector))
         : null;
       const excludeRepos = new Set(
-        (options.excludeRepo ?? []).map((r: string) => r.toLowerCase()),
+        (options.excludeRepo ?? []).map(toRepoSelector),
       );
 
       const filteredPRs = allPRs.filter((pr) => {
-        const prOrg = pr.frontmatter.org.toLowerCase();
+        const prOrg = toFilterKey(pr.frontmatter.org);
         const prRepoKey = `${prOrg}/${pr.frontmatter.repository.toLowerCase()}`;
 
         // Check org inclusion (if specified, must be in the list)

@@ -1,3 +1,4 @@
+import { GitHubNameSchema, OptionalGitHubNameSchema } from '@wc-types/github';
 import { z } from 'zod';
 
 /**
@@ -27,18 +28,29 @@ const httpsUrl = z
  * GitHub organization configuration
  */
 export const GitHubOrgConfigSchema = z.object({
-  name: z.string(),
+  name: GitHubNameSchema,
   repos: z.array(z.string()).default(['*']),
 });
 
 /**
  * GitHub configuration
  */
-export const GitHubConfigSchema = z.object({
-  username: z.string(),
-  token: z.string().optional(),
-  orgs: z.array(GitHubOrgConfigSchema).default([]),
-});
+export const GitHubConfigSchema = z
+  .object({
+    // May be empty for JIRA-only profiles (no orgs)
+    username: OptionalGitHubNameSchema,
+    token: z.string().optional(),
+    orgs: z.array(GitHubOrgConfigSchema).default([]),
+  })
+  .superRefine((github, ctx) => {
+    if (github.orgs.length > 0 && !github.username) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['username'],
+        message: 'GitHub username is required when orgs are configured',
+      });
+    }
+  });
 
 /**
  * JIRA instance configuration

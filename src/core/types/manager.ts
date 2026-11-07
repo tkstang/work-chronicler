@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { GitHubNameSchema } from './github';
 
 /**
  * Manager mode types and schemas
@@ -11,7 +12,7 @@ export const ReportConfigSchema = z.object({
   /** Display name (e.g., "Alice Smith") */
   name: z.string(),
   /** GitHub username */
-  github: z.string(),
+  github: GitHubNameSchema,
   /** Email for commit/Jira attribution */
   email: z.string().email(),
   /** Repos to fetch (no org prefix) */
@@ -36,7 +37,7 @@ export const ManagerConfigSchema = z.object({
   mode: z.literal('manager'),
   github: z.object({
     token: z.string().optional(), // Token stored in .env, not config
-    org: z.string(), // Single org (Phase 4 constraint)
+    org: GitHubNameSchema, // Single org (Phase 4 constraint)
   }),
   jira: z
     .object({

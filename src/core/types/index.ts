@@ -1,3 +1,4 @@
+export { getGitHubNameProblem, normalizeGitHubName } from './github';
 export {
   type PRImpact,
   PRImpactSchema,
