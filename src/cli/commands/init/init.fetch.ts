@@ -99,6 +99,13 @@ export async function runInitialFetch(
         useCache: false,
       });
       totalTickets = jiraResults.reduce((sum, r) => sum + r.ticketsWritten, 0);
+      for (const result of jiraResults) {
+        if (result.error !== undefined) {
+          errors.push(
+            `JIRA ${result.instance}/${result.project} is incomplete: ${result.error}`,
+          );
+        }
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       errors.push(`JIRA fetch failed: ${message}`);
