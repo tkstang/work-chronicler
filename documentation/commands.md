@@ -8,10 +8,11 @@ description: Every work-chronicler CLI command, argument and flag, grouped by ta
 Run `work-chronicler <command> --help` for the same information from the CLI.
 From a source checkout, use `pnpm cli <command>`.
 
-Commands that need a choice and get no flags prompt for it. Flags skip most
-prompts, with one exception: when a `filtered/` subset exists, `analyze` asks
-whether to use it unless you pass `--full`. Use `analyze --all --full` for an
-unattended analysis of the full work log.
+Some commands are interactive by design: `init`, `skills install` and
+`skills uninstall` always prompt, even when you pass flags. Most other commands
+prompt only for a choice you did not give as a flag. When a `filtered/` subset
+exists, `analyze` asks whether to use it unless you pass `--full`, so use
+`analyze --all --full` for an unattended analysis of the full work log.
 
 ## Global options
 

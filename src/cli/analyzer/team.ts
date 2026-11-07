@@ -1,11 +1,13 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { ProjectGrouping } from '@core/index';
+import { type ProjectGrouping, ProjectGroupingSchema } from '@core/index';
 import { getReportAnalysisDir } from '@workspace/resolver';
+import { z } from 'zod';
 
 /**
  * Read one report's detected projects from `reports/<id>/analysis/projects.json`.
- * Returns an empty list when the report has not been analyzed yet.
+ * Returns an empty list when the report has not been analyzed yet or its file
+ * is malformed, so one bad report never aborts the team rollup.
  */
 async function readReportProjects(
   profileName: string,
@@ -17,7 +19,10 @@ async function readReportProjects(
       'projects.json',
     );
     const data = JSON.parse(await readFile(projectsPath, 'utf-8'));
-    return data.projects || [];
+    const parsed = z
+      .array(ProjectGroupingSchema)
+      .safeParse(data?.projects ?? []);
+    return parsed.success ? parsed.data : [];
   } catch {
     // Skip reports without analysis (file not found, parse error, etc.)
     return [];

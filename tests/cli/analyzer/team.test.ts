@@ -2,16 +2,40 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { generateContributorMatrix } from '../../../src/cli/analyzer/team';
+import {
+  aggregateTeamProjects,
+  generateContributorMatrix,
+} from '../../../src/cli/analyzer/team';
+import type { ProjectGrouping } from '../../../src/core/types/project';
 import { getReportAnalysisDir } from '../../../src/core/workspace/resolver';
 
-function writeProjects(reportId: string, names: string[]): void {
+function project(name: string): ProjectGrouping {
+  return {
+    projectId: name.toLowerCase().replace(/\s+/g, '-'),
+    name,
+    prUrls: [`https://github.com/acme/app/pull/${name.length}`],
+    ticketKeys: [],
+    signals: { sharedTickets: [], sharedLabels: [], commonKeywords: [] },
+    confidence: 'high',
+    dominantSignal: 'tickets',
+    stats: {
+      prCount: 1,
+      ticketCount: 0,
+      totalAdditions: 10,
+      totalDeletions: 2,
+      repos: ['acme/app'],
+    },
+  };
+}
+
+function writeAnalysis(reportId: string, projects: unknown): void {
   const dir = getReportAnalysisDir('manager', reportId);
   mkdirSync(dir, { recursive: true });
-  writeFileSync(
-    join(dir, 'projects.json'),
-    JSON.stringify({ projects: names.map((name) => ({ name })) }),
-  );
+  writeFileSync(join(dir, 'projects.json'), JSON.stringify({ projects }));
+}
+
+function writeProjects(reportId: string, names: string[]): void {
+  writeAnalysis(reportId, names.map(project));
 }
 
 describe('team contributor matrix', () => {
@@ -46,5 +70,22 @@ describe('team contributor matrix', () => {
       bob: ['Search relevance', 'Shared platform'],
       carol: [],
     });
+  });
+
+  it('skips a malformed report instead of aborting the team rollup', async () => {
+    writeAnalysis('broken', [null]);
+    writeProjects('alice', ['Checkout revamp']);
+
+    const projects = await aggregateTeamProjects('manager', [
+      'broken',
+      'alice',
+    ]);
+    const matrix = await generateContributorMatrix('manager', [
+      'broken',
+      'alice',
+    ]);
+
+    expect(projects.map((p) => p.name)).toEqual(['Checkout revamp']);
+    expect(matrix).toEqual({ broken: [], alice: ['Checkout revamp'] });
   });
 });
