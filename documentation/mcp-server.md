@@ -80,7 +80,7 @@ The server looks for a config in this order:
 | --- | --- |
 | `search_prs` | PRs filtered by date range, repository, keywords or impact level. |
 | `search_tickets` | JIRA tickets filtered by project, status or keywords. |
-| `get_linked_work` | A PR with its linked tickets, or a ticket with its linked PRs. |
+| `get_linked_work` | A PR (by URL, or by bare PR number) with its linked tickets, or a ticket with its linked PRs. |
 | `list_repos` | Repositories in the work log with per-repo statistics. |
 | `get_stats` | Summary statistics, optionally for a date range. |
 | `get_projects` | Detected project groupings of related PRs and tickets. |

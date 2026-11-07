@@ -108,6 +108,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `fetch all` warn and exit non-zero when an org fetches nothing (#14).
 - Manager-mode and skills guides no longer show CLI flags that do not exist
   (`--since`, `--until`, `--no-cache`, `--discover-repos`, `--skip-fetch`).
+- MCP `get_linked_work` no longer returns PR 123 when asked for `23` or for a
+  `…/pull/23` URL. It matches the exact URL first, and treats bare digits as
+  the whole PR number; a number shared by several repos asks for the full URL.
 
 ## [0.3.2] - 2026-03-10
 

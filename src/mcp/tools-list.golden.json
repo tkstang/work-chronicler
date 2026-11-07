@@ -94,7 +94,7 @@
       "type": "object",
       "properties": {
         "prUrl": {
-          "description": "GitHub PR URL to look up",
+          "description": "GitHub PR URL to look up, or a bare PR number",
           "type": "string"
         },
         "ticketKey": {
