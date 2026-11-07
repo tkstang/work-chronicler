@@ -5,19 +5,14 @@
  */
 
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { join } from 'node:path';
 import {
   classifyPRImpact,
   detectProjects,
   generateStats,
   generateTimeline,
 } from '@cli/analyzer';
-import {
-  getAnalysisFilePath,
-  readAllPRs,
-  readAllTickets,
-  writeMarkdownFile,
-} from '@core/index';
+import { readAllPRs, readAllTickets, writeMarkdownFile } from '@core/index';
 import { select } from '@inquirer/prompts';
 import { getActiveProfile } from '@workspace/global-config';
 import { listReports } from '@workspace/report-manager';
@@ -162,11 +157,9 @@ export const reportsCommand = new Command('reports')
       spinner.succeed('Generated statistics');
 
       // Write stats file
-      const statsPath = getAnalysisFilePath(analysisDir, 'stats');
-      const dir = dirname(statsPath);
-      if (!existsSync(dir)) {
-        mkdirSync(dir, { recursive: true });
-      }
+      // Per-report analysis lives directly in reports/<id>/analysis/, which
+      // is where `analyze team` and the mgmt-* skills read it.
+      const statsPath = join(analysisDir, 'stats.json');
       writeFileSync(statsPath, JSON.stringify(stats, null, 2));
       console.log(`${chalk.green('✓')} Wrote ${chalk.cyan(statsPath)}`);
 
@@ -253,7 +246,7 @@ export const reportsCommand = new Command('reports')
         );
 
         // Write projects file
-        const projectsPath = getAnalysisFilePath(analysisDir, 'projects');
+        const projectsPath = join(analysisDir, 'projects.json');
         writeFileSync(projectsPath, JSON.stringify(projectsAnalysis, null, 2));
         console.log(`${chalk.green('✓')} Wrote ${chalk.cyan(projectsPath)}`);
 
@@ -301,7 +294,7 @@ export const reportsCommand = new Command('reports')
         );
 
         // Write timeline file
-        const timelinePath = getAnalysisFilePath(analysisDir, 'timeline');
+        const timelinePath = join(analysisDir, 'timeline.json');
         writeFileSync(timelinePath, JSON.stringify(timeline, null, 2));
         console.log(`${chalk.green('✓')} Wrote ${chalk.cyan(timelinePath)}`);
 
