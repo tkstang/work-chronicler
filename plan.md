@@ -139,7 +139,7 @@ the exception: the CLI already talks to GitHub, so they are fetched directly.
   reason, private?}] }` per IC profile and per manager report (field names settled in p06);
   absent config imports nothing. CLI `work-chronicler slack channels
   add|remove|list` and a read command that prints the resolved subject, range
-  and settings for the skill. One `messages` record per message the subject wrote — top-level messages, threads they started and their own replies in others' threads — with a parent-thread reference.
+  and settings for the skill. One `messages` record per message the subject wrote — top-level messages, threads they started and their own replies in others' threads — with a parent-thread reference that holds only an ID or URL, never another person's text. Slack records require attribution verified as the configured subject; `unverified` is rejected for Slack.
   Privacy, applied in discovery and import: the subject's own words verbatim;
   others' replies as counts only, with no reply bodies or needless participant
   identities; public channels by default, private channels only with explicit
@@ -247,8 +247,8 @@ the exception: the CLI already talks to GitHub, so they are fetched directly.
   re-alignment; read-only live reads of the user's own Slack (Slack plugin) and
   Google Drive (`gog`) into a temp `WORK_CHRONICLER_HOME`.
 - **Ask or stop first:** new runtime dependencies, CI or release workflow
-  changes, breaking config-schema changes beyond the agreed skill renames, any change to an Outcome, Constraint, the endpoint or this authority, a failed release, and any Decision reversal or Approach departure Astra does not support (one it supports is logged in Decisions and the project log).
-- **Personal import (user-authorized, after 0.7.0 is published):** with `npx work-chronicler@0.7.0` (no global install, no `skills install` into the user's skill folders; the agent follows the packaged skill text directly), the agent may add Slack and Google Docs settings to the user's live `default` profile (backing up its config file alongside first) and import there the Docs the user owns and the user's own messages in public channels they posted in during the fetch range. Private channels only if the user opts in during the session. The chosen channel list and counts are reported to the user in chat only. Nothing else under `~/.work-chronicler/` is touched, and none of that data is written to tracked files, PRs, issues, logs or any service beyond the Slack connector, `gog` and the assistant already in the loop.
+  changes, breaking config-schema changes beyond the agreed skill renames, any change to an Outcome, Constraint, the endpoint or this authority, a failed release, any change to Out of Scope, reversal of a Decision marked (user), and any other Decision reversal or Approach departure Astra does not support (one it supports is logged in Decisions and the project log).
+- **Personal import (user-authorized, after 0.7.0 is published):** with `npx work-chronicler@0.7.0` (no global install, no `skills install` into the user's skill folders; the agent follows the packaged skill text directly), the agent may add Slack and Google Docs settings to the user's live `default` profile (backing up its config file alongside first) and import there the Docs the user owns and the user's own messages in public channels they posted in during the `default` profile's configured fetch range (or a range the user confirms in session). Private channels only if the user opts in during the session. The range, chosen channel list and counts are reported to the user in chat only. Nothing else under `~/.work-chronicler/` is touched, and none of that data is written to tracked files, PRs, issues, logs or any service beyond the Slack connector, `gog` and the assistant already in the loop.
 - **Never:** storing credentials; posting or writing to Slack or Google;
   putting imported content in tracked files, PRs, issues or logs; declaring
   the goal met (the user's call).
@@ -268,7 +268,7 @@ the exception: the CLI already talks to GitHub, so they are fetched directly.
 ## Phase p01: Verb-first skill names and install migration
 
 **Intent:** Rename the five package skills to the verb-first rule (directories, frontmatter `name`, invocation examples, cross-references, README, `documentation/`, AGENTS.md naming rule), and teach `skills install` an explicit old → new migration that is safe per selected host.
-**Exit evidence:** Migration tests for copy, live symlink, dangling symlink, replacement conflict, overwrite refusal and repeat install across hosts pass; a packaged-install smoke run (recorded in the journal; needs network for dependencies) installs the `npm pack` tarball into a temp `HOME` and, using the new non-interactive flags, installs only new names and migrates old ones; `rg` shows old names only in the migration map, its tests and CHANGELOG/upgrade notes; full DoD batch green.
+**Exit evidence:** Migration tests for copy, live symlink, dangling symlink, replacement conflict, overwrite refusal, declined old-name removal (both kept, notice printed) and repeat install across hosts pass; a packaged-install smoke run (recorded in the journal; needs network for dependencies) seeds old-name skills in a temp `HOME` from the published 0.4.0 package, then installs the `npm pack` tarball there and, using the new non-interactive flags, installs only new names and migrates old ones; `rg` shows old names only in the migration map, its tests and CHANGELOG/upgrade notes; full DoD batch green.
 **Provisional:** no
 
 ## Phase p02: PR reviews given (IC)
@@ -298,7 +298,7 @@ the exception: the CLI already talks to GitHub, so they are fetched directly.
 ## Phase p06: Slack configuration and CLI
 
 **Intent:** Add the Slack config for IC profiles and manager reports, `work-chronicler slack channels add|remove|list`, and the read command the skills use, enforcing opt-in, channel and privacy rules in the CLI.
-**Exit evidence:** Config and command tests including unconfigured report, private channel without opt-in, DM rejection and non-destructive config updates pass; `validate`/`import` reject `messages` records whose author is not the configured subject, that carry reply bodies, or that list participants beyond counts, exiting nonzero with errors that do not echo the content; the Slack connector capability unknown is settled and recorded.
+**Exit evidence:** Config and command tests including unconfigured report, private channel without opt-in, DM rejection and non-destructive config updates pass; `validate`/`import` reject `messages` records whose author is not the configured subject, that carry reply bodies, that list participants beyond counts, whose attribution is `unverified`, or whose parent-thread reference carries message text, exiting nonzero with errors that do not echo the content; the Slack connector capability unknown is settled and recorded.
 **Provisional:** yes
 
 ## Phase p07: Slack skills and live walkthrough
