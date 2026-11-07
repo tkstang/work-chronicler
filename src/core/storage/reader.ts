@@ -20,6 +20,16 @@ function readMarkdownFile(filePath: string): {
 }
 
 /**
+ * Strip only the separators the writer puts around the body: it writes
+ * `---\n\n<body>\n`, and gray-matter's content keeps one newline before and
+ * after the body. Anything else, such as leading blank lines or a first
+ * line's indentation (an indented code block), belongs to the body.
+ */
+function normalizeBody(content: string): string {
+  return content.replace(/^\r?\n/, '').replace(/\r?\n$/, '');
+}
+
+/**
  * Recursively find all markdown files in a directory
  */
 function findMarkdownFiles(dir: string): string[] {
@@ -76,7 +86,7 @@ export async function readAllPRs(
       if (parsed.success) {
         results.push({
           frontmatter: parsed.data,
-          body: content.trim(),
+          body: normalizeBody(content),
           filePath,
         });
       } else {
@@ -126,7 +136,7 @@ export async function readAllTickets(
       if (parsed.success) {
         results.push({
           frontmatter: parsed.data,
-          body: content.trim(),
+          body: normalizeBody(content),
           filePath,
         });
       } else {
@@ -168,7 +178,7 @@ export async function readPR(
     if (parsed.success) {
       return {
         frontmatter: parsed.data,
-        body: content.trim(),
+        body: normalizeBody(content),
         filePath,
       };
     }
@@ -202,7 +212,7 @@ export async function readTicket(
     if (parsed.success) {
       return {
         frontmatter: parsed.data,
-        body: content.trim(),
+        body: normalizeBody(content),
         filePath,
       };
     }

@@ -14,6 +14,7 @@ import {
 import chalk from 'chalk';
 import ora, { type Ora } from 'ora';
 
+import { RateLimitError } from '../github/github.utils';
 import type {
   FetchJiraOptions,
   JiraFetchResult,
@@ -50,6 +51,51 @@ function formatJqlDate(date: Date): string {
   return dateStr ?? iso.slice(0, 10);
 }
 
+/**
+ * A failed JIRA API response, keeping the HTTP status and `Retry-After` header
+ */
+class JiraApiError extends Error {
+  override name = 'JiraApiError';
+
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly retryAfter: string | null,
+  ) {
+    super(message);
+  }
+}
+
+/**
+ * Describe when a `Retry-After` value (seconds or an HTTP date) allows a retry
+ */
+function describeRetryAfter(retryAfter: string | null): string {
+  if (!retryAfter) return '';
+  const trimmed = retryAfter.trim();
+  if (/^\d+$/.test(trimmed)) {
+    const seconds = Number.parseInt(trimmed, 10);
+    const at = new Date(Date.now() + seconds * 1000);
+    return ` Retry after ${seconds} seconds (${at.toLocaleString()}).`;
+  }
+  const date = new Date(trimmed);
+  if (Number.isNaN(date.getTime())) return ` Retry-After: ${trimmed}.`;
+  return ` Retry after ${date.toLocaleString()}.`;
+}
+
+/**
+ * Thrown when JIRA rate limits the credentials. Every project shares them, so
+ * callers rethrow it instead of treating it as a per-project failure.
+ */
+class JiraRateLimitError extends RateLimitError {
+  override name = 'JiraRateLimitError';
+
+  constructor(readonly retryAfter: string | null) {
+    super(
+      `JIRA API rate limit exceeded.${describeRetryAfter(retryAfter)}\nTip: Use --cache flag to avoid re-fetching existing tickets.`,
+    );
+  }
+}
+
 interface JiraFetchParams {
   baseUrl: string;
   path: string;
@@ -76,12 +122,25 @@ async function jiraFetch<T>(params: JiraFetchParams): Promise<T> {
   });
 
   if (!response.ok) {
+    const retryAfter = response.headers.get('retry-after');
+    if (response.status === 429) throw new JiraRateLimitError(retryAfter);
     const errorText = await response.text();
-    throw new Error(`JIRA API error ${response.status}: ${errorText}`);
+    throw new JiraApiError(
+      `JIRA API error ${response.status}: ${errorText}`,
+      response.status,
+      retryAfter,
+    );
   }
 
   return response.json() as Promise<T>;
 }
+
+/**
+ * Upper bound on pages per project. It only guards against a server that keeps
+ * returning fresh page tokens without ever reaching the end, so it sits far
+ * above any real history (pages can be small or even empty).
+ */
+export const MAX_PAGES = 20_000;
 
 interface FetchProjectTicketsParams {
   baseUrl: string;
@@ -97,12 +156,43 @@ interface FetchProjectTicketsParams {
   verbose?: boolean;
 }
 
+interface ProjectTicketCounts {
+  written: number;
+  skipped: number;
+  cached: number;
+}
+
 /**
- * Fetch tickets for a single project
+ * Fetch tickets for a single project.
+ *
+ * A failure partway through returns the counts so far with `error` set, so
+ * tickets already written still count. A rate limit is rethrown because every
+ * other project would hit it too.
  */
 async function fetchProjectTickets(
   params: FetchProjectTicketsParams,
-): Promise<{ written: number; skipped: number; cached: number }> {
+): Promise<ProjectTicketCounts & { error?: string }> {
+  const counts: ProjectTicketCounts = { written: 0, skipped: 0, cached: 0 };
+  try {
+    await fetchProjectPages(params, counts);
+    return counts;
+  } catch (error) {
+    if (error instanceof RateLimitError) throw error;
+    return {
+      ...counts,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+/**
+ * Page through one project's search results, writing each ticket and
+ * updating `counts` as it goes.
+ */
+async function fetchProjectPages(
+  params: FetchProjectTicketsParams,
+  counts: ProjectTicketCounts,
+): Promise<void> {
   const {
     baseUrl,
     email,
@@ -117,10 +207,8 @@ async function fetchProjectTickets(
     verbose,
   } = params;
 
-  let written = 0;
-  let skipped = 0;
-  let cached = 0;
   let nextPageToken: string | undefined;
+  const seenPageTokens = new Set<string>();
   const maxResults = 50;
 
   const sinceStr = formatJqlDate(since);
@@ -129,7 +217,12 @@ async function fetchProjectTickets(
   // JQL to find tickets assigned to current user within date range
   const jql = `project = "${project}" AND assignee = currentUser() AND created >= "${sinceStr}" AND created <= "${untilStr}" ORDER BY created DESC`;
 
-  while (true) {
+  for (let page = 1; ; page++) {
+    if (page > MAX_PAGES) {
+      throw new Error(
+        `JIRA pagination error: no last page after ${MAX_PAGES} pages, so results are incomplete`,
+      );
+    }
     spinner.text = `Fetching ${chalk.gray(instanceName)}/${chalk.cyan(project)}...`;
 
     // Use POST to /rest/api/3/search/jql (the new endpoint)
@@ -167,20 +260,21 @@ async function fetchProjectTickets(
       },
     });
 
+    // A page can be empty while more pages follow, so only the pagination
+    // fields below decide when to stop.
     const issues = response.issues || [];
-    if (issues.length === 0) break;
 
     for (const issue of issues) {
       const fields = issue.fields;
       if (!fields) {
-        skipped++;
+        counts.skipped++;
         continue;
       }
 
       // Skip if already cached
       const cacheKey = `${instanceName}/${issue.key}`;
       if (cachedTickets.has(cacheKey)) {
-        cached++;
+        counts.cached++;
         continue;
       }
 
@@ -229,7 +323,7 @@ async function fetchProjectTickets(
       }
 
       writeMarkdownFile(filePath, ticketData, body);
-      written++;
+      counts.written++;
 
       if (verbose) {
         spinner.stop();
@@ -238,12 +332,18 @@ async function fetchProjectTickets(
       }
     }
 
-    // Use token-based pagination
+    // Use token-based pagination. A token already sent would fetch the same
+    // page again forever, and the pages after it are unreachable, so the
+    // project's results are incomplete.
     if (response.isLast || !response.nextPageToken) break;
+    if (seenPageTokens.has(response.nextPageToken)) {
+      throw new Error(
+        `JIRA pagination error: the server repeated page token "${response.nextPageToken}" before the last page, so results are incomplete`,
+      );
+    }
+    seenPageTokens.add(response.nextPageToken);
     nextPageToken = response.nextPageToken;
   }
-
-  return { written, skipped, cached };
 }
 
 /**
@@ -330,43 +430,50 @@ async function fetchInstanceTickets(
   }
 
   for (const project of instanceConfig.projects) {
-    try {
-      spinner.text = `Fetching ${chalk.gray(instanceName)}/${chalk.cyan(project)}...`;
+    spinner.text = `Fetching ${chalk.gray(instanceName)}/${chalk.cyan(project)}...`;
 
-      const { written, skipped, cached } = await fetchProjectTickets({
-        baseUrl: instanceConfig.url,
-        email,
-        token,
-        instanceName,
-        project,
-        since,
-        until,
-        outputDir,
-        spinner,
-        cachedTickets,
-        verbose,
-      });
+    // A rate limit propagates: the next project would hit it too.
+    const { written, skipped, cached, error } = await fetchProjectTickets({
+      baseUrl: instanceConfig.url,
+      email,
+      token,
+      instanceName,
+      project,
+      since,
+      until,
+      outputDir,
+      spinner,
+      cachedTickets,
+      verbose,
+    });
 
-      results.push({
-        instance: instanceName,
-        project,
-        ticketsWritten: written,
-        ticketsSkipped: skipped,
-        ticketsCached: cached,
-      });
+    results.push({
+      instance: instanceName,
+      project,
+      ticketsWritten: written,
+      ticketsSkipped: skipped,
+      ticketsCached: cached,
+      ...(error === undefined ? {} : { error }),
+    });
 
-      if (written > 0 || cached > 0) {
-        spinner.stop();
-        const cacheInfo = cached > 0 ? chalk.gray(` (${cached} cached)`) : '';
-        console.log(
-          `  ${chalk.green('✓')} ${chalk.gray(instanceName)}/${chalk.cyan(project)}: ${chalk.green(written)} tickets${cacheInfo}`,
-        );
-        spinner.start();
-      }
-    } catch (error) {
+    if (error !== undefined) {
+      // Keep fetching the other projects, but fail the run so a missing or
+      // partial project is never mistaken for a complete work log.
+      process.exitCode = 1;
       spinner.stop();
+      const partial =
+        written > 0
+          ? chalk.gray(` (${written} tickets written before the failure)`)
+          : '';
       console.log(
-        `  ${chalk.red('✗')} ${chalk.gray(instanceName)}/${chalk.cyan(project)}: ${chalk.red(error instanceof Error ? error.message : String(error))}`,
+        `  ${chalk.red('✗')} ${chalk.gray(instanceName)}/${chalk.cyan(project)}: ${chalk.red(error)}${partial}`,
+      );
+      spinner.start();
+    } else if (written > 0 || cached > 0) {
+      spinner.stop();
+      const cacheInfo = cached > 0 ? chalk.gray(` (${cached} cached)`) : '';
+      console.log(
+        `  ${chalk.green('✓')} ${chalk.gray(instanceName)}/${chalk.cyan(project)}: ${chalk.green(written)} tickets${cacheInfo}`,
       );
       spinner.start();
     }

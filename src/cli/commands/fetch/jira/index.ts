@@ -15,6 +15,7 @@ import {
   resolveReportIds,
   resolveReportOutputDir,
 } from '@commands/fetch/fetch-manager.utils';
+import { RateLimitError } from '@commands/fetch/github/github.utils';
 import {
   DIRECTORIES,
   findConfigPath,
@@ -64,7 +65,7 @@ async function fetchJiraICMode(options: FetchJiraOptions): Promise<void> {
   const totalWritten = results.reduce((sum, r) => sum + r.ticketsWritten, 0);
 
   console.log(
-    `\n${chalk.green('✓')} Fetched ${chalk.cyan(totalWritten)} tickets to ${chalk.gray(outputDir)}`,
+    `\n${process.exitCode ? chalk.yellow('⚠') : chalk.green('✓')} Fetched ${chalk.cyan(totalWritten)} tickets to ${chalk.gray(outputDir)}`,
   );
 }
 
@@ -126,6 +127,9 @@ async function fetchJiraManagerMode(options: FetchJiraOptions): Promise<void> {
         ),
       );
     } catch (error) {
+      // Later reports share the same credentials, so a rate limit stops the run
+      if (error instanceof RateLimitError) throw error;
+      process.exitCode = 1;
       console.error(
         chalk.red(`✗ ${report.name} failed:`),
         error instanceof Error ? error.message : String(error),
@@ -133,7 +137,11 @@ async function fetchJiraManagerMode(options: FetchJiraOptions): Promise<void> {
     }
   }
 
-  console.log(chalk.green('\n✓ All reports complete'));
+  console.log(
+    process.exitCode
+      ? chalk.yellow('\n⚠ All reports processed, with warnings (see above)')
+      : chalk.green('\n✓ All reports complete'),
+  );
 }
 
 export const jiraCommand = new Command('jira')

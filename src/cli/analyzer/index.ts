@@ -8,6 +8,7 @@ export { detectProjects } from './projects';
 export { type AnalysisStats, generateStats } from './stats';
 export {
   aggregateTeamProjects,
+  type TeamTimeline,
   aggregateTeamTimeline,
   generateContributorMatrix,
   writeTeamAnalysis,

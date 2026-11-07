@@ -21,26 +21,73 @@ interface LinkResult {
 }
 
 /**
+ * Prefixes of standards, algorithms and versioned names that share the
+ * `ABC-123` shape of a JIRA key (UTF-8, ISO-8601, SHA-256, GPT-4, ...).
+ *
+ * Used only when no JIRA projects are configured. With configured projects,
+ * matches are restricted to those project keys instead, so a real project
+ * named like one of these (e.g. `SHA`) still links.
+ */
+const NON_TICKET_PREFIXES = new Set([
+  'AES',
+  'ARM',
+  'CVE',
+  'CWE',
+  'ECMA',
+  'ES',
+  'GPT',
+  'HTTP',
+  'IEC',
+  'IEEE',
+  'IPV',
+  'ISO',
+  'MD',
+  'PEP',
+  'RFC',
+  'RSA',
+  'SHA',
+  'SSL',
+  'TLS',
+  'UTF',
+  'WCAG',
+]);
+
+/**
  * Extract JIRA ticket keys from text
  * Matches patterns like: PROJ-123, ABC-1, XYZ-9999
+ *
+ * With `projects`, only keys from those projects are returned. Without them,
+ * keys whose prefix is a known standard or version name (optionally followed
+ * by digits, as in `SHA3`) are dropped, unless the exact key is a fetched
+ * ticket in `knownKeys`.
  */
-function extractTicketKeys(text: string, projects?: string[]): string[] {
+function extractTicketKeys(
+  text: string,
+  projects: string[] | undefined,
+  knownKeys: ReadonlySet<string>,
+): string[] {
   // Match common JIRA ticket patterns: PROJECT-NUMBER
   const pattern = /\b([A-Z][A-Z0-9_]+-\d+)\b/g;
   const matches = text.match(pattern) || [];
   const keys = [...new Set(matches)];
+  const prefixOf = (key: string) => key.slice(0, key.lastIndexOf('-'));
 
   // If projects are specified, filter to only those projects
   if (projects && projects.length > 0) {
-    const projectPrefixes = projects.map((p) => p.toUpperCase());
-    return keys.filter((key) => {
-      const parts = key.split('-');
-      const prefix = parts[0];
-      return prefix !== undefined && projectPrefixes.includes(prefix);
-    });
+    // Keys in text are matched in upper case, so normalize the configured
+    // keys the same way (a stray space in config must not drop a project).
+    const projectPrefixes = new Set(
+      projects.map((p) => p.trim().toUpperCase()),
+    );
+    return keys.filter((key) => projectPrefixes.has(prefixOf(key)));
   }
 
-  return keys;
+  // A versioned standard keeps its base name before the digits (SHA3-256,
+  // MD5-1, IPV6-2), so compare that base against the deny-list.
+  const basePrefixOf = (key: string) => prefixOf(key).replace(/\d+$/, '');
+  return keys.filter(
+    (key) => knownKeys.has(key) || !NON_TICKET_PREFIXES.has(basePrefixOf(key)),
+  );
 }
 
 /**
@@ -90,6 +137,7 @@ export async function linkPRsToTickets(
   for (const ticket of tickets) {
     ticketMap.set(ticket.frontmatter.key, ticket);
   }
+  const knownTicketKeys = new Set(ticketMap.keys());
 
   let prsUpdated = 0;
   let ticketsUpdated = 0;
@@ -109,6 +157,7 @@ export async function linkPRsToTickets(
     const foundKeys = extractTicketKeys(
       searchText,
       knownProjects.length > 0 ? knownProjects : undefined,
+      knownTicketKeys,
     );
 
     if (foundKeys.length === 0) continue;
