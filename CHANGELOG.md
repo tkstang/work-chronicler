@@ -133,9 +133,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   failed as a yellow `⚠ <name> incomplete (...; JIRA failed for <projects>)`
   instead of a green `✓ <name> complete`.
 - JIRA project keys in `config.yaml` (`jira.instances[].projects`) and in
-  manager reports (`jiraProjects`) are trimmed and upper-cased when the config
-  is read, so `fetch jira` no longer queries `" PROJ "` or stores tickets
-  under a lower-case project; `link` already matched them that way.
+  manager reports (`jiraProjects`) are trimmed when the config is read, so
+  `fetch jira` no longer queries `" PROJ "` or stores tickets under a
+  directory with stray spaces. Case is kept, so existing tickets stay in their
+  project directory; `link` already matches keys case-insensitively.
 - `analyze reports --tag-prs` classifies with `analysis.thresholds` from the
   manager profile's `config.yaml`, as `analyze --tag-prs` does for IC profiles.
   The manager config used to drop the setting and always apply the defaults.

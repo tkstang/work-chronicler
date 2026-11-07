@@ -4,9 +4,10 @@ import { describe, expect, it } from 'vitest';
 import { ConfigSchema } from './schema';
 
 // Project keys go into the JQL query (`project = "<key>"`) and the work-log
-// path, so a stray space or lower-case key in config must not change either.
+// path, so a stray space in config must not change either. Case is kept so an
+// existing lower-case project directory stays where it is.
 describe('JIRA project key normalization at the config boundary', () => {
-  it('trims and upper-cases IC instance project keys', () => {
+  it('trims IC instance project keys without changing their case', () => {
     const config = ConfigSchema.parse({
       github: { username: '', orgs: [] },
       fetch: { since: '2025-01-01' },
@@ -23,12 +24,12 @@ describe('JIRA project key normalization at the config boundary', () => {
 
     expect(config.jira?.instances[0]?.projects).toEqual([
       'PROJ',
-      'OPS',
-      'WEB2',
+      'ops',
+      'Web2',
     ]);
   });
 
-  it('trims and upper-cases manager report project keys', () => {
+  it('trims manager report project keys without changing their case', () => {
     const config = ManagerConfigSchema.parse({
       mode: 'manager',
       github: { org: 'acme' },
@@ -43,6 +44,6 @@ describe('JIRA project key normalization at the config boundary', () => {
       ],
     });
 
-    expect(config.reports[0]?.jiraProjects).toEqual(['PROJ', 'OPS']);
+    expect(config.reports[0]?.jiraProjects).toEqual(['proj', 'OPS']);
   });
 });
