@@ -159,6 +159,14 @@ export interface TeamReportWeek {
   tickets: TimelineTicket[];
 }
 
+/**
+ * A dictionary keyed by report ID. It has no prototype, so an ID such as
+ * `constructor` or `__proto__` is an ordinary key.
+ */
+function reportDictionary<T>(): Record<string, T> {
+  return Object.create(null) as Record<string, T>;
+}
+
 /** A week of team activity, keyed by report ID in `byReport`. */
 export interface TeamTimelineWeek {
   weekStart: string;
@@ -278,7 +286,7 @@ export async function aggregateTeamTimeline(
           month: reportMonth.month,
           monthName: reportMonth.monthName,
           stats: emptyStats(),
-          byReport: {},
+          byReport: reportDictionary<TeamPeriodStats>(),
           weeks: [],
         };
         months.set(reportMonth.month, month);
@@ -300,7 +308,7 @@ export async function aggregateTeamTimeline(
             weekNumber: reportWeek.weekNumber,
             year: reportWeek.year,
             stats: emptyStats(),
-            byReport: {},
+            byReport: reportDictionary<TeamReportWeek>(),
           };
           month.weeks.push(week);
         }

@@ -236,6 +236,24 @@ describe('team timeline', () => {
     expect(april.weeks[0].byReport.bob.prs).toEqual([bobLaterPR]);
   });
 
+  // Report IDs are user-chosen names, so one must never collide with an
+  // inherited object property.
+  it('rolls up a report whose ID is an Object.prototype name', async () => {
+    const id = 'constructor';
+    writeTimeline(
+      id,
+      { since: '2025-03-01', until: '2025-03-31' },
+      { '2025-03': week('2025-03-03', '2025-03-09', [alicePR]) },
+    );
+
+    const timeline = await aggregateTeamTimeline('manager', [id]);
+
+    expect(timeline.reports).toEqual([id]);
+    const [march] = timeline.months;
+    expect(march?.byReport[id]?.prCount).toBe(1);
+    expect(march?.weeks[0]?.byReport[id]?.prs).toEqual([alicePR]);
+  });
+
   it('skips reports with a missing or malformed timeline', async () => {
     writeTimeline(
       'alice',

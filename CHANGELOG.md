@@ -60,6 +60,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reading a PR or ticket file no longer strips the indentation of the first
   body line, so a description that starts with an indented code block keeps
   it when `link` or `analyze --tag-prs` rewrites the file.
+- `analyze team` no longer crashes when a report ID matches a built-in object
+  property such as `constructor`.
 - `fetch jira` no longer requests the same page forever when JIRA repeats a
   page token; it reports the project as incomplete and exits non-zero.
 - `fetch jira` and `fetch all` exit non-zero when a JIRA project fails to
