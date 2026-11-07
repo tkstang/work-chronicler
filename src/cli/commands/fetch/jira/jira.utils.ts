@@ -121,6 +121,7 @@ async function fetchProjectTickets(
   let skipped = 0;
   let cached = 0;
   let nextPageToken: string | undefined;
+  const seenPageTokens = new Set<string>();
   const maxResults = 50;
 
   const sinceStr = formatJqlDate(since);
@@ -238,8 +239,11 @@ async function fetchProjectTickets(
       }
     }
 
-    // Use token-based pagination
+    // Use token-based pagination. A token already sent would fetch the same
+    // page again forever, so treat it as the end of the results.
     if (response.isLast || !response.nextPageToken) break;
+    if (seenPageTokens.has(response.nextPageToken)) break;
+    seenPageTokens.add(response.nextPageToken);
     nextPageToken = response.nextPageToken;
   }
 
@@ -364,6 +368,9 @@ async function fetchInstanceTickets(
         spinner.start();
       }
     } catch (error) {
+      // Keep fetching the other projects, but fail the run so a missing
+      // project is never mistaken for a complete work log.
+      process.exitCode = 1;
       spinner.stop();
       console.log(
         `  ${chalk.red('✗')} ${chalk.gray(instanceName)}/${chalk.cyan(project)}: ${chalk.red(error instanceof Error ? error.message : String(error))}`,
