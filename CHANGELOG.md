@@ -118,6 +118,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   profile named `manager` is no longer treated as a manager profile.
 - `analyze team` prints the team analysis directory as its output path, not
   a report directory named after the profile.
+- `init --mode manager` auto-discovers a report's repos with the GitHub token
+  entered in the wizard, instead of failing when `GITHUB_TOKEN` is not set. The
+  token is still saved only to the profile's `.env`.
 
 ## [0.3.2] - 2026-03-10
 

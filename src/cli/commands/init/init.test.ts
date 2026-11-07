@@ -18,6 +18,31 @@ const prompts = vi.hoisted(() => {
   return { answers, answer };
 });
 
+// GitHub is the external system for repo discovery: record the authorization
+// header of every client and answer as an org with no repos.
+const github = vi.hoisted(() => ({ authorizations: [] as string[] }));
+
+vi.mock('@octokit/graphql', () => ({
+  graphql: {
+    defaults: (options: { headers: { authorization: string } }) => {
+      github.authorizations.push(options.headers.authorization);
+      // The org check sends { login }; the repo listing sends { org }.
+      return async (_query: string, variables: { login?: string }) =>
+        variables.login
+          ? { organization: { id: 'org-1' } }
+          : {
+              organization: {
+                repositories: {
+                  pageInfo: { hasNextPage: false, endCursor: null },
+                  nodes: [],
+                  totalCount: 0,
+                },
+              },
+            };
+    },
+  },
+}));
+
 vi.mock('@inquirer/prompts', () => ({
   input: prompts.answer,
   select: prompts.answer,
@@ -46,6 +71,7 @@ describe('init', () => {
     vi.stubEnv('GITHUB_TOKEN', '');
     vi.stubEnv('JIRA_TOKEN', '');
     vi.spyOn(console, 'log').mockImplementation(() => {});
+    github.authorizations.length = 0;
     vi.resetModules();
   });
 
@@ -141,5 +167,32 @@ describe('init', () => {
       'GITHUB_TOKEN="ghp_mgr"',
     );
     expect(activeProfile()).toBe('team-leads');
+  });
+
+  it("auto-discovers a report's repos with the token entered in the wizard, without saving it to the config", async () => {
+    script({
+      'What would you like to name this profile?': ['team-leads'],
+      'How far back should we fetch data?': ['custom'],
+      'Enter start date (YYYY-MM-DD):': ['2026-01-01'],
+      'Enter end date (YYYY-MM-DD) (optional, blank for now):': [''],
+      'GitHub organization:': ['acme'],
+      'GitHub token:': ['ghp_mgr'],
+      'Configure JIRA?': [false],
+      'Add reports now?': [true],
+      'Name:': ['Alice Smith'],
+      'GitHub username:': ['alice'],
+      'Email:': ['alice@acme.io'],
+      'Repos:': ['discover'],
+      'Jira projects (comma-separated, or leave blank):': [''],
+      'Add another report?': [false],
+    });
+
+    // GITHUB_TOKEN is stubbed empty, so only the wizard's token can be used.
+    await runInit(['--mode', 'manager']);
+
+    expect(github.authorizations).toEqual(['token ghp_mgr']);
+    const configYaml = readProfileFile('team-leads', 'config.yaml');
+    expect(configYaml).not.toContain('ghp_mgr');
+    expect(parseYaml(configYaml).github).toEqual({ org: 'acme' });
   });
 });
