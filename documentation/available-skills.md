@@ -173,7 +173,7 @@ For ongoing peer relationships where you want to track notes and evidence:
 ```bash
 # Add colleague as a report (even if not your direct report)
 work-chronicler init --mode manager  # If not in manager mode
-work-chronicler reports add alice-smith --skip-fetch
+work-chronicler reports add "Alice Smith"
 
 # Add supporting data
 echo "Observations about Alice..." > reports/alice-smith/notes/collaboration.md
@@ -453,7 +453,7 @@ Skills provide drafts - review, refine, and personalize before submitting.
 ### Manager Workflow
 
 **Quarterly review prep:**
-1. Fetch data: `fetch all --all-reports --since YYYY-MM-DD`
+1. Fetch data: set `fetch.since` in the profile config, then `fetch all --all-reports`
 2. Add context: Upload past reviews, update notes
 3. Generate: `/work-chronicler-mgmt-write-review-packet {id} Q1-2026`
 4. Review and refine
@@ -521,7 +521,8 @@ work-chronicler analyze --all
 - **Try a skill**: Start with `/work-chronicler-summarize-work` for a quick summary
 - **Read more**:
   - [Manager Mode Guide](manager-mode.md) - Using manager mode features
-  - [README.md](../README.md) - CLI reference and setup
+  - [README.md](../README.md) - overview and quick start
+  - [Command reference](commands.md) - every CLI command and flag
   - [AGENTS.md](../AGENTS.md) - Project structure and development
 
 ---

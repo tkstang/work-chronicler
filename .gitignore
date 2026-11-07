@@ -44,13 +44,6 @@ generated/
 # Claude Code MCP configuration (contains API keys)
 .mcp.json
 
-# Ignore agent-specific project files (agent-agnostic)
-.agent/projects/**
-!.agent/projects/keep.md
-!.agent/projects/pr-descriptions/
-.agent/projects/pr-descriptions/**
-!.agent/projects/pr-descriptions/keep.md
-
 # Ignore claude instructions
 .claude/settings.local.json
 

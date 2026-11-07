@@ -1,16 +1,24 @@
 {
   "name": "work-chronicler",
   "version": "0.3.2",
-  "description": "Gather, analyze, and summarize your work history from GitHub PRs and JIRA tickets for performance reviews and resumes",
+  "description": "CLI and MCP server that turns your GitHub PRs and JIRA tickets into a searchable markdown work log for performance reviews and resumes.",
   "keywords": [
-    "ai",
+    "ai-agents",
     "cli",
+    "developer-tools",
     "github",
     "jira",
+    "markdown",
     "mcp",
+    "mcp-server",
     "performance-review",
-    "resume"
+    "resume",
+    "work-log"
   ],
+  "homepage": "https://github.com/tkstang/work-chronicler#readme",
+  "bugs": {
+    "url": "https://github.com/tkstang/work-chronicler/issues"
+  },
   "license": "MIT",
   "author": "Thomas Stang",
   "repository": {
@@ -23,7 +31,7 @@
   "files": [
     "dist",
     "bin",
-    ".agent"
+    ".agents/skills/work-chronicler-*/**"
   ],
   "type": "module",
   "exports": {

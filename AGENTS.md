@@ -14,14 +14,37 @@ Performance review time comes and you need to remember everything you accomplish
 
 Fetch PR descriptions and JIRA tickets, store them as searchable markdown files, and provide AI-ready tooling to analyze and summarize work.
 
+User-facing docs: `README.md` (overview and quick start) and `documentation/index.md` (configuration, command reference, MCP server, skills, manager mode).
+
+## Non-Negotiables
+
+- **Code is the source of truth for docs.** Every command, flag, path or MCP tool named in `README.md`, `documentation/` or a skill must exist in `src/`. Update the docs in the same PR as the behavior change.
+- **Never touch real user data.** Do not read, write or run the CLI against `~/.work-chronicler/`. Set `WORK_CHRONICLER_HOME` to a temporary directory for manual runs.
+- **Never commit secrets** (tokens, `.env`, `.mcp.json`) or build output (`dist/`).
+- **AGENTS.md only.** Do not add a `CLAUDE.md` at any level.
+- **Conventional Commits** on every commit (enforced by the `commit-msg` hook).
+- **The published package ships only `dist`, `bin` and `.agents/skills/work-chronicler-*`.** Repo-local skills and other agent files must stay out of the npm tarball.
+- **The CLI and MCP server never call an LLM.** AI work happens in skills, inside the user's assistant.
+- **Ask before** changing dependencies, CI workflows, the release process or the config schema in a breaking way.
+
+## Definition of Done
+
+- Use focused checks while editing; before handoff, run one final batch: lint, format, type-check and the test suite (see "Before Committing").
+- Run `pnpm build` when entry points, exports, path aliases or package `files` change. When packaging or skills paths change, also check `npm pack --dry-run` and that `skills install` still finds the packaged skills.
+- Record commands and results in the PR's Testing section. Re-run affected checks after any input changes.
+- CI on the ready PR is the independent proof; a skipped draft run is not verification.
+- User-visible changes get an entry under `## [Unreleased]` in `CHANGELOG.md`.
+
 ## Project Structure
 
 ```
 work-chronicler/
-├── .agent/
+├── .agents/
 │   └── skills/
-│       ├── work-chronicler-*/    # Package skills (installed via `skills install`)
-│       └── release-notes/        # Repo-local dev workflow skills
+│       ├── work-chronicler-*/    # Package skills (published; installed via `skills install`)
+│       └── release-notes/        # Repo-local dev workflow skill (not published)
+├── .github/                    # CI and release workflows, PR template
+├── documentation/              # User docs (index.md is the entry point)
 ├── src/
 │   ├── cli/                    # CLI application (Commander)
 │   │   ├── commands/           # CLI commands (see commands/README.md)
@@ -45,14 +68,23 @@ work-chronicler/
 │   └── mcp.js                  # Direct MCP server entry point
 ├── tools/
 │   └── git-hooks/              # Git hook management
-├── tsconfig.json               # TypeScript configuration
-├── biome.json                  # Linting/formatting config
+├── AGENTS.md                   # This file (no CLAUDE.md)
+├── CHANGELOG.md                # Keep a Changelog
+├── CONTRIBUTING.md             # Human contributor guide
+├── work-chronicler.example.yaml
+├── tsconfig.json               # TypeScript configuration (type-check, includes tests)
+├── tsconfig.build.json         # Build config (emits dist/, excludes tests)
+├── .oxlintrc.json              # oxlint rules
+├── .oxfmtrc.json               # oxfmt formatting
+├── pnpm-workspace.yaml         # pnpm settings (minimumReleaseAge, allowBuilds)
 └── package.json                # Single package (published as work-chronicler)
 ```
 
 ## Path Aliases
 
-The project uses TypeScript path aliases (resolved by tsc-alias at build time):
+The project uses TypeScript path aliases. They are defined in `tsconfig.json`
+without `baseUrl` (TypeScript 7), resolved by tsc-alias at build time and
+mirrored in `vitest.config.ts`:
 
 - `@core/*` → `src/core/*`
 - `@mcp/*` → `src/mcp/*`
@@ -65,6 +97,9 @@ The project uses TypeScript path aliases (resolved by tsc-alias at build time):
 - `@storage/*` → `src/core/storage/*`
 - `@wc-types/*` → `src/core/types/*`
 - `@workspace/*` → `src/core/workspace/*`
+
+Tests are co-located as `src/**/<name>.test.ts`. They import the module under
+test with `./` and everything else through the aliases.
 
 **Note:** Local imports should NOT use `.js` extensions - tsc-alias handles resolution. External package subpath imports (like `@modelcontextprotocol/sdk/server/mcp.js`) DO need `.js` extensions.
 
@@ -80,17 +115,16 @@ pnpm build
 # Run CLI during development
 pnpm cli <command>
 
-# Run type checking
-pnpm type-check
+# Run type checking (pnpm type-check is an alias)
+pnpm typecheck
 
-# Run linting
+# Lint the whole repo with oxlint (lint:fix applies safe fixes)
 pnpm lint
-
-# Fix lint issues
 pnpm lint:fix
 
-# Format code
-pnpm format:fix
+# Format with oxfmt (format:check only reports)
+pnpm format
+pnpm format:check
 
 # Run tests
 pnpm test
@@ -102,8 +136,9 @@ allocation. Main-push CI retains its existing scheduling. New ready-PR
 verification cancels earlier CI runs for that PR. Draft events and main pushes
 use isolated groups. Tagged releases and their publication jobs are outside this
 cancellation policy.
-The ordinary CI job and tagged releases run lint, type checking, the existing
-test suite and build. On PRs, CI then runs the publish dry-run against that build,
+The ordinary CI job runs on Node 24 with read-only permissions and a 20-minute
+timeout. It and tagged releases run lint, format check, type checking, the test
+suite and build. On PRs, CI then runs the publish dry-run against that build,
 reusing the checkout and dependencies with npm registry configuration. Main pushes
 do not run the publish dry-run. Tagged releases test the checked-out tag before
 publishing; a test failure prevents npm publication and the dependent GitHub
@@ -114,19 +149,21 @@ Release. Local checks are unchanged.
 Run these commands before committing changes:
 
 ```bash
-# Format, lint, type-check, and test
-pnpm format:fix
+pnpm format
 pnpm lint:fix
-pnpm type-check
+pnpm typecheck
 pnpm test
 ```
 
-Git hooks will also run lint-staged on commit, but running these manually first catches issues earlier.
+Git hooks run lint-staged (oxlint + oxfmt on staged files) on commit and
+commitlint on the message. Pre-push runs only `pnpm typecheck`; post-checkout
+reinstalls dependencies only when the lockfile changed.
 
 ## Key Files
 
 - `tsconfig.json` - TypeScript configuration with path aliases
-- `biome.json` - Linting and formatting rules
+- `.oxlintrc.json` / `.oxfmtrc.json` - Lint and format rules
+- `pnpm-workspace.yaml` - pnpm supply-chain settings
 - `work-chronicler.example.yaml` - Example configuration file
 - `src/core/index.ts` - Main exports from core module
 - `src/cli/index.ts` - CLI entry point
@@ -135,7 +172,7 @@ Git hooks will also run lint-staged on commit, but running these manually first 
 
 ## Tooling Architecture
 
-The project has three layers:
+The project has four layers:
 
 1. **CLI Commands** (programmatic, no AI):
    - `fetch github`, `fetch jira`, `fetch all` - Pull data from sources
@@ -153,20 +190,26 @@ The project has three layers:
    - `workspace profile|work-log|analysis|root` - Output workspace paths
    - `skills install|uninstall|list` - Manage AI skills
 
-2. **AI Skills** (portable, installed via `skills install`):
-   - `/work-chronicler-summarize-work` - Summarize PRs for time period
-   - `/work-chronicler-generate-resume-bullets` - Create achievement-focused bullet points
-   - `/work-chronicler-update-resume` - Update existing resume with new accomplishments
-   - `/work-chronicler-write-self-review` - Draft self-review for performance reviews
-   - `/work-chronicler-detect-projects` - Identify major project groupings
-   - `/work-chronicler-detect-themes` - Identify recurring themes across work
+2. **AI Skills** (package skills in `.agents/skills/`, installed via `skills install`):
+   - IC mode:
+     - `/work-chronicler-summarize-work` - Summarize PRs for time period
+     - `/work-chronicler-generate-resume-bullets` - Create achievement-focused bullet points
+     - `/work-chronicler-update-resume` - Update existing resume with new accomplishments
+     - `/work-chronicler-write-self-review` - Draft self-review for performance reviews
+     - `/work-chronicler-detect-projects` - Identify major project groupings
+     - `/work-chronicler-detect-themes` - Identify recurring themes across work
+   - Manager mode:
+     - `/work-chronicler-mgmt-write-review-packet` - Evidence-based review content for a direct report
+     - `/work-chronicler-mgmt-write-peer-review` - Peer reviews, with or without work-log data
+     - `/work-chronicler-mgmt-quarterly-highlights` - Quarterly highlights for one report
+     - `/work-chronicler-mgmt-team-summary` - Team-level overview across reports
 
 3. **Repo-local Skills** (dev workflows, not distributed with package):
    - `/release-notes` - Use after tagging a release to generate and update GitHub release notes
 
 4. **MCP Server** (read-only data access for AI assistants):
-   - Exposes work-log data to Claude Desktop, Cursor, etc.
-   - Tools: search_prs, search_tickets, get_linked_work, list_repos, get_stats, get_projects, get_timeline
+   - Exposes work-log data to Claude Desktop, Cursor, etc. over stdio
+   - Tools (registered in `src/mcp/server.ts`): `search_prs`, `search_tickets`, `get_linked_work`, `list_repos`, `get_stats`, `get_projects`, `get_timeline`
 
 ## Data Storage
 
@@ -222,8 +265,7 @@ Note: Manager mode uses `reports/<id>/outputs/` for per-report generated documen
 
 Key dependencies:
 
-- **CLI**: commander, @octokit/rest, jira.js, chalk, inquirer
-- **Google Docs**: googleapis, google-auth-library
+- **CLI**: commander, @octokit/rest, @octokit/graphql, @inquirer/prompts, chalk, ora, dotenv (JIRA uses its REST API directly; no JIRA client library)
 - **MCP**: @modelcontextprotocol/sdk
 - **Core**: zod, yaml, gray-matter
 
@@ -232,8 +274,10 @@ Key dependencies:
 The package is published to npm as `work-chronicler`.
 
 Pushing a version tag triggers the `release.yml` GitHub Actions workflow, which:
-1. Runs lint, type-check and the existing tests against the checked-out tag
-2. Builds and publishes to npm (requires `NPM_TOKEN` secret)
+1. Runs lint, format check, type-check and tests against the checked-out tag
+2. Builds and publishes to npm via trusted publishing (GitHub OIDC with
+   provenance); no npm token is stored. The tag must match the `package.json`
+   version, and an already-published version is skipped
 3. Creates a GitHub Release with auto-generated release notes
 
 ```bash
@@ -247,7 +291,7 @@ After the CI release is created, run `/release-notes` to generate meaningful rel
 
 ## Skill Conventions
 
-Skills live in `.agent/skills/<name>/skill.md`. There are two kinds:
+Skills live in `.agents/skills/<name>/` with a `SKILL.md` (uppercase; hosts on case-sensitive filesystems look for that exact name). `src/cli/commands/skills/install.ts` resolves this directory relative to the package root, and `package.json` `files` publishes only the `work-chronicler-*` directories. There are two kinds:
 
 - **Package skills** (`work-chronicler-*`): Distributed with the npm package via `skills install`. These operate on work-log data and are user-facing.
 - **Repo-local skills** (no prefix): Dev workflow skills that live in the repo but are not distributed. These help with development tasks like releasing.
