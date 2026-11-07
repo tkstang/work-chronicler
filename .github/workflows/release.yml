@@ -8,12 +8,14 @@ on:
 permissions:
   contents: read
 
-# One group per tag: a re-run of the same tag waits for the running one and
-# is never cancelled mid-publish, while different tags never displace each
-# other (a shared group keeps only one pending run and drops the rest).
+# One shared release queue so versions publish in tag order (npm refuses to
+# move `latest` back to an older version). `queue: max` keeps up to 100
+# pending runs instead of the default one, so a new tag never cancels a
+# waiting one, and nothing is cancelled mid-publish.
 concurrency:
-  group: release-${{ github.ref_name }}
+  group: release
   cancel-in-progress: false
+  queue: max
 
 env:
   GIT_HOOKS: '0'
