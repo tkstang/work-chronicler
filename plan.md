@@ -39,56 +39,306 @@ provisional. Do not add `### Task` headings to phases.
 
 ## Goal
 
-[State the outcome this project must achieve and why it matters.]
+Make work-chronicler gather review-relevant evidence beyond authored PRs and
+JIRA tickets — PR reviews the user gave, Slack messages and owned Google Docs —
+so self-reviews, resumes and manager review packets reflect the whole of
+someone's work. New evidence flows through the same work log, filters, MCP
+server and skills as PRs and tickets, under one verb-first skill naming rule,
+with each milestone merged to `main` and released to npm. The user needs this
+now to update their resume.
 
 ## Outcomes
 
-<!-- Number each outcome and name the evidence that will show it holds. Completion is audited against this list. -->
-
-1. **[Observable outcome]** — Evidence: [test, command, artifact, or review that will prove it]
-2. **[Observable outcome]** — Evidence: [test, command, artifact, or review that will prove it]
+1. **Package skills follow `work-chronicler-[manager-]<verb>-<object>` and
+   `skills install` migrates the five renamed skills safely on every selected
+   host.** — Evidence: migration tests (copy, live symlink, dangling symlink,
+   replacement conflict, overwrite refusal, repeat install, per host); a
+   packaged-install smoke test from the packed tarball into a temp `HOME`; a
+   grep showing old names only in the migration map, its tests and
+   CHANGELOG/upgrade notes.
+2. **IC users can fetch the PR reviews they gave inside the fetch range,
+   stored as their own records and never counted as authored work.** —
+   Evidence: mocked tests for an old PR reviewed inside the range, repeated
+   reviews on one PR, pending reviews excluded, pagination, edited comments,
+   rate limiting, a reviewed PR absent from the work log, and equal PR numbers
+   across repos; documentation of the invocation.
+3. **A staged import contract lets skills hand records to the CLI:
+   `work-chronicler import <dir>` validates, places and commits records
+   atomically, and `work-chronicler validate` diagnoses them.** — Evidence:
+   tests for malformed YAML, schema violations, duplicate identities, path
+   escape, rejected batches leaving existing records intact, interrupted and
+   repeated imports; nonzero exit and machine-readable errors on rejection.
+4. **Imported evidence is visible to every consumer.** `filter`, `status`,
+   stats, timeline, MCP tools, project detection and the writing and detection
+   skills either include `messages` and `documents` or state their PR/ticket-only
+   coverage, and mentions resolve to PRs and tickets where possible. —
+   Evidence: a mixed work-log test with an existing filtered subset; MCP tool
+   tests over imported records; linking tests for PR-URL normalization and
+   ticket mentions; skill text reviewed against the CLI.
+5. **Slack messages can be imported for an IC and, opt-in per report, for a
+   manager's report**, through `work-chronicler-setup-slack` and
+   `work-chronicler-import-slack`, under the privacy rules in Approach. —
+   Evidence: synthetic import → validate → link → MCP acceptance test;
+   negative tests (wrong identity, unconfigured report, prohibited channel, DM,
+   malformed record, repeated import); a live read-only walkthrough against the
+   user's own Slack with only redacted counts recorded.
+6. **Google Docs the subject owns can be imported for an IC and, opt-in per
+   report, for a manager's report (docs the report owns that are shared with the
+   manager)**, through `work-chronicler-import-google-docs`. — Evidence:
+   synthetic acceptance test; negative tests (doc not owned by the subject,
+   unconfigured report, out-of-range doc, malformed record, repeated import); a
+   live read-only walkthrough against the user's own Drive via `gog` with only
+   redacted counts recorded.
+7. **Each milestone is squash-merged to `main` and released: 0.5.0 (m01),
+   0.6.0 (m02), 0.7.0 (m03).** — Evidence: merged PR URLs, green `release.yml`
+   runs, `npm view work-chronicler@<version> version`, and a GitHub Release with
+   notes from `/release-notes`.
 
 ## Approach
 
-[Describe the intended approach: the modules and contracts involved and how the change fits them.]
+The existing architecture holds: the CLI and MCP server fetch, store and serve
+data and never call an LLM; skills inside the user's assistant do AI work and
+call external services (the Slack connector, `gog` or a Google Workspace MCP).
+New sources therefore split into a **skill** that reads the service and writes a
+staging batch, and the **CLI** that validates and stores it. GitHub reviews are
+the exception: the CLI already talks to GitHub, so they are fetched directly.
 
-<!-- Optional: add a `### Design` subsection when architecture decisions need recording. Delete this comment otherwise. -->
+### Design
+
+- **Naming (m01).** Rule `work-chronicler-[manager-]<verb>-<object>`, verbs
+  `setup`, `import`, `detect`, `summarize`, `write`, `update`. Renames:
+  `generate-resume-bullets` → `write-resume-bullets`;
+  `mgmt-write-peer-review` → `write-peer-review`;
+  `mgmt-write-review-packet` → `manager-write-review-packet`;
+  `mgmt-quarterly-highlights` → `manager-write-quarterly-highlights`;
+  `mgmt-team-summary` → `manager-write-team-summary`. `release-notes` is
+  repo-local and exempt. `skills install` carries an explicit old → new map;
+  per selected host it installs and verifies the replacement before removing
+  the old entry, unlinks symlinks (live or dangling) without touching targets,
+  removes copies only after the replacement exists, respects the overwrite
+  refusal, and leaves unselected hosts alone (documented).
+- **PR reviews given (m01).** REST-first. Inclusion by review `submitted_at`
+  and inline comment `created_at` inside the fetch range, regardless of the
+  reviewed PR's age or author. Pending reviews excluded; ordinary PR
+  conversation comments excluded. Records keep review and comment IDs distinct,
+  the canonical reviewed-PR URL and minimal parent metadata. Cache by stable
+  record identity. Existing fatal rate-limit handling, bounded concurrency and
+  incomplete-run reporting are preserved. IC-only.
+- **Import envelope (m02).** Thin common frontmatter: schema version, source,
+  stable source ID scoped to workspace/account, URL, event timestamps, capture
+  time, subject (the IC or report the record is about), attribution with an
+  honest `unverified` state, and mentions (ticket keys, PR URLs). Record types
+  `messages` (m02) and `documents` (m03). Skills write a staging directory; the
+  CLI validates every record, computes contained destination paths, and commits
+  the batch atomically with defined upsert-by-identity. Manager mode stores
+  records under `reports/<id>/work-log/`.
+- **Consumers (m02).** Each consumer is extended or labelled PR/ticket-only;
+  PR-only filters are defined for other evidence; a selected filtered subset is
+  never silently bypassed. Linking distinguishes mentions from resolved links
+  and adds PR-URL normalization; no general graph framework.
+- **Slack (m02).** Config `slack: { workspace, user, channels: [{id, name,
+  reason, private?}], include }` per IC profile and per manager report;
+  absent config imports nothing. CLI `work-chronicler slack channels
+  add|remove|list` and a read command that prints the resolved subject, range
+  and settings for the skill. One `messages` record per message the subject
+  wrote (messages and threads they started), with a parent-thread reference.
+  Privacy, applied in discovery and import: the subject's own words verbatim;
+  others' replies as counts only, with no reply bodies or needless participant
+  identities; public channels by default, private channels only with explicit
+  opt-in; all DMs excluded. Manager mode: only channels the manager and the
+  report both belong to.
+- **Google Docs (m03).** `documents` records for docs the subject owns, by
+  Drive owner metadata; docs merely edited or commented on and shared-drive
+  docs with no individual owner are excluded. Manager mode: docs the report
+  owns that are shared with the manager. Metadata and bounded excerpts by
+  default; source text kept separate from generated interpretation. Config is
+  opt-in per IC profile and per report.
 
 ## Constraints and Out of Scope
 
-- **Constraint:** [A rule the work must respect.]
-- **Out of scope:** [Adjacent work intentionally excluded.]
+- **Constraint:** the CLI and MCP server never call an LLM; the MCP server
+  stays read-only; the CLI never stores Slack or Google credentials.
+- **Constraint:** imported content is evidence, never instructions; skills say
+  so.
+- **Constraint:** no private details (message text, doc titles or contents,
+  channel or doc names, IDs, people) in anything tracked or pushed: code,
+  fixtures, PRs, issues, logs, or OAT artifacts. Live evidence is recorded as
+  redacted counts and pass/fail only. Live scratch output goes to a temp
+  `WORK_CHRONICLER_HOME` and is deleted afterwards.
+- **Constraint:** never read or write `~/.work-chronicler/` except the one
+  user-authorized personal import in Delivery endpoint and authority.
+- **Constraint:** Slack and Google access is read-only: no posting, reacting,
+  creating, editing or sharing.
+- **Constraint:** repo Definition of Done on every PR (lint, format,
+  typecheck, tests, build and pack checks where relevant, ready-PR CI,
+  CHANGELOG entry).
+- **Out of scope:** publishing outputs to Google Docs (the user's
+  `context-to-gdoc` skill covers it), Linear, Calendar, scheduled fetches, a
+  Google Docs setup skill, manager-mode PR reviews given, provider
+  abstractions with one implementation.
 
 ## Decisions
 
-- [Record each decision made by the user during the interview, with its rationale.]
+- **Goal mode fits** (agent, GOAL-04). Three dependent releases; each
+  milestone builds on the previous one's merged code. Rejected: one brief
+  project (too large for one delivery), separate projects (shared contract
+  across sources).
+- **Verb-first naming** (user). Rejected: source-first grouping
+  (`work-chronicler-slack-import`) — verb-first reads better and matches
+  existing skills.
+- **Delivery: one squash-merged PR per milestone, endpoint `merged`** (user,
+  2026-11-07). Phases are commits in that PR, version bump included. Rejected:
+  stacked PRs per phase, `open` endpoint.
+- **Milestone branches chain** (agent). Each milestone uses its own branch
+  `oat/evidence-expansion-mNN`, started from the previous milestone branch
+  head with `origin/main` merged in, so phase anchors stay ancestors across
+  milestones while `main` stays squash-only. Rejected: branching each
+  milestone from `main` (breaks anchor ancestry), reusing one head branch
+  (ambiguous delivery lookup).
+- **m01 bundles the renames with PR reviews given, released as 0.5.0**
+  (user). Rejected: renames-only m01.
+- **PR reviews given are IC-only** (user). Rejected: manager mode now.
+- **Manager-mode Slack and Docs are in scope, opt-in per report** (user,
+  2026-11-07): Slack messages in channels the manager and report share; Docs
+  the report owns and has shared with the manager. An unconfigured report
+  contributes nothing. Supersedes the earlier IC-only proposal.
+- **Google Docs: owned only** (user). Rejected: edited/commented docs (needs
+  attribution the APIs do not give reliably).
+- **Publishing outputs to Google Docs dropped** (user, 2026-11-07). Rejected:
+  skill-text offer in writing skills.
+- **Releases pre-approved** (user, 2026-11-07): the agent pushes each version
+  tag after the milestone merges and verifies publication. Rejected: approval
+  per tag.
+- **Autonomous run** (user, 2026-11-07): the agent runs every milestone
+  through implementation, review, merge, release and re-alignment without
+  stopping, consulting Codex `gpt-6-astra` (high) as advisor on any
+  re-alignment change. Brief and amendment approvals (GOAL-11) and re-alignment
+  (GOAL-12) resolve under this authority; the terminal declaration stays the
+  user's. Rejected: approval stop per milestone.
+- **Live verification allowed, read-only** (user, 2026-11-07): Slack through
+  the Slack plugin connector and Google Docs through the user's configured
+  `gog`. Rejected: synthetic-only evidence.
+- **Ledger: the OAT project only** (user). Rejected: GitHub tracking issue.
 
 ## Known Unknowns
 
-- [Open question] — Settled by: [phase ID that resolves it]
+- How `skills install` detects the five old names on each host (copy vs
+  symlink layout) and whether any host caches skill names. — Settled by: p01
+- Invocation of PR reviews given (part of `fetch github` by default, a flag,
+  or a subcommand), and whether GraphQL contribution discovery is complete
+  enough to use. — Settled by: p02
+- Where imported records live in the work log and how upsert identity is
+  keyed per source. — Settled by: p04
+- Which consumers are extended versus labelled PR/ticket-only. — Settled by:
+  p05
+- Whether the Slack connector exposes author identity, channel visibility,
+  membership, pagination and reply counts without retrieving others' text. —
+  Settled by: p06
+- Whether `gog` can list docs filtered by owner (the user, or a report
+  sharing with the manager) with created/modified times and pagination, and
+  which timestamp the date range applies to. — Settled by: p09
 
 ## Delivery endpoint and authority
 
-- **Endpoint:** [open | merged] — [what "delivered" means for this project]
-- **Authority:** [who approves the brief, phase acceptance, and the delivery; what the agent may decide alone]
+- **Endpoint:** `merged` — a milestone is delivered when its PR is
+  squash-merged to `main`; its release follows immediately.
+- **Authority (agent, without asking):** edits and commits on named branches
+  in T3 worktrees; pushes; PRs; squash-merge with
+  `--match-head-commit` after independent review approval and green CI;
+  version-tag pushes for 0.5.0, 0.6.0 and 0.7.0 after each merge, then
+  `/release-notes`; additive config-schema changes; brief amendments and
+  milestone activation under the autonomous-run decision, with Astra advising
+  re-alignment; read-only live reads of the user's own Slack (Slack plugin) and
+  Google Drive (`gog`) into a temp `WORK_CHRONICLER_HOME`.
+- **Ask or stop first:** new runtime dependencies, CI or release workflow
+  changes, breaking config-schema changes beyond the agreed skill renames, any
+  change to an Outcome or Constraint, and a re-alignment change Astra does not
+  support.
+- **Personal import (user-authorized, after 0.7.0 is published):** using the
+  released CLI, the agent may add Slack and Google Docs settings to the user's
+  live `default` profile (backing up its config first) and import the user's
+  own owned Docs and relevant Slack messages there. Nothing else under
+  `~/.work-chronicler/` is touched, and none of that data leaves the machine.
+- **Never:** storing credentials; posting or writing to Slack or Google;
+  putting imported content in tracked files, PRs, issues or logs; declaring
+  the goal met (the user's call).
+- **Reviews:** implementers are Claude; every phase gets an independent
+  review, and each milestone an integrated cross-provider review by Codex
+  `gpt-6.1-sol` (high). The root dispositions every finding; material fixes get
+  independent confirmation.
 
 ## Milestones
 
-<!-- One row per milestone: its id (m01, m02, …) and its ordered, comma-separated phase ids. Every phase, including revision phases, belongs to exactly one milestone. -->
+| Milestone | Phases                  |
+| --------- | ----------------------- |
+| m01       | p01, p02, p03           |
+| m02       | p04, p05, p06, p07, p08 |
+| m03       | p09, p10, p11           |
 
-| Milestone | Phases |
-| --------- | ------ |
+## Phase p01: Verb-first skill names and install migration
 
-## Phase p01: [Phase Name]
-
-**Intent:** [What this phase changes and why.]
-**Exit evidence:** [The verification that shows the phase is done.]
+**Intent:** Rename the five package skills to the verb-first rule (directories, frontmatter `name`, invocation examples, cross-references, README, `documentation/`, AGENTS.md naming rule), and teach `skills install` an explicit old → new migration that is safe per selected host.
+**Exit evidence:** Migration tests for copy, live symlink, dangling symlink, replacement conflict, overwrite refusal and repeat install across hosts pass; a packaged-install smoke test from `npm pack` into a temp `HOME` installs only new names and removes old ones; `rg` shows old names only in the migration map, its tests and CHANGELOG/upgrade notes; full DoD batch green.
 **Provisional:** no
 
-## Phase p02: [Phase Name]
+## Phase p02: PR reviews given (IC)
 
-**Intent:** [What this phase is expected to change; refine before it starts.]
-**Exit evidence:** [The verification expected to show the phase is done.]
+**Intent:** Fetch the reviews and inline review comments the IC submitted inside the fetch range on any PR, store them as review records linked to the canonical reviewed-PR URL, show them in `status` and the MCP server, and let the writing skills cite them as review work, never as authored PRs.
+**Exit evidence:** Mocked tests for an old PR reviewed inside the range, repeated reviews, pending reviews excluded, pagination, edited comments, rate limiting, reviewed PR absent from the work log, and equal PR numbers across repos pass; manager profiles explicitly skip it; docs and CHANGELOG updated; full DoD batch green.
+**Provisional:** no
+
+## Phase p03: 0.5.0 release preparation
+
+**Intent:** Bump `package.json` to 0.5.0 and move the Unreleased CHANGELOG entries under `[0.5.0]`, including breaking notes for the skill renames (re-run `skills install`).
+**Exit evidence:** Version and CHANGELOG committed; `pnpm build` and `npm pack --dry-run` show the renamed skills in the tarball; milestone PR CI green.
+**Provisional:** no
+
+## Phase p04: Staged import contract
+
+**Intent:** Add the shared import envelope and the `messages` record type, plus `work-chronicler import <dir>` (validate, contained destination paths, atomic commit, upsert by identity, manager-report targeting) and `work-chronicler validate`.
+**Exit evidence:** Tests for malformed YAML, schema violations, duplicate identities, path escape, rejected batches preserving existing records, interrupted and repeated imports, and machine-readable errors pass; docs updated.
+**Provisional:** yes
+
+## Phase p05: Consumers and linking for imported evidence
+
+**Intent:** Extend or label each consumer (`filter`, `status`, stats, timeline, MCP tools, project detection, writing and detection skills) for imported records, and add mention resolution with PR-URL normalization.
+**Exit evidence:** A mixed work-log test with an existing filtered subset passes; MCP tool tests over imported records pass; linking tests pass; skills name supplementary evidence explicitly.
+**Provisional:** yes
+
+## Phase p06: Slack configuration and CLI
+
+**Intent:** Add the Slack config for IC profiles and manager reports, `work-chronicler slack channels add|remove|list`, and the read command the skills use, enforcing opt-in, channel and privacy rules in the CLI.
+**Exit evidence:** Config and command tests including unconfigured report, private channel without opt-in, DM rejection and non-destructive config updates pass; the Slack connector capability unknown is settled and recorded.
+**Provisional:** yes
+
+## Phase p07: Slack skills and live walkthrough
+
+**Intent:** Write `work-chronicler-setup-slack` (interactive channel discovery that populates config) and `work-chronicler-import-slack` (staging batch → `import`), for IC and opted-in reports.
+**Exit evidence:** Synthetic acceptance test (import → validate → link → MCP) and negative cases pass; a live read-only walkthrough against the user's own Slack into a temp home records only redacted counts, validation results and rerun behavior in the journal.
+**Provisional:** yes
+
+## Phase p08: 0.6.0 release preparation
+
+**Intent:** Bump to 0.6.0 and finalize the CHANGELOG for the import contract and Slack.
+**Exit evidence:** Version and CHANGELOG committed; build and pack checks pass; milestone PR CI green.
+**Provisional:** yes
+
+## Phase p09: Google Docs documents record and config
+
+**Intent:** Add the `documents` record type on the envelope and opt-in Google Docs config for IC profiles and manager reports, with ownership as the inclusion test and a defined date-range field.
+**Exit evidence:** Import tests for owned versus non-owned docs, unconfigured report, out-of-range docs, malformed records and repeated imports pass; consumers from p05 cover `documents`; the `gog` capability unknown is settled and recorded.
+**Provisional:** yes
+
+## Phase p10: Google Docs import skill and live walkthrough
+
+**Intent:** Write `work-chronicler-import-google-docs` (via `gog` or a Google Workspace MCP) for the IC and for opted-in reports.
+**Exit evidence:** Synthetic acceptance test passes; a live read-only walkthrough against the user's own Drive via `gog` into a temp home records only redacted counts and validation results in the journal.
+**Provisional:** yes
+
+## Phase p11: 0.7.0 release preparation
+
+**Intent:** Bump to 0.7.0 and finalize the CHANGELOG for Google Docs.
+**Exit evidence:** Version and CHANGELOG committed; build and pack checks pass; milestone PR CI green.
 **Provisional:** yes
 
 ---
@@ -113,6 +363,8 @@ Default is `[]` (fully sequential, no worktrees).
 | ----- | -------- | ------- | ---- | -------- | ------------- | ---------- | ----------- |
 | plan  | artifact | pending | -    | -        | -             | -          | -           |
 | p01   | code     | pending | -    | -        | -             | -          | -           |
+| p02   | code     | pending | -    | -        | -             | -          | -           |
+| p03   | code     | pending | -    | -        | -             | -          | -           |
 | final | code     | pending | -    | -        | -             | -          | -           |
 
 Add one `code` row per phase as phases become concrete. For code-review events,
@@ -125,11 +377,7 @@ Writers must preserve every existing row and every unknown trailing cell.
 
 ## Implementation Complete
 
-**Summary:**
-
-- Phase p01: [Description]
-
-**Total: [N] phases**
+**Summary:** filled at closeout.
 
 Ready for final code review and PR preparation.
 
