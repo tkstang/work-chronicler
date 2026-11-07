@@ -21,6 +21,10 @@ import {
   resolveReportOutputDir,
 } from './fetch-manager.utils';
 import { resolveCacheBehavior } from './fetch.utils';
+import {
+  fetchGitHubReviews,
+  MANAGER_REVIEWS_SKIPPED,
+} from './github/github-reviews.utils';
 import { fetchGitHubPRs, RateLimitError } from './github/github.utils';
 import { fetchJiraTickets } from './jira/jira.utils';
 
@@ -31,6 +35,7 @@ interface FetchAllOptions {
   link: boolean;
   report?: string;
   allReports?: boolean;
+  reviews?: boolean;
 }
 
 /**
@@ -66,6 +71,19 @@ async function fetchAllICMode(options: FetchAllOptions): Promise<void> {
     useCache,
   });
   const totalPRs = githubResults.reduce((sum, r) => sum + r.prsWritten, 0);
+
+  // PR reviews given, only when asked: they cost extra API requests
+  let reviewedPRs: number | null = null;
+  if (options.reviews) {
+    console.log();
+    const reviewResults = await fetchGitHubReviews({
+      config,
+      outputDir,
+      verbose: options.verbose,
+      useCache,
+    });
+    reviewedPRs = reviewResults.reduce((sum, r) => sum + r.recordsWritten, 0);
+  }
 
   // Fetch JIRA tickets
   let totalTickets = 0;
@@ -104,6 +122,11 @@ async function fetchAllICMode(options: FetchAllOptions): Promise<void> {
   console.log(chalk.bold('📊 Summary'));
   console.log(separator);
   console.log(`  ${chalk.cyan('PRs fetched:')}      ${chalk.green(totalPRs)}`);
+  if (reviewedPRs !== null) {
+    console.log(
+      `  ${chalk.cyan('PRs reviewed:')}     ${chalk.green(reviewedPRs)}`,
+    );
+  }
   console.log(
     `  ${chalk.cyan('Tickets fetched:')} ${chalk.green(totalTickets)}`,
   );
@@ -124,6 +147,10 @@ async function fetchAllICMode(options: FetchAllOptions): Promise<void> {
  */
 async function fetchAllManagerMode(options: FetchAllOptions): Promise<void> {
   const reportIds = await resolveReportIds(options);
+
+  if (options.reviews) {
+    console.log(chalk.yellow(`\n${MANAGER_REVIEWS_SKIPPED}`));
+  }
 
   console.log(
     chalk.blue(`\n📥 Fetching all data for ${reportIds.length} report(s)...\n`),
@@ -219,6 +246,10 @@ export const allCommand = new Command('all')
   .option('-v, --verbose', 'Show detailed output')
   .option('--no-link', 'Skip linking PRs to tickets')
   .option('--cache', 'Skip items that already exist in work log')
+  .option(
+    '--reviews',
+    'Also fetch the PR reviews you gave inside the date range (IC profiles only)',
+  )
   .option('--report <id>', 'Report ID (manager mode only)')
   .option('--all-reports', 'Fetch for all reports (manager mode only)')
   .action(async (options) => {

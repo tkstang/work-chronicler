@@ -59,8 +59,15 @@ export const PRReviewRecordSchema = z.object({
   /** Login of the user who gave the reviews */
   reviewer: z.string(),
   pr: ReviewedPullRequestSchema,
-  /** The PR's `updated_at` when last fetched; `--cache` skips unchanged PRs */
+  /**
+   * The PR's `updated_at` when last fetched. With `--cache`, a PR whose
+   * `updated_at` is unchanged and whose range is already covered is skipped.
+   */
   prUpdatedAt: IsoDateTimeSchema,
+  /** The fetch range this record was last written for */
+  fetchedRange: z
+    .object({ since: IsoDateTimeSchema, until: IsoDateTimeSchema })
+    .optional(),
   reviews: z.array(GivenReviewSchema).default([]),
   comments: z.array(GivenReviewCommentSchema).default([]),
 });
