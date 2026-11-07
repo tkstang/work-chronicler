@@ -32,20 +32,9 @@ export function getGitHubNameProblem(normalized: string): string | null {
 }
 
 /**
- * A required GitHub org or user name, normalized at parse time.
- */
-export const GitHubNameSchema = z
-  .string()
-  .transform(normalizeGitHubName)
-  .superRefine((name, ctx) => {
-    const problem = getGitHubNameProblem(name);
-    if (problem)
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: problem });
-  });
-
-/**
  * A GitHub name that may be empty (e.g. the IC username of a JIRA-only
- * profile). Callers that need a value must check for emptiness themselves.
+ * profile), normalized at parse time. Callers that need a value must check
+ * for emptiness themselves.
  */
 export const OptionalGitHubNameSchema = z
   .string()
@@ -55,3 +44,11 @@ export const OptionalGitHubNameSchema = z
     if (problem)
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: problem });
   });
+
+/**
+ * A required GitHub org or user name, normalized at parse time.
+ */
+export const GitHubNameSchema = OptionalGitHubNameSchema.refine(
+  (name) => name.length > 0,
+  'GitHub name is required',
+);

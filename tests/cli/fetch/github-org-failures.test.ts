@@ -8,6 +8,8 @@ import type { Config } from '../../../src/core/config/schema';
 const repoResponses = new Map<string, 'not-found' | 'empty'>();
 
 const notFound = () => Object.assign(new Error('Not Found'), { status: 404 });
+let listingError: () => Error = notFound;
+const pullsListedFor: string[] = [];
 
 vi.mock('@octokit/rest', () => ({
   Octokit: class {
@@ -18,11 +20,12 @@ vi.mock('@octokit/rest', () => ({
     };
     repos = {
       listForOrg: async () => {
-        throw notFound();
+        throw listingError();
       },
     };
     pulls = {
       list: async ({ repo }: { repo: string }) => {
+        pullsListedFor.push(repo);
         if (repoResponses.get(repo) === 'empty') return { data: [] };
         throw notFound();
       },
@@ -61,6 +64,8 @@ describe('fetchGitHubPRs org failure reporting', () => {
       logs.push(args.join(' '));
     });
     repoResponses.clear();
+    pullsListedFor.length = 0;
+    listingError = notFound;
     process.exitCode = undefined;
   });
 
@@ -91,6 +96,19 @@ describe('fetchGitHubPRs org failure reporting', () => {
     expect(warning).toContain('voxmedia');
     expect(logs.some((line) => line.includes('acme'))).toBe(true);
     expect(process.exitCode).toBe(1);
+  });
+
+  it('aborts instead of moving on when listing is rate limited (429)', async () => {
+    listingError = () =>
+      Object.assign(new Error('Too Many Requests'), { status: 429 });
+
+    await expect(
+      fetchGitHubPRs({
+        config: configFor(['*'], [{ name: 'acme', repos: ['web'] }]),
+        outputDir,
+      }),
+    ).rejects.toThrow(/rate limit/);
+    expect(pullsListedFor).toEqual([]);
   });
 
   it('does not warn when only some repos error', async () => {

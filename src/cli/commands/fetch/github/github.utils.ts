@@ -30,14 +30,12 @@ type RequestError = {
  * Check if an error is a GitHub rate limit error
  */
 function isRateLimitError(error: unknown): error is RequestError {
-  if (
-    !error ||
-    typeof error !== 'object' ||
-    !('status' in error) ||
-    error.status !== 403
-  ) {
+  if (!error || typeof error !== 'object' || !('status' in error)) {
     return false;
   }
+  // GitHub signals rate limits with 429, or 403 plus rate-limit headers
+  if (error.status === 429) return true;
+  if (error.status !== 403) return false;
   const reqError = error as RequestError;
   return (
     reqError.response?.headers?.['x-ratelimit-remaining'] === '0' ||

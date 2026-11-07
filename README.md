@@ -275,7 +275,7 @@ See [work-chronicler.example.yaml](work-chronicler.example.yaml) for a complete 
 
 GitHub org and user names are the login as it appears in `github.com/<name>`. A leading `@` is stripped (`@acme` is read as `acme`); any other `@` is rejected.
 
-If every repository in an org fails to fetch (for example, a misspelled org or a token without access), `fetch github` and `fetch all` print a warning naming the org, finish the remaining orgs and steps, and exit with status 1 so scheduled runs notice.
+If nothing can be fetched from an org (every repository fails, or with `repos: ["*"]` the org cannot be listed — for example, a misspelled org or a token without access), `fetch github` and `fetch all` print a warning naming the org, finish the remaining orgs and steps, and exit with status 1 so scheduled runs notice.
 
 ### GitHub Token
 

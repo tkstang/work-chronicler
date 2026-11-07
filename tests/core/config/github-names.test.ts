@@ -44,6 +44,7 @@ describe('GitHub name normalization at the config boundary', () => {
     expect(withOrg('@')).toBe(false);
     expect(withOrg('@@voxmedia')).toBe(false);
     expect(withOrg('voxmedia', '@')).toBe(false);
+    expect(withOrg('voxmedia', '')).toBe(false);
   });
 
   it('still allows an empty username when no orgs are configured', () => {
