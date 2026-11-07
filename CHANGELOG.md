@@ -124,6 +124,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `analyze team` lists a report in `skippedReports` when its timeline's date
   range is reversed or is not a real `YYYY-MM-DD` date (such as `2025-02-30`),
   instead of merging it into the team date range.
+- `analyze --timeline` and `analyze reports --timeline` compute weeks and
+  months in UTC. West of UTC, a week starting on the 1st was filed under the
+  previous month, and a PR merged late on Sunday local time (Monday in UTC)
+  landed in the previous week. Re-run the timeline to regroup existing
+  analysis.
 
 ## [0.3.2] - 2026-03-10
 
