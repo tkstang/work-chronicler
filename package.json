@@ -3,8 +3,6 @@
   "version": "0.3.2",
   "description": "Gather, analyze, and summarize your work history from GitHub PRs and JIRA tickets for performance reviews and resumes",
   "type": "module",
-  "main": "dist/cli/index.js",
-  "types": "dist/cli/index.d.ts",
   "bin": {
     "work-chronicler": "./bin/work-chronicler.js"
   },
@@ -15,25 +13,26 @@
     }
   },
   "scripts": {
-    "build": "tsc && tsc-alias",
+    "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
     "clean": "rm -rf dist",
     "cli": "tsx src/cli/index.ts",
-    "mcp": "tsx src/cli/index.ts mcp",
-    "dev": "tsc --watch",
+    "dev": "tsc -p tsconfig.build.json --watch",
     "format": "biome format src/",
     "format:fix": "biome format --write src/",
+    "hooks": "node tools/git-hooks/manage-hooks.js",
     "hooks:disable-all": "node tools/git-hooks/manage-hooks.js disable-all",
     "hooks:enable-all": "node tools/git-hooks/manage-hooks.js enable-all",
     "hooks:status": "node tools/git-hooks/manage-hooks.js status",
-    "hooks": "node tools/git-hooks/manage-hooks.js",
     "lint": "biome lint src/",
     "lint:fix": "biome lint --write src/",
+    "mcp": "tsx src/cli/index.ts mcp",
     "prepare": "test \"$GIT_HOOKS\" = \"0\" && exit 0; node tools/git-hooks/manage-hooks.js setup 2>/dev/null || true",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
-    "type-check": "tsc --noEmit"
+    "test:ui": "vitest --ui",
+    "test:watch": "vitest",
+    "type-check": "pnpm run typecheck",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@inquirer/prompts": "^8.2.0",
@@ -53,12 +52,12 @@
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
     "@types/inquirer": "^9.0.9",
-    "@types/node": "^22.10.0",
+    "@types/node": "^22.20.0",
     "@vitest/ui": "^4.0.18",
     "lint-staged": "^15.2.11",
-    "tsc-alias": "^1.8.10",
+    "tsc-alias": "^1.9.10",
     "tsx": "^4.21.0",
-    "typescript": "^5.8.3",
+    "typescript": "^7.0.2",
     "vitest": "^4.0.18"
   },
   "files": [
@@ -66,9 +65,10 @@
     "bin",
     ".agent"
   ],
-  "packageManager": "pnpm@10.13.1",
+  "packageManager": "pnpm@12.18.0",
   "engines": {
-    "node": ">=22.17.0"
+    "node": ">=22.22.1",
+    "pnpm": ">=12"
   },
   "repository": {
     "type": "git",
@@ -84,5 +84,7 @@
     "ai"
   ],
   "author": "Thomas Stang",
-  "license": "MIT"
+  "license": "MIT",
+  "main": "dist/cli/index.js",
+  "types": "dist/cli/index.d.ts"
 }

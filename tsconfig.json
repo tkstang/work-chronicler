@@ -5,34 +5,29 @@
     "lib": ["ES2022"],
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": false,
     "resolveJsonModule": true,
-    "allowJs": true,
     "strict": true,
-    "noEmit": false,
-    "outDir": "dist",
-    "rootDir": "src",
-    "baseUrl": ".",
+    // Type-check only; tsconfig.build.json turns emit on.
+    "noEmit": true,
+    // No `baseUrl` (removed in TypeScript 7): paths resolve relative to this
+    // file. tsc-alias rewrites them in the emitted JavaScript.
     "paths": {
-      "@core/*": ["src/core/*"],
-      "@mcp/*": ["src/mcp/*"],
-      "@cli/*": ["src/cli/*"],
-      "@commands/*": ["src/cli/commands/*"],
-      "@linker/*": ["src/cli/linker/*"],
-      "@prompts": ["src/cli/prompts/index.ts"],
-      "@analyzer/*": ["src/cli/analyzer/*"],
-      "@config/*": ["src/core/config/*"],
-      "@storage/*": ["src/core/storage/*"],
-      "@wc-types/*": ["src/core/types/*"],
-      "@workspace/*": ["src/core/workspace/*"]
+      "@core/*": ["./src/core/*"],
+      "@mcp/*": ["./src/mcp/*"],
+      "@cli/*": ["./src/cli/*"],
+      "@commands/*": ["./src/cli/commands/*"],
+      "@linker/*": ["./src/cli/linker/*"],
+      "@prompts": ["./src/cli/prompts/index.ts"],
+      "@analyzer/*": ["./src/cli/analyzer/*"],
+      "@config/*": ["./src/core/config/*"],
+      "@storage/*": ["./src/core/storage/*"],
+      "@wc-types/*": ["./src/core/types/*"],
+      "@workspace/*": ["./src/core/workspace/*"]
     },
     "isolatedModules": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "declaration": true,
-    "declarationMap": true,
-    "incremental": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": false,
@@ -42,18 +37,6 @@
     "verbatimModuleSyntax": true,
     "types": ["node"]
   },
-  "tsc-alias": {
-    "verbose": false,
-    "resolveFullPaths": true,
-    "resolveFullExtension": ".js"
-  },
-  "include": ["src/**/*"],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "build",
-    "coverage",
-    "**/*.test.ts",
-    "**/*.spec.ts"
-  ]
+  "include": ["src", "vitest.config.ts"],
+  "exclude": ["node_modules", "dist", "coverage"]
 }

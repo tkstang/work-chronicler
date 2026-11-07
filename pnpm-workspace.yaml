@@ -1,0 +1,11 @@
+# Single-package repo. pnpm reads its settings from this file.
+
+# Supply-chain hold: do not install versions published in the last 24h.
+# Comment this out only when a deliberately selected dependency must be
+# consumed before the maturity window closes.
+minimumReleaseAge: 1440
+
+# Lifecycle build-script allowlist: only these deps may run install/build
+# scripts. esbuild (a tsx/vitest transitive) ships prebuilt binaries.
+allowBuilds:
+  esbuild: true
