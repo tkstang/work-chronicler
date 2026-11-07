@@ -1,4 +1,5 @@
 import { writeFileSync } from 'node:fs';
+
 import { fetchGitHubPRs } from '@commands/fetch/github/github.utils';
 import { fetchJiraTickets } from '@commands/fetch/jira/jira.utils';
 import type { Config } from '@core/index';
@@ -22,6 +23,7 @@ import { addReport } from '@workspace/report-manager';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import { stringify as stringifyYaml } from 'yaml';
+
 import type { DataSource } from './init.prompts';
 import {
   promptConfirmAllRepos,

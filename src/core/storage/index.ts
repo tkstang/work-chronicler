@@ -8,12 +8,7 @@ export {
   getTicketFilePath,
 } from './paths';
 
-export {
-  readAllPRs,
-  readAllTickets,
-  readPR,
-  readTicket,
-} from './reader';
+export { readAllPRs, readAllTickets, readPR, readTicket } from './reader';
 
 export {
   ensureDirectory,

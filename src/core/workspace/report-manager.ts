@@ -3,6 +3,7 @@
  */
 
 import { readFileSync, writeFileSync } from 'node:fs';
+
 import type {
   ManagerConfig,
   ReportConfig,
@@ -10,6 +11,7 @@ import type {
 } from '@wc-types/manager';
 import { ManagerConfigSchema } from '@wc-types/manager';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+
 import { generateReportId, validateReportName } from './report-utils';
 import {
   ensureReportDirs,

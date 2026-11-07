@@ -2,10 +2,30 @@
   "name": "work-chronicler",
   "version": "0.3.2",
   "description": "Gather, analyze, and summarize your work history from GitHub PRs and JIRA tickets for performance reviews and resumes",
-  "type": "module",
+  "keywords": [
+    "ai",
+    "cli",
+    "github",
+    "jira",
+    "mcp",
+    "performance-review",
+    "resume"
+  ],
+  "license": "MIT",
+  "author": "Thomas Stang",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tkstang/work-chronicler.git"
+  },
   "bin": {
     "work-chronicler": "./bin/work-chronicler.js"
   },
+  "files": [
+    "dist",
+    "bin",
+    ".agent"
+  ],
+  "type": "module",
   "exports": {
     "./package.json": "./package.json"
   },
@@ -57,29 +77,9 @@
     "typescript": "^7.0.2",
     "vitest": "^5.1.0"
   },
-  "files": [
-    "dist",
-    "bin",
-    ".agent"
-  ],
-  "packageManager": "pnpm@12.18.0",
   "engines": {
     "node": ">=22.22.1",
     "pnpm": ">=12"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/tkstang/work-chronicler.git"
-  },
-  "keywords": [
-    "cli",
-    "github",
-    "jira",
-    "performance-review",
-    "resume",
-    "mcp",
-    "ai"
-  ],
-  "author": "Thomas Stang",
-  "license": "MIT"
+  "packageManager": "pnpm@12.18.0"
 }

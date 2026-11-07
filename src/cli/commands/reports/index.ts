@@ -6,6 +6,7 @@
  */
 
 import { Command } from 'commander';
+
 import { addCommand } from './add';
 import { listCommand } from './list';
 import { removeCommand } from './remove';

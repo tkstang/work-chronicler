@@ -41,8 +41,7 @@ export const OptionalGitHubNameSchema = z
   .transform(normalizeGitHubName)
   .superRefine((name, ctx) => {
     const problem = name ? getGitHubNameProblem(name) : null;
-    if (problem)
-      ctx.addIssue({ code: 'custom', message: problem });
+    if (problem) ctx.addIssue({ code: 'custom', message: problem });
   });
 
 /**

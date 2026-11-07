@@ -6,6 +6,7 @@
  */
 
 import { Command } from 'commander';
+
 import { allCommand } from './all';
 import { githubCommand } from './github/index';
 import { jiraCommand } from './jira/index';

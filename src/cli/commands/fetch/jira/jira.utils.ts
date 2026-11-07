@@ -13,6 +13,7 @@ import {
 } from '@core/index';
 import chalk from 'chalk';
 import ora, { type Ora } from 'ora';
+
 import type {
   FetchJiraOptions,
   JiraFetchResult,

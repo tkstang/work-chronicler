@@ -1,4 +1,5 @@
 import * as fs from 'node:fs/promises';
+
 import {
   type Config,
   findConfigPath,

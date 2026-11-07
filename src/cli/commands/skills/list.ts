@@ -1,8 +1,10 @@
 import { existsSync, lstatSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+
 import chalk from 'chalk';
 import { Command } from 'commander';
+
 import { AI_TOOLS, type AIToolKey, SKILL_PREFIX } from './types';
 
 function getInstalledSkills(

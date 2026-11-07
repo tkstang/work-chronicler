@@ -9,9 +9,11 @@ import {
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
 import { checkbox, confirm, select } from '@inquirer/prompts';
 import chalk from 'chalk';
 import { Command } from 'commander';
+
 import {
   AI_TOOLS,
   type AIToolKey,

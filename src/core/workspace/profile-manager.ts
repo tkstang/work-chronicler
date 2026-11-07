@@ -5,8 +5,10 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
+
 import { type Config, ConfigSchema } from '@core/config/schema';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+
 import {
   getActiveProfile,
   loadGlobalConfig,

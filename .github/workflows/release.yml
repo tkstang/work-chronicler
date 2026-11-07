@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
+      - 'v*'
 
 permissions:
   contents: read
@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  GIT_HOOKS: "0"
+  GIT_HOOKS: '0'
 
 jobs:
   publish:
@@ -39,7 +39,7 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-          registry-url: "https://registry.npmjs.org"
+          registry-url: 'https://registry.npmjs.org'
 
       # Trusted publishing needs npm CLI 11.5.1 or later.
       - name: Ensure npm supports trusted publishing

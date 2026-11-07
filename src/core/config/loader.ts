@@ -1,12 +1,14 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+
 import {
   getActiveProfile,
   getProfileConfigPath,
   isWorkspaceMode,
 } from '@workspace/index';
 import { parse as parseYaml } from 'yaml';
+
 import { type Config, ConfigSchema } from './schema';
 
 const CONFIG_FILE_NAMES = [

@@ -10,7 +10,7 @@ import { getActiveProfile } from '@workspace/global-config';
 import { isManagerMode } from '@workspace/resolver';
 import chalk from 'chalk';
 import { Command } from 'commander';
-import { resolveCacheBehavior } from './fetch.utils';
+
 import {
   buildReportConfig,
   getReportById,
@@ -18,6 +18,7 @@ import {
   resolveReportIds,
   resolveReportOutputDir,
 } from './fetch-manager.utils';
+import { resolveCacheBehavior } from './fetch.utils';
 import { fetchGitHubPRs, RateLimitError } from './github/github.utils';
 import { fetchJiraTickets } from './jira/jira.utils';
 

@@ -1,4 +1,5 @@
 import { Command } from 'commander';
+
 import { installSubcommand } from './install';
 import { listSubcommand } from './list';
 import { uninstallSubcommand } from './uninstall';

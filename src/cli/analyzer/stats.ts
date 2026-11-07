@@ -1,4 +1,5 @@
 import type { JiraTicketFile, PRImpact, PullRequestFile } from '@core/index';
+
 import { classifyPRImpact } from './classifier';
 
 export interface AnalysisStats {

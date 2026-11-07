@@ -15,6 +15,7 @@ import {
 import { Octokit } from '@octokit/rest';
 import chalk from 'chalk';
 import ora, { type Ora } from 'ora';
+
 import type {
   FetchGitHubOptions,
   GitHubCacheInfo,
