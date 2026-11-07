@@ -35,7 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rejected. Fix the reported field in `config.yaml` and re-run.
 - **Breaking:** skills installed as symlinks before 0.4 point into the removed
   `.agent/skills/` directory and stop working after the upgrade. Run
-  `work-chronicler skills install` again to replace them.
+  `work-chronicler skills install` again to replace them. If an older copy of
+  the package is still installed elsewhere, its links keep working and keep
+  serving the 0.3 skills; answer yes to "Overwrite existing skills?" to
+  replace them.
 - An unexpected error thrown outside a command's own error handling (for
   example a prompt closed on non-interactive stdin) now prints
   `Error: <message>` and exits 1 instead of dumping a Node.js stack trace.
