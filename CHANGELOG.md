@@ -46,6 +46,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `skills list`, `install` and `uninstall` now see symlinked skills whose target
   is gone (such as links into the old `.agent/skills/` path) and replace or
   remove them instead of failing with `EEXIST`.
+- `link` no longer records standard and version names such as `UTF-8`,
+  `ISO-8601`, `SHA-256` or `GPT-4` as JIRA tickets when no JIRA projects are
+  configured. Links written by earlier versions stay until the PRs are
+  re-fetched without `--cache`.
 
 ### Removed
 

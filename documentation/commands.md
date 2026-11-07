@@ -67,6 +67,12 @@ are no date flags.
 
 `analyze` also takes `-c, --config <path>` and `-v, --verbose`.
 
+`link` only counts keys from the projects listed under `jira.instances[].projects`
+when any are configured. Without configured projects it accepts any `ABC-123`
+key except common standard and version names such as `UTF-8`, `ISO-8601`,
+`SHA-256`, `GPT-4`, `RFC-3339` and `CVE-2024`. Running `link` again adds only
+new links and leaves unchanged files untouched.
+
 `filter` flags:
 
 | Flag | Meaning |

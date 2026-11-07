@@ -21,26 +21,58 @@ interface LinkResult {
 }
 
 /**
+ * Prefixes of standards, algorithms and versioned names that share the
+ * `ABC-123` shape of a JIRA key (UTF-8, ISO-8601, SHA-256, GPT-4, ...).
+ *
+ * Used only when no JIRA projects are configured. With configured projects,
+ * matches are restricted to those project keys instead, so a real project
+ * named like one of these (e.g. `SHA`) still links.
+ */
+const NON_TICKET_PREFIXES = new Set([
+  'AES',
+  'ARM',
+  'CVE',
+  'CWE',
+  'ECMA',
+  'ES',
+  'GPT',
+  'HTTP',
+  'IEC',
+  'IEEE',
+  'IPV',
+  'ISO',
+  'MD',
+  'PEP',
+  'RFC',
+  'RSA',
+  'SHA',
+  'SSL',
+  'TLS',
+  'UTF',
+  'WCAG',
+]);
+
+/**
  * Extract JIRA ticket keys from text
  * Matches patterns like: PROJ-123, ABC-1, XYZ-9999
+ *
+ * With `projects`, only keys from those projects are returned. Without them,
+ * keys whose prefix is a known standard or version name are dropped.
  */
 function extractTicketKeys(text: string, projects?: string[]): string[] {
   // Match common JIRA ticket patterns: PROJECT-NUMBER
   const pattern = /\b([A-Z][A-Z0-9_]+-\d+)\b/g;
   const matches = text.match(pattern) || [];
   const keys = [...new Set(matches)];
+  const prefixOf = (key: string) => key.slice(0, key.lastIndexOf('-'));
 
   // If projects are specified, filter to only those projects
   if (projects && projects.length > 0) {
-    const projectPrefixes = projects.map((p) => p.toUpperCase());
-    return keys.filter((key) => {
-      const parts = key.split('-');
-      const prefix = parts[0];
-      return prefix !== undefined && projectPrefixes.includes(prefix);
-    });
+    const projectPrefixes = new Set(projects.map((p) => p.toUpperCase()));
+    return keys.filter((key) => projectPrefixes.has(prefixOf(key)));
   }
 
-  return keys;
+  return keys.filter((key) => !NON_TICKET_PREFIXES.has(prefixOf(key)));
 }
 
 /**
