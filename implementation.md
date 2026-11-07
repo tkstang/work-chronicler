@@ -58,7 +58,11 @@ oat_generated: false
 
 ## Phase p01: Verb-first skill names and install migration
 
-**Status:** pending
+**Status:** in_progress
+**Base:** a3b950d7c33b3bc829994c3f98d9537f974fc483
+**Executor:** phase-implementer:wce-p01-impl-1
+
+Worktree: `/Users/thomas.stang/.t3/worktrees/work-chronicler/fix-github-org-at-prefix` on `oat/evidence-expansion-m01`; committing owner: the phase implementer (code commits). The root owns this journal (synced OAT project, outside the code branch) and writes execution records from the implementer's report. Parallelism: no declared group; root fan-out rejected because the renames, installer migration and docs share `src/cli/commands/skills/` and cross-referencing docs; one phase implementer.
 
 ---
 
