@@ -110,7 +110,9 @@ async function fetchAllICMode(options: FetchAllOptions): Promise<void> {
   console.log(`${separator}\n`);
 
   console.log(
-    `${chalk.green('✓')} Done! Data saved to ${chalk.cyan(outputDir)}`,
+    process.exitCode
+      ? `${chalk.yellow('⚠')} Done, with warnings (see above). Data saved to ${chalk.cyan(outputDir)}`
+      : `${chalk.green('✓')} Done! Data saved to ${chalk.cyan(outputDir)}`,
   );
 }
 
@@ -196,7 +198,11 @@ async function fetchAllManagerMode(options: FetchAllOptions): Promise<void> {
     }
   }
 
-  console.log(chalk.green('\n✓ All reports complete'));
+  console.log(
+    process.exitCode
+      ? chalk.yellow('\n⚠ All reports processed, with warnings (see above)')
+      : chalk.green('\n✓ All reports complete'),
+  );
 }
 
 export const allCommand = new Command('all')

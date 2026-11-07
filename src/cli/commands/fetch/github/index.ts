@@ -61,7 +61,7 @@ async function fetchGitHubICMode(options: FetchGitHubOptions): Promise<void> {
   const totalWritten = results.reduce((sum, r) => sum + r.prsWritten, 0);
 
   console.log(
-    `\n${chalk.green('✓')} Fetched ${chalk.cyan(totalWritten)} PRs to ${chalk.gray(outputDir)}`,
+    `\n${process.exitCode ? chalk.yellow('⚠') : chalk.green('✓')} Fetched ${chalk.cyan(totalWritten)} PRs to ${chalk.gray(outputDir)}`,
   );
 }
 
@@ -129,7 +129,11 @@ async function fetchGitHubManagerMode(
     }
   }
 
-  console.log(chalk.green('\n✓ All reports complete'));
+  console.log(
+    process.exitCode
+      ? chalk.yellow('\n⚠ All reports processed, with warnings (see above)')
+      : chalk.green('\n✓ All reports complete'),
+  );
 }
 
 export const githubCommand = new Command('github')

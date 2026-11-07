@@ -21,36 +21,41 @@ import type {
   GitHubFetchResult,
 } from './github.types';
 
+type RequestError = {
+  message?: string;
+  response?: { headers?: Record<string, string> };
+};
+
+/**
+ * Check if an error is a GitHub rate limit error
+ */
+function isRateLimitError(error: unknown): error is RequestError {
+  if (!error || typeof error !== 'object' || !('status' in error)) {
+    return false;
+  }
+  // GitHub signals rate limits with 429, or 403 plus rate-limit headers
+  if (error.status === 429) return true;
+  if (error.status !== 403) return false;
+  const reqError = error as RequestError;
+  return (
+    reqError.response?.headers?.['x-ratelimit-remaining'] === '0' ||
+    reqError.message?.includes('rate limit') === true
+  );
+}
+
 /**
  * Check if an error is a GitHub rate limit error and handle it
  */
 function handleRateLimitError(error: unknown): never {
-  if (
-    error &&
-    typeof error === 'object' &&
-    'status' in error &&
-    error.status === 403
-  ) {
-    const reqError = error as {
-      message?: string;
-      response?: { headers?: Record<string, string> };
-    };
-    const rateLimitRemaining =
-      reqError.response?.headers?.['x-ratelimit-remaining'];
-    const rateLimitReset = reqError.response?.headers?.['x-ratelimit-reset'];
-
-    if (
-      rateLimitRemaining === '0' ||
-      reqError.message?.includes('rate limit')
-    ) {
-      let message = 'GitHub API rate limit exceeded.';
-      if (rateLimitReset) {
-        const resetDate = new Date(Number.parseInt(rateLimitReset, 10) * 1000);
-        message += ` Rate limit resets at: ${resetDate.toLocaleString()}`;
-      }
-      message += '\nTip: Use --cache flag to avoid re-fetching existing PRs.';
-      throw new Error(message);
+  if (isRateLimitError(error)) {
+    const rateLimitReset = error.response?.headers?.['x-ratelimit-reset'];
+    let message = 'GitHub API rate limit exceeded.';
+    if (rateLimitReset) {
+      const resetDate = new Date(Number.parseInt(rateLimitReset, 10) * 1000);
+      message += ` Rate limit resets at: ${resetDate.toLocaleString()}`;
     }
+    message += '\nTip: Use --cache flag to avoid re-fetching existing PRs.';
+    throw new Error(message);
   }
   throw error;
 }
@@ -321,12 +326,18 @@ interface FetchOrgPRsParams {
   verbose?: boolean;
 }
 
+interface FetchOrgPRsResult {
+  results: GitHubFetchResult[];
+  /** Why nothing could be fetched from this org, or null if it was reachable */
+  failure: string | null;
+}
+
 /**
  * Fetch PRs for an organization
  */
 async function fetchOrgPRs(
   params: FetchOrgPRsParams,
-): Promise<GitHubFetchResult[]> {
+): Promise<FetchOrgPRsResult> {
   const {
     octokit,
     orgConfig,
@@ -341,11 +352,18 @@ async function fetchOrgPRs(
 
   const results: GitHubFetchResult[] = [];
   const org = orgConfig.name;
+  let failedCount = 0;
 
   // Get list of repos to fetch
   let repos: string[];
   if (orgConfig.repos.length === 1 && orgConfig.repos[0] === '*') {
-    repos = await listOrgRepos(octokit, org, spinner);
+    try {
+      repos = await listOrgRepos(octokit, org, spinner);
+    } catch (error) {
+      if (isRateLimitError(error)) handleRateLimitError(error);
+      const message = error instanceof Error ? error.message : String(error);
+      return { results, failure: `Could not list repositories (${message})` };
+    }
     spinner.stop();
     console.log(
       `  ${chalk.gray('Found')} ${chalk.cyan(repos.length)} ${chalk.gray('repositories')}`,
@@ -396,6 +414,7 @@ async function fetchOrgPRs(
         spinner.start();
       }
     } catch (error) {
+      failedCount++;
       spinner.stop();
       if (error instanceof Error && 'status' in error && error.status === 404) {
         console.log(
@@ -410,7 +429,11 @@ async function fetchOrgPRs(
     }
   }
 
-  return results;
+  const failure =
+    repos.length > 0 && failedCount === repos.length
+      ? `All ${repos.length} repositories failed to fetch`
+      : null;
+  return { results, failure };
 }
 
 /**
@@ -508,7 +531,7 @@ export async function fetchGitHubPRs(
     console.log(`${chalk.cyan('Org:')} ${orgConfig.name}`);
     spinner.start(`Fetching from ${orgConfig.name}...`);
 
-    const results = await fetchOrgPRs({
+    const { results, failure } = await fetchOrgPRs({
       octokit,
       orgConfig,
       username,
@@ -526,7 +549,19 @@ export async function fetchGitHubPRs(
     // Show org summary
     const orgWritten = results.reduce((sum, r) => sum + r.prsWritten, 0);
     const orgCached = results.reduce((sum, r) => sum + r.prsCached, 0);
-    if (orgWritten === 0 && orgCached === 0) {
+    if (failure) {
+      // Nothing in the org was reachable: almost always a wrong org name or a
+      // token that cannot see the org. Fail the run so unattended fetches
+      // surface it, but keep going so other orgs and later steps complete.
+      console.log(
+        `  ${chalk.yellow('⚠')} ${chalk.yellow(
+          `${failure} for ${chalk.bold(orgConfig.name)}. ` +
+            `Check that "${orgConfig.name}" is the exact GitHub org or user name ` +
+            'and that your token can access its repositories.',
+        )}`,
+      );
+      process.exitCode = 1;
+    } else if (orgWritten === 0 && orgCached === 0) {
       console.log(`  ${chalk.gray('No PRs found for this org')}`);
     } else if (orgWritten === 0 && orgCached > 0) {
       console.log(

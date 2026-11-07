@@ -43,6 +43,7 @@ export {
   type JiraTicket,
   type JiraTicketFile,
   JiraTicketSchema,
+  normalizeGitHubName,
   type PRImpact,
   PRImpactSchema,
   type ProjectConfidence,
