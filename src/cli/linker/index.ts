@@ -74,7 +74,11 @@ function extractTicketKeys(
 
   // If projects are specified, filter to only those projects
   if (projects && projects.length > 0) {
-    const projectPrefixes = new Set(projects.map((p) => p.toUpperCase()));
+    // Keys in text are matched in upper case, so normalize the configured
+    // keys the same way (a stray space in config must not drop a project).
+    const projectPrefixes = new Set(
+      projects.map((p) => p.trim().toUpperCase()),
+    );
     return keys.filter((key) => projectPrefixes.has(prefixOf(key)));
   }
 

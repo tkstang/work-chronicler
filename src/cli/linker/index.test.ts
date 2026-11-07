@@ -144,7 +144,7 @@ describe('linkPRsToTickets ticket-key matching', () => {
   it('only links keys from configured projects when projects are set', async () => {
     writePR(1, 'PAY-42 and OPS-7', 'Also mentions SHA-256 and LEGACY-9.');
 
-    await linkPRsToTickets({ config: config(['PAY', 'ops']), outputDir });
+    await linkPRsToTickets({ config: config([' PAY ', 'ops']), outputDir });
 
     expect(await prTickets()).toEqual({ 1: ['PAY-42', 'OPS-7'] });
   });
