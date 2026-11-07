@@ -425,10 +425,12 @@ work-chronicler analyze team
 
 **Impact Tiers:**
 
-- **Flagship**: Large initiatives (500+ lines or 15+ files), migrations, platform changes
+- **Flagship**: Large initiatives (500+ lines or 15+ files), breaking changes (`feat!:`), migrations, platform changes
 - **Major**: Significant features (200+ lines or 8+ files), `feat:` or `refactor:` commits
 - **Standard**: Regular work, bug fixes, `fix:` or `test:` commits
-- **Minor**: Small changes (<20 lines), docs, chores, dependency updates
+- **Minor**: Small changes (<20 lines), docs and chores below major size, dependency updates at any size
+
+See [Impact thresholds](configuration.md#impact-thresholds) for the full rule order.
 
 **Project Detection:**
 

@@ -42,6 +42,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   scoped feature list; detailed reference moved to `documentation/`.
 - Package description, keywords, `homepage` and `bugs` metadata updated.
 - Pull request template follows the Purpose / Changes / Testing / Notes shape.
+- Impact classification (`analyze --tag-prs`) was relabeled. A breaking
+  marker (`feat!:`, `feat(api)!:`) is flagship. Dependency updates (a
+  dependency label, or a `chore(deps)` / `build(deps)` title) stay minor at
+  any size. A flagship keyword such as `migration` or `platform` no longer
+  promotes a PR that is otherwise minor (`fix typo in migration guide`,
+  `docs: platform setup guide`). A `chore`, `docs`, `style`, `ci` or `build`
+  PR of major size is now major instead of minor. Re-run
+  `analyze --tag-prs` to relabel existing PRs.
 
 ### Removed
 

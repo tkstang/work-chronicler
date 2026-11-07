@@ -82,8 +82,23 @@ status 1 so scheduled runs notice.
 ### Impact thresholds
 
 `analyze --tag-prs` classifies each PR from its conventional-commit prefix,
-title patterns, labels and size. Size thresholds (additions + deletions, and
-changed files) default to:
+title patterns, labels and size. The first matching rule wins:
+
+1. A breaking marker (`feat!:`, `feat(api)!:`) is flagship.
+2. A dependency update (a `dependencies`, `renovate` or `dependabot` label, or a
+   `chore(deps)` / `build(deps)` title) is minor at any size.
+3. Flagship size is flagship.
+4. A flagship keyword in the title (`migration`, `platform`, `rewrite`,
+   `breaking`, ...) is flagship, unless the PR also has a minor signal: a minor
+   type (`docs`, `chore`, `style`, `ci`, `build`), a minor title or label at
+   minor size, or a change of at most 10 lines in at most 2 files.
+5. A minor type below major size, a minor title or label at minor size, or a
+   change of at most 10 lines in at most 2 files is minor.
+6. A `feat` or `refactor` type, major size or a title starting with `Add`,
+   `Implement` or `New` is major.
+7. Otherwise `fix`, `perf` and `test` are standard, and so is everything else.
+
+Size thresholds (additions + deletions, and changed files) default to:
 
 ```yaml
 analysis:

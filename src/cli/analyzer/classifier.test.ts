@@ -102,12 +102,28 @@ describe('classifyPRImpact title and label signals', () => {
     expect(classifyPRImpact(pr({ title }))).toBe('flagship');
   });
 
-  it('keeps a minor conventional type minor until flagship size', () => {
+  it('keeps a minor conventional type minor below major size', () => {
+    expect(
+      classifyPRImpact(
+        pr({ title: 'chore: vendor sdk', additions: 199, changedFiles: 7 }),
+      ),
+    ).toBe('minor');
+    // Changed by the owner-approved relabel: was 'minor' (a minor type stayed
+    // minor until flagship size); major size now promotes it.
     expect(
       classifyPRImpact(
         pr({ title: 'chore: vendor sdk', additions: 499, changedFiles: 14 }),
       ),
-    ).toBe('minor');
+    ).toBe('major');
+    expect(
+      classifyPRImpact(
+        pr({
+          title: 'chore: reorganize folders',
+          additions: 300,
+          changedFiles: 10,
+        }),
+      ),
+    ).toBe('major');
     expect(
       classifyPRImpact(pr({ title: 'chore: vendor sdk', additions: 500 })),
     ).toBe('flagship');
@@ -161,5 +177,61 @@ describe('classifyPRImpact title and label signals', () => {
         pr({ title: 'feat: toggle', additions: 5, changedFiles: 1 }),
       ),
     ).toBe('minor');
+  });
+
+  it.each([
+    ['fix typo in migration guide', 2, 1],
+    ['docs: platform setup guide', 5, 1],
+    ['docs: rewrite the platform guide', 150, 6],
+    ['Bump the migration runner', 12, 2],
+  ] as const)(
+    'a minor signal stops the keyword in "%s" (%i lines, %i files) promoting to flagship',
+    (title, lines, files) => {
+      expect(
+        classifyPRImpact(
+          pr({ title, additions: lines, deletions: 0, changedFiles: files }),
+        ),
+      ).toBe('minor');
+    },
+  );
+
+  it.each([
+    ['chore(deps): bump lodash', []],
+    ['build(deps): bump esbuild', []],
+    ['chore(deps-dev): bump vitest', []],
+    ['Update lockfile', ['dependencies']],
+    ['Lock file maintenance', ['renovate']],
+  ] as const)(
+    'keeps the dependency update "%s" minor at any size',
+    (title, labels) => {
+      expect(
+        classifyPRImpact(
+          pr({ title, labels: [...labels], additions: 3000, changedFiles: 2 }),
+        ),
+      ).toBe('minor');
+    },
+  );
+
+  it('does not exempt other chores or scopes from size promotion', () => {
+    expect(
+      classifyPRImpact(
+        pr({ title: 'chore(ci): bump runners', additions: 3000 }),
+      ),
+    ).toBe('flagship');
+    expect(
+      classifyPRImpact(
+        pr({ title: 'chore: tidy', labels: ['maintenance'], additions: 3000 }),
+      ),
+    ).toBe('flagship');
+  });
+
+  it.each([
+    'feat!: drop Node 18',
+    'feat(api)!: remove v1 endpoints',
+    'chore(deps)!: require Node 22',
+  ])('treats the breaking marker in "%s" as flagship', (title) => {
+    expect(classifyPRImpact(pr({ title, additions: 5, changedFiles: 1 }))).toBe(
+      'flagship',
+    );
   });
 });
