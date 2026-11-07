@@ -5,8 +5,10 @@ import { join } from 'node:path';
 import {
   getAnalysisFilePath,
   getPRFilePath,
+  getPRReviewFilePath,
   getTicketFilePath,
   type JiraTicket,
+  type PRReviewRecord,
   type PullRequest,
   writeMarkdownFile,
 } from '@core/index';
@@ -19,6 +21,7 @@ import {
   getStatsTool,
   getTimelineTool,
   listReposTool,
+  searchPrReviewsTool,
   searchPrsTool,
   searchTicketsTool,
   type ToolContext,
@@ -511,5 +514,128 @@ describe('get_timeline', () => {
       error:
         'timeline.json not found. Run `work-chronicler analyze --timeline` first.',
     });
+  });
+});
+
+describe('search_pr_reviews', () => {
+  function reviewRecord(
+    repo: string,
+    prNumber: number,
+    overrides: Partial<PRReviewRecord> = {},
+  ): PRReviewRecord {
+    return {
+      type: 'pr-review',
+      reviewer: 'me',
+      pr: {
+        url: `https://github.com/acme/${repo}/pull/${prNumber}`,
+        org: 'acme',
+        repository: repo,
+        prNumber,
+        title: `Someone else's PR ${prNumber}`,
+        author: 'alice',
+        state: 'open',
+      },
+      prUpdatedAt: '2025-06-01T00:00:00Z',
+      reviews: [],
+      comments: [],
+      ...overrides,
+    };
+  }
+
+  beforeEach(() => {
+    const records = [
+      reviewRecord('api', 1, {
+        reviews: [
+          {
+            reviewId: 10,
+            state: 'CHANGES_REQUESTED',
+            submittedAt: '2025-02-01T00:00:00Z',
+            url: 'https://github.com/acme/api/pull/1#pullrequestreview-10',
+            body: 'Please add a migration test',
+          },
+          {
+            reviewId: 11,
+            state: 'APPROVED',
+            submittedAt: '2025-05-01T00:00:00Z',
+            url: 'https://github.com/acme/api/pull/1#pullrequestreview-11',
+            body: '',
+          },
+        ],
+      }),
+      reviewRecord('web-app', 1, {
+        comments: [
+          {
+            commentId: 20,
+            reviewId: 12,
+            inReplyToId: null,
+            path: 'src/app.ts',
+            line: 3,
+            createdAt: '2025-03-01T00:00:00Z',
+            updatedAt: '2025-03-01T00:00:00Z',
+            url: 'https://github.com/acme/web-app/pull/1#discussion_r20',
+            body: 'This leaks a listener',
+          },
+        ],
+      }),
+    ];
+    for (const record of records) {
+      writeMarkdownFile(
+        getPRReviewFilePath(
+          ctx.outputDir,
+          record.pr.org,
+          record.pr.repository,
+          record.pr.prNumber,
+        ),
+        record,
+        '',
+      );
+    }
+  });
+
+  it('returns PRs with the same number in different repos as separate entries, newest activity first', async () => {
+    const out = parse(await searchPrReviewsTool.handler({}, ctx));
+
+    expect(out.results.map((r: { prUrl: string }) => r.prUrl)).toEqual([
+      'https://github.com/acme/api/pull/1',
+      'https://github.com/acme/web-app/pull/1',
+    ]);
+    expect(out.totals).toEqual({ reviews: 2, comments: 1 });
+  });
+
+  it('keeps only reviews and comments inside the date range', async () => {
+    const out = parse(
+      await searchPrReviewsTool.handler(
+        { since: '2025-01-15', until: '2025-03-15' },
+        ctx,
+      ),
+    );
+
+    expect(
+      out.results.map(
+        (r: { prUrl: string; reviews: { reviewId: number }[] }) => [
+          r.prUrl,
+          r.reviews.map((review) => review.reviewId),
+        ],
+      ),
+    ).toEqual([
+      ['https://github.com/acme/web-app/pull/1', []],
+      ['https://github.com/acme/api/pull/1', [10]],
+    ]);
+  });
+
+  it('filters by review state and searches review text', async () => {
+    const approved = parse(
+      await searchPrReviewsTool.handler({ state: 'APPROVED' }, ctx),
+    );
+    expect(approved.total).toBe(1);
+    expect(approved.results[0].reviews).toHaveLength(1);
+    expect(approved.results[0].comments).toEqual([]);
+
+    const byText = parse(
+      await searchPrReviewsTool.handler({ query: 'listener' }, ctx),
+    );
+    expect(byText.results.map((r: { prUrl: string }) => r.prUrl)).toEqual([
+      'https://github.com/acme/web-app/pull/1',
+    ]);
   });
 });

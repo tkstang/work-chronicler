@@ -17,6 +17,7 @@ import {
   loadConfig,
   normalizeGitHubName,
   type PRImpact,
+  readAllPRReviews,
   readAllPRs,
   readAllTickets,
   writeMarkdownFile,
@@ -171,6 +172,7 @@ export const filterCommand = new Command('filter')
       const allPRs = await readAllPRs(outputDir);
       spinner.text = 'Loading tickets...';
       const allTickets = await readAllTickets(outputDir);
+      const allReviews = await readAllPRReviews(outputDir);
       spinner.succeed(
         `Loaded ${chalk.cyan(allPRs.length)} PRs and ${chalk.cyan(allTickets.length)} tickets`,
       );
@@ -212,27 +214,32 @@ export const filterCommand = new Command('filter')
         (options.excludeRepo ?? []).map(toRepoSelector),
       );
 
-      const filteredPRs = allPRs.filter((pr) => {
-        const prOrg = toFilterKey(pr.frontmatter.org);
-        const prRepoKey = `${prOrg}/${pr.frontmatter.repository.toLowerCase()}`;
+      // Org and repo selectors, shared by PRs and review records
+      const inScope = (org: string, repository: string) => {
+        const orgKey = toFilterKey(org);
+        const repoKey = `${orgKey}/${repository.toLowerCase()}`;
 
         // Check org inclusion (if specified, must be in the list)
-        if (includeOrgs && !includeOrgs.has(prOrg)) {
+        if (includeOrgs && !includeOrgs.has(orgKey)) {
           return false;
         }
 
         // Check org exclusion
-        if (excludeOrgs.has(prOrg)) {
+        if (excludeOrgs.has(orgKey)) {
           return false;
         }
 
         // Check repo inclusion (if specified, must be in the list)
-        if (includeRepos && !includeRepos.has(prRepoKey)) {
+        if (includeRepos && !includeRepos.has(repoKey)) {
           return false;
         }
 
         // Check repo exclusion
-        if (excludeRepos.has(prRepoKey)) {
+        return !excludeRepos.has(repoKey);
+      };
+
+      const filteredPRs = allPRs.filter((pr) => {
+        if (!inScope(pr.frontmatter.org, pr.frontmatter.repository)) {
           return false;
         }
 
@@ -325,6 +332,20 @@ export const filterCommand = new Command('filter')
         writeMarkdownFile(newPath, ticket.frontmatter, ticket.body);
       }
 
+      // Review records describe review work, not authored PRs: only the org
+      // and repo selectors apply to them, and they never enter the analysis
+      const filteredReviews = allReviews.filter((record) =>
+        inScope(record.frontmatter.pr.org, record.frontmatter.pr.repository),
+      );
+      for (const record of filteredReviews) {
+        const relativePath = record.filePath.replace(outputDir, '');
+        writeMarkdownFile(
+          join(filteredDir, relativePath),
+          record.frontmatter,
+          record.body,
+        );
+      }
+
       // Generate analysis for filtered set
       const since = config.fetch.since;
       const until =
@@ -381,6 +402,11 @@ export const filterCommand = new Command('filter')
       console.log(
         `  Tickets: ${chalk.cyan(filteredTickets.length)} / ${allTickets.length}`,
       );
+      if (allReviews.length > 0) {
+        console.log(
+          `  Reviewed PRs: ${chalk.cyan(filteredReviews.length)} / ${allReviews.length} (org and repo filters only)`,
+        );
+      }
       console.log(
         `  Impact: ${chalk.magenta(stats.prs.byImpact.flagship)} flagship, ${chalk.green(stats.prs.byImpact.major)} major, ${chalk.yellow(stats.prs.byImpact.standard)} standard, ${chalk.gray(stats.prs.byImpact.minor)} minor`,
       );

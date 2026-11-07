@@ -14,7 +14,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createServer } from './server';
 
 // Reviewed snapshot of the tools/list result from before the tools were split
-// into modules. MCP clients depend on these names, descriptions and schemas.
+// into modules, plus search_pr_reviews (added after the split). MCP clients
+// depend on these names, descriptions and schemas.
 const goldenTools = JSON.parse(
   readFileSync(join(import.meta.dirname, 'tools-list.golden.json'), 'utf-8'),
 );

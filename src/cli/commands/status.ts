@@ -3,6 +3,7 @@ import {
   findConfigPath,
   getOutputDirectory,
   loadConfig,
+  readAllPRReviews,
   readAllPRs,
   readAllTickets,
 } from '@core/index';
@@ -19,6 +20,15 @@ export const statusCommand = new Command('status')
 
       const prs = await readAllPRs(outputDir);
       const tickets = await readAllTickets(outputDir);
+      const reviewRecords = await readAllPRReviews(outputDir);
+      const reviewCount = reviewRecords.reduce(
+        (sum, r) => sum + r.frontmatter.reviews.length,
+        0,
+      );
+      const commentCount = reviewRecords.reduce(
+        (sum, r) => sum + r.frontmatter.comments.length,
+        0,
+      );
 
       console.log('Work Chronicler Status');
       console.log('======================\n');
@@ -29,6 +39,9 @@ export const statusCommand = new Command('status')
       );
       console.log(`\nPull Requests: ${prs.length} files`);
       console.log(`JIRA Tickets:  ${tickets.length} files`);
+      console.log(
+        `PR Reviews:    ${reviewRecords.length} reviewed PRs (${reviewCount} reviews, ${commentCount} inline comments; not counted as authored PRs)`,
+      );
 
       if (prs.length > 0 || tickets.length > 0) {
         console.log(

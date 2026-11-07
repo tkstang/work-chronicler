@@ -3,6 +3,7 @@ export { getProjectsTool } from './get-projects';
 export { getStatsTool } from './get-stats';
 export { getTimelineTool } from './get-timeline';
 export { listReposTool } from './list-repos';
+export { searchPrReviewsTool } from './search-pr-reviews';
 export { searchPrsTool } from './search-prs';
 export { searchTicketsTool } from './search-tickets';
 export type { McpTool, ToolContext } from './types';
