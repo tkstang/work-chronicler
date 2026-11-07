@@ -20,12 +20,13 @@ function readMarkdownFile(filePath: string): {
 }
 
 /**
- * Strip the blank lines the writer puts around the body without touching the
- * body itself. `trim()` would also strip the first line's indentation, which
- * breaks a body that starts with an indented code block.
+ * Strip only the separators the writer puts around the body: it writes
+ * `---\n\n<body>\n`, and gray-matter's content keeps one newline before and
+ * after the body. Anything else, such as leading blank lines or a first
+ * line's indentation (an indented code block), belongs to the body.
  */
 function normalizeBody(content: string): string {
-  return content.replace(/^(?:[ \t]*\r?\n)+/, '').trimEnd();
+  return content.replace(/^\r?\n/, '').replace(/\r?\n$/, '');
 }
 
 /**

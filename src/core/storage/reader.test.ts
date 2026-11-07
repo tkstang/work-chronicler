@@ -126,8 +126,12 @@ describe('PR storage round trip', () => {
     expect(read).toEqual({ frontmatter, body: '', filePath: path });
   });
 
-  it('keeps a body that starts with an indented code block', async () => {
-    const indented = '    npm install work-chronicler\n\nRun it.';
+  // `trim()`-style cleanup would drop the leading whitespace these bodies
+  // start with and change how the markdown renders.
+  it.each([
+    ['an indented code block', '    npm install work-chronicler\n\nRun it.'],
+    ['blank lines', '\n  \n    npm install work-chronicler\n\nRun it.'],
+  ])('keeps a body that starts with %s', async (_, indented) => {
     const frontmatter = pr('Indented body');
     const path = getPRFilePath(
       outputDir,
