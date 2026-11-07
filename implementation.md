@@ -42,35 +42,81 @@ oat_generated: false
 | ----- | ------- | ----- | -------- |
 | p01   | pending | 1     | 0/1      |
 | p02   | pending | 1     | 0/1      |
+| p03   | pending | 1     | 0/1      |
+| p04   | pending | 1     | 0/1      |
+| p05   | pending | 1     | 0/1      |
+| p06   | pending | 1     | 0/1      |
+| p07   | pending | 1     | 0/1      |
+| p08   | pending | 1     | 0/1      |
+| p09   | pending | 1     | 0/1      |
+| p10   | pending | 1     | 0/1      |
+| p11   | pending | 1     | 0/1      |
 
-**Total:** 0/[N] phases accepted
+**Total:** 0/11 phases accepted
 
 ---
 
-## Phase p01: [Phase Name]
+## Phase p01: Verb-first skill names and install migration
 
 **Status:** pending
-**Base:** [full base SHA, recorded when the phase starts]
-**Head:** [full head SHA, recorded when the phase's work ends, before its review]
-**Executor:** [root | phase-implementer:<id> | worker:<id> | inline:<exception-ref> | reconciled]
-
-[Summary prose: verification, review disposition, authority changes, deviations, next action.]
-
-<!-- Execution records follow the summary. Replace this example with real records when work starts: -->
-
-```markdown
-### Task p01-t01: [Execution record name]
-
-**Status:** completed
-**Commit:** [full commit SHA]
-**Executor:** worker:w1
-
-Intent, files, proof command, result.
-```
 
 ---
 
-## Phase p02: [Phase Name]
+## Phase p02: PR reviews given (IC)
+
+**Status:** pending
+
+---
+
+## Phase p03: 0.5.0 release preparation
+
+**Status:** pending
+
+---
+
+## Phase p04: Staged import contract
+
+**Status:** pending
+
+---
+
+## Phase p05: Consumers and linking for imported evidence
+
+**Status:** pending
+
+---
+
+## Phase p06: Slack configuration and CLI
+
+**Status:** pending
+
+---
+
+## Phase p07: Slack skills and live walkthrough
+
+**Status:** pending
+
+---
+
+## Phase p08: 0.6.0 release preparation
+
+**Status:** pending
+
+---
+
+## Phase p09: Google Docs documents record and config
+
+**Status:** pending
+
+---
+
+## Phase p10: Google Docs import skill and live walkthrough
+
+**Status:** pending
+
+---
+
+## Phase p11: 0.7.0 release preparation
 
 **Status:** pending
 
