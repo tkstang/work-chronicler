@@ -279,4 +279,45 @@ describe('team timeline', () => {
       ['alice'],
     ]);
   });
+
+  // Periods are merged and sorted by their key strings, so a key that is not
+  // canonical would open a duplicate period or land out of order.
+  it('skips reports with an empty date range or non-canonical period keys', async () => {
+    writeTimeline(
+      'alice',
+      { since: '2025-03-01', until: '2025-03-31' },
+      { '2025-03': week('2025-03-03', '2025-03-09', [alicePR]) },
+    );
+    writeTimeline(
+      'short-month',
+      { since: '2025-03-01', until: '2025-03-31' },
+      { '2025-3': week('2025-03-03', '2025-03-09', [bobPR]) },
+    );
+    writeTimeline(
+      'short-week',
+      { since: '2025-03-01', until: '2025-03-31' },
+      { '2025-03': week('2025-3-3', '2025-03-09', [bobPR]) },
+    );
+    writeTimeline(
+      'no-range',
+      { since: '', until: '2025-03-31' },
+      { '2025-03': week('2025-03-03', '2025-03-09', [bobPR]) },
+    );
+
+    const timeline = await aggregateTeamTimeline('manager', [
+      'alice',
+      'short-month',
+      'short-week',
+      'no-range',
+    ]);
+
+    expect(timeline.reports).toEqual(['alice']);
+    expect(timeline.skippedReports).toEqual([
+      'short-month',
+      'short-week',
+      'no-range',
+    ]);
+    expect(timeline.months.map((m) => m.month)).toEqual(['2025-03']);
+    expect(timeline.summary.totalWeeks).toBe(1);
+  });
 });

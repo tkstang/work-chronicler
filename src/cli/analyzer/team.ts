@@ -223,10 +223,46 @@ function addStats(target: TeamPeriodStats, source: TeamPeriodStats): void {
   }
 }
 
+const MONTH_KEY = /^(\d{4})-(0[1-9]|1[0-2])$/;
+const DAY_KEY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/** Whether `value` is a real `YYYY-MM-DD` calendar date. */
+function isCalendarDate(value: string): boolean {
+  const match = DAY_KEY.exec(value);
+  if (!match) return false;
+  const [, y, m, d] = match.map(Number) as [number, number, number, number];
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return (
+    date.getUTCFullYear() === y &&
+    date.getUTCMonth() === m - 1 &&
+    date.getUTCDate() === d
+  );
+}
+
+/**
+ * Whether a parsed timeline can be merged: its date range is non-empty and
+ * parseable, its months are `YYYY-MM` and its week starts are `YYYY-MM-DD`.
+ * The merge keys and sorts periods by these strings, so a non-canonical key
+ * would create a duplicate period or sort out of order.
+ */
+function isMergeableTimeline(timeline: TimelineAnalysis): boolean {
+  const { since, until } = timeline.dateRange;
+  if (!since || !until) return false;
+  if (Number.isNaN(Date.parse(since)) || Number.isNaN(Date.parse(until))) {
+    return false;
+  }
+  return timeline.months.every(
+    (month) =>
+      MONTH_KEY.test(month.month) &&
+      month.weeks.every((week) => isCalendarDate(week.weekStart)),
+  );
+}
+
 /**
  * Read one report's timeline from `reports/<id>/analysis/timeline.json`.
- * Returns null when the report has no timeline yet or its file is malformed,
- * so one bad report never aborts the team rollup.
+ * Returns null when the report has no timeline, or its file is unreadable,
+ * malformed or has non-canonical dates, so one bad report never aborts the
+ * team rollup.
  */
 async function readReportTimeline(
   profileName: string,
@@ -239,7 +275,9 @@ async function readReportTimeline(
     );
     const data = JSON.parse(await readFile(timelinePath, 'utf-8'));
     const parsed = TimelineAnalysisSchema.safeParse(data);
-    return parsed.success ? parsed.data : null;
+    return parsed.success && isMergeableTimeline(parsed.data)
+      ? parsed.data
+      : null;
   } catch {
     return null;
   }
@@ -252,7 +290,7 @@ async function readReportTimeline(
  * `analyze reports <id> --timeline`) and merges the months and weeks by
  * period. Team totals are summed, and `byReport` keeps each report's own
  * numbers and items so no work is credited to the wrong person. Reports
- * without a readable timeline are listed in `skippedReports`.
+ * without a usable timeline are listed in `skippedReports`.
  *
  * @param profileName - Profile name (must be 'manager')
  * @param reportIds - List of report IDs to aggregate
@@ -327,6 +365,8 @@ export async function aggregateTeamTimeline(
     }
   }
 
+  // Keys are validated as canonical YYYY-MM / YYYY-MM-DD, so string order is
+  // chronological order.
   const sortedMonths = [...months.values()].sort((a, b) =>
     a.month.localeCompare(b.month),
   );
@@ -352,9 +392,9 @@ export async function aggregateTeamTimeline(
     }
   }
 
-  // Report ranges are ISO dates, so string order is date order.
-  const since = sinces.sort()[0];
-  const until = untils.sort().at(-1);
+  const byTime = (a: string, b: string) => Date.parse(a) - Date.parse(b);
+  const since = sinces.sort(byTime)[0];
+  const until = untils.sort(byTime).at(-1);
 
   return {
     generatedAt: new Date().toISOString(),
