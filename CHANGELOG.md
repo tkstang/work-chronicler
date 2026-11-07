@@ -137,6 +137,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `fetch jira` no longer queries `" PROJ "` or stores tickets under a
   directory with stray spaces. Case is kept, so existing tickets stay in their
   project directory; `link` already matches keys case-insensitively.
+- Repo auto-discovery in `reports add` and `init --mode manager` searches the
+  profile's `fetch.since`/`fetch.until` range. It used to pass an invalid
+  date, so it listed repos and PRs of any age.
 - `reports update --add-jira-project` and `--remove-jira-project` trim the
   key they are given, so ` PROJ ` removes the stored `PROJ` and adding an
   existing key no longer stores it twice.
