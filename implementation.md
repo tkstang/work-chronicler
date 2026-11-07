@@ -109,7 +109,11 @@ Review `reviews/p01-review-2026-11-07T233956Z.md` (0 Critical/High, 5 Low) passe
 
 ## Phase p02: PR reviews given (IC)
 
-**Status:** pending
+**Status:** in_progress
+**Base:** 6014af5a9a414134f70b4e87def8f5b38cd23025
+**Executor:** phase-implementer:wce-p02-impl-1
+
+Worktree and branch as p01; committing owner: the phase implementer (code); root owns the journal. Parallelism: no declared group; fan-out rejected (fetch, types, storage, consumers and docs are sequentially dependent); one phase implementer.
 
 ---
 
