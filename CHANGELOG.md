@@ -140,6 +140,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Repo auto-discovery in `reports add` and `init --mode manager` searches the
   profile's `fetch.since`/`fetch.until` range. It used to pass an invalid
   date, so it listed repos and PRs of any age.
+- Repo auto-discovery with a `fetch.until` date no longer skips a repo whose
+  latest activity is after `until` when the user has PRs inside the range.
 - `reports update --add-jira-project` and `--remove-jira-project` trim the
   key they are given, so ` PROJ ` removes the stored `PROJ` and adding an
   existing key no longer stores it twice.

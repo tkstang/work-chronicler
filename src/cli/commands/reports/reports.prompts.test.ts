@@ -123,4 +123,29 @@ describe('promptForReport', () => {
       vi.unstubAllEnvs();
     }
   });
+
+  // A repo's updatedAt reflects its latest activity, which can fall after
+  // `until` even when the report's PRs inside the range are older.
+  it('keeps a repo updated after `until` when the report has a PR inside the range', async () => {
+    vi.stubEnv('GITHUB_TOKEN', 'test-token');
+    github.repos = [
+      { name: 'active', updatedAt: '2026-03-01T00:00:00Z' },
+      { name: 'later-only', updatedAt: '2026-03-02T00:00:00Z' },
+    ];
+    github.prs = {
+      active: [{ createdAt: '2026-02-20T00:00:00Z', author: 'alice' }],
+      'later-only': [{ createdAt: '2026-03-02T00:00:00Z', author: 'alice' }],
+    };
+    answerReport('discover');
+
+    try {
+      const report = await promptForReport({
+        ...config,
+        fetch: { since: '2026-01-01', until: '2026-02-28' },
+      });
+      expect(report.repos).toEqual(['active']);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
 });
