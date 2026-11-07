@@ -1,6 +1,13 @@
 import { z } from 'zod';
 
 /**
+ * A JIRA project key from config, trimmed and upper-cased at parse time.
+ * JIRA project keys are upper case (they prefix ticket keys like `PROJ-123`),
+ * so fetch, storage paths and the linker all see the same key.
+ */
+export const JiraProjectKeySchema = z.string().trim().toUpperCase();
+
+/**
  * Schema for a JIRA ticket stored in the work-log
  */
 export const JiraTicketSchema = z.object({

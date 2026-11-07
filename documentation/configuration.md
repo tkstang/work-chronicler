@@ -57,7 +57,7 @@ example.
 | `jira.instances[].url` | yes | HTTPS URL, for example `https://acme.atlassian.net`. |
 | `jira.instances[].email` | no | Account email; `JIRA_EMAIL` is used otherwise. |
 | `jira.instances[].token` | no | API token; `JIRA_TOKEN` is used otherwise. |
-| `jira.instances[].projects` | no | Project keys to fetch. |
+| `jira.instances[].projects` | no | Project keys to fetch; surrounding spaces are removed and keys are upper-cased. |
 | `output.directory` | no | Work-log location, relative to the config file. Default `./work-log`. |
 | `fetch.since` | yes | Start date, `YYYY-MM-DD`. |
 | `fetch.until` | no | End date, or `null` for today. |

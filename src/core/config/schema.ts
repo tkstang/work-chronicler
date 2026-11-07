@@ -1,4 +1,5 @@
 import { GitHubNameSchema, OptionalGitHubNameSchema } from '@wc-types/github';
+import { JiraProjectKeySchema } from '@wc-types/ticket';
 import { z } from 'zod';
 
 /**
@@ -59,7 +60,7 @@ export const JiraInstanceConfigSchema = z.object({
   url: httpsUrl,
   email: z.email().optional(),
   token: z.string().optional(),
-  projects: z.array(z.string()).default([]),
+  projects: z.array(JiraProjectKeySchema).default([]),
 });
 
 /**

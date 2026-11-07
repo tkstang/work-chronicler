@@ -132,6 +132,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Manager `fetch jira` and `fetch all` label a report whose JIRA project
   failed as a yellow `⚠ <name> incomplete (...; JIRA failed for <projects>)`
   instead of a green `✓ <name> complete`.
+- JIRA project keys in `config.yaml` (`jira.instances[].projects`) and in
+  manager reports (`jiraProjects`) are trimmed and upper-cased when the config
+  is read, so `fetch jira` no longer queries `" PROJ "` or stores tickets
+  under a lower-case project; `link` already matched them that way.
 
 ## [0.3.2] - 2026-03-10
 

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { GitHubNameSchema } from './github';
+import { JiraProjectKeySchema } from './ticket';
 
 /**
  * Manager mode types and schemas
@@ -19,7 +20,7 @@ export const ReportConfigSchema = z.object({
   /** Repos to fetch (no org prefix) */
   repos: z.array(z.string()).default([]),
   /** Jira projects to fetch */
-  jiraProjects: z.array(z.string()).default([]),
+  jiraProjects: z.array(JiraProjectKeySchema).default([]),
 });
 export type ReportConfig = z.infer<typeof ReportConfigSchema>;
 
