@@ -1,2 +1,7 @@
-# Run full lint across all workspaces before pushing
-pnpm run lint
+#!/usr/bin/env sh
+# Cheap feedback before pushing: type-check only. No test suite runs here;
+# run lint, format:check, test and build explicitly before opening a PR.
+# Escape hatch: GIT_HOOKS=0 git push ...
+[ "$GIT_HOOKS" = "0" ] && exit 0
+
+exec pnpm run typecheck

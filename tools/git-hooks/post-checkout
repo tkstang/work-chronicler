@@ -1,2 +1,13 @@
-# Install dependencies when switching branches (if package.json changed)
-pnpm install --frozen-lockfile
+#!/usr/bin/env sh
+# Reinstall dependencies after a branch switch, but only when the lockfile
+# differs between the old and new HEAD.
+# Arguments: <previous HEAD> <new HEAD> <1 = branch checkout, 0 = file checkout>
+# Escape hatch: GIT_HOOKS=0 git checkout ...
+[ "$GIT_HOOKS" = "0" ] && exit 0
+[ "$3" = "1" ] || exit 0
+
+if git diff --quiet "$1" "$2" -- pnpm-lock.yaml 2>/dev/null; then
+  exit 0
+fi
+
+exec pnpm install --frozen-lockfile
