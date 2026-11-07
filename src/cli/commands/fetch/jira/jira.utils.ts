@@ -14,6 +14,7 @@ import {
 import chalk from 'chalk';
 import ora, { type Ora } from 'ora';
 
+import { RateLimitError } from '../github/github.utils';
 import type {
   FetchJiraOptions,
   JiraFetchResult,
@@ -50,6 +51,51 @@ function formatJqlDate(date: Date): string {
   return dateStr ?? iso.slice(0, 10);
 }
 
+/**
+ * A failed JIRA API response, keeping the HTTP status and `Retry-After` header
+ */
+class JiraApiError extends Error {
+  override name = 'JiraApiError';
+
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly retryAfter: string | null,
+  ) {
+    super(message);
+  }
+}
+
+/**
+ * Describe when a `Retry-After` value (seconds or an HTTP date) allows a retry
+ */
+function describeRetryAfter(retryAfter: string | null): string {
+  if (!retryAfter) return '';
+  const trimmed = retryAfter.trim();
+  if (/^\d+$/.test(trimmed)) {
+    const seconds = Number.parseInt(trimmed, 10);
+    const at = new Date(Date.now() + seconds * 1000);
+    return ` Retry after ${seconds} seconds (${at.toLocaleString()}).`;
+  }
+  const date = new Date(trimmed);
+  if (Number.isNaN(date.getTime())) return ` Retry-After: ${trimmed}.`;
+  return ` Retry after ${date.toLocaleString()}.`;
+}
+
+/**
+ * Thrown when JIRA rate limits the credentials. Every project shares them, so
+ * callers rethrow it instead of treating it as a per-project failure.
+ */
+class JiraRateLimitError extends RateLimitError {
+  override name = 'JiraRateLimitError';
+
+  constructor(readonly retryAfter: string | null) {
+    super(
+      `JIRA API rate limit exceeded.${describeRetryAfter(retryAfter)}\nTip: Use --cache flag to avoid re-fetching existing tickets.`,
+    );
+  }
+}
+
 interface JiraFetchParams {
   baseUrl: string;
   path: string;
@@ -76,8 +122,14 @@ async function jiraFetch<T>(params: JiraFetchParams): Promise<T> {
   });
 
   if (!response.ok) {
+    const retryAfter = response.headers.get('retry-after');
+    if (response.status === 429) throw new JiraRateLimitError(retryAfter);
     const errorText = await response.text();
-    throw new Error(`JIRA API error ${response.status}: ${errorText}`);
+    throw new JiraApiError(
+      `JIRA API error ${response.status}: ${errorText}`,
+      response.status,
+      retryAfter,
+    );
   }
 
   return response.json() as Promise<T>;
@@ -385,6 +437,8 @@ async function fetchInstanceTickets(
         spinner.start();
       }
     } catch (error) {
+      // The next project would hit the same rate limit, so stop the fetch
+      if (error instanceof RateLimitError) throw error;
       // Keep fetching the other projects, but fail the run so a missing
       // project is never mistaken for a complete work log.
       process.exitCode = 1;

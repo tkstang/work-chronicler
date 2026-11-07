@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { type Config, readAllTickets } from '@core/index';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { RateLimitError } from '../github/github.utils';
 import { fetchJiraTickets } from './jira.utils';
 
 // JIRA is the external system: each POST to /search/jql returns the next
@@ -247,5 +248,30 @@ describe('fetchJiraTickets errors', () => {
     expect(results.map((r) => r.project)).toEqual(['OPS']);
     expect(await storedKeys()).toEqual(['OPS-1', 'PAY-1']);
     expect(process.exitCode).toBe(1);
+  });
+
+  // Every project shares the same credentials, so after a 429 the next
+  // request would only be rate limited again.
+  it('aborts the whole fetch on a rate limit and says when to retry', async () => {
+    serve({
+      PAY: [
+        { keys: ['PAY-1'], nextPageToken: 't2', isLast: false },
+        new Response('Too Many Requests', {
+          status: 429,
+          headers: { 'Retry-After': '30' },
+        }),
+      ],
+      OPS: [{ keys: ['OPS-1'], isLast: true }],
+    });
+
+    const fetching = fetchJiraTickets({
+      config: config(['PAY', 'OPS']),
+      outputDir,
+    });
+
+    await expect(fetching).rejects.toBeInstanceOf(RateLimitError);
+    await expect(fetching).rejects.toThrow(/rate limit.*30 seconds/i);
+    expect(requests.map((r) => r.project)).toEqual(['PAY', 'PAY']);
+    expect(await storedKeys()).toEqual(['PAY-1']);
   });
 });

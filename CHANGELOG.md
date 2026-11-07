@@ -66,6 +66,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   page token; it reports the project as incomplete and exits non-zero.
 - `fetch jira` keeps paging past an empty page that JIRA does not mark as the
   last one, instead of dropping the tickets on later pages.
+- `fetch jira` and `fetch all` stop on a JIRA rate limit (HTTP 429) and say
+  when to retry, using the `Retry-After` header, instead of sending the next
+  project's request into the same limit. Other project failures still let
+  the remaining projects fetch.
 - `fetch jira` and `fetch all` exit non-zero when a JIRA project fails to
   fetch; the other projects are still fetched.
 

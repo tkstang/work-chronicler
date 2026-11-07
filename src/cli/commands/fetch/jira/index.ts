@@ -26,6 +26,7 @@ import {
   resolveReportIds,
   resolveReportOutputDir,
 } from '../fetch-manager.utils';
+import { RateLimitError } from '../github/github.utils';
 import { fetchJiraTickets } from './jira.utils';
 
 interface FetchJiraOptions {
@@ -125,6 +126,8 @@ async function fetchJiraManagerMode(options: FetchJiraOptions): Promise<void> {
         ),
       );
     } catch (error) {
+      // Later reports share the same credentials, so a rate limit stops the run
+      if (error instanceof RateLimitError) throw error;
       console.error(
         chalk.red(`✗ ${report.name} failed:`),
         error instanceof Error ? error.message : String(error),
