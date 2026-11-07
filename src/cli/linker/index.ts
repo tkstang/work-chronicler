@@ -57,8 +57,9 @@ const NON_TICKET_PREFIXES = new Set([
  * Matches patterns like: PROJ-123, ABC-1, XYZ-9999
  *
  * With `projects`, only keys from those projects are returned. Without them,
- * keys whose prefix is a known standard or version name are dropped, unless
- * the exact key is a fetched ticket in `knownKeys`.
+ * keys whose prefix is a known standard or version name (optionally followed
+ * by digits, as in `SHA3`) are dropped, unless the exact key is a fetched
+ * ticket in `knownKeys`.
  */
 function extractTicketKeys(
   text: string,
@@ -77,8 +78,11 @@ function extractTicketKeys(
     return keys.filter((key) => projectPrefixes.has(prefixOf(key)));
   }
 
+  // A versioned standard keeps its base name before the digits (SHA3-256,
+  // MD5-1, IPV6-2), so compare that base against the deny-list.
+  const basePrefixOf = (key: string) => prefixOf(key).replace(/\d+$/, '');
   return keys.filter(
-    (key) => knownKeys.has(key) || !NON_TICKET_PREFIXES.has(prefixOf(key)),
+    (key) => knownKeys.has(key) || !NON_TICKET_PREFIXES.has(basePrefixOf(key)),
   );
 }
 

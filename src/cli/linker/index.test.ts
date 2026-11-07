@@ -121,7 +121,7 @@ describe('linkPRsToTickets ticket-key matching', () => {
     writePR(
       1,
       'PAY-42: store amounts as UTF-8',
-      'Uses ISO-8601 dates, SHA-256 digests, GPT-4 summaries, RFC-3339, CVE-2024-1234 and TLS-1.',
+      'Uses ISO-8601 dates, SHA-256 and SHA3-256 digests, MD5-1, GPT-4 summaries, RFC-3339, CVE-2024-1234 and TLS-1.',
     );
 
     await linkPRsToTickets({ config: config(), outputDir });
