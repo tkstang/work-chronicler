@@ -38,19 +38,19 @@ oat_generated: false
 
 ## Progress Overview
 
-| Phase | Status  | Units | Accepted |
-| ----- | ------- | ----- | -------- |
+| Phase | Status    | Units | Accepted |
+| ----- | --------- | ----- | -------- |
 | p01   | completed | 1     | 1/1      |
-| p02   | pending | 1     | 0/1      |
-| p03   | pending | 1     | 0/1      |
-| p04   | pending | 1     | 0/1      |
-| p05   | pending | 1     | 0/1      |
-| p06   | pending | 1     | 0/1      |
-| p07   | pending | 1     | 0/1      |
-| p08   | pending | 1     | 0/1      |
-| p09   | pending | 1     | 0/1      |
-| p10   | pending | 1     | 0/1      |
-| p11   | pending | 1     | 0/1      |
+| p02   | pending   | 1     | 0/1      |
+| p03   | pending   | 1     | 0/1      |
+| p04   | pending   | 1     | 0/1      |
+| p05   | pending   | 1     | 0/1      |
+| p06   | pending   | 1     | 0/1      |
+| p07   | pending   | 1     | 0/1      |
+| p08   | pending   | 1     | 0/1      |
+| p09   | pending   | 1     | 0/1      |
+| p10   | pending   | 1     | 0/1      |
+| p11   | pending   | 1     | 0/1      |
 
 **Total:** 1/11 phases accepted
 
@@ -112,8 +112,47 @@ Review `reviews/p01-review-2026-11-07T233956Z.md` (0 Critical/High, 5 Low) passe
 **Status:** in_progress
 **Base:** 6014af5a9a414134f70b4e87def8f5b38cd23025
 **Executor:** phase-implementer:wce-p02-impl-1
+**Head:** 57a1470018120c3d0aa9a1914896db8bfbaaaf90
 
 Worktree and branch as p01; committing owner: the phase implementer (code); root owns the journal. Parallelism: no declared group; fan-out rejected (fetch, types, storage, consumers and docs are sequentially dependent); one phase implementer.
+
+Verification at Head: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build && npm pack --dry-run` pass (220 tests). Root re-ran typecheck and tests at Head: pass.
+
+Known Unknown settled (p02): opt-in `--reviews` flag on `fetch github` and `fetch all` (extra API cost and the stricter search rate limit; default behavior unchanged). GraphQL contribution discovery rejected (one-year windows, repo caps, completeness unprovable without live calls). Live search behavior (dismissed reviews, comment-only reviewing) remains unverified; mocked tests only.
+
+Deviations (accepted by root): the user's own PRs are excluded (comments on your own PR are not reviews given); `filter` copies review records by org/repo selectors only; reviews exposed through a new MCP tool rather than a `get_stats` field.
+
+### Task p02-t01: Review record type and storage
+
+**Status:** completed
+**Commit:** 15734e94749cb2a4ac85e3ee0fac6767efee91bb
+**Executor:** phase-implementer:wce-p02-impl-1
+
+`pr-review` record type stored at `work-log/pr-reviews/<org>/<repo>/<number>.md`, review and comment IDs distinct, optional `fetchedRange`. Proof: storage tests.
+
+### Task p02-t02: Fetch reviews given with `--reviews`
+
+**Status:** completed
+**Commit:** 88b0bd40fb8204bf9e5f89f798592ac4f56782e3
+**Executor:** phase-implementer:wce-p02-impl-1
+
+Opt-in `--reviews` on `fetch github`/`fetch all`; search `reviewed-by:` with `updated:>=since`, date-window split past 1000 results; reviews by `submitted_at`, comments by `created_at`; pending excluded; manager profiles skip. Proof: fetch and lifecycle tests.
+
+### Task p02-t03: `status`, MCP tool and `filter`
+
+**Status:** completed
+**Commit:** dda9b5c39b0d45d691b46de7b7b04869c318d0ab
+**Executor:** phase-implementer:wce-p02-impl-1
+
+New read-only MCP tool `search_pr_reviews`; `status` counts reviewed PRs; `filter` copies review records by org/repo only; mixed work-log test proves authored-PR results unchanged. Proof: MCP and mixed tests.
+
+### Task p02-t04: Docs, skills and CHANGELOG
+
+**Status:** completed
+**Commit:** 57a1470018120c3d0aa9a1914896db8bfbaaaf90
+**Executor:** phase-implementer:wce-p02-impl-1
+
+Docs, CHANGELOG, AGENTS.md, and write-self-review / write-resume-bullets / summarize-work cite reviews as review work. Proof: `format:check`.
 
 ---
 
