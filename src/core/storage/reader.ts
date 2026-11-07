@@ -20,6 +20,15 @@ function readMarkdownFile(filePath: string): {
 }
 
 /**
+ * Strip the blank lines the writer puts around the body without touching the
+ * body itself. `trim()` would also strip the first line's indentation, which
+ * breaks a body that starts with an indented code block.
+ */
+function normalizeBody(content: string): string {
+  return content.replace(/^(?:[ \t]*\r?\n)+/, '').trimEnd();
+}
+
+/**
  * Recursively find all markdown files in a directory
  */
 function findMarkdownFiles(dir: string): string[] {
@@ -76,7 +85,7 @@ export async function readAllPRs(
       if (parsed.success) {
         results.push({
           frontmatter: parsed.data,
-          body: content.trim(),
+          body: normalizeBody(content),
           filePath,
         });
       } else {
@@ -126,7 +135,7 @@ export async function readAllTickets(
       if (parsed.success) {
         results.push({
           frontmatter: parsed.data,
-          body: content.trim(),
+          body: normalizeBody(content),
           filePath,
         });
       } else {
@@ -168,7 +177,7 @@ export async function readPR(
     if (parsed.success) {
       return {
         frontmatter: parsed.data,
-        body: content.trim(),
+        body: normalizeBody(content),
         filePath,
       };
     }
@@ -202,7 +211,7 @@ export async function readTicket(
     if (parsed.success) {
       return {
         frontmatter: parsed.data,
-        body: content.trim(),
+        body: normalizeBody(content),
         filePath,
       };
     }

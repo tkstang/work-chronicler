@@ -50,6 +50,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ISO-8601`, `SHA-256` or `GPT-4` as JIRA tickets when no JIRA projects are
   configured. Links written by earlier versions stay until the PRs are
   re-fetched without `--cache`.
+- Reading a PR or ticket file no longer strips the indentation of the first
+  body line, so a description that starts with an indented code block keeps
+  it when `link` or `analyze --tag-prs` rewrites the file.
 
 ### Removed
 
