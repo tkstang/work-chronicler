@@ -61,7 +61,9 @@ Manager mode team-level data:
    - `team-timeline.json` - Team activity by month and week. Each period has
      team totals in `stats` and per-report numbers in `byReport`; weeks also
      list each report's PRs and tickets. Reports listed in `skippedReports`
-     have no timeline yet; note them as missing rather than inactive
+     had no usable timeline (the file is missing, malformed or unreadable);
+     note their timeline data as unavailable rather than treating them as
+     inactive
 
 2. **Aggregate individual stats** (if needed for additional context):
    - Read each report's `analysis/stats.json`

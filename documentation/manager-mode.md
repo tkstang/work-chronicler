@@ -402,8 +402,9 @@ profiles/manager/analysis/
 - **Team timeline**: every report's `analysis/timeline.json` merged by month
   and week. Each period has team totals in `stats` and each report's own
   numbers in `byReport`; week entries under `byReport` also list that
-  report's PRs and tickets. Reports without a timeline are listed in
-  `skippedReports`, so run `analyze reports <id> --timeline` first
+  report's PRs and tickets. Reports whose timeline is unavailable (missing,
+  malformed or unreadable) are listed in `skippedReports`; run
+  `analyze reports <id> --timeline` to regenerate it
 
 Run `analyze reports <id>` for each report first; team analysis only reads
 those per-report files.
@@ -641,8 +642,9 @@ work-chronicler analyze team
 
 **Workflow**:
 1. Fetch recent data: `fetch all --all-reports --cache`
-2. Generate team analysis: `analyze team`
-3. Review generated files:
+2. Analyze each report: `analyze reports <report-id>` for every report
+3. Generate team analysis: `analyze team`
+4. Review generated files:
    - `team-projects.json` - All active projects
    - `contributor-matrix.json` - Who's on which projects
    - `team-timeline.json` - Team activity by month and week, per report
@@ -673,8 +675,8 @@ work-chronicler analyze team
 
 **Workflow**:
 1. Ensure data is current: `fetch all --all-reports --cache`
-2. Generate team analysis: `analyze team`
-3. Generate per-report highlights: `analyze reports <report-id>`
+2. Analyze each report: `analyze reports <report-id>` for every report
+3. Generate team analysis: `analyze team`
 4. Use AI skills for summaries:
    - `/work-chronicler-mgmt-quarterly-highlights <report-id>` - Key wins per person
    - `/work-chronicler-mgmt-team-summary` - Team overview for leadership
