@@ -1,90 +1,92 @@
-import { type JiraTicketFile, readAllTickets } from '@core/index';
+import { readAllTickets } from '@core/index';
+import { z } from 'zod';
 
-export interface SearchTicketsInput {
-  query?: string;
-  org?: string;
-  project?: string;
-  status?: string;
-  since?: string;
-  until?: string;
-  limit?: number;
-}
+import { defineTool, jsonResult, parseAndValidateDate } from './types';
 
-export interface SearchTicketsOutput {
-  tickets: JiraTicketFile[];
-  total: number;
-}
+export const searchTicketsTool = defineTool({
+  name: 'search_tickets',
+  description: 'Search JIRA tickets by project, status, or keywords',
+  inputSchema: {
+    query: z
+      .string()
+      .optional()
+      .describe('Search term for key, summary, and body'),
+    org: z.string().optional().describe('Filter by organization name'),
+    project: z.string().optional().describe('Filter by JIRA project key'),
+    status: z.string().optional().describe('Filter by ticket status'),
+    since: z.string().optional().describe('Start date (ISO format)'),
+    until: z.string().optional().describe('End date (ISO format)'),
+    limit: z.number().optional().describe('Maximum number of results'),
+  },
+  handler: async (input, { outputDir }) => {
+    let filtered = await readAllTickets(outputDir);
 
-/**
- * Search JIRA tickets by various criteria
- */
-export async function searchTickets(
-  outputDir: string,
-  input: SearchTicketsInput,
-): Promise<SearchTicketsOutput> {
-  const allTickets = await readAllTickets(outputDir);
+    if (input.org) {
+      filtered = filtered.filter((t) => t.frontmatter.org === input.org);
+    }
 
-  let filtered = allTickets;
+    if (input.project) {
+      filtered = filtered.filter(
+        (t) => t.frontmatter.project === input.project,
+      );
+    }
 
-  // Filter by org
-  if (input.org) {
-    filtered = filtered.filter((t) => t.frontmatter.org === input.org);
-  }
+    if (input.status) {
+      const status = input.status.toLowerCase();
+      filtered = filtered.filter((t) =>
+        t.frontmatter.status.toLowerCase().includes(status),
+      );
+    }
 
-  // Filter by project
-  if (input.project) {
-    filtered = filtered.filter((t) => t.frontmatter.project === input.project);
-  }
+    if (input.since) {
+      const sinceDate = parseAndValidateDate(input.since, 'since');
+      filtered = filtered.filter(
+        (t) => new Date(t.frontmatter.createdAt) >= sinceDate,
+      );
+    }
 
-  // Filter by status
-  if (input.status) {
-    const status = input.status;
-    filtered = filtered.filter((t) =>
-      t.frontmatter.status.toLowerCase().includes(status.toLowerCase()),
+    if (input.until) {
+      const untilDate = parseAndValidateDate(input.until, 'until');
+      filtered = filtered.filter(
+        (t) => new Date(t.frontmatter.createdAt) <= untilDate,
+      );
+    }
+
+    if (input.query) {
+      const queryLower = input.query.toLowerCase();
+      filtered = filtered.filter(
+        (t) =>
+          t.frontmatter.summary.toLowerCase().includes(queryLower) ||
+          t.frontmatter.key.toLowerCase().includes(queryLower) ||
+          t.body.toLowerCase().includes(queryLower),
+      );
+    }
+
+    // Sort by date descending
+    filtered.sort(
+      (a, b) =>
+        new Date(b.frontmatter.createdAt).getTime() -
+        new Date(a.frontmatter.createdAt).getTime(),
     );
-  }
 
-  // Filter by date range
-  if (input.since) {
-    const sinceDate = new Date(input.since);
-    filtered = filtered.filter(
-      (t) => new Date(t.frontmatter.createdAt) >= sinceDate,
-    );
-  }
+    const total = filtered.length;
+    if (input.limit && input.limit > 0) {
+      filtered = filtered.slice(0, input.limit);
+    }
 
-  if (input.until) {
-    const untilDate = new Date(input.until);
-    filtered = filtered.filter(
-      (t) => new Date(t.frontmatter.createdAt) <= untilDate,
-    );
-  }
+    const results = filtered.map((t) => ({
+      key: t.frontmatter.key,
+      summary: t.frontmatter.summary,
+      url: t.frontmatter.url,
+      project: t.frontmatter.project,
+      status: t.frontmatter.status,
+      issueType: t.frontmatter.issueType,
+      createdAt: t.frontmatter.createdAt,
+      storyPoints: t.frontmatter.storyPoints,
+      linkedPRs: t.frontmatter.linkedPRs,
+      body: t.body.slice(0, 500) + (t.body.length > 500 ? '...' : ''),
+    }));
 
-  // Filter by query (search in summary and body)
-  if (input.query) {
-    const queryLower = input.query.toLowerCase();
-    filtered = filtered.filter(
-      (t) =>
-        t.frontmatter.summary.toLowerCase().includes(queryLower) ||
-        t.frontmatter.key.toLowerCase().includes(queryLower) ||
-        t.body.toLowerCase().includes(queryLower),
-    );
-  }
-
-  // Sort by date descending
-  filtered.sort(
-    (a, b) =>
-      new Date(b.frontmatter.createdAt).getTime() -
-      new Date(a.frontmatter.createdAt).getTime(),
-  );
-
-  // Apply limit
-  const total = filtered.length;
-  if (input.limit && input.limit > 0) {
-    filtered = filtered.slice(0, input.limit);
-  }
-
-  return {
-    tickets: filtered,
-    total,
-  };
-}
+    return jsonResult({ results, total, returned: results.length });
+  },
+});
