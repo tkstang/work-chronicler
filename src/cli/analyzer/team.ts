@@ -258,6 +258,16 @@ function isMergeableTimeline(timeline: TimelineAnalysis): boolean {
   );
 }
 
+/** Human-readable name for a `YYYY-MM` key, independent of the local timezone. */
+function monthNameOf(monthKey: string): string {
+  const [year, month] = monthKey.split('-').map(Number) as [number, number];
+  return new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
 /**
  * Read one report's timeline from `reports/<id>/analysis/timeline.json`.
  * Returns null when the report has no timeline, or its file is unreadable,
@@ -287,10 +297,13 @@ async function readReportTimeline(
  * Aggregate timeline data across all reports.
  *
  * Reads each report's `analysis/timeline.json` (written by
- * `analyze reports <id> --timeline`) and merges the months and weeks by
- * period. Team totals are summed, and `byReport` keeps each report's own
- * numbers and items so no work is credited to the wrong person. Reports
- * without a usable timeline are listed in `skippedReports`.
+ * `analyze reports <id> --timeline`) and merges the weeks by `weekStart`.
+ * Each week belongs to the month of its `weekStart` date, whatever month the
+ * report filed it under: a report generated in another timezone can file
+ * the same week under a different month, and trusting that bucket would
+ * count the week twice. Team totals are summed, and `byReport` keeps each
+ * report's own numbers and items so no work is credited to the wrong person.
+ * Reports without a usable timeline are listed in `skippedReports`.
  *
  * @param profileName - Profile name (must be 'manager')
  * @param reportIds - List of report IDs to aggregate (duplicates are ignored)
@@ -301,6 +314,7 @@ export async function aggregateTeamTimeline(
   reportIds: string[],
 ): Promise<TeamTimeline> {
   const months = new Map<string, TeamTimelineMonth>();
+  const weeks = new Map<string, TeamTimelineWeek>();
   const reports: string[] = [];
   const skippedReports: string[] = [];
   const sinces: string[] = [];
@@ -317,51 +331,49 @@ export async function aggregateTeamTimeline(
     sinces.push(timeline.dateRange.since);
     untils.push(timeline.dateRange.until);
 
-    for (const reportMonth of timeline.months) {
-      let month = months.get(reportMonth.month);
+    for (const reportWeek of timeline.months.flatMap((m) => m.weeks)) {
+      const monthKey = reportWeek.weekStart.slice(0, 7);
+      let month = months.get(monthKey);
       if (!month) {
         month = {
-          month: reportMonth.month,
-          monthName: reportMonth.monthName,
+          month: monthKey,
+          monthName: monthNameOf(monthKey),
           stats: emptyStats(),
           byReport: reportDictionary<TeamPeriodStats>(),
           weeks: [],
         };
-        months.set(reportMonth.month, month);
+        months.set(monthKey, month);
       }
 
       const reportMonthStats = month.byReport[reportId] ?? emptyStats();
-      addStats(reportMonthStats, reportMonth.stats);
+      addStats(reportMonthStats, reportWeek.stats);
       month.byReport[reportId] = reportMonthStats;
-      addStats(month.stats, reportMonth.stats);
+      addStats(month.stats, reportWeek.stats);
 
-      for (const reportWeek of reportMonth.weeks) {
-        let week = month.weeks.find(
-          (w) => w.weekStart === reportWeek.weekStart,
-        );
-        if (!week) {
-          week = {
-            weekStart: reportWeek.weekStart,
-            weekEnd: reportWeek.weekEnd,
-            weekNumber: reportWeek.weekNumber,
-            year: reportWeek.year,
-            stats: emptyStats(),
-            byReport: reportDictionary<TeamReportWeek>(),
-          };
-          month.weeks.push(week);
-        }
-
-        const entry = week.byReport[reportId] ?? {
+      let week = weeks.get(reportWeek.weekStart);
+      if (!week) {
+        week = {
+          weekStart: reportWeek.weekStart,
+          weekEnd: reportWeek.weekEnd,
+          weekNumber: reportWeek.weekNumber,
+          year: reportWeek.year,
           stats: emptyStats(),
-          prs: [],
-          tickets: [],
+          byReport: reportDictionary<TeamReportWeek>(),
         };
-        addStats(entry.stats, reportWeek.stats);
-        entry.prs.push(...reportWeek.prs);
-        entry.tickets.push(...reportWeek.tickets);
-        week.byReport[reportId] = entry;
-        addStats(week.stats, reportWeek.stats);
+        weeks.set(reportWeek.weekStart, week);
+        month.weeks.push(week);
       }
+
+      const entry = week.byReport[reportId] ?? {
+        stats: emptyStats(),
+        prs: [],
+        tickets: [],
+      };
+      addStats(entry.stats, reportWeek.stats);
+      entry.prs.push(...reportWeek.prs);
+      entry.tickets.push(...reportWeek.tickets);
+      week.byReport[reportId] = entry;
+      addStats(week.stats, reportWeek.stats);
     }
   }
 

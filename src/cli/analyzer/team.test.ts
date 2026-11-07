@@ -339,4 +339,35 @@ describe('team timeline', () => {
     ]);
     expect(projects[0]?.stats.prCount).toBe(1);
   });
+
+  // `analyze reports` buckets a week by its local month, so a report
+  // analyzed west of UTC files the week of Monday 2025-09-01 under August.
+  it('files a week under the month of its weekStart whatever month a report used', async () => {
+    const septPR = timelinePR(4, 'standard', 20, '2025-09-02');
+    writeTimeline(
+      'alice',
+      { since: '2025-09-01', until: '2025-09-30' },
+      { '2025-09': week('2025-09-01', '2025-09-07', [alicePR]) },
+    );
+    writeTimeline(
+      'bob',
+      { since: '2025-08-01', until: '2025-09-30' },
+      { '2025-08': week('2025-09-01', '2025-09-07', [septPR]) },
+    );
+
+    const timeline = await aggregateTeamTimeline('manager', ['alice', 'bob']);
+
+    expect(timeline.months.map((m) => m.month)).toEqual(['2025-09']);
+    const [september] = timeline.months;
+    expect(september?.monthName).toBe('September 2025');
+    expect(september?.stats.prCount).toBe(2);
+    expect(september?.byReport.bob?.prCount).toBe(1);
+    expect(september?.weeks).toHaveLength(1);
+    expect(september?.weeks[0]?.byReport.bob?.prs).toEqual([septPR]);
+    expect(timeline.summary).toMatchObject({
+      totalWeeks: 1,
+      totalMonths: 1,
+      busiestWeek: { weekStart: '2025-09-01', prCount: 2 },
+    });
+  });
 });
