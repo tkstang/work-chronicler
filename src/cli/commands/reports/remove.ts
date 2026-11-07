@@ -2,6 +2,7 @@
  * reports remove command
  */
 
+import { CliError, toCliError } from '@cli/errors';
 import { select } from '@inquirer/prompts';
 import { getActiveProfile } from '@workspace/global-config';
 import { removeReport } from '@workspace/report-manager';
@@ -25,18 +26,14 @@ export const removeCommand = new Command('remove')
       const activeProfile = getActiveProfile();
 
       if (!isManagerMode(activeProfile)) {
-        console.error(
+        throw new CliError(
           chalk.red(
             '\n❌ Error: "reports" commands only available in manager mode.',
           ),
+          {
+            hint: `${chalk.gray('Current profile is in IC mode.')}\n${chalk.gray('\nHint: Create a manager profile with "init --mode manager"')}`,
+          },
         );
-        console.log(chalk.gray('Current profile is in IC mode.'));
-        console.log(
-          chalk.gray(
-            '\nHint: Create a manager profile with "init --mode manager"',
-          ),
-        );
-        process.exit(1);
       }
 
       const profileName = activeProfile;
@@ -81,10 +78,6 @@ export const removeCommand = new Command('remove')
         );
       }
     } catch (error) {
-      console.error(
-        chalk.red('\n❌ Error:'),
-        error instanceof Error ? error.message : String(error),
-      );
-      process.exit(1);
+      throw toCliError(error, chalk.red('\n❌ Error:'));
     }
   });

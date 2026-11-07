@@ -2,6 +2,7 @@
  * Manager mode fetch utilities
  */
 
+import { CliError } from '@cli/errors';
 import type { Config } from '@config/schema';
 import { select } from '@inquirer/prompts';
 import type { ManagerConfig, ReportConfig } from '@wc-types/manager';
@@ -31,11 +32,10 @@ export async function resolveReportIds(options: {
   const config = loadManagerConfig(activeProfile);
 
   if (config.reports.length === 0) {
-    console.error(
+    throw new CliError(
       chalk.red('\n❌ Error: No reports configured in manager profile.'),
+      { hint: chalk.gray('Add reports with "reports add"') },
     );
-    console.log(chalk.gray('Add reports with "reports add"'));
-    process.exit(1);
   }
 
   // If --all-reports flag
@@ -51,8 +51,9 @@ export async function resolveReportIds(options: {
     );
 
     if (!report) {
-      console.error(chalk.red(`\n❌ Error: Report "${reportId}" not found`));
-      process.exit(1);
+      throw new CliError(
+        chalk.red(`\n❌ Error: Report "${reportId}" not found`),
+      );
     }
 
     return [reportId];

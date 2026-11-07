@@ -7,6 +7,14 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { toCliError } from '@cli/errors';
+import {
+  buildReportConfig,
+  getReportById,
+  loadManagerConfigForFetch,
+  resolveReportIds,
+  resolveReportOutputDir,
+} from '@commands/fetch/fetch-manager.utils';
 import {
   DIRECTORIES,
   findConfigPath,
@@ -19,13 +27,6 @@ import { isManagerMode } from '@workspace/resolver';
 import chalk from 'chalk';
 import { Command } from 'commander';
 
-import {
-  buildReportConfig,
-  getReportById,
-  loadManagerConfigForFetch,
-  resolveReportIds,
-  resolveReportOutputDir,
-} from '../fetch-manager.utils';
 import { fetchGitHubPRs, RateLimitError } from './github.utils';
 
 interface FetchGitHubOptions {
@@ -161,10 +162,6 @@ export const githubCommand = new Command('github')
       // IC mode - existing logic
       await fetchGitHubICMode(options);
     } catch (error) {
-      console.error(
-        chalk.red('\n❌ Error:'),
-        error instanceof Error ? error.message : String(error),
-      );
-      process.exit(1);
+      throw toCliError(error, chalk.red('\n❌ Error:'));
     }
   });

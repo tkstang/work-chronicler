@@ -5,6 +5,7 @@
  */
 
 import { writeTeamAnalysis } from '@cli/analyzer';
+import { CliError, toCliError } from '@cli/errors';
 import { getActiveProfile } from '@workspace/global-config';
 import { loadManagerConfig } from '@workspace/report-manager';
 import { generateReportId } from '@workspace/report-utils';
@@ -22,15 +23,16 @@ export const teamCommand = new Command('team')
       const activeProfile = getActiveProfile();
 
       if (!isManagerMode(activeProfile)) {
-        console.error(
+        throw new CliError(
           chalk.red(
             '\n❌ Error: "analyze team" command only available in manager mode.',
           ),
+          {
+            hint: chalk.gray(
+              'Use "analyze" without subcommands for IC mode analysis.',
+            ),
+          },
         );
-        console.log(
-          chalk.gray('Use "analyze" without subcommands for IC mode analysis.'),
-        );
-        process.exit(1);
       }
 
       const profileName = activeProfile;
@@ -57,10 +59,6 @@ export const teamCommand = new Command('team')
         ),
       );
     } catch (error) {
-      console.error(
-        chalk.red('\n❌ Error:'),
-        error instanceof Error ? error.message : String(error),
-      );
-      process.exit(1);
+      throw toCliError(error, chalk.red('\n❌ Error:'));
     }
   });

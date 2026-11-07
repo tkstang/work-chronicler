@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking:** the package no longer has a programmatic entry point; importing
   `work-chronicler` used to run the CLI and now fails. Use the
   `work-chronicler` binary (including `work-chronicler mcp` for the MCP server).
+- An unexpected error thrown outside a command's own error handling (for
+  example a prompt closed on non-interactive stdin) now prints
+  `Error: <message>` and exits 1 instead of dumping a Node.js stack trace.
 - Built-in validation messages follow Zod 4 wording, and commands reject
   unexpected extra arguments (Commander 15).
 - Releases publish through npm trusted publishing with provenance.

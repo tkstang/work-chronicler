@@ -28,10 +28,18 @@ commands/
 │       └── jira.types.ts   # JIRA-specific types
 │
 ├── init/                   # Complex command (has prompts/utils/types)
-│   ├── index.ts            # Main command
+│   ├── index.ts            # Main command (validates --mode, dispatches)
+│   ├── ic.ts               # IC profile setup flow
+│   ├── manager.ts          # Manager profile setup flow
+│   ├── init.fetch.ts       # Optional first fetch after IC setup
 │   ├── init.prompts.ts     # Interactive prompts
 │   ├── init.types.ts       # Types
 │   └── init.utils.ts       # Utilities
+│
+├── reports/                # Command with subcommands (manager mode)
+│   ├── index.ts            # Parent command
+│   ├── add.ts, list.ts, remove.ts, update.ts
+│   └── reports.prompts.ts  # Report prompt shared with `init --mode manager`
 │
 ├── profile/                # Command with simple subcommands
 │   ├── index.ts            # Parent command
@@ -129,6 +137,34 @@ parent-command/
 | `@prompts` | `src/cli/prompts/index.ts` |
 | `@linker/*` | `src/cli/linker/*` |
 | `@analyzer/*` | `src/cli/analyzer/*` |
+
+### Errors and Exit Codes
+
+Commands never call `process.exit`. Throw a `CliError` from `@cli/errors`
+instead; the entry point (`src/cli/index.ts`) catches it, prints its message
+to stderr and its optional `hint` to stdout, and exits with its `exitCode`
+(default 1). Any other error prints `Error: <message>` and exits 1.
+
+```typescript
+import { CliError, toCliError } from '@cli/errors';
+
+.action(async () => {
+  try {
+    if (!isManagerMode(getActiveProfile())) {
+      throw new CliError(chalk.red('\n❌ Error: manager mode only.'), {
+        hint: chalk.gray('Create one with "init --mode manager"'),
+      });
+    }
+    // ...
+  } catch (error) {
+    // Keeps this command's prefix; a CliError passes through unchanged
+    throw toCliError(error, chalk.red('\n❌ Error:'));
+  }
+});
+```
+
+Setting `process.exitCode` without throwing is for runs that finish with
+warnings, such as a fetch where an org returned nothing.
 
 ### Command Registration
 
