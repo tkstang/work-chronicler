@@ -1,7 +1,15 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { type ProjectGrouping, ProjectGroupingSchema } from '@core/index';
+import {
+  type PRImpact,
+  type ProjectGrouping,
+  ProjectGroupingSchema,
+  type TimelineAnalysis,
+  TimelineAnalysisSchema,
+  type TimelinePR,
+  type TimelineTicket,
+} from '@core/index';
 import { getReportAnalysisDir } from '@workspace/resolver';
 import { z } from 'zod';
 
@@ -135,21 +143,224 @@ export async function generateContributorMatrix(
   return matrix;
 }
 
+/** Activity totals for one period (a week or a month). */
+export interface TeamPeriodStats {
+  prCount: number;
+  ticketCount: number;
+  additions: number;
+  deletions: number;
+  byImpact: Record<PRImpact, number>;
+}
+
+/** One report's activity in a week, with the PRs and tickets behind it. */
+export interface TeamReportWeek {
+  stats: TeamPeriodStats;
+  prs: TimelinePR[];
+  tickets: TimelineTicket[];
+}
+
+/** A week of team activity, keyed by report ID in `byReport`. */
+export interface TeamTimelineWeek {
+  weekStart: string;
+  weekEnd: string;
+  weekNumber: number;
+  year: number;
+  stats: TeamPeriodStats;
+  byReport: Record<string, TeamReportWeek>;
+}
+
+/** A month of team activity; `byReport` holds each report's month totals. */
+export interface TeamTimelineMonth {
+  month: string;
+  monthName: string;
+  stats: TeamPeriodStats;
+  byReport: Record<string, TeamPeriodStats>;
+  weeks: TeamTimelineWeek[];
+}
+
+/** Team timeline written to `team-timeline.json`. */
+export interface TeamTimeline {
+  generatedAt: string;
+  /** Reports whose `analysis/timeline.json` was merged */
+  reports: string[];
+  /** Reports skipped because their timeline is missing or malformed */
+  skippedReports: string[];
+  dateRange: { since: string; until: string } | null;
+  months: TeamTimelineMonth[];
+  summary: {
+    totalWeeks: number;
+    totalMonths: number;
+    busiestWeek?: { weekStart: string; prCount: number };
+    busiestMonth?: { month: string; prCount: number };
+  };
+}
+
+function emptyStats(): TeamPeriodStats {
+  return {
+    prCount: 0,
+    ticketCount: 0,
+    additions: 0,
+    deletions: 0,
+    byImpact: { flagship: 0, major: 0, standard: 0, minor: 0 },
+  };
+}
+
+function addStats(target: TeamPeriodStats, source: TeamPeriodStats): void {
+  target.prCount += source.prCount;
+  target.ticketCount += source.ticketCount;
+  target.additions += source.additions;
+  target.deletions += source.deletions;
+  for (const impact of Object.keys(target.byImpact) as PRImpact[]) {
+    target.byImpact[impact] += source.byImpact[impact];
+  }
+}
+
+/**
+ * Read one report's timeline from `reports/<id>/analysis/timeline.json`.
+ * Returns null when the report has no timeline yet or its file is malformed,
+ * so one bad report never aborts the team rollup.
+ */
+async function readReportTimeline(
+  profileName: string,
+  reportId: string,
+): Promise<TimelineAnalysis | null> {
+  try {
+    const timelinePath = join(
+      getReportAnalysisDir(profileName, reportId),
+      'timeline.json',
+    );
+    const data = JSON.parse(await readFile(timelinePath, 'utf-8'));
+    const parsed = TimelineAnalysisSchema.safeParse(data);
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Aggregate timeline data across all reports.
  *
- * Creates a team-level timeline showing when work happened across all contributors.
+ * Reads each report's `analysis/timeline.json` (written by
+ * `analyze reports <id> --timeline`) and merges the months and weeks by
+ * period. Team totals are summed, and `byReport` keeps each report's own
+ * numbers and items so no work is credited to the wrong person. Reports
+ * without a readable timeline are listed in `skippedReports`.
  *
  * @param profileName - Profile name (must be 'manager')
  * @param reportIds - List of report IDs to aggregate
- * @returns Aggregated timeline data structure
+ * @returns Team timeline, months and weeks in chronological order
  */
 export async function aggregateTeamTimeline(
-  _profileName: string,
-  _reportIds: string[],
-): Promise<Record<string, unknown>> {
-  // TODO: Implement timeline aggregation
-  return {};
+  profileName: string,
+  reportIds: string[],
+): Promise<TeamTimeline> {
+  const months = new Map<string, TeamTimelineMonth>();
+  const reports: string[] = [];
+  const skippedReports: string[] = [];
+  const sinces: string[] = [];
+  const untils: string[] = [];
+
+  for (const reportId of reportIds) {
+    const timeline = await readReportTimeline(profileName, reportId);
+    if (!timeline) {
+      skippedReports.push(reportId);
+      continue;
+    }
+    reports.push(reportId);
+
+    sinces.push(timeline.dateRange.since);
+    untils.push(timeline.dateRange.until);
+
+    for (const reportMonth of timeline.months) {
+      let month = months.get(reportMonth.month);
+      if (!month) {
+        month = {
+          month: reportMonth.month,
+          monthName: reportMonth.monthName,
+          stats: emptyStats(),
+          byReport: {},
+          weeks: [],
+        };
+        months.set(reportMonth.month, month);
+      }
+
+      const reportMonthStats = month.byReport[reportId] ?? emptyStats();
+      addStats(reportMonthStats, reportMonth.stats);
+      month.byReport[reportId] = reportMonthStats;
+      addStats(month.stats, reportMonth.stats);
+
+      for (const reportWeek of reportMonth.weeks) {
+        let week = month.weeks.find(
+          (w) => w.weekStart === reportWeek.weekStart,
+        );
+        if (!week) {
+          week = {
+            weekStart: reportWeek.weekStart,
+            weekEnd: reportWeek.weekEnd,
+            weekNumber: reportWeek.weekNumber,
+            year: reportWeek.year,
+            stats: emptyStats(),
+            byReport: {},
+          };
+          month.weeks.push(week);
+        }
+
+        const entry = week.byReport[reportId] ?? {
+          stats: emptyStats(),
+          prs: [],
+          tickets: [],
+        };
+        addStats(entry.stats, reportWeek.stats);
+        entry.prs.push(...reportWeek.prs);
+        entry.tickets.push(...reportWeek.tickets);
+        week.byReport[reportId] = entry;
+        addStats(week.stats, reportWeek.stats);
+      }
+    }
+  }
+
+  const sortedMonths = [...months.values()].sort((a, b) =>
+    a.month.localeCompare(b.month),
+  );
+  for (const month of sortedMonths) {
+    month.weeks.sort((a, b) => a.weekStart.localeCompare(b.weekStart));
+  }
+
+  let busiestWeek: TeamTimeline['summary']['busiestWeek'];
+  let busiestMonth: TeamTimeline['summary']['busiestMonth'];
+  let totalWeeks = 0;
+  for (const month of sortedMonths) {
+    if (!busiestMonth || month.stats.prCount > busiestMonth.prCount) {
+      busiestMonth = { month: month.month, prCount: month.stats.prCount };
+    }
+    for (const week of month.weeks) {
+      totalWeeks++;
+      if (!busiestWeek || week.stats.prCount > busiestWeek.prCount) {
+        busiestWeek = {
+          weekStart: week.weekStart,
+          prCount: week.stats.prCount,
+        };
+      }
+    }
+  }
+
+  // Report ranges are ISO dates, so string order is date order.
+  const since = sinces.sort()[0];
+  const until = untils.sort().at(-1);
+
+  return {
+    generatedAt: new Date().toISOString(),
+    reports,
+    skippedReports,
+    dateRange: since && until ? { since, until } : null,
+    months: sortedMonths,
+    summary: {
+      totalWeeks,
+      totalMonths: sortedMonths.length,
+      busiestWeek,
+      busiestMonth,
+    },
+  };
 }
 
 /**
@@ -158,7 +369,7 @@ export async function aggregateTeamTimeline(
  * Generates and writes three analysis files:
  * - team-projects.json: Aggregated project groupings
  * - contributor-matrix.json: Contributor to project mapping
- * - team-timeline.json: Team-level timeline (placeholder)
+ * - team-timeline.json: Team timeline merged from each report's timeline.json
  *
  * @param profileName - Profile name (must be 'manager')
  * @param reportIds - List of report IDs to aggregate

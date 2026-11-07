@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MIT `LICENSE` file, `CONTRIBUTING.md` and this changelog.
 - `documentation/` pages for configuration, the command reference and the MCP
   server, with a `documentation/index.md` entry point.
+- `analyze team` writes a real `team-timeline.json`: each report's
+  `analysis/timeline.json` merged by month and week, with team totals and
+  per-report attribution. Reports without a timeline are listed in
+  `skippedReports`. It used to be written as `{}`.
 
 ### Changed
 

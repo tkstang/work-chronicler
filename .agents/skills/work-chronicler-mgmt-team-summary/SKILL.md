@@ -58,8 +58,10 @@ Manager mode team-level data:
 1. **Read team-level analysis**:
    - `team-projects.json` - All projects across the team
    - `contributor-matrix.json` - Report ID → projects detected in that report's own work
-   - `team-timeline.json` - Currently a placeholder (`{}`); read each report's
-     `analysis/timeline.json` for activity trends instead
+   - `team-timeline.json` - Team activity by month and week. Each period has
+     team totals in `stats` and per-report numbers in `byReport`; weeks also
+     list each report's PRs and tickets. Reports listed in `skippedReports`
+     have no timeline yet; note them as missing rather than inactive
 
 2. **Aggregate individual stats** (if needed for additional context):
    - Read each report's `analysis/stats.json`

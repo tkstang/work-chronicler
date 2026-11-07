@@ -390,7 +390,7 @@ work-chronicler analyze team
 profiles/manager/analysis/
 ├── team-projects.json        # All projects across all reports
 ├── contributor-matrix.json   # Who worked on which projects
-└── team-timeline.json        # Placeholder: written as {} (not implemented yet)
+└── team-timeline.json        # Week and month activity across reports
 ```
 
 **What it includes:**
@@ -399,8 +399,11 @@ profiles/manager/analysis/
   merged by name, with PR and ticket lists and stats combined
 - **Contributor matrix**: report ID → the projects detected in that report's
   own analysis
-- **Team timeline**: not implemented yet. The file is written as `{}`; use each
-  report's `analysis/timeline.json` instead
+- **Team timeline**: every report's `analysis/timeline.json` merged by month
+  and week. Each period has team totals in `stats` and each report's own
+  numbers in `byReport`; week entries under `byReport` also list that
+  report's PRs and tickets. Reports without a timeline are listed in
+  `skippedReports`, so run `analyze reports <id> --timeline` first
 
 Run `analyze reports <id>` for each report first; team analysis only reads
 those per-report files.
@@ -642,8 +645,7 @@ work-chronicler analyze team
 3. Review generated files:
    - `team-projects.json` - All active projects
    - `contributor-matrix.json` - Who's on which projects
-   - Each report's `analysis/timeline.json` for recent activity (the team
-     timeline file is still a placeholder)
+   - `team-timeline.json` - Team activity by month and week, per report
 
 **Use cases**:
 - Identify collaboration patterns
