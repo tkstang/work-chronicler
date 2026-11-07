@@ -320,4 +320,23 @@ describe('team timeline', () => {
     expect(timeline.months.map((m) => m.month)).toEqual(['2025-03']);
     expect(timeline.summary.totalWeeks).toBe(1);
   });
+
+  it('counts a report listed twice only once', async () => {
+    writeTimeline(
+      'alice',
+      { since: '2025-03-01', until: '2025-03-31' },
+      { '2025-03': week('2025-03-03', '2025-03-09', [alicePR]) },
+    );
+    writeProjects('alice', ['Checkout revamp']);
+
+    const timeline = await aggregateTeamTimeline('manager', ['alice', 'alice']);
+    const projects = await aggregateTeamProjects('manager', ['alice', 'alice']);
+
+    expect(timeline.reports).toEqual(['alice']);
+    expect(timeline.months[0]?.stats.prCount).toBe(1);
+    expect(timeline.months[0]?.weeks[0]?.byReport.alice?.prs).toEqual([
+      alicePR,
+    ]);
+    expect(projects[0]?.stats.prCount).toBe(1);
+  });
 });

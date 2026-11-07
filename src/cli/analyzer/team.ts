@@ -47,7 +47,7 @@ async function readReportProjects(
  * - Stats are summed
  *
  * @param profileName - Profile name (must be 'manager')
- * @param reportIds - List of report IDs to aggregate
+ * @param reportIds - List of report IDs to aggregate (duplicates are ignored)
  * @returns Array of aggregated ProjectGrouping objects
  */
 export async function aggregateTeamProjects(
@@ -56,7 +56,7 @@ export async function aggregateTeamProjects(
 ): Promise<ProjectGrouping[]> {
   const projectsByName = new Map<string, ProjectGrouping>();
 
-  for (const reportId of reportIds) {
+  for (const reportId of new Set(reportIds)) {
     const projects = await readReportProjects(profileName, reportId);
 
     // Merge projects by name (case-insensitive)
@@ -293,7 +293,7 @@ async function readReportTimeline(
  * without a usable timeline are listed in `skippedReports`.
  *
  * @param profileName - Profile name (must be 'manager')
- * @param reportIds - List of report IDs to aggregate
+ * @param reportIds - List of report IDs to aggregate (duplicates are ignored)
  * @returns Team timeline, months and weeks in chronological order
  */
 export async function aggregateTeamTimeline(
@@ -306,7 +306,7 @@ export async function aggregateTeamTimeline(
   const sinces: string[] = [];
   const untils: string[] = [];
 
-  for (const reportId of reportIds) {
+  for (const reportId of new Set(reportIds)) {
     const timeline = await readReportTimeline(profileName, reportId);
     if (!timeline) {
       skippedReports.push(reportId);
