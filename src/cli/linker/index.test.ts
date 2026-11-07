@@ -129,6 +129,18 @@ describe('linkPRsToTickets ticket-key matching', () => {
     expect(await prTickets()).toEqual({ 1: ['PAY-42'] });
   });
 
+  it('links a fetched ticket whose key looks like a standard when no projects are configured', async () => {
+    writePR(1, 'TLS-1: rotate certificates', 'Follows ISO-8601 and TLS-2.');
+    writeTicket('TLS-1');
+
+    await linkPRsToTickets({ config: config(), outputDir });
+
+    expect(await prTickets()).toEqual({ 1: ['TLS-1'] });
+    expect(await ticketPRs()).toEqual({
+      'TLS-1': ['https://github.com/acme/app/pull/1'],
+    });
+  });
+
   it('only links keys from configured projects when projects are set', async () => {
     writePR(1, 'PAY-42 and OPS-7', 'Also mentions SHA-256 and LEGACY-9.');
 

@@ -57,9 +57,14 @@ const NON_TICKET_PREFIXES = new Set([
  * Matches patterns like: PROJ-123, ABC-1, XYZ-9999
  *
  * With `projects`, only keys from those projects are returned. Without them,
- * keys whose prefix is a known standard or version name are dropped.
+ * keys whose prefix is a known standard or version name are dropped, unless
+ * the exact key is a fetched ticket in `knownKeys`.
  */
-function extractTicketKeys(text: string, projects?: string[]): string[] {
+function extractTicketKeys(
+  text: string,
+  projects: string[] | undefined,
+  knownKeys: ReadonlySet<string>,
+): string[] {
   // Match common JIRA ticket patterns: PROJECT-NUMBER
   const pattern = /\b([A-Z][A-Z0-9_]+-\d+)\b/g;
   const matches = text.match(pattern) || [];
@@ -72,7 +77,9 @@ function extractTicketKeys(text: string, projects?: string[]): string[] {
     return keys.filter((key) => projectPrefixes.has(prefixOf(key)));
   }
 
-  return keys.filter((key) => !NON_TICKET_PREFIXES.has(prefixOf(key)));
+  return keys.filter(
+    (key) => knownKeys.has(key) || !NON_TICKET_PREFIXES.has(prefixOf(key)),
+  );
 }
 
 /**
@@ -122,6 +129,7 @@ export async function linkPRsToTickets(
   for (const ticket of tickets) {
     ticketMap.set(ticket.frontmatter.key, ticket);
   }
+  const knownTicketKeys = new Set(ticketMap.keys());
 
   let prsUpdated = 0;
   let ticketsUpdated = 0;
@@ -141,6 +149,7 @@ export async function linkPRsToTickets(
     const foundKeys = extractTicketKeys(
       searchText,
       knownProjects.length > 0 ? knownProjects : undefined,
+      knownTicketKeys,
     );
 
     if (foundKeys.length === 0) continue;
