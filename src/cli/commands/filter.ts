@@ -5,6 +5,7 @@ import {
   findConfigPath,
   getOutputDirectory,
   loadConfig,
+  normalizeGitHubName,
   type PRImpact,
   readAllPRs,
   readAllTickets,
@@ -179,21 +180,19 @@ export const filterCommand = new Command('filter')
         : 0;
 
       // Build org/repo filter sets
+      // Normalize like the config schema so `--org @acme` matches `acme`
+      const toOrgKey = (o: string) => normalizeGitHubName(o).toLowerCase();
       const includeOrgs = options.org
-        ? new Set(options.org.map((o: string) => o.toLowerCase()))
+        ? new Set(options.org.map(toOrgKey))
         : null;
-      const excludeOrgs = new Set(
-        (options.excludeOrg ?? []).map((o: string) => o.toLowerCase()),
-      );
+      const excludeOrgs = new Set((options.excludeOrg ?? []).map(toOrgKey));
       const includeRepos = options.repo
-        ? new Set(options.repo.map((r: string) => r.toLowerCase()))
+        ? new Set(options.repo.map(toOrgKey))
         : null;
-      const excludeRepos = new Set(
-        (options.excludeRepo ?? []).map((r: string) => r.toLowerCase()),
-      );
+      const excludeRepos = new Set((options.excludeRepo ?? []).map(toOrgKey));
 
       const filteredPRs = allPRs.filter((pr) => {
-        const prOrg = pr.frontmatter.org.toLowerCase();
+        const prOrg = toOrgKey(pr.frontmatter.org);
         const prRepoKey = `${prOrg}/${pr.frontmatter.repository.toLowerCase()}`;
 
         // Check org inclusion (if specified, must be in the list)

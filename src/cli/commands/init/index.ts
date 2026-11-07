@@ -16,6 +16,7 @@ import {
 } from '@core/index';
 import { confirm, input, password, select } from '@inquirer/prompts';
 import { linkPRsToTickets } from '@linker/index';
+import { normalizeGitHubName } from '@wc-types/github';
 import type { ManagerConfig, ReportConfig } from '@wc-types/manager';
 import { addReport } from '@workspace/report-manager';
 import chalk from 'chalk';
@@ -606,7 +607,7 @@ async function initManagerProfile(cliProfileName?: string): Promise<void> {
   const githubOrg = await input({
     message: 'GitHub organization:',
     validate: (value: string) => {
-      if (!value.trim()) {
+      if (!normalizeGitHubName(value)) {
         return 'GitHub organization is required';
       }
       return true;
@@ -677,7 +678,7 @@ async function initManagerProfile(cliProfileName?: string): Promise<void> {
   const config: ManagerConfig = {
     mode: 'manager',
     github: {
-      org: githubOrg.trim(),
+      org: normalizeGitHubName(githubOrg),
     },
     jira: jiraConfig,
     fetch: {
@@ -778,13 +779,15 @@ async function promptForReport(config: ManagerConfig): Promise<ReportConfig> {
     },
   });
 
-  const github = await input({
-    message: 'GitHub username:',
-    validate: (value) => {
-      if (!value.trim()) return 'GitHub username is required';
-      return true;
-    },
-  });
+  const github = normalizeGitHubName(
+    await input({
+      message: 'GitHub username:',
+      validate: (value) => {
+        if (!normalizeGitHubName(value)) return 'GitHub username is required';
+        return true;
+      },
+    }),
+  );
 
   const email = await input({
     message: 'Email:',

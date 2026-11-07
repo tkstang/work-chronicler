@@ -1,3 +1,4 @@
+import { GitHubNameSchema } from '@wc-types/github';
 import { z } from 'zod';
 
 /**
@@ -27,7 +28,7 @@ const httpsUrl = z
  * GitHub organization configuration
  */
 export const GitHubOrgConfigSchema = z.object({
-  name: z.string(),
+  name: GitHubNameSchema,
   repos: z.array(z.string()).default(['*']),
 });
 
@@ -35,7 +36,7 @@ export const GitHubOrgConfigSchema = z.object({
  * GitHub configuration
  */
 export const GitHubConfigSchema = z.object({
-  username: z.string(),
+  username: GitHubNameSchema,
   token: z.string().optional(),
   orgs: z.array(GitHubOrgConfigSchema).default([]),
 });

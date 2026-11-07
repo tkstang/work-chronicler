@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { normalizeGitHubName } from '@wc-types/github';
 
 /**
  * Standard directory names within the work-log structure.
@@ -69,7 +70,13 @@ export function getPRFilePath(
 ): string {
   const dateStr = date.toISOString().split('T')[0];
   const fileName = `${dateStr}_${prNumber}.md`;
-  return join(outputDir, DIRECTORIES.PULL_REQUESTS, org, repo, fileName);
+  return join(
+    outputDir,
+    DIRECTORIES.PULL_REQUESTS,
+    normalizeGitHubName(org),
+    repo,
+    fileName,
+  );
 }
 
 /**
@@ -118,10 +125,11 @@ export function getPRDirectory(
   org: string,
   repo?: string,
 ): string {
+  const orgDir = normalizeGitHubName(org);
   if (repo) {
-    return join(outputDir, DIRECTORIES.PULL_REQUESTS, org, repo);
+    return join(outputDir, DIRECTORIES.PULL_REQUESTS, orgDir, repo);
   }
-  return join(outputDir, DIRECTORIES.PULL_REQUESTS, org);
+  return join(outputDir, DIRECTORIES.PULL_REQUESTS, orgDir);
 }
 
 /**

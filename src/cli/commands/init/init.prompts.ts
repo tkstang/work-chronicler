@@ -1,4 +1,5 @@
 import { checkbox, confirm, input, password, select } from '@inquirer/prompts';
+import { normalizeGitHubName } from '@wc-types/github';
 import chalk from 'chalk';
 import type { PRLookbackDepth } from './init.utils';
 
@@ -153,15 +154,16 @@ function validateIsoDate(value: string): true | string {
  * Prompt for GitHub username
  */
 export async function promptGitHubUsername(): Promise<string> {
-  return await input({
+  const username = await input({
     message: "What's your GitHub username?",
     validate: (value: string) => {
-      if (!value.trim()) {
+      if (!normalizeGitHubName(value)) {
         return 'GitHub username is required';
       }
       return true;
     },
   });
+  return normalizeGitHubName(username);
 }
 
 /**
@@ -182,17 +184,18 @@ export async function promptGitHubOrgs(): Promise<string[]> {
           ? 'Enter a GitHub organization (or username for personal repos):'
           : 'Enter another organization (or press Enter to finish):',
       validate: (value: string) => {
-        if (orgs.length === 0 && !value.trim()) {
+        if (orgs.length === 0 && !normalizeGitHubName(value)) {
           return 'At least one organization is required';
         }
         return true;
       },
     });
 
-    if (!org.trim()) {
+    const orgName = normalizeGitHubName(org);
+    if (!orgName) {
       addMore = false;
     } else {
-      orgs.push(org.trim());
+      orgs.push(orgName);
     }
   }
 

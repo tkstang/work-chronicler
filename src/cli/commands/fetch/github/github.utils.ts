@@ -321,12 +321,20 @@ interface FetchOrgPRsParams {
   verbose?: boolean;
 }
 
+interface FetchOrgPRsResult {
+  results: GitHubFetchResult[];
+  /** Number of repos attempted */
+  repoCount: number;
+  /** Number of repos that returned an error (404 or otherwise) */
+  failedCount: number;
+}
+
 /**
  * Fetch PRs for an organization
  */
 async function fetchOrgPRs(
   params: FetchOrgPRsParams,
-): Promise<GitHubFetchResult[]> {
+): Promise<FetchOrgPRsResult> {
   const {
     octokit,
     orgConfig,
@@ -341,6 +349,7 @@ async function fetchOrgPRs(
 
   const results: GitHubFetchResult[] = [];
   const org = orgConfig.name;
+  let failedCount = 0;
 
   // Get list of repos to fetch
   let repos: string[];
@@ -396,6 +405,7 @@ async function fetchOrgPRs(
         spinner.start();
       }
     } catch (error) {
+      failedCount++;
       spinner.stop();
       if (error instanceof Error && 'status' in error && error.status === 404) {
         console.log(
@@ -410,7 +420,7 @@ async function fetchOrgPRs(
     }
   }
 
-  return results;
+  return { results, repoCount: repos.length, failedCount };
 }
 
 /**
@@ -508,7 +518,7 @@ export async function fetchGitHubPRs(
     console.log(`${chalk.cyan('Org:')} ${orgConfig.name}`);
     spinner.start(`Fetching from ${orgConfig.name}...`);
 
-    const results = await fetchOrgPRs({
+    const { results, repoCount, failedCount } = await fetchOrgPRs({
       octokit,
       orgConfig,
       username,
@@ -526,7 +536,19 @@ export async function fetchGitHubPRs(
     // Show org summary
     const orgWritten = results.reduce((sum, r) => sum + r.prsWritten, 0);
     const orgCached = results.reduce((sum, r) => sum + r.prsCached, 0);
-    if (orgWritten === 0 && orgCached === 0) {
+    if (repoCount > 0 && failedCount === repoCount) {
+      // Every repo failed: almost always a wrong org name or a token that
+      // cannot see the org. Fail the run so unattended fetches surface it,
+      // but keep going so other orgs and later steps still complete.
+      console.log(
+        `  ${chalk.yellow('⚠')} ${chalk.yellow(
+          `All ${repoCount} repositories in ${chalk.bold(orgConfig.name)} failed to fetch. ` +
+            `Check that "${orgConfig.name}" is the exact GitHub org or user name ` +
+            '(no leading "@") and that your token can access its repositories.',
+        )}`,
+      );
+      process.exitCode = 1;
+    } else if (orgWritten === 0 && orgCached === 0) {
       console.log(`  ${chalk.gray('No PRs found for this org')}`);
     } else if (orgWritten === 0 && orgCached > 0) {
       console.log(
