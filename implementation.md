@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-11-07
-oat_current_task_id: p01
+oat_current_task_id: p02
 oat_generated: false
 ---
 
@@ -40,7 +40,7 @@ oat_generated: false
 
 | Phase | Status  | Units | Accepted |
 | ----- | ------- | ----- | -------- |
-| p01   | pending | 1     | 0/1      |
+| p01   | completed | 1     | 1/1      |
 | p02   | pending | 1     | 0/1      |
 | p03   | pending | 1     | 0/1      |
 | p04   | pending | 1     | 0/1      |
@@ -52,16 +52,16 @@ oat_generated: false
 | p10   | pending | 1     | 0/1      |
 | p11   | pending | 1     | 0/1      |
 
-**Total:** 0/11 phases accepted
+**Total:** 1/11 phases accepted
 
 ---
 
 ## Phase p01: Verb-first skill names and install migration
 
-**Status:** in_progress
+**Status:** completed
 **Base:** a3b950d7c33b3bc829994c3f98d9537f974fc483
 **Executor:** phase-implementer:wce-p01-impl-1
-**Head:** 8f8e9883f370e5c748b2e4992db332befb411a3c
+**Head:** 6014af5a9a414134f70b4e87def8f5b38cd23025
 
 Worktree: `/Users/thomas.stang/.t3/worktrees/work-chronicler/fix-github-org-at-prefix` on `oat/evidence-expansion-m01`; committing owner: the phase implementer (code commits). The root owns this journal (synced OAT project, outside the code branch) and writes execution records from the implementer's report. Parallelism: no declared group; root fan-out rejected because the renames, installer migration and docs share `src/cli/commands/skills/` and cross-referencing docs; one phase implementer.
 
@@ -96,6 +96,14 @@ Renamed five skill directories, frontmatter names, cross-references, docs, AGENT
 **Executor:** phase-implementer:wce-p01-impl-1
 
 Documented that `--yes` without `--overwrite` keeps unchanged copied skills. Found by the smoke run.
+
+### Task p01-t04: Address p01 review findings
+
+**Status:** completed
+**Commit:** 6014af5a9a414134f70b4e87def8f5b38cd23025
+**Executor:** root
+
+Review `reviews/p01-review-2026-11-07T233956Z.md` (0 Critical/High, 5 Low) passed; root fixed all five Lows (README counts, AGENTS.md list order, replacement-check wording, old-copy edit warning, nonexistent `reports add --skip-fetch` in write-peer-review). Late-fix rule: no later phase has a Base, so Head advanced. Proof: `pnpm format && pnpm lint && pnpm typecheck && pnpm test` (187 pass). Fix commit not independently re-reviewed (Low-only); covered by the m01 integrated review.
 
 ---
 
@@ -166,6 +174,8 @@ Documented that `--yes` without `--overwrite` keeps unchanged copied skills. Fou
 <!-- orchestration-runs-start -->
 
 - run/v1 · request=wce-p01-impl-1 · scope=p01 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p01 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
+
+- run/v1 · request=wce-p01-rev-1 · scope=p01 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p01 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 <!-- orchestration-runs-end -->
 
