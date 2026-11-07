@@ -7,7 +7,7 @@ import { z } from 'zod';
 const httpsUrl = z
   .string()
   .refine((url) => url.startsWith('https://'), {
-    message: 'URL must start with https://',
+    error: 'URL must start with https://',
   })
   .refine(
     (url) => {
@@ -19,8 +19,7 @@ const httpsUrl = z
       }
     },
     {
-      message:
-        'Must be a valid HTTPS URL (e.g., https://example.atlassian.net)',
+      error: 'Must be a valid HTTPS URL (e.g., https://example.atlassian.net)',
     },
   );
 
@@ -45,7 +44,7 @@ export const GitHubConfigSchema = z
   .superRefine((github, ctx) => {
     if (github.orgs.length > 0 && !github.username) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         path: ['username'],
         message: 'GitHub username is required when orgs are configured',
       });
@@ -58,7 +57,7 @@ export const GitHubConfigSchema = z
 export const JiraInstanceConfigSchema = z.object({
   name: z.string(),
   url: httpsUrl,
-  email: z.string().email().optional(),
+  email: z.email().optional(),
   token: z.string().optional(),
   projects: z.array(z.string()).default([]),
 });
@@ -105,7 +104,9 @@ export const AnalysisConfigSchema = z.object({
       major: ImpactThresholdSchema.default({ minLines: 200, minFiles: 8 }),
       flagship: ImpactThresholdSchema.default({ minLines: 500, minFiles: 15 }),
     })
-    .default({}),
+    // prefault (not default): Zod 4 returns a default as-is, while prefault
+    // parses it so the per-tier defaults above still apply.
+    .prefault({}),
 });
 
 /**
@@ -116,7 +117,7 @@ export const ConfigSchema = z.object({
   jira: JiraConfigSchema.optional(),
   output: OutputConfigSchema.default({ directory: './work-log' }),
   fetch: FetchConfigSchema,
-  analysis: AnalysisConfigSchema.default({}),
+  analysis: AnalysisConfigSchema.prefault({}),
 });
 
 export type GitHubOrgConfig = z.infer<typeof GitHubOrgConfigSchema>;

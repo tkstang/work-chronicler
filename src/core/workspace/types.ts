@@ -36,6 +36,6 @@ export type ProfileName = z.infer<typeof ProfileNameSchema>;
 export function validateProfileName(name: string): void {
   const result = ProfileNameSchema.safeParse(name);
   if (!result.success) {
-    throw new Error(result.error.errors[0]?.message ?? 'Invalid profile name');
+    throw new Error(result.error.issues[0]?.message ?? 'Invalid profile name');
   }
 }

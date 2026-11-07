@@ -42,7 +42,7 @@ export const OptionalGitHubNameSchema = z
   .superRefine((name, ctx) => {
     const problem = name ? getGitHubNameProblem(name) : null;
     if (problem)
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: problem });
+      ctx.addIssue({ code: 'custom', message: problem });
   });
 
 /**

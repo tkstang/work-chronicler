@@ -92,7 +92,7 @@ export const initCommand = new Command('init')
         if (!result.success) {
           console.error(
             chalk.red(
-              result.error.errors[0]?.message ?? 'Invalid profile name',
+              result.error.issues[0]?.message ?? 'Invalid profile name',
             ),
           );
           process.exit(1);
@@ -583,7 +583,7 @@ async function initManagerProfile(cliProfileName?: string): Promise<void> {
     const result = ProfileNameSchema.safeParse(cliProfileName);
     if (!result.success) {
       console.error(
-        chalk.red(result.error.errors[0]?.message ?? 'Invalid profile name'),
+        chalk.red(result.error.issues[0]?.message ?? 'Invalid profile name'),
       );
       process.exit(1);
     }

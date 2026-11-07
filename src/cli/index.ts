@@ -69,7 +69,7 @@ program
       const result = ProfileNameSchema.safeParse(opts.profile);
       if (!result.success) {
         console.error(
-          `Invalid profile name: ${result.error.errors[0]?.message}`,
+          `Invalid profile name: ${result.error.issues[0]?.message}`,
         );
         process.exit(1);
       }

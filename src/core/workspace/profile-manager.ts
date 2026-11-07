@@ -105,7 +105,7 @@ export function loadProfileConfig(profileName: string): Config {
 
   const result = ConfigSchema.safeParse(raw);
   if (!result.success) {
-    const errors = result.error.errors
+    const errors = result.error.issues
       .map((e) => `  - ${e.path.join('.')}: ${e.message}`)
       .join('\n');
     throw new Error(`Invalid profile config for '${profileName}':\n${errors}`);
