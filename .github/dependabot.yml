@@ -1,0 +1,18 @@
+# Security updates ONLY: no routine version-bump PRs. Dependency updates are
+# manual and intentional; Dependabot is the security tripwire. Security
+# updates still need "Dependabot security updates" enabled in the repository
+# settings.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    # Disable version-update PRs entirely; keep only security updates.
+    open-pull-requests-limit: 0
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
