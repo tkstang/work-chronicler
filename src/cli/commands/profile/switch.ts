@@ -4,6 +4,7 @@
  * Switches to a different profile.
  */
 
+import { CliError, toCliError } from '@cli/errors';
 import { isWorkspaceMode, profileExists, setActiveProfile } from '@core/index';
 import chalk from 'chalk';
 import { Command } from 'commander';
@@ -13,17 +14,15 @@ export const switchCommand = new Command('switch')
   .argument('<name>', 'Profile name to switch to')
   .action(async (name: string) => {
     if (!isWorkspaceMode()) {
-      console.error(chalk.red('Workspace mode not enabled.'));
-      console.error('Run `work-chronicler init` to create your first profile.');
-      process.exit(1);
+      throw new CliError(
+        `${chalk.red('Workspace mode not enabled.')}\nRun \`work-chronicler init\` to create your first profile.`,
+      );
     }
 
     if (!profileExists(name)) {
-      console.error(chalk.red(`Profile '${name}' does not exist.`));
-      console.error(
-        "Run 'work-chronicler profile list' to see available profiles.",
+      throw new CliError(
+        `${chalk.red(`Profile '${name}' does not exist.`)}\nRun 'work-chronicler profile list' to see available profiles.`,
       );
-      process.exit(1);
     }
 
     try {
@@ -35,10 +34,6 @@ export const switchCommand = new Command('switch')
         ),
       );
     } catch (error) {
-      console.error(
-        chalk.red('Error:'),
-        error instanceof Error ? error.message : 'Unknown error',
-      );
-      process.exit(1);
+      throw toCliError(error, chalk.red('Error:'), 'Unknown error');
     }
   });

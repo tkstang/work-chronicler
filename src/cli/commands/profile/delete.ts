@@ -4,6 +4,7 @@
  * Deletes a profile and all its data.
  */
 
+import { CliError, toCliError } from '@cli/errors';
 import { deleteProfile, isWorkspaceMode, profileExists } from '@core/index';
 import { confirm } from '@inquirer/prompts';
 import chalk from 'chalk';
@@ -15,13 +16,11 @@ export const deleteCommand = new Command('delete')
   .option('-f, --force', 'Skip confirmation prompt')
   .action(async (name: string, options: { force?: boolean }) => {
     if (!isWorkspaceMode()) {
-      console.error(chalk.red('Workspace mode not enabled.'));
-      process.exit(1);
+      throw new CliError(chalk.red('Workspace mode not enabled.'));
     }
 
     if (!profileExists(name)) {
-      console.error(chalk.red(`Profile '${name}' does not exist.`));
-      process.exit(1);
+      throw new CliError(chalk.red(`Profile '${name}' does not exist.`));
     }
 
     // Confirm deletion unless --force is used
@@ -47,10 +46,6 @@ export const deleteCommand = new Command('delete')
       deleteProfile(name);
       console.log(chalk.green(`\nProfile '${name}' deleted successfully`));
     } catch (error) {
-      console.error(
-        chalk.red('Error:'),
-        error instanceof Error ? error.message : 'Unknown error',
-      );
-      process.exit(1);
+      throw toCliError(error, chalk.red('Error:'), 'Unknown error');
     }
   });

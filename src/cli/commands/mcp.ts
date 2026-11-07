@@ -1,3 +1,6 @@
+import { format } from 'node:util';
+
+import { CliError } from '@cli/errors';
 import { Command } from 'commander';
 
 export const mcpCommand = new Command('mcp')
@@ -44,7 +47,8 @@ export const mcpCommand = new Command('mcp')
       const ctx = await createServer();
       await startServer(ctx);
     } catch (error) {
-      console.error('Failed to start MCP server:', error);
-      process.exit(1);
+      throw new CliError(format('Failed to start MCP server:', error), {
+        cause: error,
+      });
     }
   });

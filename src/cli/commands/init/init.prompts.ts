@@ -1,3 +1,5 @@
+import { CliError } from '@cli/errors';
+import { ProfileNameSchema, profileExists } from '@core/index';
 import { checkbox, confirm, input, password, select } from '@inquirer/prompts';
 import { getGitHubNameProblem, normalizeGitHubName } from '@wc-types/github';
 import chalk from 'chalk';
@@ -41,6 +43,39 @@ export async function promptProfileName(
       return true;
     },
   });
+}
+
+/**
+ * Resolve the name for a new profile from `--profile` or a prompt
+ *
+ * @param cliProfileName - Profile name from `--profile`; validated instead of prompting
+ * @param defaultName - Prompt default (see {@link promptProfileName})
+ * @throws CliError if the name is invalid or the profile already exists
+ */
+export async function resolveNewProfileName(
+  cliProfileName?: string,
+  defaultName?: string,
+): Promise<string> {
+  let profileName: string;
+  if (cliProfileName) {
+    const result = ProfileNameSchema.safeParse(cliProfileName);
+    if (!result.success) {
+      throw new CliError(
+        chalk.red(result.error.issues[0]?.message ?? 'Invalid profile name'),
+      );
+    }
+    profileName = result.data;
+  } else {
+    profileName = await promptProfileName(defaultName);
+  }
+
+  if (profileExists(profileName)) {
+    throw new CliError(
+      `${chalk.red(`\nProfile '${profileName}' already exists.`)}\nUse 'work-chronicler profile delete' to remove it first.`,
+    );
+  }
+
+  return profileName;
 }
 
 /**
