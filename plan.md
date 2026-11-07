@@ -116,14 +116,13 @@ the exception: the CLI already talks to GitHub, so they are fetched directly.
   per selected host it installs and verifies the replacement before removing
   the old entry, unlinks symlinks (live or dangling) without touching targets,
   removes copies only after the replacement exists, respects the overwrite
-  refusal, and leaves unselected hosts alone (documented).
+  refusal, and leaves unselected hosts alone (documented). Removing old names is its own confirmed step: declining it keeps both old and new entries and prints a notice. `skills install` gains documented non-interactive flags (host selection, install method, `--yes`) so agents and the packaged smoke test can run it without prompts.
 - **PR reviews given (m01).** REST-first. Inclusion by review `submitted_at`
   and inline comment `created_at` inside the fetch range, regardless of the
   reviewed PR's age or author. Pending reviews excluded; ordinary PR
   conversation comments excluded. Records keep review and comment IDs distinct,
   the canonical reviewed-PR URL and minimal parent metadata. Cache by stable
-  record identity. Existing fatal rate-limit handling, bounded concurrency and
-  incomplete-run reporting are preserved. IC-only.
+  record identity. Existing fatal rate-limit handling, sequential requests and per-repo failure reporting are preserved. IC-only.
 - **Import envelope (m02).** Thin common frontmatter: schema version, source,
   stable source ID scoped to workspace/account, URL, event timestamps, capture
   time, subject (the IC or report the record is about), attribution with an
@@ -137,11 +136,10 @@ the exception: the CLI already talks to GitHub, so they are fetched directly.
   never silently bypassed. Linking distinguishes mentions from resolved links
   and adds PR-URL normalization; no general graph framework.
 - **Slack (m02).** Config `slack: { workspace, user, channels: [{id, name,
-  reason, private?}], include }` per IC profile and per manager report;
+  reason, private?}] }` per IC profile and per manager report (field names settled in p06);
   absent config imports nothing. CLI `work-chronicler slack channels
   add|remove|list` and a read command that prints the resolved subject, range
-  and settings for the skill. One `messages` record per message the subject
-  wrote (messages and threads they started), with a parent-thread reference.
+  and settings for the skill. One `messages` record per message the subject wrote — top-level messages, threads they started and their own replies in others' threads — with a parent-thread reference.
   Privacy, applied in discovery and import: the subject's own words verbatim;
   others' replies as counts only, with no reply bodies or needless participant
   identities; public channels by default, private channels only with explicit
@@ -151,8 +149,7 @@ the exception: the CLI already talks to GitHub, so they are fetched directly.
   Drive owner metadata; docs merely edited or commented on and shared-drive
   docs with no individual owner are excluded. Manager mode: docs the report
   owns that are shared with the manager. Metadata and bounded excerpts by
-  default; source text kept separate from generated interpretation. Config is
-  opt-in per IC profile and per report.
+  default; source text kept separate from generated interpretation. Config is opt-in per IC profile and per report and names the subject's Google account (the report's, in manager mode); field names settled in p09.
 
 ## Constraints and Out of Scope
 
@@ -189,9 +186,7 @@ the exception: the CLI already talks to GitHub, so they are fetched directly.
 - **Delivery: one squash-merged PR per milestone, endpoint `merged`** (user,
   2026-11-07). Phases are commits in that PR, version bump included. Rejected:
   stacked PRs per phase, `open` endpoint.
-- **Milestone branches chain** (agent). Each milestone uses its own branch
-  `oat/evidence-expansion-mNN`, started from the previous milestone branch
-  head with `origin/main` merged in, so phase anchors stay ancestors across
+- **Milestone branches chain** (agent). m01 uses `oat/evidence-expansion-m01` from `origin/main`. Each later milestone uses `oat/evidence-expansion-mNN`, started locally from the previous milestone's recorded last-phase `**Head:**` (the remote branch is deleted on merge) with `origin/main` merged in, so phase anchors stay ancestors across
   milestones while `main` stays squash-only. Rejected: branching each
   milestone from `main` (breaks anchor ancestry), reusing one head branch
   (ambiguous delivery lookup).
@@ -212,9 +207,7 @@ the exception: the CLI already talks to GitHub, so they are fetched directly.
 - **Autonomous run** (user, 2026-11-07): the agent runs every milestone
   through implementation, review, merge, release and re-alignment without
   stopping, consulting Codex `gpt-6-astra` (high) as advisor on any
-  re-alignment change. Brief and amendment approvals (GOAL-11) and re-alignment
-  (GOAL-12) resolve under this authority; the terminal declaration stays the
-  user's. Rejected: approval stop per milestone.
+  re-alignment change. The user agreed this brief's design in the interview and pre-authorized its approval; milestone amendments (GOAL-11) and re-alignment (GOAL-12) resolve under this authority within the limits in Delivery endpoint and authority. The terminal declaration stays the user's. Rejected: approval stop per milestone.
 - **Live verification allowed, read-only** (user, 2026-11-07): Slack through
   the Slack plugin connector and Google Docs through the user's configured
   `gog`. Rejected: synthetic-only evidence.
@@ -231,6 +224,7 @@ the exception: the CLI already talks to GitHub, so they are fetched directly.
   keyed per source. — Settled by: p04
 - Which consumers are extended versus labelled PR/ticket-only. — Settled by:
   p05
+- Slack config field names and inclusion settings. — Settled by: p06
 - Whether the Slack connector exposes author identity, channel visibility,
   membership, pagination and reply counts without retrieving others' text. —
   Settled by: p06
@@ -242,6 +236,8 @@ the exception: the CLI already talks to GitHub, so they are fetched directly.
 
 - **Endpoint:** `merged` — a milestone is delivered when its PR is
   squash-merged to `main`; its release follows immediately.
+- **Release (per milestone, after merge):** tag `vX.Y.0` on the squash-merge commit on `origin/main`, push the tag, watch `release.yml`, verify `npm view work-chronicler@X.Y.0 version`, run `/release-notes`, and record the PR URL, run URL, `npm view` output and Release URL in `implementation.md` `## Reviews and Gates` under the milestone. The next milestone activates only after that record exists. Outcome 7 is audited from these records.
+- **Squash messages:** each merge uses an explicit Conventional Commit subject and body (`gh pr merge --squash --subject ... --body ...`), never GitHub's commit-list default.
 - **Authority (agent, without asking):** edits and commits on named branches
   in T3 worktrees; pushes; PRs; squash-merge with
   `--match-head-commit` after independent review approval and green CI;
@@ -251,14 +247,8 @@ the exception: the CLI already talks to GitHub, so they are fetched directly.
   re-alignment; read-only live reads of the user's own Slack (Slack plugin) and
   Google Drive (`gog`) into a temp `WORK_CHRONICLER_HOME`.
 - **Ask or stop first:** new runtime dependencies, CI or release workflow
-  changes, breaking config-schema changes beyond the agreed skill renames, any
-  change to an Outcome or Constraint, and a re-alignment change Astra does not
-  support.
-- **Personal import (user-authorized, after 0.7.0 is published):** using the
-  released CLI, the agent may add Slack and Google Docs settings to the user's
-  live `default` profile (backing up its config first) and import the user's
-  own owned Docs and relevant Slack messages there. Nothing else under
-  `~/.work-chronicler/` is touched, and none of that data leaves the machine.
+  changes, breaking config-schema changes beyond the agreed skill renames, any change to an Outcome, Constraint, the endpoint or this authority, a failed release, and any Decision reversal or Approach departure Astra does not support (one it supports is logged in Decisions and the project log).
+- **Personal import (user-authorized, after 0.7.0 is published):** with `npx work-chronicler@0.7.0` (no global install, no `skills install` into the user's skill folders; the agent follows the packaged skill text directly), the agent may add Slack and Google Docs settings to the user's live `default` profile (backing up its config file alongside first) and import there the Docs the user owns and the user's own messages in public channels they posted in during the fetch range. Private channels only if the user opts in during the session. The chosen channel list and counts are reported to the user in chat only. Nothing else under `~/.work-chronicler/` is touched, and none of that data is written to tracked files, PRs, issues, logs or any service beyond the Slack connector, `gog` and the assistant already in the loop.
 - **Never:** storing credentials; posting or writing to Slack or Google;
   putting imported content in tracked files, PRs, issues or logs; declaring
   the goal met (the user's call).
@@ -278,25 +268,25 @@ the exception: the CLI already talks to GitHub, so they are fetched directly.
 ## Phase p01: Verb-first skill names and install migration
 
 **Intent:** Rename the five package skills to the verb-first rule (directories, frontmatter `name`, invocation examples, cross-references, README, `documentation/`, AGENTS.md naming rule), and teach `skills install` an explicit old → new migration that is safe per selected host.
-**Exit evidence:** Migration tests for copy, live symlink, dangling symlink, replacement conflict, overwrite refusal and repeat install across hosts pass; a packaged-install smoke test from `npm pack` into a temp `HOME` installs only new names and removes old ones; `rg` shows old names only in the migration map, its tests and CHANGELOG/upgrade notes; full DoD batch green.
+**Exit evidence:** Migration tests for copy, live symlink, dangling symlink, replacement conflict, overwrite refusal and repeat install across hosts pass; a packaged-install smoke run (recorded in the journal; needs network for dependencies) installs the `npm pack` tarball into a temp `HOME` and, using the new non-interactive flags, installs only new names and migrates old ones; `rg` shows old names only in the migration map, its tests and CHANGELOG/upgrade notes; full DoD batch green.
 **Provisional:** no
 
 ## Phase p02: PR reviews given (IC)
 
 **Intent:** Fetch the reviews and inline review comments the IC submitted inside the fetch range on any PR, store them as review records linked to the canonical reviewed-PR URL, show them in `status` and the MCP server, and let the writing skills cite them as review work, never as authored PRs.
-**Exit evidence:** Mocked tests for an old PR reviewed inside the range, repeated reviews, pending reviews excluded, pagination, edited comments, rate limiting, reviewed PR absent from the work log, and equal PR numbers across repos pass; manager profiles explicitly skip it; docs and CHANGELOG updated; full DoD batch green.
+**Exit evidence:** Mocked tests for an old PR reviewed inside the range, repeated reviews, pending reviews excluded, pagination, edited comments, rate limiting, reviewed PR absent from the work log, and equal PR numbers across repos pass; a mixed work-log test shows authored-PR results from `analyze`, `get_stats`, `search_prs`, `get_timeline`, `filter` and project detection are unchanged by review records; manager profiles explicitly skip it; docs and CHANGELOG updated; full DoD batch green.
 **Provisional:** no
 
 ## Phase p03: 0.5.0 release preparation
 
 **Intent:** Bump `package.json` to 0.5.0 and move the Unreleased CHANGELOG entries under `[0.5.0]`, including breaking notes for the skill renames (re-run `skills install`).
-**Exit evidence:** Version and CHANGELOG committed; `pnpm build` and `npm pack --dry-run` show the renamed skills in the tarball; milestone PR CI green.
+**Exit evidence:** Version and CHANGELOG committed; the local DoD batch (`pnpm lint`, `pnpm format:check`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `npm pack --dry-run`) passes and the tarball lists only renamed skills. Ready-PR CI is the merge precondition, not phase evidence.
 **Provisional:** no
 
 ## Phase p04: Staged import contract
 
 **Intent:** Add the shared import envelope and the `messages` record type, plus `work-chronicler import <dir>` (validate, contained destination paths, atomic commit, upsert by identity, manager-report targeting) and `work-chronicler validate`.
-**Exit evidence:** Tests for malformed YAML, schema violations, duplicate identities, path escape, rejected batches preserving existing records, interrupted and repeated imports, and machine-readable errors pass; docs updated.
+**Exit evidence:** Tests for malformed YAML, schema violations, duplicate identities, path escape, rejected batches preserving existing records, interrupted and repeated imports, and nonzero exit with machine-readable errors on rejection pass; docs updated.
 **Provisional:** yes
 
 ## Phase p05: Consumers and linking for imported evidence
@@ -308,7 +298,7 @@ the exception: the CLI already talks to GitHub, so they are fetched directly.
 ## Phase p06: Slack configuration and CLI
 
 **Intent:** Add the Slack config for IC profiles and manager reports, `work-chronicler slack channels add|remove|list`, and the read command the skills use, enforcing opt-in, channel and privacy rules in the CLI.
-**Exit evidence:** Config and command tests including unconfigured report, private channel without opt-in, DM rejection and non-destructive config updates pass; the Slack connector capability unknown is settled and recorded.
+**Exit evidence:** Config and command tests including unconfigured report, private channel without opt-in, DM rejection and non-destructive config updates pass; `validate`/`import` reject `messages` records whose author is not the configured subject, that carry reply bodies, or that list participants beyond counts, exiting nonzero with errors that do not echo the content; the Slack connector capability unknown is settled and recorded.
 **Provisional:** yes
 
 ## Phase p07: Slack skills and live walkthrough
@@ -320,7 +310,7 @@ the exception: the CLI already talks to GitHub, so they are fetched directly.
 ## Phase p08: 0.6.0 release preparation
 
 **Intent:** Bump to 0.6.0 and finalize the CHANGELOG for the import contract and Slack.
-**Exit evidence:** Version and CHANGELOG committed; build and pack checks pass; milestone PR CI green.
+**Exit evidence:** Version and CHANGELOG committed; the local DoD batch (`pnpm lint`, `pnpm format:check`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `npm pack --dry-run`) passes. Ready-PR CI is the merge precondition, not phase evidence.
 **Provisional:** yes
 
 ## Phase p09: Google Docs documents record and config
@@ -338,7 +328,7 @@ the exception: the CLI already talks to GitHub, so they are fetched directly.
 ## Phase p11: 0.7.0 release preparation
 
 **Intent:** Bump to 0.7.0 and finalize the CHANGELOG for Google Docs.
-**Exit evidence:** Version and CHANGELOG committed; build and pack checks pass; milestone PR CI green.
+**Exit evidence:** Version and CHANGELOG committed; the local DoD batch (`pnpm lint`, `pnpm format:check`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `npm pack --dry-run`) passes. Ready-PR CI is the merge precondition, not phase evidence.
 **Provisional:** yes
 
 ---
