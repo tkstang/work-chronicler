@@ -195,7 +195,7 @@ Review fix. Proof: full DoD batch.
 **Status:** in_progress
 **Base:** 23a4f1aae63ebd37c8966dca2c2136f794f14190
 **Executor:** inline:p03-inline-exception
-**Head:** 966fbd2dbeb1bc3761ac9052978791db5d906247
+**Head:** fcb2a87994ef8ef608427ca5fdb0eb849382f969
 
 Inline exception (recorded before editing): version bump and CHANGELOG section move only — no new surface, no unresolved design, not consequential before the tag push (which happens after merge under the Release authority), one proof command (the local DoD batch). Committing owner: root. Parallelism: single trivial phase.
 
@@ -263,7 +263,9 @@ Proof: `pnpm lint && pnpm typecheck && pnpm test`
 
 ### Task p03-t07: (review) Keep old skill entries any installed tool depends on
 
-**Status:** pending
+**Status:** completed
+**Commit:** 1d12c1c970771b257782ab8d4851e7245ed96e1a
+**Executor:** phase-implementer:wce-p03-fix-1 (continuation round 2)
 **Source review:** reviews/archived/final-review-2026-11-08T003901Z.md (H1)
 
 Intent: Inventory dependencies across every known tool skills dir (selected or not) by resolving each entry's SKILL.md path; keep an old entry when any other installation resolves into it. Regression: Codex new-name link into Claude old copy with `--tool claude`.
@@ -272,7 +274,9 @@ Proof: `pnpm lint && pnpm typecheck && pnpm test`
 
 ### Task p03-t08: (review) Refuse to mix review records from different reviewers
 
-**Status:** pending
+**Status:** completed
+**Commit:** fcb2a87994ef8ef608427ca5fdb0eb849382f969
+**Executor:** phase-implementer:wce-p03-fix-1 (continuation round 2)
 **Source review:** reviews/archived/final-review-2026-11-08T003901Z.md (M1)
 
 Intent: Before candidate iteration, scan stored `pr-reviews/` for records whose reviewer differs (case-insensitive) from the configured user and refuse with actionable guidance, including no-result fetches; ensure consumers never present foreign records as the user's work. Regressions: no-in-range and no-candidate cases plus valid controls.
@@ -346,6 +350,8 @@ Proof: `pnpm lint && pnpm typecheck && pnpm test`
 - run/v1 · request=wce-p03-rev-1 · scope=p03 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p03 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 - run/v1 · request=wce-p03-fix-1 · scope=p03 · action=fix · role=oat-phase-implementer · target=oat-phase-implementer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p03 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
+
+- Continuation: wce-p03-fix-1 resumed for gate attempt-2 findings (p03-t07, p03-t08); terminal outcome completed; implementer commit identities used `wce-p03-fix-2`.
 
 <!-- orchestration-runs-end -->
 
