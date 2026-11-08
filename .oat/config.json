@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "documentation": {
+    "root": "documentation",
+    "tooling": "fumadocs",
+    "navOwner": "nav-sync",
+    "index": "documentation/index.md",
+    "nonReaderPaths": ["contributing/templates/**"]
+  }
+}

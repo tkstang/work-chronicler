@@ -1,0 +1,70 @@
+@import 'tailwindcss';
+@import 'fumadocs-ui/css/black.css';
+@import 'fumadocs-ui/css/preset.css';
+
+@source '../node_modules/fumadocs-ui/dist/**/*.js';
+@source '../node_modules/@open-agent-toolkit/docs-theme/dist/**/*.js';
+
+/* remark-github-blockquote-alert callout styling (fd-* design tokens) */
+@layer base {
+  .markdown-alert {
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-fd-border);
+    border-left: 3px solid var(--callout-color, var(--color-fd-border));
+    background: var(--color-fd-card);
+    color: var(--color-fd-card-foreground);
+    padding: 0.75rem 1rem;
+    margin: 1rem 0;
+    font-size: 0.875rem;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.1);
+  }
+
+  .markdown-alert > :first-child {
+    margin-top: 0;
+  }
+
+  .markdown-alert > :last-child {
+    margin-bottom: 0;
+  }
+
+  .markdown-alert .markdown-alert-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+    color: var(--callout-color, var(--color-fd-foreground));
+  }
+
+  .markdown-alert .markdown-alert-title svg {
+    fill: currentColor;
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+  }
+
+  .markdown-alert p:not(.markdown-alert-title) {
+    color: var(--color-fd-muted-foreground);
+    margin: 0.25rem 0 0;
+  }
+
+  .markdown-alert-note {
+    --callout-color: var(--color-fd-info, #3b82f6);
+  }
+
+  .markdown-alert-tip {
+    --callout-color: #22c55e;
+  }
+
+  .markdown-alert-important {
+    --callout-color: #a855f7;
+  }
+
+  .markdown-alert-warning {
+    --callout-color: #eab308;
+  }
+
+  .markdown-alert-caution {
+    --callout-color: #ef4444;
+  }
+}

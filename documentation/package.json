@@ -1,0 +1,40 @@
+{
+  "name": "work-chronicler-docs",
+  "type": "module",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Chronicle your work from GitHub, JIRA, Slack and Google Docs for performance reviews and resumes.",
+  "scripts": {
+    "predev": "fumadocs-mdx && oat docs generate-index --docs-dir docs --output index.md",
+    "dev": "next dev",
+    "prebuild": "oat docs check --target-dir . && oat docs nav sync --target-dir . --check && fumadocs-mdx && oat docs generate-index --docs-dir docs --output index.md",
+    "build": "next build",
+    "start": "next start",
+    "docs:check": "oat docs check --target-dir .",
+    "docs:lint": "echo 'docs lint disabled'",
+    "docs:format": "oxfmt 'docs/**/*.md'",
+    "docs:format:check": "oxfmt --check 'docs/**/*.md'"
+  },
+  "dependencies": {
+    "@open-agent-toolkit/docs-config": "^0.3.46",
+    "@open-agent-toolkit/docs-theme": "^0.3.46",
+    "@open-agent-toolkit/docs-transforms": "^0.3.46",
+    "fumadocs-core": "^16.6.13",
+    "fumadocs-mdx": "^14.2.9",
+    "fumadocs-ui": "^16.6.13",
+    "next": "^16.1.6",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@open-agent-toolkit/cli": "^0.3.46",
+    "@tailwindcss/postcss": "^4.2.1",
+    "@types/mdx": "^2.0.13",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "tailwindcss": "^4.2.1",
+    "typescript": "^5.8.3",
+    "oxfmt": "^0.36.0"
+  }
+}
