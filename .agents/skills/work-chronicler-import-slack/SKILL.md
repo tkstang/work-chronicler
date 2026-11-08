@@ -73,16 +73,23 @@ private channels <names> for <the subject's> messages? Private channel search
 uses a Slack permission you may be asked to approve." Search private channels
 only if the user says yes; otherwise skip them and count them as skipped.
 
-### 3. Make a staging directory
+### 3. Start a batch in a new staging directory
+
+Import in batches of at most a few hundred records (about 300). Each batch
+gets its own new staging directory:
 
 ```bash
 STAGING=$(mktemp -d "${TMPDIR:-/tmp}/wc-slack-import.XXXXXX")
 ```
 
 It must be outside the work log, and hold only record files named `1.md`,
-`2.md`, …: no other files, hidden files or subdirectories. At most 10,000
-records, and about 32 MiB of record files, per batch (start a second batch
-if there are more; `BATCH_TOO_LARGE` means split it).
+`2.md`, …: no other files, hidden files or subdirectories. When the batch
+holds a few hundred records, or the last day is searched, validate and
+import it (step 7) and delete its directory (step 8) before starting the
+next batch here with a new `mktemp -d`. The CLI refuses a batch of more than
+10,000 records or about 32 MiB of record files (`BATCH_TOO_LARGE`: split
+it). Never validate or import a staging directory you did not create for
+this batch.
 
 ### 4. Search one day at a time
 
@@ -241,7 +248,7 @@ Threads, from the `thread_ts` in the result's permalink:
   `https://<host>/archives/<channel ID>/p<thread_ts without the dot>` on the
   same host as the message's permalink, or `null`. `replyCount` and `replyParticipantCount` stay `0`.
 
-### 7. Validate, then import
+### 7. Validate, read the result, then import
 
 Take the `importCommand` argv from `slack show`, replace `<staging-dir>` with
 `$STAGING`, and add `--json`. First run it with `validate` in place of
@@ -271,28 +278,35 @@ If `ok` is `false`, read each issue's `code`, `file` and `field`:
   passes), and validate again.
 - `RECOVERY_REQUIRED`: an earlier import was interrupted. The next `import`
   finishes it first; tell the user.
+- `IMPORT_IN_PROGRESS`: another import holds the work-log lock (`import`
+  also reports it while a `filter` runs). Wait a minute and run the same
+  command again; if it keeps failing, show the user the issue message.
+  Never remove the lock yourself.
 
 When `validate` passes, run the `importCommand` itself with `$STAGING` and
 `--json`. It stores every record or none. If it fails, show the user the
 issue codes and fields (they never contain message text).
 
-### 8. Clean up
+### 8. Clean up, then continue
 
-Always delete the staging directory, whether the import succeeded or not:
+Always delete the batch's staging directory, whether the import succeeded
+or not:
 
 ```bash
 rm -rf "$STAGING"
 ```
 
-In an IC profile, run `work-chronicler link` afterwards: it reports how many
+While days remain, go back to step 3 for the next batch. After the last
+batch, in an IC profile, run `work-chronicler link`: it reports how many
 PR and ticket mentions in imported messages resolve to the work log.
 
 ### 9. Report
 
 Report counts only: days searched, whether private channels were included,
 messages found, messages skipped by reason (including "held back
-(secret)"), and the import summary (`created`, `updated`, `unchanged`). Do
-not quote message text or name anyone.
+(secret)"), batches imported, and the import summary added up across
+batches (`created`, `updated`, `unchanged`). Do not quote message text or
+name anyone.
 
 Importing again is safe: each message is stored by its identity
 (workspace, channel and `Message_ts`), so a rerun updates the same records
