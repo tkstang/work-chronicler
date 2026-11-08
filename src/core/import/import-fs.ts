@@ -32,6 +32,8 @@ export interface FsEntry {
   dev: bigint;
   ino: bigint;
   size: bigint;
+  /** Permission bits (`0o644`) */
+  mode: number;
 }
 
 /** A file's contents and the identity of the file they were read from */
@@ -50,8 +52,11 @@ export interface ImportFs {
    * Throws `ENOTREG` for anything else and `EFBIG` past `maxBytes`.
    */
   readFile: (path: string, maxBytes: number) => FsFile;
-  /** Create a new file (never replacing anything), write it and flush it */
-  writeFile: (path: string, data: Uint8Array) => void;
+  /**
+   * Create a new file (never replacing anything), write it and flush it.
+   * `mode` (default `0o666`) is narrowed by the process umask.
+   */
+  writeFile: (path: string, data: Uint8Array, mode?: number) => void;
   /** Create one directory (not recursive) */
   mkdir: (path: string) => void;
   rename: (from: string, to: string) => void;
@@ -130,6 +135,7 @@ export const nodeImportFs: ImportFs = {
       dev: stat.dev,
       ino: stat.ino,
       size: stat.size,
+      mode: Number(stat.mode & 0o7777n),
     };
   },
   readdir: (path) => readdirSync(path),
@@ -154,8 +160,8 @@ export const nodeImportFs: ImportFs = {
       closeSync(fd);
     }
   },
-  writeFile: (path, data) => {
-    const fd = openSync(path, CREATE_FLAGS, 0o666);
+  writeFile: (path, data, mode = 0o666) => {
+    const fd = openSync(path, CREATE_FLAGS, mode);
     try {
       let offset = 0;
       while (offset < data.length) {
