@@ -79,7 +79,7 @@ oat_deliveries:
     scope: [ p01, p02, p03 ]
     endpoint: merged
     kind: pr
-    status: open
+    status: at_endpoint
     superseded_by: null
     covers_scope_of: null
     corrects_delivery_id: null
@@ -93,7 +93,7 @@ oat_deliveries:
         reviewed_head: b079cd77e9306bdc2a179660a6536afba12f0847
         observed_head: b079cd77e9306bdc2a179660a6536afba12f0847
         observed_base: b8189269dfab0ff9da136f5b2dead7dc8e4b2ad3
-        status: open
+        status: merged
     integrated_review:
       artifact: reviews/archived/m01-review-2026-11-08T044332Z.md
       scope: [ p01, p02, p03 ]
@@ -114,7 +114,13 @@ oat_deliveries:
       freshness: fresh
       freshness_reason: null
       decided_at: "2026-11-08T04:37:35Z"
-    endpoint_attainment: null
+    endpoint_attainment:
+      observed_at: 2026-11-08T04:47:53.348Z
+      members:
+        - url: https://github.com/tkstang/work-chronicler/pull/25
+          head: b079cd77e9306bdc2a179660a6536afba12f0847
+          base: b8189269dfab0ff9da136f5b2dead7dc8e4b2ad3
+          status: merged
 # oat_skill_gate_overrides: # optional; per-project posture for configured lifecycle gates
 #   oat-project-implement: disabled # only the literal value `disabled`; absence means follow configuration
 # oat_implement_exit_gate: # optional; durable configured implementation exit-gate state
@@ -168,7 +174,7 @@ oat_deliveries:
 #   reviewed_head: null # full SHA of the commit the gate reviewed; provenance only
 #   decided_at: null # ISO 8601 UTC
 oat_docs_updated: null # null | skipped | complete — documentation sync status
-oat_pr_status: open
+oat_pr_status: merged
 oat_pr_url: https://github.com/tkstang/work-chronicler/pull/25
 oat_project_created: '2026-11-07T22:54:38.498Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
