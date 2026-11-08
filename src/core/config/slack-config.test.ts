@@ -1,5 +1,6 @@
 import {
   chmodSync,
+  linkSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -418,6 +419,29 @@ describe('updateSlackSettings: the file is replaced whole or not at all', () => 
 
     expect(() => change(IC, CONFIGURE)).toThrow(/symbolic link/);
     expect(readFileSync(target, 'utf-8')).toBe(IC_YAML);
+  });
+
+  it('refuses a config with another hard link, leaving both names alone', () => {
+    write(IC_YAML);
+    const other = join(root, 'other.yaml');
+    linkSync(configPath, other);
+
+    expect(() => change(IC, CONFIGURE)).toThrow(/hard links/);
+    expect(read()).toBe(IC_YAML);
+    expect(statSync(configPath).ino).toBe(statSync(other).ino);
+    rmSync(other);
+  });
+
+  it('refuses when the filesystem reports more than one link', () => {
+    write(IC_YAML);
+    const fs = {
+      ...nodeImportFs,
+      lstat: (path: string) => ({ ...nodeImportFs.lstat(path), nlink: 2 }),
+    };
+
+    expect(() => change(IC, CONFIGURE, fs)).toThrow(/hard links/);
+    expect(read()).toBe(IC_YAML);
+    expect(leftovers()).toEqual([]);
   });
 
   it.each([

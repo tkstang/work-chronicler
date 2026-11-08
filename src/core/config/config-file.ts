@@ -72,6 +72,14 @@ function readConfig(fs: ImportFs, path: string): ConfigRead {
           : 'The config is not a regular file',
       );
     }
+    if (entry.nlink > 1) {
+      // A rename would replace only this name and leave the other links
+      // holding the old contents
+      refuse(
+        path,
+        'The config has other hard links, which a safe update would separate from it; remove the other links, or copy the config to a new file and move that over it, or edit it by hand',
+      );
+    }
     file = fs.readFile(path, MAX_CONFIG_BYTES);
     if (file.dev !== entry.dev || file.ino !== entry.ino) {
       refuse(path, 'The config was replaced while it was being read');

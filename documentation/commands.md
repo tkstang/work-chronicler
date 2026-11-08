@@ -317,7 +317,7 @@ Changes keep everything else in the config, comments included: the file is
 edited in its parsed form, the result must validate and differ only in the
 Slack settings, and it is written to a new file beside the config (with the
 same permissions) that replaces the config in one rename, after checking the
-config did not change meanwhile. A config that is a symbolic link, invalid,
+config did not change meanwhile. A config that is a symbolic link, has other hard links, is invalid,
 or changed during the update is refused and left as it was.
 
 ### `slack show --json`
