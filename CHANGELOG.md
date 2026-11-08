@@ -58,7 +58,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on another workspace's host when its channel and timestamp matched, so
   `search_messages` could cite the wrong workspace. For a workspace
   configured by its URL label, a permalink's host must now be
-  `<label>.slack.com` or `<label>.enterprise.slack.com`.
+  `<label>.slack.com` or `<label>.enterprise.slack.com`. In an Enterprise
+  Grid org, a channel whose permalinks use another workspace's host is then
+  refused; configure the team or `E…` org ID when a Slack tool shows it.
 - `import` accepted a Slack record whose `occurredAt` was not when the
   message was posted (such as the capture date), so date-filtered search and
   monthly statistics could place it in the wrong period. `occurredAt` must

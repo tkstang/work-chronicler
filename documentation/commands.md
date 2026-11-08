@@ -243,7 +243,10 @@ changes nothing. Records that are not in the batch are never removed.
   most `thread_ts` and `cid` in the query). For a workspace configured by
   its URL label (`example`), the host must be that workspace's
   (`example.slack.com`, or `example.enterprise.slack.com` in an Enterprise
-  Grid org); for a team ID, any `slack.com` host is accepted;
+  Grid org), so in a Grid org a permalink on another workspace's host
+  (`team-a.slack.com`) is refused: configure the team or `E…` org ID when a
+  Slack tool shows it (see [Configuration](configuration.md#slack)). For a team
+  ID, any `slack.com` host is accepted;
 - a reply in a thread carries reply counts, or `replyParticipantCount`
   exceeds `replyCount`;
 - the body (the message text) still holds raw Slack markup that can carry

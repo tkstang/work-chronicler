@@ -67,8 +67,15 @@ throughout: the concise format leaves out IDs.
   (detailed) for one of the user's channels and take the first part of the
   host in a permalink it returns. `https://example.slack.com/archives/C…` and
   `https://example.enterprise.slack.com/archives/C…/p…` both give `example`.
-  Write it in lower case, without `https://` or `.slack.com`. Show the user
-  the value and get confirmation. Keep the same value from then on: imported
+  Write it in lower case, without `https://` or `.slack.com`. With a URL
+  label, `import` accepts only permalinks on that label's host
+  (`example.slack.com` or `example.enterprise.slack.com`). In an Enterprise
+  Grid org, channels from another workspace in the org can have permalinks
+  on that workspace's host (`team-a.slack.com`), and their records are
+  refused. Check the permalinks of the channels you will configure: if they
+  use more than one host, configure the `E…` org ID if a Slack tool shows
+  it (any Slack host is then accepted), or only the channels on the
+  label's host. Show the user the value and get confirmation. Keep the same value from then on: imported
   messages are stored under it.
 - **User ID** (`U…` or `W…`):
   - IC: the user's own ID, from `slack_read_user_profile` with no user ID

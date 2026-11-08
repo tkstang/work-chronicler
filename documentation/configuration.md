@@ -90,7 +90,7 @@ slack:
 
 | Field | Required | Meaning |
 | --- | --- | --- |
-| `slack.workspace` | yes | The workspace: its team ID, `T…` (or `E…` for an Enterprise org), or, when no Slack tool shows the ID, its URL label: the first part of its host name, in lower case (`example` for `example.slack.com` or `example.enterprise.slack.com`). Records' `sourceAccount` must be exactly this value, so keep it once messages are imported. |
+| `slack.workspace` | yes | The workspace: its team ID, `T…` (or `E…` for an Enterprise org), or, when no Slack tool shows the ID, its URL label: the first part of its host name, in lower case (`example` for `example.slack.com` or `example.enterprise.slack.com`). Records' `sourceAccount` must be exactly this value, so keep it once messages are imported. With a URL label, only permalinks on that label's host are accepted: in an Enterprise Grid org, messages from channels whose permalinks use another workspace's host (`team-a.slack.com`) are refused, so configure the team or `E…` org ID when a Slack tool shows it, or only channels on the label's host. |
 | `slack.user` | yes | Your Slack user ID, `U…` or `W…`. Only messages this user wrote are imported. |
 | `slack.channels[].id` | yes | Channel ID, `C…` or `G…`. Direct messages (`D…`) are never allowed. |
 | `slack.channels[].name` | yes | Channel name without `#`. Group direct messages (`mpdm-…`) are never allowed. |
