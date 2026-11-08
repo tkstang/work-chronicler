@@ -195,8 +195,19 @@ Review fix. Proof: full DoD batch.
 **Status:** in_progress
 **Base:** 23a4f1aae63ebd37c8966dca2c2136f794f14190
 **Executor:** inline:p03-inline-exception
+**Head:** 7d148a7283165fc803573e2b80080c58e7b6e292
 
 Inline exception (recorded before editing): version bump and CHANGELOG section move only — no new surface, no unresolved design, not consequential before the tag push (which happens after merge under the Release authority), one proof command (the local DoD batch). Committing owner: root. Parallelism: single trivial phase.
+
+Verification at Head: `pnpm format && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build && npm pack --dry-run` pass (223 tests; tarball `work-chronicler-0.5.0.tgz`, 106 files, only new skill names). Ready-PR CI is the merge precondition.
+
+### Task p03-t01: Prepare 0.5.0 release
+
+**Status:** completed
+**Commit:** 7d148a7283165fc803573e2b80080c58e7b6e292
+**Executor:** root
+
+`package.json` 0.5.0; CHANGELOG `[0.5.0]` section and compare links; breaking-rename note now recommends `--overwrite` to refresh unchanged copies.
 
 ---
 
