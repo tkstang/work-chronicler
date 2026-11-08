@@ -91,9 +91,12 @@ select:
    copy, or a `scripts/` link inside a skill that points into it), the old
    name is kept so that skill keeps working, and the installer names it. A
    skill, or any tool's skills directory, that cannot be fully read also keeps
-   the old name. Give that skill an independent copy with
-   `skills install --tool <its tool> --overwrite`; the old name is removed as
-   soon as nothing resolves into it.
+   the old name. To make that skill independent, run
+   `skills install --tool <its tool> --overwrite` if it is a work-chronicler
+   skill; if it is your own skill, replace the link with a copy of what it
+   points to (`--overwrite` reinstalls only work-chronicler skills). Then run
+   `skills install` again for the tool that holds the old name; it is removed
+   once nothing resolves into it.
 
 Tools you do not select are left unchanged; the installer names any that still
 have old names so you can run `skills install --tool <tool>` for them.

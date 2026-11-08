@@ -244,7 +244,7 @@ async function migrateRenamedSkills(
       .join('\n');
     console.log(
       chalk.yellow(
-        `  Kept ${dependent.length} old-name skill(s) in ${tool.name}: another installed skill, in this or another tool, resolves into the old entry (for example a symlink to the old copy), so removing it would break that skill.\n${details}\n  Give that skill an independent copy (\`work-chronicler skills install --tool <its tool> --overwrite\`); the old name is removed once nothing resolves into it.`,
+        `  Kept ${dependent.length} old-name skill(s) in ${tool.name}: another installed skill, in this or another tool, resolves into the old entry (for example a symlink to the old copy), so removing it would break that skill.\n${details}\n  Make that skill independent: for a work-chronicler skill run \`work-chronicler skills install --tool <its tool> --overwrite\`; for your own skill, replace the link with a copy of what it points to. Then run \`work-chronicler skills install\` again for ${tool.name}; the old name is removed once nothing resolves into it.`,
       ),
     );
   }

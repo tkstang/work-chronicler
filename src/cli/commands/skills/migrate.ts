@@ -77,6 +77,9 @@ export function isVerifiedSkill(skillsDir: string, name: string): boolean {
 /** Upper bound on symlinks followed while resolving one path */
 const MAX_SYMLINKS = 40;
 
+/** Path separators: a backslash is an ordinary file-name character on POSIX */
+const SEPARATORS = process.platform === 'win32' ? /[\\/]+/ : /\/+/;
+
 /**
  * Every filesystem location visited while resolving `path`: each symlink
  * on the way (where the link itself sits) and each real directory or file
@@ -87,7 +90,7 @@ function resolutionTrail(path: string): string[] | null {
   const trail: string[] = [];
   const absolute = resolve(path);
   let current = parse(absolute).root;
-  let pending = absolute.slice(current.length).split(/[\\/]+/);
+  let pending = absolute.slice(current.length).split(SEPARATORS);
   let links = 0;
 
   while (pending.length > 0) {
@@ -113,7 +116,7 @@ function resolutionTrail(path: string): string[] | null {
     const target = readlinkSync(next);
     if (isAbsolute(target)) current = parse(target).root;
     pending = [
-      ...target.slice(parse(target).root.length).split(/[\\/]+/),
+      ...target.slice(parse(target).root.length).split(SEPARATORS),
       ...pending,
     ];
   }
@@ -129,8 +132,32 @@ function entryLocation(skillsDir: string, name: string): string {
   return join(realpathSync(skillsDir), name);
 }
 
-function isAtOrUnder(path: string, location: string): boolean {
-  return path === location || path.startsWith(location + sep);
+/** The filesystem object at `path` itself (a link is not followed), or null */
+function fileIdentity(path: string): string | null {
+  try {
+    const stat = lstatSync(path);
+    return `${stat.dev}:${stat.ino}`;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether `path` is `location` or sits under it. Paths are compared as text
+ * and also by filesystem identity, so a differently cased spelling of the
+ * same location on a case-insensitive volume still matches.
+ */
+function isAtOrUnder(
+  path: string,
+  location: string,
+  locationIdentity: string | null,
+): boolean {
+  if (path === location || path.startsWith(location + sep)) return true;
+  if (locationIdentity === null) return false;
+  for (let current = path; ; current = dirname(current)) {
+    if (fileIdentity(current) === locationIdentity) return true;
+    if (dirname(current) === current) return false;
+  }
 }
 
 /** Upper bound on files and directories visited inside one entry */
@@ -288,13 +315,16 @@ export function planRenamedSkillRemoval(
       continue;
     }
     const location = entryLocation(skillsDir, entry.oldName);
+    const locationIdentity = fileIdentity(location);
     // An entry that could not be fully checked might depend on the old one
     const usedBy = inventory
       .filter(
         (other) =>
           other.location !== location &&
           (other.unchecked ||
-            other.trail.some((path) => isAtOrUnder(path, location))),
+            other.trail.some((path) =>
+              isAtOrUnder(path, location, locationIdentity),
+            )),
       )
       .map((other) =>
         other.unchecked

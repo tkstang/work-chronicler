@@ -12,7 +12,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -109,12 +109,23 @@ async function install(args: string[]): Promise<{ error?: Error }> {
 
 const output = () => logs.join('\n');
 
+/** Whether the temporary directory's volume ignores letter case (macOS default) */
+const caseInsensitiveTmp = (() => {
+  const probe = mkdtempSync(join(tmpdir(), 'wc-case-'));
+  try {
+    return existsSync(join(dirname(probe), basename(probe).toUpperCase()));
+  } finally {
+    rmSync(probe, { recursive: true, force: true });
+  }
+})();
+
 describe('skills install rename migration', () => {
   beforeEach(() => {
     root = mkdtempSync(join(tmpdir(), 'wc-skills-install-'));
     home = join(root, 'home');
     mkdirSync(home);
     vi.stubEnv('HOME', home);
+    vi.stubEnv('USERPROFILE', home);
     vi.resetModules();
     script({});
     logs = [];
@@ -475,6 +486,71 @@ describe('skills install rename migration', () => {
         ).toBe('echo helper\n');
         expect(output()).toContain(
           `(used by ${skillsDir('cursor')} (could not be fully checked))`,
+        );
+      },
+    );
+
+    it.skipIf(!caseInsensitiveTmp)(
+      'keeps the old copy a nested link reaches through a differently cased path',
+      async () => {
+        const oldDir = seedCopy('claude', OLD_NAMES.bullets);
+        mkdirSync(join(oldDir, 'scripts'));
+        writeFileSync(join(oldDir, 'scripts', 'helper.sh'), 'echo helper\n');
+        const newDir = join(skillsDir('claude'), NEW_NAMES.bullets);
+        mkdirSync(newDir);
+        writeFileSync(
+          join(newDir, 'SKILL.md'),
+          `---\nname: ${NEW_NAMES.bullets}\n---\nmy edits\n`,
+        );
+        symlinkSync(
+          join(skillsDir('claude'), OLD_NAMES.bullets.toUpperCase(), 'scripts'),
+          join(newDir, 'scripts'),
+          'dir',
+        );
+
+        const { error } = await install([
+          '--tool',
+          'claude',
+          '--method',
+          'copy',
+          '--yes',
+        ]);
+
+        expect(error).toBeUndefined();
+        expect(readFileSync(join(newDir, 'scripts', 'helper.sh'), 'utf8')).toBe(
+          'echo helper\n',
+        );
+      },
+    );
+
+    it.skipIf(process.platform === 'win32')(
+      'keeps the old copy a nested link reaches through a backslash in a name',
+      async () => {
+        const oldDir = seedCopy('claude', OLD_NAMES.bullets);
+        mkdirSync(join(oldDir, 'scripts'));
+        writeFileSync(join(oldDir, 'scripts', 'helper.sh'), 'echo helper\n');
+        const odd = join(root, 'my\\helpers');
+        mkdirSync(odd);
+        symlinkSync(join(oldDir, 'scripts'), join(odd, 'shared'), 'dir');
+        const newDir = join(skillsDir('claude'), NEW_NAMES.bullets);
+        mkdirSync(newDir);
+        writeFileSync(
+          join(newDir, 'SKILL.md'),
+          `---\nname: ${NEW_NAMES.bullets}\n---\nmy edits\n`,
+        );
+        symlinkSync(join(odd, 'shared'), join(newDir, 'scripts'), 'dir');
+
+        const { error } = await install([
+          '--tool',
+          'claude',
+          '--method',
+          'copy',
+          '--yes',
+        ]);
+
+        expect(error).toBeUndefined();
+        expect(readFileSync(join(newDir, 'scripts', 'helper.sh'), 'utf8')).toBe(
+          'echo helper\n',
         );
       },
     );
