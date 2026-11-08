@@ -66,13 +66,13 @@ oat_milestone_gates:
       disposition: passed
       resolution: configured
       config_fingerprint: null
-      reviewed_head: fcb2a87994ef8ef608427ca5fdb0eb849382f969
+      reviewed_head: 5cfd2b75d24d416b85bb41fa256453a5923768c5
       subject:
         kind: code
         scope: [p01, p02, p03]
       freshness: stale
-      freshness_reason: "disallowed-path: 5cfd2b7 (p03-t09) changes package skill text after the reviewed head"
-      decided_at: "2026-11-08T01:52:04Z"
+      freshness_reason: "disallowed-path: ed8b20d (p03-t10) changes package skill text after the reviewed head"
+      decided_at: "2026-11-08T02:11:30Z"
 oat_deliveries: []
 # oat_skill_gate_overrides: # optional; per-project posture for configured lifecycle gates
 #   oat-project-implement: disabled # only the literal value `disabled`; absence means follow configuration
@@ -131,7 +131,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: '2026-11-07T22:54:38.498Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-11-08T02:03:11Z"
+oat_project_state_updated: "2026-11-08T02:11:30Z"
 oat_generated: false
 ---
 

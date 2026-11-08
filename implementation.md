@@ -195,7 +195,7 @@ Review fix. Proof: full DoD batch.
 **Status:** completed
 **Base:** 23a4f1aae63ebd37c8966dca2c2136f794f14190
 **Executor:** inline:p03-inline-exception
-**Head:** 5cfd2b75d24d416b85bb41fa256453a5923768c5
+**Head:** ed8b20df93efb15f5dbdeee10733453e7cd52f0d
 
 Inline exception (recorded before editing): version bump and CHANGELOG section move only — no new surface, no unresolved design, not consequential before the tag push (which happens after merge under the Release authority), one proof command (the local DoD batch). Committing owner: root. Parallelism: single trivial phase.
 
@@ -294,6 +294,17 @@ Intent: The four review-citing writing skills compare each record's `reviewer` (
 Files: four `SKILL.md` files, `README.md`, `CHANGELOG.md`
 Proof: `pnpm format:check && pnpm lint && pnpm test` (245 passed)
 
+### Task p03-t10: (review) Normalize the configured username before matching reviewers
+
+**Status:** completed
+**Commit:** ed8b20df93efb15f5dbdeee10733453e7cd52f0d
+**Executor:** inline:p03-inline-exception (root, small skill-text fix)
+**Source review:** reviews/archived/final-review-2026-11-08T020915Z.md (M1)
+
+Intent: The four writing skills normalize `github.username` like `normalizeGitHubName` (trim, drop one leading `@`, trim) before the case-insensitive reviewer comparison; empty or still-`@` handles count as unreadable.
+Files: four `SKILL.md` files
+Proof: `pnpm format:check`
+
 ---
 
 ## Phase p04: Staged import contract
@@ -358,6 +369,8 @@ Proof: `pnpm format:check && pnpm lint && pnpm test` (245 passed)
 
 - Root-inline phase: p03 — inline exception for a version bump and CHANGELOG move; root model claude-opus-5-5
 
+- Root-inline phase: p03 (fix p03-t10) — one small skill-text finding from exit gate attempt 4; root model claude-opus-5-5
+
 - Root-inline phase: p03 (fix p03-t09) — two small skill-text/README findings from the m01 integrated review, fixed in root per the host's small-fix rule; root model claude-opus-5-5
 
 - run/v1 · request=wce-p03-rev-1 · scope=p03 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p03 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
@@ -421,6 +434,17 @@ Proof: `pnpm format:check && pnpm lint && pnpm test` (245 passed)
 - L1 (Low): README says seven skills work with any profile → fixed in p03-t09; agree, cheap and user-facing.
 
 **Outcome:** fixes completed in p03-t09 (5cfd2b75d24d416b85bb41fa256453a5923768c5). The exit gate must run again on the new head, then a fresh integrated review.
+
+### Review Received: final (m01 exit gate, attempt 4, after integrated-review fixes)
+
+**Date:** 2026-11-08
+**Review artifact (local-only):** reviews/archived/final-review-2026-11-08T020915Z.md
+
+**Findings:** Critical 0 · High 0 · Medium 1 · Low 0 (gate `codex-6-sol-xhigh`, verdict passed at threshold high, run 318433e7-ef4a-428a-b871-e4f6a4b5723c, reviewed head 5cfd2b75d24d416b85bb41fa256453a5923768c5)
+
+- M1 (Medium): skills compare the raw configured username, so `@BoB` or padded handles hide the user's own reviews → fix task p03-t10; agree.
+
+**Outcome:** gate passed; M1 fixed in p03-t10 (ed8b20df93efb15f5dbdeee10733453e7cd52f0d). Exit carrier recorded allowed at 5cfd2b75d24d416b85bb41fa256453a5923768c5, now stale; gate runs again.
 
 ## Deferred Findings
 
