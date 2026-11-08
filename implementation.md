@@ -38,25 +38,25 @@ oat_generated: false
 
 ## Progress Overview
 
-| Phase | Status    | Units | Accepted |
-| ----- | --------- | ----- | -------- |
-| p01   | completed | 1     | 1/1      |
-| p02   | completed | 1     | 1/1      |
-| p03   | completed | 1     | 1/1      |
-| p04   | completed | 1     | 1/1      |
-| p05   | completed | 1     | 1/1      |
-| p06   | completed | 1     | 1/1      |
-| p07   | completed | 1     | 1/1      |
-| p12   | completed | 1     | 1/1      |
-| p08   | completed | 1     | 1/1      |
-| p13   | completed | 1     | 1/1      |
-| p14   | pending   | 1     | 0/1      |
-| p15   | completed | 1     | 1/1      |
-| p16   | pending   | 1     | 0/1      |
-| p17   | pending   | 1     | 0/1      |
-| p09   | pending   | 1     | 0/1      |
-| p10   | pending   | 1     | 0/1      |
-| p11   | pending   | 1     | 0/1      |
+| Phase | Status      | Units | Accepted |
+| ----- | ----------- | ----- | -------- |
+| p01   | completed   | 1     | 1/1      |
+| p02   | completed   | 1     | 1/1      |
+| p03   | completed   | 1     | 1/1      |
+| p04   | completed   | 1     | 1/1      |
+| p05   | completed   | 1     | 1/1      |
+| p06   | completed   | 1     | 1/1      |
+| p07   | completed   | 1     | 1/1      |
+| p12   | completed   | 1     | 1/1      |
+| p08   | completed   | 1     | 1/1      |
+| p13   | completed   | 1     | 1/1      |
+| p14   | pending     | 1     | 0/1      |
+| p15   | completed   | 1     | 1/1      |
+| p16   | in_progress | 1     | 0/1      |
+| p17   | pending     | 1     | 0/1      |
+| p09   | pending     | 1     | 0/1      |
+| p10   | pending     | 1     | 0/1      |
+| p11   | pending     | 1     | 0/1      |
 
 **Total:** 12/17 phases accepted
 
@@ -1385,9 +1385,13 @@ Proof: 660 tests; DoD batch green
 
 ---
 
-## Phase p16: Installer, config, CLI and skill review follow-ups
+## Phase p16: Config, CLI and skill review follow-ups
 
-**Status:** pending
+**Status:** in_progress
+**Base:** 49b6dc355dec62fec1ad89419c01a9631859faa2
+**Executor:** phase-implementer:wce-p16-impl-1
+
+Branch `oat/evidence-expansion-m03`. Committing owner: the phase implementer (code); root owns the journal. Task class: consequential (shell-safety in skill text; config rewrites).
 
 ---
 
