@@ -333,3 +333,39 @@ export function doubleFaultFs(
     }
   });
 }
+
+/**
+ * Run `action` once, after `mutations` mutating operations have happened
+ * and before the next operation of any kind (so before the checks that
+ * precede the next change).
+ */
+export function afterMutationsFs(
+  base: ImportFs,
+  mutations: number,
+  action: () => void,
+): ImportFs {
+  let done = 0;
+  let acted = false;
+  const wrapped = {} as Record<string, unknown>;
+  for (const op of Object.keys(base) as FsOp[]) {
+    const fn = base[op] as (...args: unknown[]) => unknown;
+    wrapped[op] = (...args: unknown[]) => {
+      if (!acted && done === mutations) {
+        acted = true;
+        action();
+      }
+      try {
+        return fn(...args);
+      } finally {
+        if (MUTATING_OPS.has(op)) done++;
+      }
+    };
+  }
+  return wrapped as unknown as ImportFs;
+}
+
+/** A deterministic `randomId`, so two runs use the same temporary names */
+export function sequentialIds(): () => string {
+  let n = 0;
+  return () => `t${++n}`;
+}

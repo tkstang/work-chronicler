@@ -11,14 +11,20 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 
 import { getImportedRecordFilePath } from '@storage/paths';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { createImportEnv, type ImportEnv, nodeImportFs } from './import-fs';
 import {
+  createImportEnv,
+  type ImportEnv,
+  type ImportFs,
+  nodeImportFs,
+} from './import-fs';
+import {
+  afterMutationsFs,
   countingFs,
   crashAfterFs,
   crashingFs,
@@ -27,8 +33,10 @@ import {
   faultyFs,
   fsError,
   hookedFs,
+  MUTATING_OPS,
   makeWorld,
   messageFrontmatter,
+  sequentialIds,
   slackIdentity,
   snapshot,
   stage,
@@ -895,4 +903,193 @@ describe('import: containment of bookkeeping and cleanup', () => {
       },
     );
   });
+});
+
+describe('import: every change checks its whole path', () => {
+  it('creates nothing outside when a staged parent is linked during preparation', () => {
+    // Gate attempt 2: dirs/0 replaced by a link after it is made and before
+    // dirs/0/slack is made inside it
+    const w = world();
+    scenarios[0]?.setup(w);
+    const outsideBefore = snapshot(w.outside);
+    const slot = join(w.workLog, '.import-transaction', 'dirs', '0');
+    let armed = false;
+    let swapped = false;
+
+    const result = importInto(w, {
+      env: env({
+        fs: hookedFs(nodeImportFs, (op, args) => {
+          // Swap once dirs/0 is made and checked, at the first check of
+          // another path: the start of the checks for the next directory
+          if (armed && !swapped && op === 'lstat' && args[0] !== slot) {
+            swapped = true;
+            renameSync(slot, join(w.base, 'held'));
+            symlinkSync(w.outside, slot);
+          }
+          if (op === 'mkdir' && args[0] === slot) armed = true;
+        }),
+      }),
+    });
+
+    expect(swapped).toBe(true);
+    expect(result.ok).toBe(false);
+    expect(result.issues[0]?.code).toBe('CHANGED_DURING_IMPORT');
+    expect(snapshot(w.outside)).toEqual(outsideBefore);
+    expect(recover(w).ok).toBe(true);
+    expect(snapshot(w.outside)).toEqual(outsideBefore);
+  });
+
+  /**
+   * The three ways import changes the filesystem: a clean commit, an
+   * in-process rollback (the last record cannot be placed), and recovery of
+   * an import interrupted after its first record was placed. `prepare`
+   * builds the state before the measured run; `run` is that run.
+   */
+  const paths = (setup: (w: World) => void) => {
+    const placement = (w: World) => {
+      const last = getImportedRecordFilePath(w.workLog, slackIdentity(2));
+      return (op: string, args: unknown[]) =>
+        (op === 'link' || op === 'rename') && args[1] === last;
+    };
+    const firstPlacement = (op: string, args: unknown[]) =>
+      (op === 'link' || op === 'rename') &&
+      String(args[1]).includes(join('messages', 'slack'));
+    return [
+      {
+        name: 'commit',
+        prepare: setup,
+        run: (w: World, fs: ImportFs) =>
+          importInto(w, { env: env({ randomId: sequentialIds(), fs }) }),
+      },
+      {
+        name: 'rollback',
+        prepare: setup,
+        run: (w: World, fs: ImportFs) => {
+          const isLast = placement(w);
+          return importInto(w, {
+            env: env({
+              randomId: sequentialIds(),
+              fs: hookedFs(fs, (op, args) => {
+                if (isLast(op, args)) throw fsError('EIO');
+              }),
+            }),
+          });
+        },
+      },
+      {
+        name: 'recovery',
+        prepare: (w: World) => {
+          setup(w);
+          importInto(w, {
+            env: env({
+              fs: crashAfterFs(fastFs, firstPlacement),
+              pid: DEAD_PID,
+            }),
+          });
+        },
+        run: (w: World, fs: ImportFs) =>
+          importInto(w, {
+            stagingDir: w.empty,
+            env: laterEnv({ randomId: sequentialIds(), fs }),
+          }),
+      },
+    ];
+  };
+
+  /** Every mutation of a run, with its targets relative to the work log */
+  function mutationsOf(path: ReturnType<typeof paths>[number]) {
+    const w = world();
+    path.prepare(w);
+    const mutations: string[][] = [];
+    const result = path.run(
+      w,
+      hookedFs(fastFs, (op, args) => {
+        if (!MUTATING_OPS.has(op)) return;
+        const targets = op === 'rename' || op === 'link' ? args : [args[0]];
+        mutations.push(targets.map((t) => relative(w.workLog, String(t))));
+      }),
+    );
+    return { ok: result.ok, final: records(w.workLog), mutations };
+  }
+
+  /** The directories strictly between the work log and `target` */
+  function ancestorsOf(target: string): string[] {
+    const found: string[] = [];
+    for (let dir = dirname(target); dir !== '.'; dir = dirname(dir)) {
+      found.push(dir);
+    }
+    return found;
+  }
+
+  describe.each(scenarios)('with $name', ({ setup }) => {
+    it.each(paths(setup).map((path) => [path.name, path] as const))(
+      'never changes anything outside the work log during %s, nor reports a partial batch as done',
+      { timeout: EXHAUSTIVE.timeout },
+      (_name, path) => {
+        const reference = mutationsOf(path);
+        let probes = 0;
+        reference.mutations.forEach((targets, index) => {
+          const ancestors = new Set(targets.flatMap(ancestorsOf));
+          for (const ancestor of ancestors) {
+            const w = world();
+            path.prepare(w);
+            const real = join(w.workLog, ancestor);
+            const decoy = join(w.outside, 'decoy');
+            const held = join(w.base, 'held');
+            let outside: Record<string, string> | undefined;
+            const substitute = () => {
+              if (!existsSync(real) || !lstatSync(real).isDirectory()) return;
+              // An exact copy, so contents and hashes would all match
+              cpSync(real, decoy, { recursive: true });
+              renameSync(real, held);
+              symlinkSync(decoy, real);
+              outside = { ...snapshot(w.outside), ...prefixed(snapshot(held)) };
+            };
+            const result = path.run(
+              w,
+              afterMutationsFs(fastFs, index, substitute),
+            );
+            if (!outside) continue;
+            const label = `before change ${index + 1} (${targets.join(' -> ')}), ${ancestor} linked`;
+            const outsideNow = () => ({
+              ...snapshot(w.outside),
+              ...prefixed(snapshot(held)),
+            });
+
+            expect(outsideNow(), label).toEqual(outside);
+            if (result.ok) {
+              // Success means the records are what the same run leaves
+              // without the substitution, wherever the real directory went
+              expect(resolvedRecords(w, ancestor), label).toEqual(
+                reference.final,
+              );
+            }
+            recover(w, { fs: fastFs });
+            expect(outsideNow(), `${label}, after recovery`).toEqual(outside);
+            probes++;
+          }
+        });
+        expect(probes).toBeGreaterThan(0);
+      },
+    );
+  });
+
+  function prefixed(snap: Record<string, string>): Record<string, string> {
+    return Object.fromEntries(
+      Object.entries(snap).map(([path, value]) => [`held/${path}`, value]),
+    );
+  }
+
+  /** The work log's records, reading a linked ancestor's real contents */
+  function resolvedRecords(w: World, ancestor: string) {
+    const snap = records(w.workLog);
+    if (ancestor.startsWith('.import')) return snap;
+    delete snap[ancestor];
+    for (const [path, value] of Object.entries(
+      snapshot(join(w.base, 'held')),
+    )) {
+      snap[`${ancestor}/${path}`] = value;
+    }
+    return snap;
+  }
 });

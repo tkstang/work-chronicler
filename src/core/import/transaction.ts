@@ -1,4 +1,4 @@
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative, sep } from 'node:path';
 
 import { IMPORTED_RECORD_DIRECTORIES } from '@storage/paths';
 import { IMPORT_SOURCES } from '@wc-types/imported-record';
@@ -64,7 +64,6 @@ const APPLYING_DIR = 'applying';
 /** New work-log directories, made here and then moved into place */
 const DIRS_DIR = 'dirs';
 const FOLDERS = [STAGED_DIR, BACKUP_DIR, APPLYING_DIR, DIRS_DIR] as const;
-type Folder = (typeof FOLDERS)[number];
 const OWNER_MAX_BYTES = 4096;
 const JOURNAL_MAX_BYTES = 32 * 1024 * 1024;
 
@@ -110,10 +109,11 @@ const IdSchema = z.strictObject({
 type Id = z.infer<typeof IdSchema>;
 
 const JournalSchema = z.strictObject({
-  version: z.literal(2),
+  version: z.literal(3),
   batchId: z.string(),
   state: z.enum(['prepared', 'committing', 'committed']),
-  /** The transaction directory and each of its folders */
+  /** The work log, the transaction directory and each of its folders */
+  root: IdSchema,
   transaction: IdSchema,
   folders: z.strictObject({
     staged: IdSchema,
@@ -158,6 +158,7 @@ type Journal = z.infer<typeof JournalSchema>;
 
 /** Raised when the work log no longer matches what was planned */
 class ChangedError extends Error {
+  readonly code = 'ECHANGED';
   constructor(readonly destination?: string) {
     super('changed');
   }
@@ -198,20 +199,129 @@ function requireDirectory(
   }
 }
 
-/** Require the transaction directory and one of its folders to be ours */
-function requireFolder(
-  fs: ImportFs,
-  txn: string,
-  journal: Journal,
-  folder: Folder,
-): void {
-  requireDirectory(fs, txn, journal.transaction, TRANSACTION_NAME);
-  requireDirectory(
-    fs,
-    join(txn, folder),
-    journal.folders[folder],
-    `${TRANSACTION_NAME}/${folder}`,
-  );
+/**
+ * The only way this module changes the filesystem.
+ *
+ * A guard knows the identity of every directory it vouches for: the work
+ * log, the transaction directory, its folders and the directories a batch
+ * uses (at both their staged and their final paths). Before any change it
+ * checks every directory from the work log down to the target's parent:
+ * each must be a real directory (never a link) holding its recorded
+ * identity. A directory it cannot vouch for refuses the change with
+ * {@link ChangedError}, so no call site can skip a component on the way.
+ */
+class PathGuard {
+  private readonly known = new Map<string, Id>();
+
+  constructor(
+    /** For reads only; every change goes through the guard's methods */
+    readonly fs: ImportFs,
+    readonly root: string,
+    rootId: Id,
+  ) {
+    this.known.set(root, rootId);
+  }
+
+  /** A guard for the work log as it is now (for the lock and leftovers) */
+  static atRoot(fs: ImportFs, root: string): PathGuard {
+    const entry = fs.lstat(root);
+    if (entry.kind !== 'directory') throw new ChangedError();
+    return new PathGuard(fs, root, toId(entry));
+  }
+
+  /** A guard for everything a journal recorded */
+  static forJournal(fs: ImportFs, root: string, journal: Journal): PathGuard {
+    const guard = new PathGuard(fs, root, journal.root);
+    const txn = join(root, TRANSACTION_NAME);
+    guard.vouch(txn, journal.transaction);
+    for (const folder of FOLDERS) {
+      guard.vouch(join(txn, folder), journal.folders[folder]);
+    }
+    for (const dir of journal.directories) {
+      guard.vouch(join(root, ...dir.segments), dir.id);
+      if (dir.created !== null) {
+        guard.vouch(stagedDirectory(txn, dir.created), dir.id);
+      }
+    }
+    return guard;
+  }
+
+  /** Record that `path` is the directory with this identity */
+  vouch(path: string, id: Id): void {
+    this.known.set(path, id);
+  }
+
+  /** Check every directory from the work log down to `dir` itself */
+  check(dir: string): void {
+    const rel = relative(this.root, dir);
+    if (rel.startsWith('..') || isAbsolute(rel)) throw new ChangedError(rel);
+    this.expect(this.root, '.');
+    if (rel === '') return;
+    let current = this.root;
+    // `rel` is built from this module's own joins, never from input text
+    for (const part of rel.split(sep)) {
+      current = join(current, part);
+      this.expect(current, relative(this.root, current));
+    }
+  }
+
+  private expect(path: string, where: string): void {
+    const id = this.known.get(path);
+    if (!id) throw new ChangedError(where);
+    requireDirectory(this.fs, path, id, where);
+  }
+
+  /** Make a directory below a vouched one and vouch for it */
+  mkdir(path: string): Id {
+    this.check(dirname(path));
+    this.fs.mkdir(path);
+    const entry = this.fs.lstat(path);
+    if (entry.kind !== 'directory') throw new ChangedError(path);
+    const id = toId(entry);
+    this.vouch(path, id);
+    return id;
+  }
+
+  writeFile(path: string, data: Uint8Array): void {
+    this.check(dirname(path));
+    this.fs.writeFile(path, data);
+  }
+
+  rename(from: string, to: string): void {
+    this.check(dirname(from));
+    this.check(dirname(to));
+    this.fs.rename(from, to);
+  }
+
+  link(from: string, to: string): void {
+    this.check(dirname(from));
+    this.check(dirname(to));
+    this.fs.link(from, to);
+  }
+
+  unlink(path: string): void {
+    this.check(dirname(path));
+    this.fs.unlink(path);
+  }
+
+  /** Remove an empty directory, only one the guard vouches for */
+  rmdir(path: string): void {
+    this.check(path);
+    this.fs.rmdir(path);
+  }
+
+  /**
+   * Remove a directory tree below a vouched directory. The tree itself must
+   * be a real directory, with identity `id` when one is known.
+   */
+  removeTree(path: string, id?: Id): void {
+    this.check(dirname(path));
+    const entry = this.fs.lstat(path);
+    if (entry.kind !== 'directory' || (id && !hasId(entry, id))) {
+      throw new ChangedError(basename(path));
+    }
+    this.fs.removeTree(path);
+  }
 }
 
 /**
@@ -247,9 +357,13 @@ function requireAncestors(
   return true;
 }
 
-function removeQuietly(fs: ImportFs, path: string, warnings: string[]): void {
+function removeQuietly(
+  guard: PathGuard,
+  path: string,
+  warnings: string[],
+): void {
   try {
-    fs.unlink(path);
+    guard.unlink(path);
   } catch (error) {
     if (errorCode(error) !== 'ENOENT') {
       warnings.push(
@@ -340,17 +454,23 @@ export function acquireImportLock(
       `the import lock could not be created (${describeFsError(error)}); nothing was changed`,
     );
 
+  let guard: PathGuard;
   try {
-    fs.writeFile(claim, Buffer.from(JSON.stringify(owner)));
+    guard = PathGuard.atRoot(fs, root);
   } catch (error) {
-    removeQuietly(fs, claim, warnings);
+    return { issue: lockFailed(error), warnings };
+  }
+  try {
+    guard.writeFile(claim, Buffer.from(JSON.stringify(owner)));
+  } catch (error) {
+    removeQuietly(guard, claim, warnings);
     return { issue: lockFailed(error), warnings };
   }
 
   try {
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        fs.link(claim, lockPath);
+        guard.link(claim, lockPath);
         return { lock: { root, owner }, warnings };
       } catch (error) {
         if (errorCode(error) !== 'EEXIST') {
@@ -380,7 +500,7 @@ export function acquireImportLock(
       // moved is the one we judged (another process may have taken over).
       const stale = join(root, `${STALE_PREFIX}${env.randomId()}`);
       try {
-        fs.rename(lockPath, stale);
+        guard.rename(lockPath, stale);
       } catch (error) {
         if (errorCode(error) === 'ENOENT') continue;
         return {
@@ -394,23 +514,23 @@ export function acquireImportLock(
       const moved = readOwner(fs, stale);
       if (moved.kind !== 'owner' || !sameOwner(moved.owner, held.owner)) {
         try {
-          fs.link(stale, lockPath);
+          guard.link(stale, lockPath);
         } catch (error) {
           warnings.push(
             `could not restore another import's lock (${describeFsError(error)})`,
           );
         }
-        removeQuietly(fs, stale, warnings);
+        removeQuietly(guard, stale, warnings);
         return {
           issue: importIssue('IMPORT_IN_PROGRESS', LOCK_HELD),
           warnings,
         };
       }
-      removeQuietly(fs, stale, warnings);
+      removeQuietly(guard, stale, warnings);
     }
     return { issue: importIssue('IMPORT_IN_PROGRESS', LOCK_HELD), warnings };
   } finally {
-    removeQuietly(fs, claim, warnings);
+    removeQuietly(guard, claim, warnings);
   }
 }
 
@@ -429,7 +549,7 @@ export function releaseImportLock(lock: ImportLock, env: ImportEnv): string[] {
   }
   const warnings: string[] = [];
   try {
-    env.fs.unlink(lockPath);
+    PathGuard.atRoot(env.fs, lock.root).unlink(lockPath);
   } catch (error) {
     warnings.push(
       `the import lock could not be removed (${describeFsError(error)}); the next import will take it over`,
@@ -450,7 +570,9 @@ export function removeLeftovers(root: string, env: ImportEnv): string[] {
   const { fs } = env;
   const warnings: string[] = [];
   let names: string[];
+  let guard: PathGuard;
   try {
+    guard = PathGuard.atRoot(fs, root);
     names = fs.readdir(root);
   } catch (error) {
     return [`could not list the work log (${describeFsError(error)})`];
@@ -463,9 +585,9 @@ export function removeLeftovers(root: string, env: ImportEnv): string[] {
     const path = join(root, name);
     try {
       const entry = fs.lstat(path);
-      if (done && entry.kind === 'directory') fs.removeTree(path);
+      if (done && entry.kind === 'directory') guard.removeTree(path);
       else if (entry.kind === 'file' || entry.kind === 'symlink')
-        fs.unlink(path);
+        guard.unlink(path);
     } catch (error) {
       if (errorCode(error) !== 'ENOENT') {
         warnings.push(
@@ -509,17 +631,16 @@ export function inspectImportState(
 // ---------------------------------------------------------------------------
 // Journal and transaction directory
 
-function writeJournal(fs: ImportFs, txn: string, journal: Journal): void {
-  requireDirectory(fs, txn, journal.transaction, TRANSACTION_NAME);
+function writeJournal(guard: PathGuard, txn: string, journal: Journal): void {
   const tmp = join(txn, JOURNAL_TMP);
   try {
-    fs.unlink(tmp);
+    guard.unlink(tmp);
   } catch (error) {
     if (errorCode(error) !== 'ENOENT') throw error;
   }
-  fs.writeFile(tmp, Buffer.from(JSON.stringify(journal)));
-  fs.rename(tmp, join(txn, JOURNAL));
-  fs.syncDirectory(txn);
+  guard.writeFile(tmp, Buffer.from(JSON.stringify(journal)));
+  guard.rename(tmp, join(txn, JOURNAL));
+  guard.fs.syncDirectory(txn);
 }
 
 /** Where the final journal write left the transaction, judged from disk */
@@ -539,20 +660,20 @@ type CommitRecord =
  * read back to learn which state is on disk.
  */
 function writeCommittedJournal(
-  fs: ImportFs,
+  guard: PathGuard,
   txn: string,
   journal: Journal,
   warnings: string[],
 ): CommitRecord {
+  const { fs } = guard;
   const tmp = join(txn, JOURNAL_TMP);
   try {
-    requireDirectory(fs, txn, journal.transaction, TRANSACTION_NAME);
     try {
-      fs.unlink(tmp);
+      guard.unlink(tmp);
     } catch (error) {
       if (errorCode(error) !== 'ENOENT') throw error;
     }
-    fs.writeFile(
+    guard.writeFile(
       tmp,
       Buffer.from(JSON.stringify({ ...journal, state: 'committed' })),
     );
@@ -561,7 +682,7 @@ function writeCommittedJournal(
     return { state: 'not-committed', error };
   }
   try {
-    fs.rename(tmp, join(txn, JOURNAL));
+    guard.rename(tmp, join(txn, JOURNAL));
   } catch (error) {
     const onDisk = readJournal(fs, txn);
     if (!('journal' in onDisk) || onDisk.journal.batchId !== journal.batchId) {
@@ -605,13 +726,13 @@ function readJournal(
 
 /** Write a file and prove it holds exactly what was meant */
 function writeVerified(
-  fs: ImportFs,
+  guard: PathGuard,
   path: string,
   data: Buffer,
   hash: string,
 ): void {
-  fs.writeFile(path, data);
-  if (sha256(fs.readFile(path, MAX_STORED_BYTES).data) !== hash) {
+  guard.writeFile(path, data);
+  if (sha256(guard.fs.readFile(path, MAX_STORED_BYTES).data) !== hash) {
     throw codedError('EVERIFY');
   }
 }
@@ -621,7 +742,7 @@ function writeVerified(
  * step, after which it is no longer pending), then delete it.
  */
 function discardTransaction(
-  fs: ImportFs,
+  guard: PathGuard,
   txn: string,
   env: ImportEnv,
   warnings: string[],
@@ -629,7 +750,7 @@ function discardTransaction(
 ): void {
   const done = join(dirname(txn), `${DONE_PREFIX}${env.randomId()}`);
   try {
-    fs.rename(txn, done);
+    guard.rename(txn, done);
   } catch (error) {
     warnings.push(
       `import bookkeeping (${TRANSACTION_NAME}) could not be removed (${describeFsError(error)}); the next import will finish it`,
@@ -639,15 +760,14 @@ function discardTransaction(
   try {
     // Moving an entry never follows a link; deleting a tree must only ever
     // delete the transaction directory itself
-    const entry = fs.lstat(done);
-    if (entry.kind !== 'directory' || (id && !hasId(entry, id))) {
+    guard.removeTree(done, id);
+  } catch (error) {
+    if (error instanceof ChangedError) {
       warnings.push(
         `${basename(done)} is not this import's bookkeeping and was left alone`,
       );
       return;
     }
-    fs.removeTree(done);
-  } catch (error) {
     warnings.push(
       `${basename(done)} could not be removed (${describeFsError(error)}); the next import will remove it`,
     );
@@ -696,12 +816,12 @@ const hashOf = (state: DestinationState) =>
  * restored; none means the rollback is complete.
  */
 function rollBack(
-  fs: ImportFs,
-  root: string,
+  guard: PathGuard,
   txn: string,
   journal: Journal,
   attempted: (index: number) => boolean,
 ): ImportIssue[] {
+  const { fs, root } = guard;
   const issues: ImportIssue[] = [];
   for (let index = journal.operations.length - 1; index >= 0; index--) {
     const op = journal.operations[index];
@@ -715,8 +835,7 @@ function rollBack(
       if (op.action === 'create') {
         if (state === 'absent') continue;
         if (hash === op.newHash) {
-          requireAncestors(fs, root, journal, op.destination);
-          fs.unlink(dest);
+          guard.unlink(dest);
           fs.syncDirectory(dirname(dest));
           continue;
         }
@@ -724,12 +843,12 @@ function rollBack(
         if (hash !== undefined && hash === op.oldHash) continue;
         if (hash === op.newHash && op.backup !== null) {
           const backupPath = join(txn, BACKUP_DIR, op.backup);
-          requireFolder(fs, txn, journal, BACKUP_DIR);
+          // Read through the guard's checks too, so a linked folder is
+          // reported rather than read
+          guard.check(join(txn, BACKUP_DIR));
           const backup = fs.readFile(backupPath, MAX_STORED_BYTES);
           if (sha256(backup.data) === op.oldHash) {
-            requireFolder(fs, txn, journal, BACKUP_DIR);
-            requireAncestors(fs, root, journal, op.destination);
-            fs.rename(backupPath, dest);
+            guard.rename(backupPath, dest);
             fs.syncDirectory(dirname(dest));
             if (
               hashOf(destinationState(fs, root, journal, op.destination)) ===
@@ -759,7 +878,7 @@ function rollBack(
       );
     }
   }
-  issues.push(...removeCreatedDirectories(fs, root, txn, journal));
+  issues.push(...removeCreatedDirectories(guard, txn, journal));
   return issues;
 }
 
@@ -790,11 +909,11 @@ function unsafePathIssue(
  * reached through a moved, replaced or linked directory is reported.
  */
 function removeCreatedDirectories(
-  fs: ImportFs,
-  root: string,
+  guard: PathGuard,
   txn: string,
   journal: Journal,
 ): ImportIssue[] {
+  const { fs, root } = guard;
   const issues: ImportIssue[] = [];
   const created = journal.directories.filter((d) => d.created !== null);
   for (const dir of created.reverse()) {
@@ -802,7 +921,7 @@ function removeCreatedDirectories(
     const path = join(root, ...dir.segments);
     try {
       // Never moved into place: it goes with the transaction directory
-      requireFolder(fs, txn, journal, DIRS_DIR);
+      guard.check(join(txn, DIRS_DIR));
       try {
         const staged = fs.lstat(stagedDirectory(txn, dir.created ?? ''));
         if (staged.kind === 'directory' && hasId(staged, dir.id)) continue;
@@ -819,8 +938,7 @@ function removeCreatedDirectories(
       }
       // Something else is there now: not ours to remove
       if (entry.kind !== 'directory' || !hasId(entry, dir.id)) continue;
-      requireAncestors(fs, root, journal, dir.segments);
-      fs.rmdir(path);
+      guard.rmdir(path);
     } catch (error) {
       const code = errorCode(error);
       // Gone already, or now holding something that is not ours to remove
@@ -915,7 +1033,13 @@ export function recoverInterruptedImport(
   }
   if ('missing' in read) {
     // Interrupted while preparing: nothing in the work log changed
-    discardTransaction(fs, txn, env, warnings);
+    try {
+      discardTransaction(PathGuard.atRoot(fs, root), txn, env, warnings);
+    } catch (error) {
+      return conflict(
+        `the work log could not be checked (${describeFsError(error)}); nothing was changed`,
+      );
+    }
     return {
       report: { batchId: null, outcome: 'discarded', records: 0 },
       issues: [],
@@ -924,22 +1048,18 @@ export function recoverInterruptedImport(
   }
 
   const { journal } = read;
-  // Before changing anything, the transaction directory and every folder of
-  // it must be the ones the journal recorded: never followed links, never
-  // replaced directories.
+  const guard = PathGuard.forJournal(fs, root, journal);
+  // Before changing anything, the work log, the transaction directory and
+  // every folder of it must be the ones the journal recorded: never followed
+  // links, never replaced directories.
   try {
-    for (const folder of FOLDERS) requireFolder(fs, txn, journal, folder);
+    for (const folder of FOLDERS) guard.check(join(txn, folder));
     // A new directory not yet moved into place must still be the one made
     for (const dir of journal.directories) {
       if (dir.created === null) continue;
       const staged = stagedDirectory(txn, dir.created);
       try {
-        requireDirectory(
-          fs,
-          staged,
-          dir.id,
-          `${TRANSACTION_NAME}/${DIRS_DIR}/${dir.created}`,
-        );
+        guard.check(staged);
       } catch (error) {
         if (!(error instanceof ChangedError)) throw error;
         // Absent means it was moved into place; anything else is a conflict
@@ -989,7 +1109,7 @@ export function recoverInterruptedImport(
         warnings,
       };
     }
-    discardTransaction(fs, txn, env, warnings, journal.transaction);
+    discardTransaction(guard, txn, env, warnings, journal.transaction);
     return { report: report('completed'), issues: [], warnings };
   }
 
@@ -998,11 +1118,11 @@ export function recoverInterruptedImport(
   const issues =
     journal.state === 'prepared'
       ? []
-      : rollBack(fs, root, txn, journal, (index) =>
+      : rollBack(guard, txn, journal, (index) =>
           markerMayExist(fs, txn, index),
         );
   if (issues.length > 0) return { report: null, issues, warnings };
-  discardTransaction(fs, txn, env, warnings, journal.transaction);
+  discardTransaction(guard, txn, env, warnings, journal.transaction);
   return {
     report: report(journal.state === 'prepared' ? 'discarded' : 'rolled-back'),
     issues: [],
@@ -1138,13 +1258,14 @@ export function commitImportPlan(
     newHash: r.hash,
   }));
 
-  /** Make a directory and return its identity; it must be a real one */
-  const makeDirectory = (path: string): Id => {
-    fs.mkdir(path);
-    const entry = fs.lstat(path);
-    if (entry.kind !== 'directory') throw new ChangedError(TRANSACTION_NAME);
-    return toId(entry);
-  };
+  // Every change below goes through the guard, which checks the recorded
+  // identity of every directory from the work log down to its target
+  const guard = new PathGuard(fs, plan.root, toId(plan.rootId));
+  for (const dir of plan.directories) {
+    if (dir.existing) {
+      guard.vouch(join(plan.root, ...dir.segments), toId(dir.existing));
+    }
+  }
 
   // 1. Prepare. Nothing in the work log changes: new records, backups and
   // new directories are all made inside the transaction directory, and the
@@ -1152,7 +1273,7 @@ export function commitImportPlan(
   let transaction: Id;
   try {
     verifyRoot(plan, fs);
-    transaction = makeDirectory(txn);
+    transaction = guard.mkdir(txn);
   } catch (error) {
     return { ok: false, issues: [failureIssue(error, true)], warnings };
   }
@@ -1160,16 +1281,16 @@ export function commitImportPlan(
   try {
     const folders = {} as Journal['folders'];
     for (const folder of FOLDERS) {
-      requireDirectory(fs, txn, transaction, TRANSACTION_NAME);
-      folders[folder] = makeDirectory(join(txn, folder));
+      folders[folder] = guard.mkdir(join(txn, folder));
     }
     // New directories are built as one tree per topmost new directory, so
     // placing it is a single rename whose parent is the work log itself
     const createdAt = new Map<string, string>();
     journal = {
-      version: 2,
+      version: 3,
       batchId,
       state: 'prepared',
+      root: toId(plan.rootId),
       transaction,
       folders,
       directories: plan.directories.map((dir, k) => {
@@ -1180,33 +1301,24 @@ export function commitImportPlan(
             created: null,
           };
         }
-        requireDirectory(fs, txn, transaction, TRANSACTION_NAME);
-        requireDirectory(
-          fs,
-          join(txn, DIRS_DIR),
-          folders.dirs,
-          `${TRANSACTION_NAME}/${DIRS_DIR}`,
-        );
         const parent = createdAt.get(displayPath(dir.segments.slice(0, -1)));
         const created = parent
           ? `${parent}/${dir.segments[dir.segments.length - 1]}`
           : String(k);
         createdAt.set(displayPath(dir.segments), created);
-        return {
-          segments: dir.segments,
-          id: makeDirectory(stagedDirectory(txn, created)),
-          created,
-        };
+        // Made in the transaction (checked down to its staged parent), and
+        // vouched for at its final path, where the same directory will go
+        const id = guard.mkdir(stagedDirectory(txn, created));
+        guard.vouch(join(plan.root, ...dir.segments), id);
+        return { segments: dir.segments, id, created };
       }),
       operations,
     };
     records.forEach((r, i) => {
-      requireFolder(fs, txn, journal, STAGED_DIR);
-      writeVerified(fs, join(txn, STAGED_DIR, `${i}.md`), r.content, r.hash);
+      writeVerified(guard, join(txn, STAGED_DIR, `${i}.md`), r.content, r.hash);
       if (r.existing) {
-        requireFolder(fs, txn, journal, BACKUP_DIR);
         writeVerified(
-          fs,
+          guard,
           join(txn, BACKUP_DIR, `${i}.md`),
           r.existing.content,
           r.existing.hash,
@@ -1216,9 +1328,9 @@ export function commitImportPlan(
     fs.syncDirectory(join(txn, STAGED_DIR));
     fs.syncDirectory(join(txn, BACKUP_DIR));
     fs.syncDirectory(join(txn, DIRS_DIR));
-    writeJournal(fs, txn, journal);
+    writeJournal(guard, txn, journal);
   } catch (error) {
-    discardTransaction(fs, txn, env, warnings, transaction);
+    discardTransaction(guard, txn, env, warnings, transaction);
     return { ok: false, issues: [failureIssue(error, true)], warnings };
   }
 
@@ -1227,7 +1339,7 @@ export function commitImportPlan(
   try {
     verifyRoot(plan, fs);
     journal.state = 'committing';
-    writeJournal(fs, txn, journal);
+    writeJournal(guard, txn, journal);
 
     // Move each topmost new directory (with any new ones inside it) into
     // place, only onto an absent name below verified directories. Every new
@@ -1245,9 +1357,8 @@ export function commitImportPlan(
       } catch (error) {
         if (errorCode(error) !== 'ENOENT') throw error;
       }
-      requireFolder(fs, txn, journal, DIRS_DIR);
       try {
-        fs.rename(stagedDirectory(txn, dir.created), path);
+        guard.rename(stagedDirectory(txn, dir.created), path);
       } catch (error) {
         const code = errorCode(error);
         // The name was taken meanwhile (by a directory, file or link)
@@ -1271,14 +1382,12 @@ export function commitImportPlan(
       verifyDestination(plan, record, fs);
       const dest = join(plan.root, ...record.segments);
       const staged = join(txn, STAGED_DIR, `${i}.md`);
-      requireFolder(fs, txn, journal, APPLYING_DIR);
-      fs.writeFile(join(txn, APPLYING_DIR, String(i)), Buffer.alloc(0));
+      guard.writeFile(join(txn, APPLYING_DIR, String(i)), Buffer.alloc(0));
       fs.syncDirectory(join(txn, APPLYING_DIR));
       attempted = i + 1;
-      requireFolder(fs, txn, journal, STAGED_DIR);
       if (record.existing === null) {
         try {
-          fs.link(staged, dest);
+          guard.link(staged, dest);
         } catch (error) {
           if (errorCode(error) === 'EEXIST') {
             throw new ChangedError(displayPath(record.segments));
@@ -1286,7 +1395,7 @@ export function commitImportPlan(
           throw error;
         }
       } else {
-        fs.rename(staged, dest);
+        guard.rename(staged, dest);
       }
       fs.syncDirectory(dirname(dest));
       if (sha256(fs.readFile(dest, MAX_STORED_BYTES).data) !== record.hash) {
@@ -1299,7 +1408,7 @@ export function commitImportPlan(
   }
 
   // 3. Record the batch as stored. From here the journal on disk decides.
-  const record = writeCommittedJournal(fs, txn, journal, warnings);
+  const record = writeCommittedJournal(guard, txn, journal, warnings);
   if (record.state === 'not-committed') return undo(record.error);
   if (record.state === 'unknown') {
     return {
@@ -1315,14 +1424,13 @@ export function commitImportPlan(
   }
 
   // Done: the batch is stored. Leftover bookkeeping is only a warning.
-  discardTransaction(fs, txn, env, warnings, transaction);
+  discardTransaction(guard, txn, env, warnings, transaction);
   return { ok: true, issues: [], warnings };
 
   /** Roll back the records this import may have changed */
   function undo(error: unknown) {
     const unrestored = rollBack(
-      fs,
-      plan.root,
+      guard,
       txn,
       journal,
       (index) => index < attempted,
@@ -1334,7 +1442,7 @@ export function commitImportPlan(
         warnings,
       };
     }
-    discardTransaction(fs, txn, env, warnings, transaction);
+    discardTransaction(guard, txn, env, warnings, transaction);
     return { ok: false, issues: [failureIssue(error, true)], warnings };
   }
 }
