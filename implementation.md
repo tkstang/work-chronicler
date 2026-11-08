@@ -455,6 +455,15 @@ Proof: `pnpm format:check`
 
 **Outcome:** passed. Exit carrier allowed/fresh at ed8b20df93efb15f5dbdeee10733453e7cd52f0d; fresh integrated review next.
 
+### Review Received: m01 (integrated delivery re-review)
+
+**Date:** 2026-11-08
+**Review artifact (local-only):** reviews/archived/m01-review-2026-11-08T022438Z.md
+
+**Findings:** Critical 0 · High 0 · Medium 0 · Low 0 (cross-provider reviewer codex gpt-6.1-sol high via delegated task, scope `code m01: p01, p02, p03`, reviewed head ed8b20df93efb15f5dbdeee10733453e7cd52f0d; fix delta fcb2a87..ed8b20d reviewed directly, other coverage inherited from the prior integrated review)
+
+**Outcome:** passed. No deferred Medium findings; no Low findings. m01 → delivering.
+
 ## Deferred Findings
 
 <!-- One line per approved deferral (finding, rationale, approval, follow-up trigger), plus excluded parallel phases and unmerged worktrees. -->

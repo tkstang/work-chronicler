@@ -71,6 +71,10 @@ target=codex-6-sol-xhigh threshold=high findings=critical:0,high:0,medium:0,low:
 
 m01 exit gate attempt 5 passed clean at ed8b20d; exit carrier allowed/fresh; m01 -> reviewing; wce-m01-gate-5
 
+### 2026-11-08 · structural · oat-project-review-receive · m01
+
+m01 integrated re-review passed clean at ed8b20d; m01 -> delivering; wce-m01-integrated-review-2
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
