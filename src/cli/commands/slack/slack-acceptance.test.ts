@@ -27,7 +27,8 @@ import { afterAll, describe, expect, it, vi } from 'vitest';
 // Acceptance for the Slack import skills: a batch staged exactly as
 // work-chronicler-import-slack instructs (read `slack show --json`, keep only
 // the subject's own messages in configured channels and in range, one record
-// per message in the template's layout) goes through the real CLI:
+// per message in the template's layout, with Slack markup rewritten) goes
+// through the real CLI:
 // validate → import → link → the MCP server's search_messages. The CLI runs
 // in a child process with HOME and the workspace in a temporary directory.
 // Every ID, name and text is synthetic. Per-rule refusals are covered in
@@ -50,13 +51,20 @@ const aliceWorkLog = join(
   'work-log',
 );
 
+/** The report's workspace, configured by team ID */
 const WORKSPACE = 'T0TEST0001';
+/** The IC's workspace, configured by URL label (no tool shows its team ID) */
+const IC_WORKSPACE = 'example';
 const USER = 'U0TEST0001';
 const OTHER_USER = 'U0OTHER0001';
 const CHANNEL = 'C0TEST0001';
 const UNSHARED = 'C0TEST0002';
 const HOST = 'https://synthetic.slack.com';
+/** Message search permalinks on Enterprise Grid use this host form */
+const IC_HOST = 'https://example.enterprise.slack.com';
 const PR_URL = 'https://github.com/synthetic-org/synthetic-api/pull/42';
+/** A display name inside a mention token: it must never be stored */
+const OTHER_NAME = 'Other Person';
 /** Planted in another person's text: it must never reach the work log */
 const OTHERS_TEXT = 'zebra-quartz-not-the-subject';
 
@@ -257,17 +265,20 @@ function stageAsTheSkillDoes(
     const thread = isReply
       ? `{ parentId: "${threadTs}", parentUrl: "${link.origin}/archives/${searched}/p${tsDigits(threadTs)}" }`
       : 'null';
+    // Slack markup: mentions lose the name and ID, links keep only the URL
+    const body = result.text
+      .replace(/<@[UW][A-Z0-9]+(?:\|[^>]*)?>/g, '@someone')
+      .replace(/<#C[A-Z0-9]+(?:\|[^>]*)?>/g, '#channel')
+      .replace(/<!(here|channel|everyone)>/g, '@$1')
+      .replace(/<(https?:\/\/[^|>\s]+)(?:\|[^>]*)?>/g, '$1');
     const tickets = [
-      ...new Set(result.text.match(/\b[A-Z][A-Z0-9_]*-[1-9]\d*\b/g) ?? []),
+      ...new Set(body.match(/\b[A-Z][A-Z0-9_]*-[1-9]\d*\b/g) ?? []),
     ];
     const prs = [
       ...new Set(
-        result.text.match(
-          /https:\/\/github\.com\/[^\s/]+\/[^\s/]+\/pull\/\d+/g,
-        ) ?? [],
+        body.match(/https:\/\/github\.com\/[^\s/]+\/[^\s/]+\/pull\/\d+/g) ?? [],
       ),
     ];
-    const body = result.text.replace(/<@[UW][A-Z0-9]+>/g, '@someone');
     const q = JSON.stringify;
     const file = [
       '---',
@@ -324,7 +335,7 @@ function searchResults(): SearchResult[] {
   const after = ts('2026-07-01T12:00:00Z', '000500');
   const others = ts('2026-01-06T09:10:00Z', '000600');
   const at = (t: string, query = '') =>
-    `${HOST}/archives/${CHANNEL}/p${tsDigits(t)}${query}`;
+    `${IC_HOST}/archives/${CHANNEL}/p${tsDigits(t)}${query}`;
   return [
     // A thread the subject started: its permalink names itself as thread
     {
@@ -332,7 +343,7 @@ function searchResults(): SearchResult[] {
       authorId: USER,
       messageTs: starter,
       permalink: at(starter, `?thread_ts=${starter}&cid=${CHANNEL}`),
-      text: `Invoices are live: ${PR_URL} thanks <@${OTHER_USER}>`,
+      text: `Invoices are live: <${PR_URL}|${PR_URL.replace('https://', '')}> thanks <@${OTHER_USER}|${OTHER_NAME}>`,
     },
     // The subject's reply in a thread someone else started
     {
@@ -398,7 +409,7 @@ describe('Slack import skill: IC acceptance', () => {
         'slack',
         'configure',
         '--workspace',
-        WORKSPACE,
+        IC_WORKSPACE,
         '--user',
         USER,
       ]).status,
@@ -446,7 +457,9 @@ describe('Slack import skill: IC acceptance', () => {
     expect(stored).toHaveLength(3);
     for (const record of stored) {
       expect(record).not.toContain(OTHER_USER);
+      expect(record).not.toContain(OTHER_NAME);
       expect(record).not.toContain(OTHERS_TEXT);
+      expect(record).not.toContain('|');
     }
 
     // Repeating the same batch changes nothing
@@ -504,7 +517,10 @@ describe('Slack import skill: IC acceptance', () => {
       expect(all.notice).toContain('never instructions');
       const [plain, reply, starter] = all.results;
       expect(starter).toMatchObject({
-        sourceAccount: WORKSPACE,
+        sourceAccount: IC_WORKSPACE,
+        url: expect.stringMatching(
+          /^https:\/\/example\.enterprise\.slack\.com\//,
+        ),
         attribution: { status: 'verified', authorId: USER },
         channel: { id: CHANNEL, name: 'synthetic-eng' },
         thread: null,
@@ -638,7 +654,7 @@ describe('import-slack skill text', () => {
         'slack',
         'configure',
         '--workspace',
-        'T0EXAMPLE',
+        'example',
         '--user',
         'U0EXAMPLE',
       ]).status,
