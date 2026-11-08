@@ -4,6 +4,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -653,5 +654,22 @@ describe('a mixed work log with imported messages', () => {
       total: 1,
       bySource: { slack: 1 },
     });
+  });
+
+  it('analyze refuses an interrupted subset swap unless asked for the full work log', async () => {
+    await run(filterCommand, ['--org', 'acme']);
+    // A filter run that stopped after moving the subset aside
+    renameSync(filteredDir, join(workLog, '.filter-previous-crash'));
+
+    await expect(run(analyzeCommand, ['--all'])).rejects.toThrow(
+      /interrupted while replacing/,
+    );
+    await run(analyzeCommand, ['--all', '--full']);
+    expect(readAnalysis(workLog).stats.prs.total).toBe(2);
+
+    // The next filter puts the previous subset back first
+    await run(filterCommand, ['--org', 'other']);
+    expect(core.getEffectiveOutputDir(workLog).isFiltered).toBe(true);
+    expect(selection()?.filters).toEqual(['Include orgs: other']);
   });
 });

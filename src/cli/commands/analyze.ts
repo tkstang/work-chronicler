@@ -58,23 +58,16 @@ export const analyzeCommand = new Command('analyze')
       const config = await loadConfig(options.config);
       const baseOutputDir = getOutputDirectory(config, configPath ?? undefined);
 
-      // Check if filtered data exists
+      // Check if filtered data exists. With --full the subset is not
+      // consulted at all, so it works even while a filter run is unfinished.
       let outputDir = baseOutputDir;
       let isFiltered = false;
-      const effective = getEffectiveOutputDir(baseOutputDir);
-
-      if (effective.isFiltered) {
-        if (options.full) {
-          // User explicitly requested full work-log
-          outputDir = baseOutputDir;
-          isFiltered = false;
-        } else {
-          // Filtered data exists - prompt user
-          const useFiltered = await promptUseFiltered();
-          if (useFiltered) {
-            outputDir = effective.dir;
-            isFiltered = true;
-          }
+      if (!options.full) {
+        const effective = getEffectiveOutputDir(baseOutputDir);
+        // A subset exists (even an empty one): ask whether to use it
+        if (effective.isFiltered && (await promptUseFiltered())) {
+          outputDir = effective.dir;
+          isFiltered = true;
         }
       }
 
