@@ -893,7 +893,7 @@ Proof: `format:check`
 **Status:** completed
 **Base:** 76140798ed0f67bb17ab685ed76f9d364e76a4cd
 **Executor:** inline:p08-inline-exception
-**Head:** a30a11836b7fce248cefc50d4ba3b4c8c593db0e
+**Head:** 9b9cb42346c8f4b57438a86177933624ec44063c
 
 Inline exception (recorded before editing): version bump and CHANGELOG section move only — no new surface, no unresolved design, not consequential before the tag push (which happens after merge under the Release authority), one proof command (the local DoD batch). Committing owner: root. Parallelism: single trivial phase.
 
@@ -915,6 +915,25 @@ Proof: local DoD batch
 **Source review:** reviews/archived/p08-review-2026-11-08T091055Z.md (M1)
 Files: `CHANGELOG.md`
 Proof: `format:check`; link references match the 0.5.0 release pattern
+
+### Task p08-t03: (gate) Never act through a moved, replaced or linked import path
+
+**Status:** completed
+**Commit:** c6897378e91521342fc1c6610469c584e224895b
+**Executor:** phase-implementer:wce-p04-impl-1 (m02 closeout fix)
+**Source review:** reviews/archived/final-review-2026-11-08T092006Z.md (H1, H2)
+Journal format v2 records identities of the transaction, its folders and every work-log directory the batch uses; new directories are built inside the transaction and placed by one rename; cleanup and recovery act only through recorded identities, otherwise `RECOVERY_CONFLICT` with the journal kept. Sweep of every destructive operation in `transaction.ts` recorded in the fix report (journal writes, prepare writes, markers, rollback, completion check, discard). Residual: no `openat`/`renameat2` in Node.
+Files: `src/core/import/transaction.ts`, `commit.test.ts`
+Proof: 6 new tests fail on a30a118 (gate hook, swapped parent, linked/copied backup folder, crash-then-link loop)
+
+### Task p08-t04: (gate) Describe identity-checked rollback and recovery
+
+**Status:** completed
+**Commit:** 9b9cb42346c8f4b57438a86177933624ec44063c
+**Executor:** phase-implementer:wce-p04-impl-1 (m02 closeout fix)
+**Source review:** reviews/archived/final-review-2026-11-08T092006Z.md (H1, H2)
+Files: `documentation/commands.md`, `CHANGELOG.md` ([0.6.0], unreleased)
+Proof: `format:check`; root re-ran typecheck, lint, format:check, 574 tests at 9b9cb42: pass
 
 ---
 
