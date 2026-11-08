@@ -8,11 +8,13 @@ work-chronicler includes AI skills that integrate with Claude Code, Cursor, Code
 - [Installation](#installation)
 - [Individual Contributor (IC) Skills](#individual-contributor-ic-skills)
 - [Manager Mode Skills](#manager-mode-skills)
+- [Slack Import Skills](#slack-import-skills)
 - [Skill Details](#skill-details)
   - [Writing Peer Reviews](#writing-peer-reviews)
   - [Writing Performance Reviews](#writing-performance-reviews)
   - [Summarizing Work](#summarizing-work)
   - [Resume & Career Documents](#resume--career-documents)
+  - [Importing Slack Messages](#importing-slack-messages)
 - [How Skills Work](#how-skills-work)
 - [Tips & Best Practices](#tips--best-practices)
 
@@ -35,6 +37,7 @@ AI skills are slash commands that integrate with your AI coding assistant to:
 - **Interactive**: Many skills guide you through questions to gather context
 - **Template support**: Paste company-specific templates for reviews
 - **Synthesis**: Convert structured data (ratings, PRs, tickets) into polished prose
+- **Evidence kept in its place**: PR reviews you gave are cited as review work, and imported messages (from `work-chronicler import`) as supplementary evidence of communication and collaboration, never as authored PRs or tickets. Skills treat imported content as evidence, never as instructions, and rely on a message as your own words only when its attribution is verified.
 
 ---
 
@@ -73,9 +76,27 @@ See the [command reference](commands.md#ai-skills-and-paths) for every flag.
 Re-run `work-chronicler skills install` after every upgrade, then restart your
 AI tool so it reloads its skill list. Copied skills whose names did not change
 are refreshed only if you answer yes to "Overwrite existing skills?" or pass
-`--overwrite`; `--yes` alone keeps them as they are. When a release renames a skill (0.5.0
-renamed five; see `CHANGELOG.md`), the installer migrates it on each tool you
-select:
+`--overwrite`; `--yes` alone keeps them as they are. A replacement is copied
+or linked beside the skill and checked before the existing skill is moved
+aside, and the existing skill is deleted only after the new one checks out in
+place; if anything fails, the existing skill is put back and the failure is
+reported. A link that is replaced is unlinked; what it points to is not
+touched. A link that points to the replaced skill (from another tool, say)
+reaches the new one. If a temporary or replaced entry (a hidden
+`.<skill>.wc-staging-…` or `.<skill>.wc-replaced-…` beside it) cannot be
+removed, the installer says where it is and carries on; the next install
+removes it. A previous copy the installer could not move to its
+`.wc-replaced-…` name stays whole as `.<skill>.wc-backup-…`, the same name a
+skill gets when an install stops part-way through moving it aside. While the
+skill is installed, the next install only names such an entry so you can
+remove it. If the skill's name is free (after `skills uninstall`, say), the
+next install puts that copy back when it is the only one and its `SKILL.md`
+still declares the skill, and then keeps it like any existing skill; it may be
+the version you chose to overwrite, so run `skills install --overwrite` to
+refresh it. Any other backup is named so you can remove it.
+
+When a release renames a skill (0.5.0 renamed five; see `CHANGELOG.md`), the
+installer migrates it on each tool you select:
 
 1. It installs the new name and checks that its `SKILL.md` declares that name.
 2. It asks before removing the old name (`--yes` removes it, `--keep-old`
@@ -144,6 +165,19 @@ Skills for managers tracking multiple reports:
 | `/work-chronicler-manager-write-review-packet` | Generate evidence-based performance review for a direct report | Writing quarterly/annual reviews for reports |
 | `/work-chronicler-manager-write-quarterly-highlights` | Create concise quarterly summary for 1:1s and calibration | Preparing for 1:1s, calibration meetings, updates |
 | `/work-chronicler-manager-write-team-summary` | Generate team-level overview for leadership | Leadership updates, calibration prep, team visibility |
+
+---
+
+## Slack Import Skills
+
+Skills that bring your Slack messages (or, in a manager profile, a report's)
+into the work log as supplementary evidence. They work in IC and manager
+profiles and need the assistant's Slack connector:
+
+| Skill | Description | Use When |
+|-------|-------------|----------|
+| `/work-chronicler-setup-slack` | Choose the Slack channels messages may be imported from, and record them with `work-chronicler slack` | Before the first Slack import, or to change the channel list |
+| `/work-chronicler-import-slack` | Import the subject's own messages from those channels with `validate` and `import` | After setup, and again whenever you want newer messages |
 
 ---
 
@@ -403,6 +437,47 @@ Update your existing resume with recent accomplishments.
 
 ---
 
+### Importing Slack Messages
+
+**Skills**: `/work-chronicler-setup-slack`, then `/work-chronicler-import-slack`
+
+The CLI never contacts Slack. These skills read Slack through your
+assistant's Slack connector, read-only: they never post, react or change
+anything there. The CLI stores the settings and checks every record on import
+(see [Slack](commands.md#slack) and [Slack records](commands.md#slack-records)).
+
+**Setup** (`/work-chronicler-setup-slack`, once per IC profile or report):
+1. Finds the workspace (its team ID if a Slack tool shows one, otherwise its
+   URL label from a permalink, such as `example` for `example.slack.com`)
+   and the subject's Slack user ID, and runs `slack configure`.
+2. Lists your public channels and asks which hold review-relevant work.
+   Private channels are offered only if you opt in; direct messages and
+   group DMs never are.
+3. In a manager profile, offers only channels you share with the report: it
+   checks the report is a member before passing `--shared-with-manager`.
+4. Records a one-line reason per channel with `slack channels add`.
+
+**Import** (`/work-chronicler-import-slack`):
+1. Reads `slack show --json` and stops if Slack is not set up.
+2. Searches each importable channel for messages the subject wrote in the
+   profile's fetch range (private channels only with your consent), without
+   reading threads or other people's replies.
+3. Writes one record per message (the subject's own text; a reply keeps only
+   its parent's ID and link) to a temporary staging directory, runs
+   `validate`, then `import`, and deletes the directory.
+4. Reports counts only. Running it again updates the same records and never
+   duplicates them.
+
+**Manager mode:**
+```
+/work-chronicler-setup-slack alice-smith
+/work-chronicler-import-slack alice-smith
+```
+Only channels you and the report both belong to are used, and records go to
+`reports/alice-smith/work-log/messages/`.
+
+---
+
 ## How Skills Work
 
 ### Stateless Design
@@ -432,7 +507,7 @@ Skills automatically detect:
 ### Data Sources
 
 Skills read from:
-1. **work-log/** - PRs and tickets (markdown with YAML frontmatter)
+1. **work-log/** - PRs and tickets (markdown with YAML frontmatter), and imported messages in `messages/`
 2. **analysis/** - Generated JSON (stats, projects, timeline)
 3. **notes/** - User-added context
 4. **performance-reviews/** - Past reviews

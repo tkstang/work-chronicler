@@ -2,6 +2,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -9,25 +10,39 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { writeFilteredSubset } from '@cli/commands/filter/filter.utils';
 import {
+  messageFrontmatter,
+  recordFile,
+} from '@core/import/import.test-support';
+import {
+  parseImportedRecordFile,
+  serializeImportedRecord,
+} from '@core/import/record-file';
+import {
+  clearFilteredSubset,
+  getImportedRecordFilePath,
+  getImportedRecordIdentity,
   getPRFilePath,
   getPRReviewFilePath,
   type PRReviewRecord,
   type PullRequest,
+  loadConfig,
   writeMarkdownFile,
 } from '@core/index';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createServer } from './server';
+import { createServer, resolveToolContext } from './server';
 
 const packageJson = createRequire(import.meta.url)('../../package.json') as {
   version: string;
 };
 
 // Reviewed snapshot of the tools/list result from before the tools were split
-// into modules, plus search_pr_reviews (added after the split). MCP clients
+// into modules, plus search_pr_reviews and search_messages (added after the
+// split) and the coverage wording added with imported records. MCP clients
 // depend on these names, descriptions and schemas.
 const goldenTools = JSON.parse(
   readFileSync(join(import.meta.dirname, 'tools-list.golden.json'), 'utf-8'),
@@ -121,7 +136,7 @@ describe('MCP server over a transport', () => {
     }
   });
 
-  it('reads reviews from the full work log, with a note, when the filtered subset predates them', async () => {
+  it('never reads reviews from behind a selected subset, and leaves out other reviewers', async () => {
     const workLog = join(root, 'work-log');
     writePR(join(workLog, 'filtered'), 2, 'Filtered subset');
     vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -176,13 +191,29 @@ describe('MCP server over a transport', () => {
         '',
       );
 
+      // The subset predates the review fetch: no results, and a note,
+      // rather than the full work log behind the user's selection
       const stale = await searchReviews();
-      expect(stale.total).toBe(1);
+      expect(stale.total).toBe(0);
       expect(stale.note).toContain('Re-run `work-chronicler filter`');
+      expect(stale.note).toContain('not taken from the full work log');
 
-      // Another person's record is not the configured user's work
+      // A subset written after reviews existed is used as is, even empty
+      mkdirSync(join(workLog, 'filtered', 'pr-reviews'));
+      const current = await searchReviews();
+      expect(current.total).toBe(0);
+      expect(current.note).toBeUndefined();
+
+      // Another person's record in the subset is not the configured user's
+      // work
+      const filtered = join(workLog, 'filtered');
       writeMarkdownFile(
-        getPRReviewFilePath(workLog, 'acme', 'api', 10),
+        getPRReviewFilePath(filtered, 'acme', 'api', 9),
+        record,
+        '',
+      );
+      writeMarkdownFile(
+        getPRReviewFilePath(filtered, 'acme', 'api', 10),
         { ...record, reviewer: 'alice', pr: { ...record.pr, prNumber: 10 } },
         '',
       );
@@ -191,14 +222,139 @@ describe('MCP server over a transport', () => {
       expect(mixed.note).toContain(
         'Left out 1 review record(s) written for another GitHub user (alice), not me',
       );
-
-      // A subset written after reviews existed is used as is, even empty
-      mkdirSync(join(workLog, 'filtered', 'pr-reviews'));
-      const current = await searchReviews();
-      expect(current.total).toBe(0);
-      expect(current.note).toBeUndefined();
     } finally {
       await client.close();
     }
+  });
+});
+
+describe('one MCP server while the filtered subset changes', () => {
+  it('reads the subset selected at each call, and reports a replacement in progress instead of guessing', async () => {
+    const workLog = join(root, 'work-log');
+    writePR(workLog, 1, 'Full log PR');
+    const parsed = parseImportedRecordFile(
+      Buffer.from(recordFile(messageFrontmatter(1), 'Shipped it.')),
+    );
+    if (!parsed.ok) throw new Error('fixture must be valid');
+    const messagePath = getImportedRecordFilePath(
+      workLog,
+      getImportedRecordIdentity(parsed.record),
+    );
+    mkdirSync(join(messagePath, '..'), { recursive: true });
+    writeFileSync(
+      messagePath,
+      serializeImportedRecord(parsed.record, parsed.body),
+    );
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const config = await loadConfig(join(root, 'work-chronicler.yaml'));
+
+    // One server, one client, for the whole test
+    const ctx = await createServer();
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test', version: '0.0.0' });
+    await ctx.server.connect(serverTransport);
+    await client.connect(clientTransport);
+    const call = async (name: string) => {
+      const result = await client.callTool({ name, arguments: {} });
+      const [content] = result.content as { type: string; text: string }[];
+      return JSON.parse(content?.text ?? '');
+    };
+
+    try {
+      // Full work log
+      expect((await call('search_messages')).total).toBe(1);
+      expect((await call('search_prs')).total).toBe(1);
+      expect((await call('get_stats')).messages.total).toBe(1);
+
+      // A subset selected after startup: linked-only keeps nothing here
+      await writeFilteredSubset({
+        outputDir: workLog,
+        config,
+        criteria: { linkedOnly: true },
+      });
+      expect((await call('search_messages')).total).toBe(0);
+      expect((await call('search_prs')).total).toBe(0);
+      expect((await call('get_stats')).messages.total).toBe(0);
+
+      // Back to the full work log
+      clearFilteredSubset(workLog);
+      expect((await call('search_messages')).total).toBe(1);
+      expect((await call('search_prs')).total).toBe(1);
+
+      // A replacement interrupted between its renames
+      await writeFilteredSubset({
+        outputDir: workLog,
+        config,
+        criteria: { linkedOnly: true },
+      });
+      renameSync(
+        join(workLog, 'filtered'),
+        join(workLog, '.filter-previous-crash'),
+      );
+      for (const tool of ['search_messages', 'search_prs', 'get_stats']) {
+        const out = await call(tool);
+        expect(out.error).toContain('filtered subset is unavailable');
+        expect(out.note).toContain('was interrupted while replacing');
+        expect(out.results).toBeUndefined();
+      }
+
+      // ...and one in progress (its lock is held)
+      mkdirSync(join(workLog, '.filter-lock'));
+      writeFileSync(
+        join(workLog, '.filter-lock', 'owner.json'),
+        JSON.stringify({
+          version: 1,
+          pid: process.pid,
+          hostname: 'this-host',
+          startedAt: Date.now(),
+          runId: 'live',
+        }),
+      );
+      const inProgress = await call('search_messages');
+      expect(inProgress.note).toContain('(it holds .filter-lock)');
+
+      // Once the swap completes, the same client reads the subset again
+      rmSync(join(workLog, '.filter-lock'), { recursive: true });
+      renameSync(
+        join(workLog, '.filter-previous-crash'),
+        join(workLog, 'filtered'),
+      );
+      expect((await call('search_messages')).total).toBe(0);
+    } finally {
+      await client.close();
+    }
+  });
+
+  it('tells two selections apart, so a call that spans a change is reported', async () => {
+    const workLog = join(root, 'work-log');
+    writePR(workLog, 1, 'PR');
+    const config = await loadConfig(join(root, 'work-chronicler.yaml'));
+    const resolve = () => {
+      const resolved = resolveToolContext({ workLogDir: workLog });
+      if (!('key' in resolved)) throw new Error('expected a context');
+      return resolved;
+    };
+
+    const full = resolve();
+    expect(full.context.outputDir).toBe(workLog);
+    await writeFilteredSubset({
+      outputDir: workLog,
+      config,
+      criteria: { mergedOnly: true },
+      now: new Date('2026-01-01T00:00:00Z'),
+    });
+    const first = resolve();
+    expect(first.context.outputDir).toBe(join(workLog, 'filtered'));
+    await writeFilteredSubset({
+      outputDir: workLog,
+      config,
+      criteria: { mergedOnly: true },
+      now: new Date('2026-01-02T00:00:00Z'),
+    });
+    const second = resolve();
+
+    expect(new Set([full.key, first.key, second.key]).size).toBe(3);
   });
 });

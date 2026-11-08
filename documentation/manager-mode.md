@@ -332,6 +332,48 @@ work-chronicler fetch github --report alice-smith --cache
 
 This is useful for incremental updates - only new PRs and tickets are fetched.
 
+### Importing Records for a Report
+
+Records staged by an import skill go into one report's work log with
+`--report`. Every record must name that report as its subject, and the report
+must be in the profile:
+
+```bash
+work-chronicler validate ./staged-batch --report alice-smith
+work-chronicler import ./staged-batch --report alice-smith
+```
+
+See [Import](commands.md#import) for the record format and how a batch is
+stored all or nothing. `analyze reports <id>` counts a report's imported
+messages in a separate `messages` section of its `stats.json`; project
+detection, the timeline and `analyze team` cover PRs and tickets only. The
+manager skills cite messages as supplementary evidence, never as PRs or
+tickets.
+
+### Slack for a Report
+
+Slack import is opt-in per report: a report without Slack settings
+contributes no Slack records. Only channels that you (the manager) and the
+report both belong to may be used. The CLI cannot see Slack, so the setup
+skill (`/work-chronicler-setup-slack`) checks membership through your Slack
+connector, and you confirm it for each channel with `--shared-with-manager`;
+the CLI refuses a report channel without that confirmation, and `import`
+refuses records from a channel that lacks it. `/work-chronicler-import-slack`
+then imports the report's own messages from those channels. Run both skills
+with the report ID, for example `/work-chronicler-setup-slack alice-smith`.
+
+```bash
+work-chronicler slack configure --report alice-smith \
+  --workspace T0EXAMPLE --user U0EXAMPLE2
+work-chronicler slack channels add C0EXAMPLE --report alice-smith \
+  --name billing-launch --reason "Launch coordination" --shared-with-manager
+work-chronicler slack show --report alice-smith --json
+```
+
+The same rules as for an IC apply: only the report's own messages, public
+channels unless `--private` opts one in, never direct messages. See
+[Slack](commands.md#slack).
+
 ---
 
 ## Analysis
@@ -469,12 +511,13 @@ Manager mode uses a specialized directory structure:
         │   │   │   │       │   ├── 2024-01-15_123.md
         │   │   │   │       │   └── 2024-02-20_456.md
         │   │   │   │       └── backend/...
-        │   │   │   └── jira/
-        │   │   │       └── acme-corp/
-        │   │   │           ├── PLAT/
-        │   │   │           │   ├── PLAT-100.md
-        │   │   │           │   └── PLAT-101.md
-        │   │   │           └── AUTH/...
+        │   │   │   ├── jira/
+        │   │   │   │   └── acme-corp/
+        │   │   │   │       ├── PLAT/
+        │   │   │   │       │   ├── PLAT-100.md
+        │   │   │   │       │   └── PLAT-101.md
+        │   │   │   │       └── AUTH/...
+        │   │   │   └── messages/    # Records stored by `import --report alice-smith`
         │   │   ├── analysis/        # Per-report analysis
         │   │   │   ├── stats.json
         │   │   │   ├── projects.json

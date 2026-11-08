@@ -63,15 +63,19 @@ export function findRenamedSkills(skillsDir: string): RenamedSkillEntry[] {
 export function isVerifiedSkill(skillsDir: string, name: string): boolean {
   try {
     const content = readFileSync(join(skillsDir, name, 'SKILL.md'), 'utf8');
-    const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(content)?.[1];
-    const declared = frontmatter
-      ?.split(/\r?\n/)
-      .map((line) => /^name:\s*['"]?([^'"]+?)['"]?\s*$/.exec(line)?.[1])
-      .find((value) => value !== undefined);
-    return declared === name;
+    return declaredSkillName(content) === name;
   } catch {
     return false;
   }
+}
+
+/** The `name` a `SKILL.md` declares in its frontmatter, if any */
+export function declaredSkillName(content: string): string | undefined {
+  const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(content)?.[1];
+  return frontmatter
+    ?.split(/\r?\n/)
+    .map((line) => /^name:\s*['"]?([^'"]+?)['"]?\s*$/.exec(line)?.[1])
+    .find((value) => value !== undefined);
 }
 
 /** Upper bound on symlinks followed while resolving one path */

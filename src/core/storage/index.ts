@@ -1,26 +1,59 @@
 export {
+  clearFilteredSubset,
+  FILTER_LOCK,
+  FILTER_SELECTION_FILE,
+  FilterInProgressError,
+  type FilteredSubsetState,
+  FilteredSubsetInterruptedError,
+  FilteredSubsetNotRestoredError,
+  type FilterSelection,
+  FilterSelectionSchema,
+  getEffectiveOutputDir,
+  getFilteredSubsetState,
+  nodeSubsetEnv,
+  nodeSubsetFs,
+  readFilterLock,
+  readFilterSelection,
+  replaceFilteredSubset,
+  type SubsetEnv,
+  type SubsetFile,
+  type SubsetFs,
+  type SubsetPlan,
+  type SubsetRecordCounts,
+  type SubsetRecordDirectory,
+} from './filtered-subset';
+
+export {
   DIRECTORIES,
   getAnalysisFilePath,
-  getEffectiveOutputDir,
+  getImportedRecordFilePath,
+  getImportedRecordSegments,
   getJiraDirectory,
   getPRDirectory,
   getPRFilePath,
   getPRReviewFilePath,
   getTicketFilePath,
-  isFilteredSubsetMissingReviews,
+  IMPORTED_RECORD_DIRECTORIES,
 } from './paths';
 
 export {
+  nodeReaderFs,
+  readAllImportedRecords,
   readAllPRReviews,
   readAllPRs,
   readAllTickets,
   readPR,
   readPRReview,
   readTicket,
+  type ReaderFs,
+  type ReadOptions,
+  scanImportedRecords,
+  type SkippedImportedRecord,
 } from './reader';
 
 export {
   ensureDirectory,
   type MarkdownFrontmatter,
+  serializeMarkdownFile,
   writeMarkdownFile,
 } from './writer';

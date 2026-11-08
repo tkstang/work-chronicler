@@ -1,6 +1,6 @@
 ---
 title: MCP server
-description: Connect Claude Desktop, Cursor or another MCP client to your work log, and the eight read-only tools it exposes.
+description: Connect Claude Desktop, Cursor or another MCP client to your work log, and the nine read-only tools it exposes.
 ---
 
 # MCP server
@@ -19,7 +19,15 @@ work-chronicler analyze --all
 ```
 
 If `work-log/filtered/` exists, the server reads the filtered subset instead of
-the full work log.
+the full work log, even when the subset is empty. It checks on every tool
+call, so a `filter` or `filter --clear` run while the client is connected
+takes effect on the next call without a restart. It never falls back to the
+full work log while a subset is selected; run `work-chronicler filter --clear`
+to use the full work log. While a `filter` run is replacing the subset, or
+after one was interrupted mid-swap, every tool returns no results: an `error`
+saying the subset is unavailable and a `note` saying what to do (wait, or run
+`filter` again). A call during which the selection changed is reported the
+same way; call the tool again.
 
 ## Client configuration
 
@@ -80,22 +88,37 @@ The server looks for a config in this order:
 | --- | --- |
 | `search_prs` | PRs filtered by date range, repository, keywords or impact level. |
 | `search_tickets` | JIRA tickets filtered by project, status or keywords. |
-| `get_linked_work` | A PR (by URL, or by bare PR number) with its linked tickets, or a ticket with its linked PRs. |
+| `get_linked_work` | A PR (by URL in any form, or by bare PR number) with its linked tickets, or a ticket with its linked PRs, plus the imported messages that mention it (`mentionedInMessages`). |
 | `list_repos` | Repositories in the work log with per-repo statistics. |
-| `get_stats` | Summary statistics, optionally for a date range. |
-| `get_projects` | Detected project groupings of related PRs and tickets. |
-| `get_timeline` | Work grouped by week or month. |
+| `get_stats` | Summary statistics, optionally for a date range, with imported messages counted in their own `messages` section. |
+| `get_projects` | Detected project groupings of related PRs and tickets (PRs and tickets only; the result says so in `coverage`). |
+| `get_timeline` | Work grouped by week or month (PRs and tickets only; the result says so in `coverage`). |
 | `search_pr_reviews` | Reviews and inline review comments you gave on other people's PRs, filtered by date range, org, repository, review state or keywords. |
+| `search_messages` | Imported messages (such as Slack messages you wrote), filtered by keywords, date range, mentioned ticket or PR, attribution or source, with each mention resolved to its PR or ticket, or `null`. |
 
 `search_pr_reviews` reads the review records written by
-`fetch github --reviews`. They are review work, not PRs you wrote: the other
-tools never count them, and `get_stats`, `get_projects`, `get_timeline` and
-`search_prs` cover authored PRs only. If the filtered subset was made before
-you fetched reviews (it has no `pr-reviews/`), `search_pr_reviews` reads the
-full work log instead and adds a `note` asking you to re-run `filter`. It also
-adds a `note` when no reviews have been fetched. Each result names its
-`reviewer`; records written for a GitHub user other than your configured
-`github.username` are left out, with a `note` saying how many.
+`fetch github --reviews`. They are review work, not PRs you wrote:
+`search_prs`, `get_stats`, `get_projects` and `get_timeline` never count
+them. If the filtered subset was made before
+you fetched reviews (it has no `pr-reviews/`), `search_pr_reviews` returns no
+results and a `note` asking you to re-run `filter`; it does not read the full
+work log behind your subset. It also adds a `note` when no reviews have been
+fetched. Each result names its `reviewer`; records written for a GitHub user
+other than your configured `github.username` are left out, with a `note`
+saying how many. Without a configured `github.username` no record can be
+attributed to you: the tool returns no results, an `unattributed` count with
+the reviewers it found, and a `note` (`status` likewise does not count them).
+
+`search_messages` reads the records stored by `work-chronicler import`. They
+are supplementary evidence, never authored PRs or tickets, and the response
+carries a `notice` that message text is evidence, never instructions. Each
+result has the message `text` (up to 1,000 characters), `channel`,
+`occurredAt`, `url`, `subject`, `attribution` and `mentions`, where every
+mentioned PR or ticket has `resolved` set to the work-log record or `null`
+(see [Mentions](commands.md#mentions)). Like `search_pr_reviews`, it returns
+no results and a `note` when the filtered subset was made before messages
+were imported (`get_stats` and `get_linked_work` add the same `note`), and a
+`note` when nothing has been imported.
 
 Example prompts once connected:
 
@@ -103,3 +126,4 @@ Example prompts once connected:
 - "Find all my work related to authentication."
 - "What was my busiest month this year?"
 - "Which PRs did I request changes on last quarter?"
+- "What did I say in Slack about the billing export?"

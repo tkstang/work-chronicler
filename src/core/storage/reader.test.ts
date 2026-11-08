@@ -1,20 +1,37 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  renameSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import {
+  messageFrontmatter,
+  recordFile,
+  SECRET,
+  storeRecord,
+} from '@core/import/import.test-support';
 import type { PullRequest } from '@wc-types/pr';
 import type { PRReviewRecord } from '@wc-types/pr-review';
 import type { JiraTicket } from '@wc-types/ticket';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getPRFilePath, getPRReviewFilePath, getTicketFilePath } from './paths';
 import {
+  nodeReaderFs,
+  readAllImportedRecords,
   readAllPRReviews,
   readAllPRs,
   readAllTickets,
   readPR,
   readPRReview,
   readTicket,
+  type ReaderFs,
+  scanImportedRecords,
 } from './reader';
 import { writeMarkdownFile } from './writer';
 
@@ -269,5 +286,162 @@ describe('review record storage', () => {
     expect(
       (await readAllPRReviews(outputDir)).map((r) => r.frontmatter.pr.title),
     ).toEqual(['Reviewed']);
+  });
+});
+
+describe('imported record storage', () => {
+  it('reads records where import stored them and ignores the import working files', async () => {
+    const stored = storeRecord(outputDir, 1, 'My own words.');
+    // An import in progress keeps a lock and staged copies in the root
+    writeFileSync(join(outputDir, '.import-lock'), 'owner');
+    mkdirSync(join(outputDir, '.import-transaction', 'staged'), {
+      recursive: true,
+    });
+    writeFileSync(
+      join(outputDir, '.import-transaction', 'staged', '0.md'),
+      recordFile(messageFrontmatter(2)),
+    );
+    writeFileSync(join(outputDir, 'messages', 'slack', 'notes.txt'), 'x');
+
+    const records = await readAllImportedRecords(outputDir);
+
+    expect(records).toHaveLength(1);
+    expect(records[0]?.filePath).toBe(stored);
+    expect(records[0]?.body).toBe('My own words.');
+    expect(records[0]?.frontmatter.sourceId).toBe(
+      'C0SYNTH01/1700000000.000001',
+    );
+  });
+
+  it('skips invalid, misplaced and linked files without quoting them', () => {
+    storeRecord(outputDir, 1);
+    const dir = join(outputDir, 'messages', 'slack');
+    writeFileSync(
+      join(dir, 'broken.md'),
+      `---\nsecret: ${SECRET}\n---\n\n${SECRET}\n`,
+    );
+    // A valid record copied under another name
+    const moved = storeRecord(outputDir, 3);
+    renameSync(moved, join(dir, 'copy.md'));
+    symlinkSync(join(dir, 'copy.md'), join(dir, 'link.md'));
+
+    const { records, skipped } = scanImportedRecords(outputDir);
+
+    expect(records.map((r) => r.frontmatter.sourceId)).toEqual([
+      'C0SYNTH01/1700000000.000001',
+    ]);
+    expect(skipped.map((s) => [s.filePath.split('/').pop(), s.reason])).toEqual(
+      [
+        [
+          'broken.md',
+          'is not a valid imported record (SCHEMA_INVALID at type)',
+        ],
+        ['copy.md', 'is not stored where its identity puts it'],
+        ['link.md', 'is not a regular file'],
+      ],
+    );
+    expect(JSON.stringify(skipped)).not.toContain(SECRET);
+  });
+
+  it('returns nothing for a work log without imported records', async () => {
+    expect(await readAllImportedRecords(outputDir)).toEqual([]);
+    expect(await readAllImportedRecords(join(outputDir, 'missing'))).toEqual(
+      [],
+    );
+  });
+});
+
+/** Fail reads of paths matching `match` with a filesystem error */
+function failingReads(
+  op: 'readdir' | 'readFile',
+  match: (path: string) => boolean,
+  code = 'EACCES',
+): ReaderFs {
+  const fail = (path: string) => {
+    if (match(path)) {
+      throw Object.assign(new Error(`${code}: injected`), { code });
+    }
+  };
+  return {
+    ...nodeReaderFs,
+    readdir: (path) => {
+      if (op === 'readdir') fail(path);
+      return nodeReaderFs.readdir(path);
+    },
+    readFile: (path) => {
+      if (op === 'readFile') fail(path);
+      return nodeReaderFs.readFile(path);
+    },
+  };
+}
+
+describe('read failures', () => {
+  it('reports an unreadable directory or record file apart from invalid ones', () => {
+    const stored = storeRecord(outputDir, 1);
+    storeRecord(outputDir, 2);
+    writeFileSync(join(outputDir, 'messages', 'slack', 'broken.md'), 'x');
+
+    const dirFailure = scanImportedRecords(outputDir, {
+      fs: failingReads('readdir', (p) => p.endsWith(join('messages', 'slack'))),
+    });
+    expect(dirFailure.records).toEqual([]);
+    expect(dirFailure.skipped).toEqual([
+      {
+        filePath: join(outputDir, 'messages', 'slack'),
+        reason: 'directory could not be read',
+        unreadable: true,
+      },
+    ]);
+
+    const fileFailure = scanImportedRecords(outputDir, {
+      fs: failingReads('readFile', (p) => p === stored, 'EIO'),
+    });
+    expect(fileFailure.records).toHaveLength(1);
+    expect(
+      fileFailure.skipped
+        .map((s) => [s.filePath.split('/').pop(), s.unreadable])
+        .sort(),
+    ).toEqual(
+      [
+        ['broken.md', false],
+        [stored.split('/').pop(), true],
+      ].sort(),
+    );
+  });
+
+  it('throws on an unreadable PR file only when strict, and still skips invalid ones', async () => {
+    const authored = pr('Authored');
+    const path = getPRFilePath(
+      outputDir,
+      'acme',
+      'app',
+      new Date(authored.createdAt),
+      42,
+    );
+    writeMarkdownFile(path, authored, '');
+    writeFileSync(
+      join(outputDir, 'pull-requests', 'acme', 'app', 'invalid.md'),
+      '---\ntitle: 1\n---\n',
+    );
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const fs = failingReads('readFile', (p) => p === path, 'EIO');
+
+    expect(await readAllPRs(outputDir, { fs })).toEqual([]);
+    await expect(readAllPRs(outputDir, { fs, strict: true })).rejects.toThrow(
+      'EIO',
+    );
+    expect(await readAllPRs(outputDir, { strict: true })).toHaveLength(1);
+    // A missing directory is not a failure
+    await expect(readAllTickets(outputDir, { strict: true })).resolves.toEqual(
+      [],
+    );
+    mkdirSync(join(outputDir, 'jira'));
+    await expect(
+      readAllTickets(outputDir, {
+        strict: true,
+        fs: failingReads('readdir', (p) => p.endsWith('jira')),
+      }),
+    ).rejects.toThrow('EACCES');
+    warn.mockRestore();
   });
 });

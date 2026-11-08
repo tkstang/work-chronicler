@@ -62,9 +62,45 @@ example.
 | `fetch.since` | yes | Start date, `YYYY-MM-DD`. |
 | `fetch.until` | no | End date, or `null` for today. |
 | `analysis.thresholds` | no | Override the impact size thresholds (see below). |
+| `slack` | no | Slack settings for the Slack import skills (see below). Absent means no Slack records are imported. |
 
 JIRA fetches tickets in each project that are assigned to you and were created
 inside the date range.
+
+### Slack
+
+Slack import is opt-in. The `slack` section names whose messages a Slack
+import skill may collect and from which channels; `import` refuses any Slack
+record that does not match it. The CLI never contacts Slack and never stores
+Slack credentials. Set it with the `slack` commands (see
+[Slack](commands.md#slack)) rather than by hand; they keep the rest of the
+file intact. The `/work-chronicler-setup-slack` skill finds the IDs and runs
+them for you (see [AI skills](available-skills.md#importing-slack-messages)).
+
+```yaml
+slack:
+  workspace: T0EXAMPLE      # team ID, or the URL label (example for example.slack.com)
+  user: U0EXAMPLE           # your Slack user ID
+  channels:
+    - id: C0EXAMPLE
+      name: billing-launch
+      reason: Launch coordination for usage-based billing
+      private: false
+```
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `slack.workspace` | yes | The workspace: its team ID, `T…` (or `E…` for an Enterprise org), or, when no Slack tool shows the ID, its URL label: the first part of its host name, in lower case (`example` for `example.slack.com` or `example.enterprise.slack.com`). Records' `sourceAccount` must be exactly this value, so keep it once messages are imported. |
+| `slack.user` | yes | Your Slack user ID, `U…` or `W…`. Only messages this user wrote are imported. |
+| `slack.channels[].id` | yes | Channel ID, `C…` or `G…`. Direct messages (`D…`) are never allowed. |
+| `slack.channels[].name` | yes | Channel name without `#`. Group direct messages (`mpdm-…`) are never allowed. |
+| `slack.channels[].reason` | yes | One line saying why the channel holds review-relevant work. |
+| `slack.channels[].private` | no | `true` opts in to a private channel; the default `false` means public. A `G…` ID needs `true`. |
+
+A manager profile keeps the same section under each report (`reports[].slack`),
+naming the report's Slack user, and each report channel also has
+`sharedWithManager: true`: the manager confirmed they and the report are both
+members. See [Manager mode](manager-mode.md#slack-for-a-report).
 
 ### Names
 
@@ -141,16 +177,21 @@ analysis:
         ├── pull-requests/<org>/<repo>/<YYYY-MM-DD>_<number>.md
         ├── pr-reviews/<org>/<repo>/<number>.md   # reviews you gave, from `fetch github --reviews`
         ├── jira/<instance>/<project>/<KEY>.md
+        ├── messages/<source>/<hash>.md   # records stored by `import`
         ├── notes/               # your own notes, read by skills
         ├── performance-reviews/ # past reviews you add, read by skills
         ├── resumes/             # an existing resume, for update-resume
         ├── .analysis/           # stats.json, projects.json, timeline.json
-        └── filtered/            # subset written by `filter`, with its own .analysis/
+        └── filtered/            # subset written by `filter`, with its own .analysis/ and .filter.json
 ```
 
 `init` creates `notes/`, `performance-reviews/` and `.analysis/`; create
-`resumes/` yourself. When `filtered/` exists, `analyze` asks whether to use it,
-and the MCP server reads it instead of the full work log.
+`resumes/` yourself. While `import` runs, the work log also holds
+`.import-lock/` and `.import-transaction/`; see
+[Import](commands.md#import). When `filtered/` exists, even empty, `analyze` asks whether to use it,
+and the MCP server reads it instead of the full work log. While `filter`
+replaces the subset, the work log briefly holds `.filter-lock/`, `.filter-staging-<id>/` and
+`.filter-previous-<id>/`; see [Link, analyze and filter](commands.md#link-analyze-and-filter).
 
 Manager profiles use a different layout under `reports/<id>/`; see
 [Manager mode](manager-mode.md).

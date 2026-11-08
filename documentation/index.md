@@ -12,6 +12,6 @@ These pages hold the detail.
 
 - [Configuration](configuration.md) - profiles, `config.yaml` fields, tokens, environment variables and the workspace layout.
 - [Command reference](commands.md) - every CLI command, argument and flag, grouped by task.
-- [MCP server](mcp-server.md) - client setup, config discovery and the eight read-only tools.
+- [MCP server](mcp-server.md) - client setup, config discovery and the nine read-only tools.
 - [AI skills](available-skills.md) - what each IC and manager skill produces and how skills find your data.
 - [Manager mode](manager-mode.md) - tracking direct reports, per-report fetch and analysis, and team rollups.

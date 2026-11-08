@@ -2,6 +2,7 @@ import { AnalysisConfigSchema } from '@config/schema';
 import { z } from 'zod';
 
 import { GitHubNameSchema } from './github';
+import { ReportSlackConfigSchema } from './slack';
 import { JiraProjectKeySchema } from './ticket';
 
 /**
@@ -22,6 +23,8 @@ export const ReportConfigSchema = z.object({
   repos: z.array(z.string()).default([]),
   /** Jira projects to fetch */
   jiraProjects: z.array(JiraProjectKeySchema).default([]),
+  /** Slack messages an import skill may collect for this report (opt-in) */
+  slack: ReportSlackConfigSchema.optional(),
 });
 export type ReportConfig = z.infer<typeof ReportConfigSchema>;
 

@@ -3,12 +3,12 @@ import * as fs from 'node:fs/promises';
 import { getAnalysisFilePath, type ProjectGrouping } from '@core/index';
 import { z } from 'zod';
 
-import { defineTool, jsonResult } from './types';
+import { defineTool, jsonResult, PR_TICKET_COVERAGE } from './types';
 
 export const getProjectsTool = defineTool({
   name: 'get_projects',
   description:
-    'Get detected project groupings that cluster related PRs and tickets',
+    'Get detected project groupings that cluster related authored PRs and tickets (PR reviews given and imported messages are not included)',
   inputSchema: {
     confidence: z
       .enum(['high', 'medium', 'low'])
@@ -36,6 +36,7 @@ export const getProjectsTool = defineTool({
         total: projectsData.projects?.length || 0,
         returned: projects.length,
         summary: projectsData.summary,
+        coverage: PR_TICKET_COVERAGE,
       });
     } catch {
       return jsonResult({

@@ -1,4 +1,5 @@
 import { GitHubNameSchema, OptionalGitHubNameSchema } from '@wc-types/github';
+import { SlackConfigSchema } from '@wc-types/slack';
 import { JiraProjectKeySchema } from '@wc-types/ticket';
 import { z } from 'zod';
 
@@ -119,6 +120,8 @@ export const ConfigSchema = z.object({
   output: OutputConfigSchema.default({ directory: './work-log' }),
   fetch: FetchConfigSchema,
   analysis: AnalysisConfigSchema.prefault({}),
+  /** Slack messages an import skill may collect for this IC (opt-in) */
+  slack: SlackConfigSchema.optional(),
 });
 
 export type GitHubOrgConfig = z.infer<typeof GitHubOrgConfigSchema>;

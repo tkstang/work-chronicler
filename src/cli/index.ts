@@ -7,14 +7,17 @@ import { dirname, resolve } from 'node:path';
 import { CliError, handleCliError } from '@cli/errors';
 import { analyzeCommand } from '@commands/analyze';
 import { fetchCommand } from '@commands/fetch/index';
-import { filterCommand } from '@commands/filter';
+import { filterCommand } from '@commands/filter/index';
+import { importCommand } from '@commands/import/index';
 import { initCommand } from '@commands/init/index';
 import { linkCommand } from '@commands/link';
 import { mcpCommand } from '@commands/mcp';
 import { profileCommand } from '@commands/profile/index';
 import { reportsCommand } from '@commands/reports/index';
 import { skillsCommand } from '@commands/skills/index';
+import { slackCommand } from '@commands/slack/index';
 import { statusCommand } from '@commands/status';
+import { validateCommand } from '@commands/validate';
 import { workspaceCommand } from '@commands/workspace/index';
 import { findConfigPath, ProfileNameSchema } from '@core/index';
 import { Command } from 'commander';
@@ -89,11 +92,14 @@ function createProgram(): Command {
   program.addCommand(analyzeCommand);
   program.addCommand(filterCommand);
   program.addCommand(fetchCommand);
+  program.addCommand(importCommand);
+  program.addCommand(validateCommand);
   program.addCommand(mcpCommand);
   program.addCommand(profileCommand);
   program.addCommand(reportsCommand);
   program.addCommand(workspaceCommand);
   program.addCommand(skillsCommand);
+  program.addCommand(slackCommand);
 
   return program;
 }

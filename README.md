@@ -93,6 +93,9 @@ Data lives in `~/.work-chronicler/profiles/<profile>/`. Each profile has its own
 | --- | --- |
 | Pull PRs and tickets into markdown | `fetch github`, `fetch jira`, `fetch all` |
 | Record the PR reviews you gave | `fetch github --reviews` or `fetch all --reviews` |
+| Store records a skill gathered from another service | `validate <dir>`, then `import <dir>` |
+| Import your own Slack messages as supplementary evidence | `/work-chronicler-setup-slack`, then `/work-chronicler-import-slack` (AI skills) |
+| Choose the Slack channels an import skill may read | `slack configure`, `slack channels add\|remove\|list`, `slack show` |
 | Connect PRs to the tickets they reference | `link` (run automatically by `fetch all`) |
 | Classify PRs as minor, standard, major or flagship | `analyze --tag-prs` |
 | Group related work into projects and a timeline | `analyze --projects --timeline` |
@@ -112,16 +115,26 @@ What exists today:
   repo in an org), optionally the reviews and inline review comments you gave
   on other people's PRs in those orgs (IC profiles), and JIRA Cloud tickets
   assigned to you (one or more instances and projects). No other sources are
-  supported.
+  fetched.
+- **Imported records:** `import` checks a batch of message records that a
+  skill staged in a directory and stores it in the work log all or nothing.
+  The CLI never contacts the service the records came from. Slack records
+  are accepted only for an IC or report with Slack settings (`slack ...`),
+  and only the subject's own messages in its configured channels. `status`,
+  `filter`, stats, `link`, the MCP server and the skills read them as
+  supplementary evidence, apart from PRs and tickets; project detection and
+  the timeline cover PRs and tickets only.
 - **Local enrichment:** PR-to-ticket linking, impact classification, project
   detection from shared ticket references, a week/month timeline, and filtered
   subsets. None of these call an AI model.
 - **IC and manager modes:** an individual work log per profile, or per-report
   work logs plus team-level project and timeline rollups for people managers.
-- **MCP server:** eight read-only query tools over the work log.
-- **AI skills:** ten skills (six for IC profiles, one peer-review skill for
-  any profile, three manager-only) that read the work log and write documents
-  to the profile's `outputs/` directory.
+- **MCP server:** nine read-only query tools over the work log.
+- **AI skills:** twelve skills: six for IC profiles, three manager-only, and
+  three for any profile (peer reviews, and setting up and importing Slack
+  messages). The writing skills read the work log and write documents to the
+  profile's `outputs/` directory; the Slack skills read Slack through the
+  assistant's Slack connector, read-only, and store messages with `import`.
 
 The CLI itself never calls an LLM; writing happens in your assistant through
 the skills or the MCP server.

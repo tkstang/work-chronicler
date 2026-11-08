@@ -1,4 +1,9 @@
-import type { JiraTicketFile, PRImpact, PullRequestFile } from '@core/index';
+import type {
+  ImportedRecordFile,
+  JiraTicketFile,
+  PRImpact,
+  PullRequestFile,
+} from '@core/index';
 
 import { classifyPRImpact } from './classifier';
 
@@ -25,6 +30,15 @@ export interface AnalysisStats {
     prsWithTickets: number;
     ticketsWithPRs: number;
   };
+  /**
+   * Imported messages: supplementary evidence, counted apart from PRs and
+   * tickets and never added to them.
+   */
+  messages: {
+    total: number;
+    bySource: Record<string, number>;
+    byMonth: Record<string, number>;
+  };
 }
 
 /**
@@ -37,14 +51,25 @@ function getYearMonth(dateStr: string): string {
   return `${year}-${month}`;
 }
 
+/** Sort a month-keyed record chronologically */
+function sortByMonth(byMonth: Record<string, number>): Record<string, number> {
+  const sorted: Record<string, number> = {};
+  for (const month of Object.keys(byMonth).sort()) {
+    sorted[month] = byMonth[month] ?? 0;
+  }
+  return sorted;
+}
+
 /**
- * Generate statistics from PR and ticket data
+ * Generate statistics from PR and ticket data, plus counts of imported
+ * messages (which never enter the PR or ticket figures).
  */
 export function generateStats(
   prs: PullRequestFile[],
   tickets: JiraTicketFile[],
   since: string,
   until: string,
+  importedRecords: ImportedRecordFile[] = [],
 ): AnalysisStats {
   const stats: AnalysisStats = {
     generatedAt: new Date().toISOString(),
@@ -65,6 +90,11 @@ export function generateStats(
     links: {
       prsWithTickets: 0,
       ticketsWithPRs: 0,
+    },
+    messages: {
+      total: 0,
+      bySource: {},
+      byMonth: {},
     },
   };
 
@@ -115,13 +145,19 @@ export function generateStats(
     }
   }
 
-  // Sort byMonth chronologically
-  const sortedMonths = Object.keys(stats.prs.byMonth).sort();
-  const sortedByMonth: Record<string, number> = {};
-  for (const month of sortedMonths) {
-    sortedByMonth[month] = stats.prs.byMonth[month] ?? 0;
+  // Imported messages
+  for (const record of importedRecords) {
+    const fm = record.frontmatter;
+    if (fm.type !== 'message') continue;
+    stats.messages.total++;
+    stats.messages.bySource[fm.source] =
+      (stats.messages.bySource[fm.source] ?? 0) + 1;
+    const month = getYearMonth(fm.occurredAt);
+    stats.messages.byMonth[month] = (stats.messages.byMonth[month] ?? 0) + 1;
   }
-  stats.prs.byMonth = sortedByMonth;
+
+  stats.prs.byMonth = sortByMonth(stats.prs.byMonth);
+  stats.messages.byMonth = sortByMonth(stats.messages.byMonth);
 
   return stats;
 }

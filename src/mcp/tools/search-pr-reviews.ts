@@ -3,17 +3,18 @@ import { join } from 'node:path';
 
 import {
   DIRECTORIES,
-  isFilteredSubsetMissingReviews,
   readAllPRReviews,
   splitReviewRecordsByReviewer,
 } from '@core/index';
 import { z } from 'zod';
 
-import { defineTool, jsonResult, parseAndValidateDate } from './types';
-
-function truncate(text: string, length: number): string {
-  return text.length > length ? `${text.slice(0, length)}...` : text;
-}
+import {
+  defineTool,
+  jsonResult,
+  parseAndValidateDate,
+  subsetGapNote,
+  truncate,
+} from './types';
 
 export const searchPrReviewsTool = defineTool({
   name: 'search_pr_reviews',
@@ -43,26 +44,53 @@ export const searchPrReviewsTool = defineTool({
     limit: z.number().optional().describe('Maximum number of reviewed PRs'),
   },
   handler: async (input, { outputDir, fullOutputDir, githubUsername }) => {
-    // A filtered subset written before reviews were fetched has no
-    // pr-reviews/. Read the full work log then, and say so, rather than
-    // reporting no reviews. A subset that has pr-reviews/ is always used.
-    let source = outputDir;
+    // A selected subset is always used. One written before reviews were
+    // fetched has no pr-reviews/: say so, with no results, rather than
+    // reading the full work log behind the user's selection.
     const notes: string[] = [];
     const fullDir = fullOutputDir ?? outputDir;
-    if (fullDir !== outputDir && isFilteredSubsetMissingReviews(fullDir)) {
-      source = fullDir;
-      notes.push(
-        'The filtered subset was created before PR reviews were fetched, so these results come from the full work log. Re-run `work-chronicler filter` to apply your filters to reviews.',
-      );
-    } else if (!existsSync(join(fullDir, DIRECTORIES.PR_REVIEWS))) {
+    const gap = subsetGapNote(outputDir, fullDir, DIRECTORIES.PR_REVIEWS);
+    if (gap) {
+      return jsonResult({
+        results: [],
+        total: 0,
+        returned: 0,
+        totals: { reviews: 0, comments: 0 },
+        note: gap,
+      });
+    }
+    if (!existsSync(join(fullDir, DIRECTORIES.PR_REVIEWS))) {
       notes.push(
         'No PR reviews have been fetched. Run `work-chronicler fetch github --reviews` (IC profiles only).',
       );
     }
 
+    const records = await readAllPRReviews(outputDir);
+    // Without a configured username no record can be shown to be the user's:
+    // return none, and say whose records there are, rather than present
+    // someone else's reviews as the user's
+    if (!githubUsername) {
+      const reviewers = [
+        ...new Set(records.map((r) => r.frontmatter.reviewer)),
+      ];
+      if (records.length > 0) {
+        notes.push(
+          `github.username is not set in the profile config, so ${records.length} review record(s) (reviewer: ${reviewers.join(', ')}) cannot be attributed to the user and are not returned. Do not present them as the user's work: ask the user, or set github.username and restart the MCP server.`,
+        );
+      }
+      return jsonResult({
+        results: [],
+        total: 0,
+        returned: 0,
+        totals: { reviews: 0, comments: 0 },
+        unattributed: { records: records.length, reviewers },
+        ...(notes.length > 0 ? { note: notes.join(' ') } : {}),
+      });
+    }
+
     // Records written for another GitHub user are not this user's work
     const { own, foreign, foreignReviewers } = splitReviewRecordsByReviewer(
-      await readAllPRReviews(source),
+      records,
       githubUsername,
     );
     if (foreign.length > 0) {

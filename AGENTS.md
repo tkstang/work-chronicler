@@ -50,9 +50,12 @@ work-chronicler/
 │   ├── cli/                    # CLI application (Commander)
 │   │   ├── commands/           # CLI commands (see commands/README.md)
 │   │   │   ├── fetch/          # Fetch commands (github, jira, all)
+│   │   │   ├── filter/         # Filtered subset selection and replacement
 │   │   │   ├── init/           # Interactive setup wizard
+│   │   │   ├── import/         # Staged import (validate shares it)
 │   │   │   ├── profile/        # Profile management
 │   │   │   ├── skills/         # Skill management (install, uninstall, list)
+│   │   │   ├── slack/          # Slack settings (configure, channels, show)
 │   │   │   └── workspace/      # Workspace path resolution
 │   │   ├── linker/             # Cross-reference linking
 │   │   ├── analyzer/           # Impact analysis and project detection
@@ -62,7 +65,9 @@ work-chronicler/
 │   │   └── tools/              # One module per tool: name, schema, handler(input, context)
 │   └── core/                   # Shared types, config, storage
 │       ├── config/             # Config loading and schema (Zod)
-│       ├── storage/            # Markdown file reader/writer
+│       ├── import/             # Import envelope checks, planning and atomic commit
+│       ├── linking/            # PR-URL normalization and mention resolution
+│       ├── storage/            # Markdown file reader/writer, filtered subset
 │       ├── workspace/          # Portable workspace and profile management
 │       └── types/              # Zod schemas and TypeScript types
 ├── bin/
@@ -179,11 +184,13 @@ The project has four layers:
 1. **CLI Commands** (programmatic, no AI):
    - `fetch github`, `fetch jira`, `fetch all` - Pull data from sources
    - `fetch github --reviews`, `fetch all --reviews` - Also fetch PR reviews the user gave (IC only)
-   - `link` - Cross-reference PRs ↔ tickets
+   - `import <dir>` - Validate a staged batch of records (from a skill) and commit it atomically (`--report <id>` in manager mode)
+   - `validate <dir>` - Check a staged batch without writing
+   - `link` - Cross-reference PRs ↔ tickets; report mentions in imported records that resolve (never stored as links)
    - `analyze` - Generate `.analysis/` files
    - `analyze reports <id>` - Per-report analysis (manager mode)
    - `analyze team` - Team-level aggregations (manager mode)
-   - `filter` - Filter work-log to a subset
+   - `filter` - Replace the `filtered/` subset (built beside it, read back, then swapped in; the previous subset is kept on failure)
    - `status` - Show current state
    - `init` - Create config file with interactive wizard
    - `init --mode manager` - Create manager profile
@@ -192,6 +199,7 @@ The project has four layers:
    - `reports add|list|update|remove` - Manage reports (manager mode)
    - `workspace profile|work-log|analysis|root` - Output workspace paths
    - `skills install|uninstall|list` - Manage AI skills
+   - `slack configure`, `slack channels add|remove|list`, `slack show` - Slack settings per IC profile or report (opt-in; `import` enforces them); `show` prints what an import skill uses
 
 2. **AI Skills** (package skills in `.agents/skills/`, installed via `skills install`):
    - IC mode:
@@ -202,6 +210,9 @@ The project has four layers:
      - `/work-chronicler-detect-projects` - Identify major project groupings
      - `/work-chronicler-detect-themes` - Identify recurring themes across work
      - `/work-chronicler-write-peer-review` - Peer reviews; quick mode in any profile, evidence-backed mode with a manager report
+   - Slack import (IC and manager profiles; read Slack through the assistant's Slack connector, read-only):
+     - `/work-chronicler-setup-slack` - Choose the channels to import from and record them with `slack configure` / `slack channels add`
+     - `/work-chronicler-import-slack` - Stage the subject's own messages, then `validate` and `import` them
    - Manager mode (`work-chronicler-manager-*`):
      - `/work-chronicler-manager-write-review-packet` - Evidence-based review content for a direct report
      - `/work-chronicler-manager-write-quarterly-highlights` - Quarterly highlights for one report
@@ -212,7 +223,7 @@ The project has four layers:
 
 4. **MCP Server** (read-only data access for AI assistants):
    - Exposes work-log data to Claude Desktop, Cursor, etc. over stdio
-   - Tools (one module each in `src/mcp/tools/`, registered in `src/mcp/server.ts`): `search_prs`, `search_tickets`, `get_linked_work`, `list_repos`, `get_stats`, `get_projects`, `get_timeline`, `search_pr_reviews`
+   - Tools (one module each in `src/mcp/tools/`, registered in `src/mcp/server.ts`): `search_prs`, `search_tickets`, `get_linked_work`, `list_repos`, `get_stats`, `get_projects`, `get_timeline`, `search_pr_reviews`, `search_messages`
 
 ## Data Storage
 
@@ -224,13 +235,19 @@ Work data is stored in markdown files with YAML frontmatter:
 work-log/
 ├── pull-requests/<org>/<repo>/<date>_<number>.md
 ├── pr-reviews/<org>/<repo>/<number>.md  # Reviews the user gave (never authored work)
+├── messages/<source>/<hash>.md          # Imported records (`import`); hash of the record identity
 ├── jira/<org>/<project>/<key>.md
 ├── performance-reviews/     # User-added past reviews
 ├── resumes/                 # User-added existing resume(s)
 ├── notes/                   # User-added notes and goals
 ├── .analysis/               # Generated analysis JSON
-└── filtered/                # Filtered subset (from filter command)
+└── filtered/                # Filtered subset (from filter command; selected while it exists, even empty)
 ```
+
+Imported records are supplementary evidence: consumers count them apart from
+PRs and tickets (or say they cover PRs and tickets only), and resolve their
+mentions on read (`src/core/linking/`). Readers ignore `.import-*` and
+`.filter-*` entries in the work-log root.
 
 ### Manager Mode
 

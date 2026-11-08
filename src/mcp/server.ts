@@ -2,8 +2,10 @@ import { createRequire } from 'node:module';
 
 import {
   type Config,
+  FilteredSubsetInterruptedError,
+  type FilteredSubsetState,
   findConfigPath,
-  getEffectiveOutputDir,
+  getFilteredSubsetState,
   getOutputDirectory,
   loadConfig,
 } from '@core/index';
@@ -14,6 +16,7 @@ import {
   getTimelineTool,
   listReposTool,
   type McpTool,
+  searchMessagesTool,
   searchPrReviewsTool,
   searchPrsTool,
   searchTicketsTool,
@@ -24,12 +27,28 @@ import {
   type ToolCallback,
 } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { z } from 'zod';
 
 export interface MCPServerContext {
   config: Config;
+  /**
+   * The full work log. Each tool call decides afresh whether to read it or
+   * its selected `filtered/` subset.
+   */
   outputDir: string;
   server: McpServer;
+}
+
+/**
+ * What the server is bound to: the full work log, never a subset. The
+ * subset in use is resolved on every tool call.
+ */
+export interface ServerRoot {
+  /** The full work log (the profile's work-log directory) */
+  workLogDir: string;
+  /** The configured `github.username` */
+  githubUsername?: string;
 }
 
 /**
@@ -59,24 +78,94 @@ export async function createServer(): Promise<MCPServerContext> {
 
   const configPath = findConfigPath(explicitPath);
   const config = await loadConfig(explicitPath);
-  const baseOutputDir = getOutputDirectory(config, configPath ?? undefined);
+  const workLogDir = getOutputDirectory(config, configPath ?? undefined);
 
-  // Check if filtered data exists and use it by default
-  const { dir: outputDir, isFiltered } = getEffectiveOutputDir(baseOutputDir);
-
-  // Log which directory we're using (visible in debug logs)
-  if (isFiltered) {
-    console.error('[work-chronicler] Using filtered data from:', outputDir);
+  // The subset is resolved per call; this only logs the state at startup
+  // (visible in debug logs)
+  const startup = resolveToolContext({ workLogDir });
+  if ('context' in startup && startup.context.outputDir !== workLogDir) {
+    console.error(
+      '[work-chronicler] Using filtered data from:',
+      startup.context.outputDir,
+    );
   }
 
   return {
     config,
-    outputDir,
+    outputDir: workLogDir,
     server: createToolServer({
-      outputDir,
-      fullOutputDir: baseOutputDir,
+      workLogDir,
       githubUsername: config.github.username || undefined,
     }),
+  };
+}
+
+/**
+ * A fingerprint of the subset state: equal fingerprints before and after a
+ * call mean the call read one consistent selection.
+ */
+function stateKey(state: FilteredSubsetState): string {
+  if (state.status !== 'selected') return state.status;
+  return JSON.stringify([
+    state.dir,
+    state.selection?.createdAt ?? null,
+    state.missing,
+  ]);
+}
+
+/**
+ * Resolve which directory a tool call reads, from the full work log: the
+ * selected subset (even an empty one) when `filtered/` exists, otherwise the
+ * full work log. A subset that is being replaced, was left mid-swap, or
+ * cannot be read yields a result explaining that instead, so a call never
+ * silently reads the full work log or an empty directory in its place.
+ */
+export function resolveToolContext(
+  root: ServerRoot,
+): { context: ToolContext; key: string } | { unavailable: CallToolResult } {
+  const base = {
+    fullOutputDir: root.workLogDir,
+    ...(root.githubUsername ? { githubUsername: root.githubUsername } : {}),
+  };
+  let state: FilteredSubsetState;
+  try {
+    state = getFilteredSubsetState(root.workLogDir);
+  } catch (error) {
+    return {
+      unavailable: subsetUnavailable(
+        `The filtered subset cannot be read: ${error instanceof Error ? error.message : String(error)}`,
+      ),
+    };
+  }
+  if (state.status === 'interrupted') {
+    return {
+      unavailable: subsetUnavailable(
+        new FilteredSubsetInterruptedError(root.workLogDir, state.locked)
+          .message,
+      ),
+    };
+  }
+  return {
+    context: {
+      ...base,
+      outputDir: state.status === 'selected' ? state.dir : root.workLogDir,
+    },
+    key: stateKey(state),
+  };
+}
+
+function subsetUnavailable(note: string): CallToolResult {
+  return {
+    content: [
+      {
+        type: 'text',
+        text: JSON.stringify({
+          error:
+            'The filtered subset is unavailable, so no results are returned (the full work log is not read in its place).',
+          note,
+        }),
+      },
+    ],
   };
 }
 
@@ -86,37 +175,55 @@ const { version: packageVersion } = createRequire(import.meta.url)(
 ) as { version: string };
 
 /**
- * Create an MCP server with every tool registered against a resolved
- * work-log directory. Connect it to any transport.
+ * Create an MCP server with every tool registered against a work log. Each
+ * call reads the subset selected at that moment (see
+ * {@link resolveToolContext}). Connect it to any transport.
  */
-export function createToolServer(context: ToolContext): McpServer {
+export function createToolServer(root: ServerRoot): McpServer {
   const server = new McpServer({
     name: 'work-chronicler',
     version: packageVersion,
   });
 
-  registerTool(server, context, searchPrsTool);
-  registerTool(server, context, searchTicketsTool);
-  registerTool(server, context, getLinkedWorkTool);
-  registerTool(server, context, listReposTool);
-  registerTool(server, context, getStatsTool);
-  registerTool(server, context, getProjectsTool);
-  registerTool(server, context, getTimelineTool);
-  registerTool(server, context, searchPrReviewsTool);
+  registerTool(server, root, searchPrsTool);
+  registerTool(server, root, searchTicketsTool);
+  registerTool(server, root, getLinkedWorkTool);
+  registerTool(server, root, listReposTool);
+  registerTool(server, root, getStatsTool);
+  registerTool(server, root, getProjectsTool);
+  registerTool(server, root, getTimelineTool);
+  registerTool(server, root, searchPrReviewsTool);
+  registerTool(server, root, searchMessagesTool);
 
   return server;
 }
 
 function registerTool<Shape extends z.ZodRawShape>(
   server: McpServer,
-  context: ToolContext,
+  root: ServerRoot,
   tool: McpTool<Shape>,
 ): void {
+  const call = async (
+    input: z.output<z.ZodObject<Shape>>,
+  ): Promise<CallToolResult> => {
+    const resolved = resolveToolContext(root);
+    if ('unavailable' in resolved) return resolved.unavailable;
+    const result = await tool.handler(input, resolved.context);
+    // A `filter` run that changed the selection during the call may have
+    // left the handler reading a moving directory: report it, don't guess
+    const after = resolveToolContext(root);
+    if ('unavailable' in after) return after.unavailable;
+    if (after.key !== resolved.key) {
+      return subsetUnavailable(
+        'The filtered subset changed while this call was reading it (a `work-chronicler filter` run finished). Call the tool again.',
+      );
+    }
+    return result;
+  };
   // ToolCallback<Shape> is a conditional type that TypeScript leaves
   // unresolved for a generic Shape, so no function literal is assignable to
   // it here. The handler's own signature already pins the input type.
-  const callback = ((input: z.output<z.ZodObject<Shape>>) =>
-    tool.handler(input, context)) as unknown as ToolCallback<Shape>;
+  const callback = call as unknown as ToolCallback<Shape>;
   server.tool(tool.name, tool.description, tool.inputSchema, callback);
 }
 

@@ -7,10 +7,10 @@ This directory contains all CLI commands for work-chronicler.
 ```
 commands/
 ├── analyze.ts              # Single-file command
-├── filter.ts               # Single-file command
 ├── link.ts                 # Single-file command
 ├── mcp.ts                  # Single-file command
 ├── status.ts               # Single-file command
+├── validate.ts             # Single-file command (shares import/import.utils.ts)
 │
 ├── fetch/                  # Command with subcommands
 │   ├── index.ts            # Parent command (registers subcommands)
@@ -26,6 +26,14 @@ commands/
 │       ├── index.ts        # fetch jira subcommand
 │       ├── jira.utils.ts   # JIRA fetching logic
 │       └── jira.types.ts   # JIRA-specific types
+│
+├── filter/                 # Command with utils
+│   ├── index.ts            # filter command (options, prompts, summary)
+│   └── filter.utils.ts     # Record selection and subset replacement
+│
+├── import/                 # Complex command (has utils)
+│   ├── index.ts            # import command (staged batch → work log)
+│   └── import.utils.ts     # Target resolution and output, shared with validate
 │
 ├── init/                   # Complex command (has prompts/utils/types)
 │   ├── index.ts            # Main command (validates --mode, dispatches)
@@ -46,6 +54,13 @@ commands/
 │   ├── delete.ts           # profile delete subcommand
 │   ├── list.ts             # profile list subcommand
 │   └── switch.ts           # profile switch subcommand
+│
+├── slack/                  # Command with subcommands (Slack settings for skills)
+│   ├── index.ts            # Parent command
+│   ├── configure.ts        # slack configure (workspace and user)
+│   ├── channels.ts         # slack channels add|remove|list
+│   ├── show.ts             # slack show (what an import skill reads)
+│   └── slack.utils.ts      # Subject resolution and config changes
 │
 ├── skills/                 # Command with simple subcommands + shared types
 │   ├── index.ts            # Parent command

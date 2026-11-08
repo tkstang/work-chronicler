@@ -1,7 +1,13 @@
-import { existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 
 import { getGitHubNameProblem, normalizeGitHubName } from '@wc-types/github';
+import {
+  IMPORT_SOURCES,
+  type ImportedRecordIdentity,
+  type ImportedRecordType,
+  importedRecordIdentityKey,
+} from '@wc-types/imported-record';
 
 /**
  * Standard directory names within the work-log structure.
@@ -20,10 +26,19 @@ export const DIRECTORIES = {
    */
   PR_REVIEWS: 'pr-reviews',
   JIRA: 'jira',
+  /** Imported messages (`work-chronicler import`), by source */
+  MESSAGES: 'messages',
   PERFORMANCE_REVIEWS: 'performance-reviews',
   ANALYSIS: '.analysis',
   FILTERED: 'filtered',
 } as const;
+
+/**
+ * The work-log directory for each imported record type.
+ */
+export const IMPORTED_RECORD_DIRECTORIES: Record<ImportedRecordType, string> = {
+  message: DIRECTORIES.MESSAGES,
+};
 
 /**
  * Normalize an org for use as a directory name, refusing names that would
@@ -34,56 +49,6 @@ function toOrgDirectory(org: string): string {
   const problem = getGitHubNameProblem(normalized);
   if (problem) throw new Error(`Invalid GitHub org "${org}": ${problem}`);
   return normalized;
-}
-
-/**
- * Get the effective output directory, preferring filtered data if available.
- *
- * Checks if a `filtered/` subdirectory exists with PR data.
- * If so, returns that path for read operations to use the filtered subset.
- *
- * @param outputDir - Base work-log output directory
- * @returns Object with `dir` (path to use) and `isFiltered` (whether using filtered data)
- *
- * @example
- * ```ts
- * const { dir, isFiltered } = getEffectiveOutputDir('/path/to/work-log');
- * if (isFiltered) {
- *   console.log('Using filtered data');
- * }
- * ```
- */
-export function getEffectiveOutputDir(outputDir: string): {
-  dir: string;
-  isFiltered: boolean;
-} {
-  const filteredDir = join(outputDir, DIRECTORIES.FILTERED);
-  const filteredPRDir = join(filteredDir, DIRECTORIES.PULL_REQUESTS);
-
-  // Check if filtered directory exists and has PR data
-  if (existsSync(filteredPRDir)) {
-    return { dir: filteredDir, isFiltered: true };
-  }
-
-  return { dir: outputDir, isFiltered: false };
-}
-
-/**
- * Whether the work log's `filtered/` subset was written before any review
- * records existed: it has PRs but no `pr-reviews/` directory, while the full
- * work log has one. `filter` writes `filtered/pr-reviews/` (empty when
- * nothing matches) whenever the work log has `pr-reviews/`, so a missing
- * directory means the subset predates the first review fetch.
- *
- * @param outputDir - Base work-log output directory (not `filtered/`)
- */
-export function isFilteredSubsetMissingReviews(outputDir: string): boolean {
-  const filteredDir = join(outputDir, DIRECTORIES.FILTERED);
-  return (
-    existsSync(join(filteredDir, DIRECTORIES.PULL_REQUESTS)) &&
-    !existsSync(join(filteredDir, DIRECTORIES.PR_REVIEWS)) &&
-    existsSync(join(outputDir, DIRECTORIES.PR_REVIEWS))
-  );
 }
 
 /**
@@ -112,6 +77,47 @@ export function getPRFilePath(
     repo,
     fileName,
   );
+}
+
+/**
+ * Get an imported record's location relative to the work log, as path
+ * segments: `[<type directory>, <source>, <hash>.md]`.
+ *
+ * The file name is the first 32 hex digits of the SHA-256 of the record's
+ * identity, so nothing a record contains is ever used as path text: a source
+ * ID with `../`, a backslash or a different letter case cannot move or alias
+ * the destination. The same identity always maps to the same file, which is
+ * what makes import an upsert.
+ *
+ * @param identity - Record identity
+ * @returns Path segments under the work-log root
+ */
+export function getImportedRecordSegments(
+  identity: ImportedRecordIdentity,
+): string[] {
+  const directory = IMPORTED_RECORD_DIRECTORIES[identity.type];
+  if (!directory || !IMPORT_SOURCES.includes(identity.source)) {
+    throw new Error('Unknown imported record type or source');
+  }
+  const hash = createHash('sha256')
+    .update(importedRecordIdentityKey(identity))
+    .digest('hex')
+    .slice(0, 32);
+  return [directory, identity.source, `${hash}.md`];
+}
+
+/**
+ * Get the file path for an imported record.
+ *
+ * @param outputDir - Base work-log directory (an IC work log or a report's)
+ * @param identity - Record identity
+ * @returns Full path like `{outputDir}/messages/slack/{hash}.md`
+ */
+export function getImportedRecordFilePath(
+  outputDir: string,
+  identity: ImportedRecordIdentity,
+): string {
+  return join(outputDir, ...getImportedRecordSegments(identity));
 }
 
 /**

@@ -12,5 +12,11 @@
     "resolveFullExtension": ".js"
   },
   "include": ["src"],
-  "exclude": ["node_modules", "dist", "coverage", "src/**/*.test.ts"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "coverage",
+    "src/**/*.test.ts",
+    "src/**/*.test-support.ts"
+  ]
 }

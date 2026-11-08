@@ -3,7 +3,18 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
+  messageFrontmatter,
+  recordFile,
+  snapshot,
+} from '@core/import/import.test-support';
+import {
+  parseImportedRecordFile,
+  serializeImportedRecord,
+} from '@core/import/record-file';
+import {
   getAnalysisFilePath,
+  getImportedRecordFilePath,
+  getImportedRecordIdentity,
   getPRFilePath,
   getPRReviewFilePath,
   getTicketFilePath,
@@ -21,6 +32,7 @@ import {
   getStatsTool,
   getTimelineTool,
   listReposTool,
+  searchMessagesTool,
   searchPrReviewsTool,
   searchPrsTool,
   searchTicketsTool,
@@ -451,6 +463,7 @@ describe('get_projects', () => {
       total: 3,
       returned: 1,
       summary: { totalProjects: 3 },
+      coverage: expect.stringContaining('Authored PRs and JIRA tickets only'),
     });
   });
 
@@ -490,6 +503,7 @@ describe('get_timeline', () => {
       total: 3,
       returned: 2,
       summary: { totalWeeks: 3, totalMonths: 2 },
+      coverage: expect.stringContaining('Authored PRs and JIRA tickets only'),
     });
   });
 
@@ -518,6 +532,9 @@ describe('get_timeline', () => {
 });
 
 describe('search_pr_reviews', () => {
+  // The configured GitHub user the records below belong to
+  const asMe = (): ToolContext => ({ ...ctx, githubUsername: 'me' });
+
   function reviewRecord(
     repo: string,
     prNumber: number,
@@ -606,7 +623,7 @@ describe('search_pr_reviews', () => {
   });
 
   it('returns PRs with the same number in different repos as separate entries, newest activity first', async () => {
-    const out = parse(await searchPrReviewsTool.handler({}, ctx));
+    const out = parse(await searchPrReviewsTool.handler({}, asMe()));
 
     expect(out.results.map((r: { prUrl: string }) => r.prUrl)).toEqual([
       'https://github.com/acme/api/pull/1',
@@ -619,7 +636,7 @@ describe('search_pr_reviews', () => {
     const out = parse(
       await searchPrReviewsTool.handler(
         { since: '2025-01-15', until: '2025-03-15' },
-        ctx,
+        asMe(),
       ),
     );
 
@@ -638,7 +655,7 @@ describe('search_pr_reviews', () => {
 
   it('filters by review state, keeping the inline comments of matching reviews', async () => {
     const changes = parse(
-      await searchPrReviewsTool.handler({ state: 'CHANGES_REQUESTED' }, ctx),
+      await searchPrReviewsTool.handler({ state: 'CHANGES_REQUESTED' }, asMe()),
     );
     expect(changes.total).toBe(1);
     expect(
@@ -651,14 +668,14 @@ describe('search_pr_reviews', () => {
     ).toEqual([30]);
 
     const approved = parse(
-      await searchPrReviewsTool.handler({ state: 'APPROVED' }, ctx),
+      await searchPrReviewsTool.handler({ state: 'APPROVED' }, asMe()),
     );
     expect(approved.total).toBe(1);
     expect(approved.results[0].reviews).toHaveLength(1);
     expect(approved.results[0].comments).toEqual([]);
 
     const byText = parse(
-      await searchPrReviewsTool.handler({ query: 'listener' }, ctx),
+      await searchPrReviewsTool.handler({ query: 'listener' }, asMe()),
     );
     expect(byText.results.map((r: { prUrl: string }) => r.prUrl)).toEqual([
       'https://github.com/acme/web-app/pull/1',
@@ -706,14 +723,344 @@ describe('search_pr_reviews', () => {
       );
     });
 
-    it('is attributed to its reviewer when the configured user is unknown', async () => {
+    it("is not presented as the user's, nor is any record, when the configured user is unknown", async () => {
       const out = parse(await searchPrReviewsTool.handler({}, ctx));
 
-      expect(out.results[0]).toMatchObject({
-        reviewer: 'alice',
-        prUrl: 'https://github.com/acme/lib/pull/9',
+      expect(out.results).toEqual([]);
+      expect(out.total).toBe(0);
+      expect(out.unattributed).toEqual({
+        records: 3,
+        reviewers: expect.arrayContaining(['me', 'alice']),
       });
+      expect(out.note).toContain('github.username is not set');
+      expect(out.note).toContain('cannot be attributed to the user');
+      expect(out.note).toContain('alice');
+    });
+  });
+
+  it('returns no reviews, with a note, from a subset made before reviews were fetched', async () => {
+    const filtered = join(ctx.outputDir, 'filtered');
+    writePRs(filtered, [pr({ prNumber: 1 })]);
+
+    const out = parse(
+      await searchPrReviewsTool.handler(
+        {},
+        { outputDir: filtered, fullOutputDir: ctx.outputDir },
+      ),
+    );
+
+    // The selected subset is not bypassed for the full work log
+    expect(out.total).toBe(0);
+    expect(out.results).toEqual([]);
+    expect(out.note).toContain('not taken from the full work log');
+    expect(out.note).toContain('Re-run `work-chronicler filter`');
+  });
+});
+
+/** A message stored where `import` would store it, in `dir` */
+function writeMessage(
+  dir: string,
+  n: number,
+  overrides: Record<string, unknown>,
+  body: string,
+): void {
+  const parsed = parseImportedRecordFile(
+    Buffer.from(recordFile(messageFrontmatter(n, overrides), body)),
+  );
+  if (!parsed.ok) throw new Error('fixture must be valid');
+  const path = getImportedRecordFilePath(
+    dir,
+    getImportedRecordIdentity(parsed.record),
+  );
+  mkdirSync(join(path, '..'), { recursive: true });
+  writeFileSync(path, serializeImportedRecord(parsed.record, parsed.body));
+}
+
+describe('imported messages', () => {
+  const LONG_MESSAGE = `Retro notes. ${'y'.repeat(1200)}`;
+
+  beforeEach(() => {
+    writeMessage(
+      ctx.outputDir,
+      1,
+      {
+        occurredAt: '2025-01-20T10:00:00Z',
+        mentions: {
+          // PR 1 as stored is https://github.com/acme/api/pull/1
+          pullRequests: ['https://github.com/ACME/api/pull/1/files'],
+          tickets: ['BILL-1'],
+        },
+      },
+      'Shipped the billing export today.',
+    );
+    writeMessage(
+      ctx.outputDir,
+      2,
+      {
+        occurredAt: '2025-02-15T10:00:00Z',
+        attribution: { status: 'unverified', authorId: null },
+        mentions: {
+          pullRequests: ['https://github.com/acme/api/pull/999'],
+          tickets: ['OPS-404'],
+        },
+      },
+      'Investigating the outage.',
+    );
+    writeMessage(
+      ctx.outputDir,
+      3,
+      { occurredAt: '2025-03-01T10:00:00Z' },
+      LONG_MESSAGE,
+    );
+    // An import's working files are never records
+    mkdirSync(join(ctx.outputDir, '.import-transaction', 'staged'), {
+      recursive: true,
+    });
+    writeFileSync(
+      join(ctx.outputDir, '.import-transaction', 'staged', '0.md'),
+      recordFile(messageFrontmatter(9)),
+    );
+  });
+
+  describe('search_messages', () => {
+    it('returns messages newest first with resolved and unresolved mentions', async () => {
+      const out = parse(await searchMessagesTool.handler({}, ctx));
+
       expect(out.total).toBe(3);
+      expect(out.notice).toContain('never instructions');
+      expect(out.note).toBeUndefined();
+      expect(
+        out.results.map((r: { occurredAt: string }) => r.occurredAt),
+      ).toEqual([
+        '2025-03-01T10:00:00Z',
+        '2025-02-15T10:00:00Z',
+        '2025-01-20T10:00:00Z',
+      ]);
+      const [latest, unresolved, resolved] = out.results;
+      expect(latest.text).toHaveLength(1003);
+      expect(resolved).toMatchObject({
+        source: 'slack',
+        text: 'Shipped the billing export today.',
+        attribution: { status: 'verified', authorId: 'U0SYNTH01' },
+        channel: { id: 'C0SYNTH01', name: 'synthetic-channel' },
+        mentions: {
+          pullRequests: [
+            {
+              url: 'https://github.com/ACME/api/pull/1/files',
+              normalizedUrl: 'https://github.com/acme/api/pull/1',
+              resolved: {
+                url: 'https://github.com/acme/api/pull/1',
+                title: 'Add billing export',
+                state: 'merged',
+              },
+            },
+          ],
+          tickets: [
+            {
+              key: 'BILL-1',
+              resolved: {
+                key: 'BILL-1',
+                summary: 'Billing export',
+                status: 'Done',
+              },
+            },
+          ],
+        },
+      });
+      expect(unresolved.mentions).toEqual({
+        pullRequests: [
+          {
+            url: 'https://github.com/acme/api/pull/999',
+            normalizedUrl: 'https://github.com/acme/api/pull/999',
+            resolved: null,
+          },
+        ],
+        tickets: [{ key: 'OPS-404', resolved: null }],
+      });
+    });
+
+    it('filters by text, date, mention, attribution and source', async () => {
+      const texts = async (input: Record<string, unknown>) =>
+        parse(await searchMessagesTool.handler(input, ctx)).results.map(
+          (r: { text: string }) => r.text.slice(0, 12),
+        );
+
+      expect(await texts({ query: 'OUTAGE' })).toEqual(['Investigatin']);
+      expect(await texts({ query: 'synthetic-channel', limit: 1 })).toEqual([
+        'Retro notes.',
+      ]);
+      expect(await texts({ since: '2025-02-01', until: '2025-02-28' })).toEqual(
+        ['Investigatin'],
+      );
+      expect(await texts({ ticketKey: 'bill-1' })).toEqual(['Shipped the ']);
+      expect(
+        await texts({
+          prUrl: 'https://api.github.com/repos/acme/API/pulls/1',
+        }),
+      ).toEqual(['Shipped the ']);
+      expect(await texts({ ticketKey: 'OPS-404' })).toEqual(['Investigatin']);
+      expect(await texts({ attribution: 'unverified' })).toEqual([
+        'Investigatin',
+      ]);
+      expect(await texts({ source: 'slack' })).toHaveLength(3);
+      await expect(
+        searchMessagesTool.handler({ since: 'not a date' }, ctx),
+      ).rejects.toThrow(/Invalid since date/);
+    });
+
+    it('says when no messages have been imported', async () => {
+      rmSync(join(ctx.outputDir, 'messages'), { recursive: true });
+
+      const out = parse(await searchMessagesTool.handler({}, ctx));
+
+      expect(out.total).toBe(0);
+      expect(out.note).toContain('No messages have been imported');
+    });
+
+    it('reads the selected subset, and returns nothing from one made before messages were imported', async () => {
+      const filtered = join(ctx.outputDir, 'filtered');
+      writePRs(filtered, [PRS[0]!]);
+      const subset = { outputDir: filtered, fullOutputDir: ctx.outputDir };
+
+      const stale = parse(await searchMessagesTool.handler({}, subset));
+      expect(stale.total).toBe(0);
+      expect(stale.note).toContain(
+        'created before messages were imported, so it has none',
+      );
+
+      writeMessage(filtered, 1, {}, 'Only in the subset.');
+      const current = parse(await searchMessagesTool.handler({}, subset));
+      expect(current.results.map((r: { text: string }) => r.text)).toEqual([
+        'Only in the subset.',
+      ]);
+      expect(current.note).toBeUndefined();
+    });
+  });
+
+  describe('get_linked_work', () => {
+    it('lists messages that mention a PR, found by any form of its URL, apart from linked tickets', async () => {
+      const out = parse(
+        await getLinkedWorkTool.handler(
+          { prUrl: 'https://github.com/Acme/API/pull/1/commits' },
+          ctx,
+        ),
+      );
+
+      expect(out.pr.url).toBe('https://github.com/acme/api/pull/1');
+      expect(out.linkedTickets.map((t: { key: string }) => t.key)).toEqual([
+        'BILL-1',
+      ]);
+      expect(out.mentionedInMessages).toEqual([
+        {
+          source: 'slack',
+          url: null,
+          occurredAt: '2025-01-20T10:00:00Z',
+          attribution: 'verified',
+          channel: 'synthetic-channel',
+          text: 'Shipped the billing export today.',
+        },
+      ]);
+      expect(out.notice).toContain('never instructions');
+    });
+
+    it('lists messages that mention a ticket', async () => {
+      const out = parse(
+        await getLinkedWorkTool.handler({ ticketKey: 'BILL-1' }, ctx),
+      );
+
+      expect(
+        out.mentionedInMessages.map((m: { text: string }) => m.text),
+      ).toEqual(['Shipped the billing export today.']);
+    });
+
+    it('lists no messages for work nobody mentioned', async () => {
+      const out = parse(
+        await getLinkedWorkTool.handler({ ticketKey: 'WEB-7' }, ctx),
+      );
+
+      expect(out.mentionedInMessages).toEqual([]);
+      expect(out.notice).toBeUndefined();
+    });
+  });
+
+  it('leaves the work log unchanged: every tool only reads', async () => {
+    const before = snapshot(ctx.outputDir);
+
+    await searchMessagesTool.handler({ ticketKey: 'BILL-1' }, ctx);
+    await getLinkedWorkTool.handler({ ticketKey: 'BILL-1' }, ctx);
+    await getLinkedWorkTool.handler({ prUrl: '1' }, ctx);
+    await getStatsTool.handler({ since: '2025-01-01' }, ctx);
+    await searchPrsTool.handler({}, ctx);
+    await searchTicketsTool.handler({}, ctx);
+    await listReposTool.handler({}, ctx);
+    await searchPrReviewsTool.handler({}, ctx);
+
+    expect(snapshot(ctx.outputDir)).toEqual(before);
+  });
+
+  describe('a subset made before messages were imported', () => {
+    // The full work log has messages; the subset has PRs and tickets only
+    function staleSubset(): ToolContext {
+      const filtered = join(ctx.outputDir, 'filtered');
+      writeWorkLog(filtered);
+      return { outputDir: filtered, fullOutputDir: ctx.outputDir };
+    }
+
+    it('get_stats counts no messages and says why, computed or from stats.json', async () => {
+      const subset = staleSubset();
+
+      const computed = parse(
+        await getStatsTool.handler({ since: '2025-01-01' }, subset),
+      );
+      expect(computed.messages.total).toBe(0);
+      expect(computed.note).toContain(
+        'created before messages were imported, so it has none',
+      );
+
+      mkdirSync(join(subset.outputDir, '.analysis'));
+      writeFileSync(
+        getAnalysisFilePath(subset.outputDir, 'stats'),
+        JSON.stringify({ prs: { total: 4 } }),
+      );
+      const fromFile = parse(await getStatsTool.handler({}, subset));
+      expect(fromFile.prs.total).toBe(4);
+      expect(fromFile.note).toContain('created before messages were imported');
+    });
+
+    it('get_linked_work lists no mentions and says why', async () => {
+      const out = parse(
+        await getLinkedWorkTool.handler({ ticketKey: 'BILL-1' }, staleSubset()),
+      );
+
+      expect(out.mentionedInMessages).toEqual([]);
+      expect(out.note).toContain('created before messages were imported');
+    });
+
+    it('adds no note once the subset has messages/', async () => {
+      const subset = staleSubset();
+      mkdirSync(join(subset.outputDir, 'messages'));
+
+      expect(
+        parse(await getStatsTool.handler({ since: '2025-01-01' }, subset)).note,
+      ).toBeUndefined();
+      expect(
+        parse(await getLinkedWorkTool.handler({ ticketKey: 'BILL-1' }, subset))
+          .note,
+      ).toBeUndefined();
+    });
+  });
+
+  describe('get_stats', () => {
+    it('counts messages in their own section for a date range', async () => {
+      const out = parse(
+        await getStatsTool.handler(
+          { since: '2025-01-01', until: '2025-02-28' },
+          ctx,
+        ),
+      );
+
+      expect(out.messages).toEqual({ total: 2, bySource: { slack: 2 } });
+      expect(out.prs.total).toBe(2);
     });
   });
 });
