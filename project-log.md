@@ -320,6 +320,10 @@ target=codex-6-sol-xhigh threshold=high findings=critical:0,high:0,medium:0,low:
 
 m03 exit gate attempt 1 passed (0 findings) at 806f36c; artifact reviews/archived/final-review-2026-11-08T163528Z.md (Review Orchestration recorded there); wce-m03-gate-1
 
+### 2026-11-08 · structural · oat-project-complete · seal
+
+Completion sealed at 2026-11-08T21:01:32Z; project-log roll-up status: ok. oat-seal:work-chronicler-evidence-expansion
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

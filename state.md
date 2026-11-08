@@ -367,22 +367,28 @@ oat_deliveries:
 #   decided_at: null # ISO 8601 UTC
 oat_docs_updated: null # null | skipped | complete — documentation sync status
 oat_pr_status: merged
+oat_pr_status_observed_at: '2026-11-08T21:01:48Z'
 oat_pr_url: https://github.com/tkstang/work-chronicler/pull/27
 oat_project_created: '2026-11-07T22:54:38.498Z' # ISO 8601 UTC timestamp — set once at project creation
-oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-11-08T18:03:34Z"
+oat_project_completed: "2026-11-08T21:01:44.453Z" # ISO 8601 UTC timestamp — set when project is completed/archived
+oat_project_state_updated: "2026-11-08T21:01:44.453Z"
 oat_generated: false
+oat_project_recap:
+  decision: skip
+  source: interactive
+  decided_at: '2026-11-08T21:00:35.938Z'
+oat_lifecycle: complete
 ---
 
 # Project State: work-chronicler-evidence-expansion
 
-**Status:** Plan
+**Status:** Complete
 **Started:** 2026-11-07
-**Last Updated:** 2026-11-07
+**Last Updated:** 2026-11-08
 
 ## Current Phase
 
-Plan complete - brief approved; m01 aligning
+Lifecycle complete; archived locally
 
 ## Artifacts
 
@@ -396,7 +402,7 @@ Plan complete - brief approved; m01 aligning
 - ✓ Brief and implementation artifacts scaffolded
 - ✓ Brief reviewed and approved (3 artifact-review attempts)
 - ✓ m01 activated
-- ⧗ m01 implementation (p01, p02, p03)
+- ✓ Project lifecycle complete
 
 ## Blockers
 
@@ -404,4 +410,4 @@ None
 
 ## Next Milestone
 
-Run `oat-project-goal` to author the brief and its milestones and approve the first milestone
+None. Project complete.
