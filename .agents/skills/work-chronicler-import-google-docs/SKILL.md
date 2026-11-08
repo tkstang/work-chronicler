@@ -154,6 +154,13 @@ gog <account flag> --readonly --no-input --json drive get <id> \
   --fields id,name,mimeType,createdTime,modifiedTime,owners,webViewLink,driveId
 ```
 
+The JSON holds the metadata under a top-level `file` object: read
+`file.id`, `file.name`, `file.mimeType`, `file.createdTime`,
+`file.modifiedTime`, `file.owners[].emailAddress`, `file.webViewLink` and
+`file.driveId`. Every field named in this step and in step 8 is one of
+these. A field the object does not have is absent, never something to fill
+in.
+
 Keep the Doc only when all of these hold; otherwise skip it and count the
 reason:
 
