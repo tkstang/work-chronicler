@@ -820,7 +820,11 @@ Proof: 3 new rule cases fail on 5d53367; full suite, lint, typecheck, format:che
 
 ## Phase p12: Installer replacement safety
 
-**Status:** pending
+**Status:** in_progress
+**Base:** d990a404b16c80ff11fa01d7bd957b3486d5a922
+**Executor:** phase-implementer:wce-p12-impl-1
+
+Worktree and branch as p04. Committing owner: the phase implementer (code); root owns the journal. Parallelism: no declared group; one phase implementer. Task class: consequential (replacing a user's installed skills; data loss is the failure mode).
 
 ---
 
