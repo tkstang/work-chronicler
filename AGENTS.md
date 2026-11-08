@@ -26,6 +26,7 @@ User-facing docs: `README.md` (overview and quick start) and `documentation/inde
 - **The published package ships only `dist`, `bin` and `.agents/skills/work-chronicler-*`.** Repo-local skills and other agent files must stay out of the npm tarball.
 - **The CLI and MCP server never call an LLM.** AI work happens in skills, inside the user's assistant.
 - **Ask before** changing dependencies, CI workflows, the release process or the config schema in a breaking way.
+- **Get buy-in before speculative complexity.** Before adding material complexity for a failure mode that is speculative or very unlikely (concurrent commands racing, clock jumps, crafted input the CLI or a skill never produces) or for an unconfirmed future need, explain to the user the concrete problem, the evidence that it matters, simpler alternatives, and the implementation and maintenance cost, and get their buy-in. This applies to production code, tests and fixtures, and safeguards alike, and to review findings: fix real defects, and bring speculative ones to the user instead of fixing them by default. Do not expand scope silently for theoretical robustness, flexibility or scale. Ordinary regression tests, the required checks, and the established guarantees (privacy of imported content, no data loss in the user's work log or installed skills, atomic imports) still apply.
 
 ## Definition of Done
 
