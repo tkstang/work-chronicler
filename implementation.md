@@ -195,7 +195,7 @@ Review fix. Proof: full DoD batch.
 **Status:** completed
 **Base:** 23a4f1aae63ebd37c8966dca2c2136f794f14190
 **Executor:** inline:p03-inline-exception
-**Head:** b7a300e0259cfc2a3df8d48de8dd1bbb50c641d8
+**Head:** b079cd77e9306bdc2a179660a6536afba12f0847
 
 Inline exception (recorded before editing): version bump and CHANGELOG section move only — no new surface, no unresolved design, not consequential before the tag push (which happens after merge under the Release authority), one proof command (the local DoD batch). Committing owner: root. Parallelism: single trivial phase.
 
@@ -349,6 +349,17 @@ Intent: The dependency inventory skips only a missing tool skills directory (ENO
 Files: `skills/migrate.ts`, `skills/install.test.ts`, `documentation/available-skills.md`
 Proof: full DoD batch (252 tests); the unreadable-tool-directory regression (skipped as root) fails on aa1da62 code and passes after; existing tests with absent tool directories still remove old copies.
 
+### Task p03-t15: (review) Match old skill copies by file identity and real separators
+
+**Status:** completed
+**Commit:** b079cd77e9306bdc2a179660a6536afba12f0847
+**Executor:** inline:p03-inline-exception (root, two integrated-review findings plus three PR review comments)
+**Source review:** reviews/archived/m01-review-2026-11-08T042422Z.md (H1, H2); PR #25 CodeRabbit 4505014153, 4505014156, 4505014158
+
+Intent: Dependency paths match the old entry by filesystem identity (dev:ino up the path) as well as text, so a differently cased spelling on a case-insensitive volume keeps the old copy (H1, 4505014158). Only "/" separates path parts on POSIX, so a backslash in a name no longer hides a link (H2). The kept-old-name notice and docs say `--overwrite` reinstalls only work-chronicler skills (4505014153). Install tests stub USERPROFILE (4505014156).
+Files: `skills/migrate.ts`, `skills/install.ts`, `skills/install.test.ts`, `documentation/available-skills.md`
+Proof: full DoD batch (254 tests); both new regressions fail on b7a300e code and pass after (case test runs on case-insensitive volumes only, backslash test skips on Windows).
+
 ---
 
 ## Phase p04: Staged import contract
@@ -414,6 +425,8 @@ Proof: full DoD batch (252 tests); the unreadable-tool-directory regression (ski
 - Root-inline phase: p03 — inline exception for a version bump and CHANGELOG move; root model claude-opus-5-5
 
 - Root-inline phase: p03 (fix p03-t10) — one small skill-text finding from exit gate attempt 4; root model claude-opus-5-5
+
+- Root-inline phase: p03 (fix p03-t15) — two High integrated-review findings and three PR comments in the same migration code, small and bounded; root model claude-opus-5-5
 
 - Root-inline phase: p03 (fix p03-t14) — one High integrated-review finding (unreadable tool skills directory), small and bounded; root model claude-opus-5-5
 
@@ -570,6 +583,20 @@ Proof: full DoD batch (252 tests); the unreadable-tool-directory regression (ski
 **Findings:** Critical 0 · High 0 · Medium 0 · Low 0 (gate `codex-6-sol-xhigh`, run 17e244e5-ecea-4a24-b8b5-d6a4096e38d4, reviewed head b7a300e0259cfc2a3df8d48de8dd1bbb50c641d8)
 
 **Outcome:** passed. Exit carrier allowed/fresh at b7a300e0259cfc2a3df8d48de8dd1bbb50c641d8 (2026-11-08T04:19:51Z); recovery stage → reviewing.
+
+### Review Received: m01 (integrated delivery re-review at b7a300e)
+
+**Date:** 2026-11-08
+**Review artifact (local-only):** reviews/archived/m01-review-2026-11-08T042422Z.md
+
+**Findings:** Critical 0 · High 2 · Medium 0 · Low 0 (cross-provider reviewer codex gpt-6.1-sol high via delegated task, scope `code m01: p01, p02, p03`, reviewed head b7a300e0259cfc2a3df8d48de8dd1bbb50c641d8, with a requested adversarial pass over the old-skill removal decision)
+
+- H1 (High): a nested link through a differently cased old-name path on a case-insensitive volume evades the text comparison and the old copy is deleted (also CodeRabbit 4505014158) → p03-t15; agree.
+- H2 (High): POSIX paths were split on backslashes, so a link through a directory whose name contains one is not traced and the old copy is deleted → p03-t15; agree.
+
+Also in p03-t15: CodeRabbit 4505014153 (docs/notice wrongly said `--overwrite` fixes custom skills) and 4505014156 (USERPROFILE in tests).
+
+**Outcome:** fixed in p03-t15 (b079cd77e9306bdc2a179660a6536afba12f0847). Recovery stage → exit_gate (gate attempt 10), then a fresh integrated review.
 
 ### PR review received: d01 (PR #25, CodeRabbit)
 
