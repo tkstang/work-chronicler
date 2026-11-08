@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `/work-chronicler-import-slack` handles large imports: it searches one
+  day at a time (one Slack search returns at most 400 results), splitting a
+  day that still reaches that by channel, covers the extra local day at each
+  end of the UTC range and keeps only messages inside it, searches each
+  private channel you agreed to on its own (unless you allow a search of all
+  your private channels), and imports in
+  batches of a few hundred records, each in a new staging directory, until
+  every kept message is imported. It waits and retries on
+  `IMPORT_IN_PROGRESS`, and if a batch keeps failing it stops and reports
+  the days not imported instead of moving on. Message bodies decode `&amp;`,
+  `&lt;` and `&gt;` and rewrite nested Slack links until no markup is left,
+  a thread starter's link drops its own `thread_ts`, and a message holding
+  a password, key, token or other secret is held back and counted, not
+  staged (a copy an earlier import stored stays in the work log).
+- `/work-chronicler-setup-slack` can, when you ask, find the channels you
+  posted in, including archived ones and ones you left, by searching your
+  own messages for their channel IDs only.
+
 ## [0.7.0] - 2026-11-08
 
 ### Added

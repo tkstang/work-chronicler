@@ -466,20 +466,30 @@ anything there. The CLI stores the settings and checks every record on import
    URL label from a permalink, such as `example` for `example.slack.com`)
    and the subject's Slack user ID, and runs `slack configure`.
 2. Lists your public channels and asks which hold review-relevant work.
-   Private channels are offered only if you opt in; direct messages and
-   group DMs never are.
+   If you ask for the channels you posted in, it finds them by searching
+   your own messages (the channel list leaves out archived channels and
+   ones you left). Private channels are offered only if you opt in; direct
+   messages and group DMs never are.
 3. In a manager profile, offers only channels you share with the report: it
    checks the report is a member before passing `--shared-with-manager`.
 4. Records a one-line reason per channel with `slack channels add`.
 
 **Import** (`/work-chronicler-import-slack`):
 1. Reads `slack show --json` and stops if Slack is not set up.
-2. Searches each importable channel for messages the subject wrote in the
-   profile's fetch range (private channels only with your consent), without
-   reading threads or other people's replies.
+2. Searches one day at a time for messages the subject wrote in the
+   profile's fetch range (private channels only with your consent, each
+   searched on its own unless you allow a search of all of them), without
+   reading threads or other people's replies, and keeps only those from
+   importable channels. A day with more results than one Slack search
+   returns (400) is searched again channel by channel.
 3. Writes one record per message (the subject's own text; a reply keeps only
-   its parent's ID and link) to a temporary staging directory, runs
-   `validate`, then `import`, and deletes the directory.
+   its parent's ID and link) in batches of a few hundred, each in a new
+   temporary staging directory: it runs `validate`, then `import`, and
+   deletes the directory before the next batch. If a batch keeps failing,
+   it stops and reports the days it did not import. A message holding a
+   password, key, token or other secret is held back and counted, not
+   staged in this run. An earlier import may already have stored such a
+   message: an import never removes records.
 4. Reports counts only. Running it again updates the same records and never
    duplicates them.
 
