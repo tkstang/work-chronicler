@@ -643,7 +643,7 @@ Known docs follow-up: the shipped CHANGELOG 0.5.0 entry still says `fetch --revi
 
 ## Deferred Findings
 
-- m02 re-alignment disposition (2026-11-08, Astra-advised): pulled into m02 — filter stale-subset replacement and empty-result marker (CodeRabbit 4504862967, 4504862986) and skills pointing at `search_pr_reviews`/`status` (complexity F1, F2) into p05; CHANGELOG `fetch --reviews` wording into p05; installer delete-before-copy and cleanup-failure handling (4504863000, 4504866388) into new p12. All other m01 deferrals below are post-goal follow-ups (trigger: after m03): F3, F4, F5, 4504862946, 4504862950, 4504863012, 4504866382, 4504866386, 4504866392, 4504862955, and the reused-output-directory Low.
+- m02 re-alignment disposition (2026-11-08, Astra-advised): pulled into m02 — filter stale-subset replacement and empty-result marker (CodeRabbit 4504862967, 4504862986) and skills pointing at `search_pr_reviews`/`status` (complexity F1, F2) into p05; CHANGELOG `fetch --reviews` wording into p05; installer delete-before-copy and cleanup-failure handling (4504863000, 4504866388) into new p12, with 4504866386 (failure injection that does not rely on non-root chmod); the reused-output-directory Low into p05's attribution evidence. All other m01 deferrals below are post-goal follow-ups (trigger: after m03): F3, F4, F5, 4504862946, 4504862950, 4504863012, 4504866382, 4504866392, 4504862955.
 
 <!-- One line per approved deferral (finding, rationale, approval, follow-up trigger), plus excluded parallel phases and unmerged worktrees. -->
 

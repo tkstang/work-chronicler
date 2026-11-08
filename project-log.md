@@ -141,6 +141,10 @@ Impact: delivery-record repair after the final review passed.
 Recommendation: write integrated_review.scope as the phase list, bound_revisions as {member, head, base} with base a SHA, and member base as the observed base SHA; run delivery check --subject dNN right after registration.
 Uncertainty: OAT 0.3.46 behavior; may differ in later versions.
 
+### 2026-11-08 · structural · oat-project-goal · m02
+
+m02 amendment: p04-p08 made concrete; p12 (installer replacement safety) added before p08; m01 deferrals pulled into p05 and p12, the rest post-goal. Codex gpt-6-astra (high) advised and supports it (Decision 'm02 re-alignment' in plan.md). Artifact review attempt 1 findings folded; work-chronicler-evidence-expansion-amend-m02
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
