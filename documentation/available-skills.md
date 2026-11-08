@@ -477,7 +477,8 @@ anything there. The CLI stores the settings and checks every record on import
 **Import** (`/work-chronicler-import-slack`):
 1. Reads `slack show --json` and stops if Slack is not set up.
 2. Searches one day at a time for messages the subject wrote in the
-   profile's fetch range (private channels only with your consent), without
+   profile's fetch range (private channels only with your consent, each
+   searched on its own unless you allow a search of all of them), without
    reading threads or other people's replies, and keeps only those from
    importable channels. A day with more results than one Slack search
    returns (400) is searched again channel by channel.

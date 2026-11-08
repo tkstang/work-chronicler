@@ -12,7 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/work-chronicler-import-slack` handles large imports: it searches one
   day at a time (one Slack search returns at most 400 results), splitting a
   day that still reaches that by channel, covers the extra local day at each
-  end of the UTC range and keeps only messages inside it, and imports in
+  end of the UTC range and keeps only messages inside it, searches each
+  private channel you agreed to on its own (unless you allow a search of all
+  your private channels), and imports in
   batches of a few hundred records, each in a new staging directory, until
   every kept message is imported. It waits and retries on
   `IMPORT_IN_PROGRESS`, and if a batch keeps failing it stops and reports

@@ -70,8 +70,12 @@ record must carry) and `importCommand`.
 
 If any importable channel has `private: true`, ask: "May I search your
 private channels <names> for <the subject's> messages? Private channel search
-uses a Slack permission you may be asked to approve." Search private channels
-only if the user says yes; otherwise skip them and count them as skipped.
+uses a Slack permission you may be asked to approve." The user may agree to
+some of them or all of them. Only if they want fewer searches, offer one
+more choice: a search of all private channels they belong to, which reads
+the subject's messages in every one of them (those from unconfigured
+channels are dropped unused). Search only what the user agreed to; skip
+every other private channel and count it as skipped.
 
 ### 3. Start a batch in a new staging directory
 
@@ -105,10 +109,13 @@ more. So search one day at a time, with the user ID from `slack show`:
 from:<@USER_ID> on:2026-01-01
 ```
 
-- Use `slack_search_public_and_private` with
-  `channel_types: "public_channel,private_channel"` when the user agreed to
-  private channels in step 2, and `slack_search_public` (public channels
-  only) otherwise. Direct messages and group DMs then never appear.
+- Search public channels with `slack_search_public` (public channels only).
+- Search a private channel the user agreed to in step 2 on its own: the
+  same query plus `in:<#CHANNEL_ID>`, with `slack_search_public_and_private`.
+  Only when the user agreed to all private channels they belong to, run one
+  `slack_search_public_and_private` search for the day with
+  `channel_types: "public_channel,private_channel"` instead of both.
+- Direct messages and group DMs never appear in these searches.
 - Pass `response_format: "detailed"` and `include_context=false` (so
   neighbouring messages by other people are left out), sort by timestamp,
   and page through every result with the cursor to the last page.
