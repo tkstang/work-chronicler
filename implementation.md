@@ -616,7 +616,7 @@ Proof: new dead-guard test fails on 5d723ff code; 436 tests, lint, typecheck, fo
 **Status:** in_progress
 **Base:** 9e70b3c7a6a3f467e96ccab3c3f72d802c8f3a4b
 **Executor:** phase-implementer:wce-p06-impl-1
-**Head:** b5b900b9d3ea4bbb0c02a227edec50ef9699e8a8
+**Head:** 6bfcfecd44b80efa12b280a6f41f7fe4b0c4e57f
 
 Worktree and branch as p04. Committing owner: the phase implementer (code); root owns the journal. Parallelism: no declared group; fan-out rejected (config schema, `slack` commands and the import-side Slack rules share the config types); one phase implementer. Task class: consequential (privacy enforcement at the import boundary).
 
@@ -663,6 +663,32 @@ Proof: `slack.test.ts` (real CLI) and a manual IC and manager run in a temp home
 **Executor:** phase-implementer:wce-p06-impl-1
 Files: `documentation/{commands,configuration,manager-mode}.md`, `README.md`, `AGENTS.md`, `CHANGELOG.md`
 Proof: `format:check`; documented config and record example run through the built CLI; repeat import unchanged
+
+### Task p06-t05: (review) Decide Slack config changes by value; refuse unlisted removal
+
+**Status:** completed
+**Commit:** 8ebb89d12baa9de350aad95865474166c480f3a4
+**Executor:** phase-implementer:wce-p06-impl-1 (fix mode)
+**Source review:** reviews/archived/p06-review-2026-11-08T075843Z.md (M1)
+Proof: hand-formatted config tests: no-op leaves bytes identical with `changed:false`; mistyped remove exits 1 naming configured IDs; 5 tests fail on b5b900b
+
+### Task p06-t06: (review) Refuse a hard-linked config instead of splitting it
+
+**Status:** completed
+**Commit:** b0715a52ccf909bb013bbef7625fd73789ee7320
+**Executor:** phase-implementer:wce-p06-impl-1 (fix mode)
+**Source review:** reviews/archived/p06-review-2026-11-08T075843Z.md (L1)
+Proof: additive `nlink` on FsEntry; real hard link and injected `nlink: 2` refused; tests fail on b5b900b
+
+### Task p06-t07: (review) Require the configured channel name on Slack records
+
+**Status:** completed
+**Commit:** 6bfcfecd44b80efa12b280a6f41f7fe4b0c4e57f
+**Executor:** phase-implementer:wce-p06-impl-1 (fix mode)
+**Source review:** reviews/archived/p06-review-2026-11-08T075843Z.md (L2)
+Proof: `container.name` must be null or exactly the configured name; error names only the field
+
+Root re-ran typecheck, lint, format:check and tests at 6bfcfec: pass (515). Note for p07: the import skill copies the channel `name` from `slack show` (or writes null), never the name from search results.
 
 ---
 
