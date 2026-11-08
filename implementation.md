@@ -529,6 +529,15 @@ Proof: full DoD batch (251 tests); the permission-denied regression (skipped as 
 
 **Outcome:** H1 fixed in p03-t13 (aa1da62cea9621cebedd98cd18852853f7965567). Gate runs again (attempt 8, beyond the configured budget under the user's standing direction to keep running the gate).
 
+### Review Received: p01-p03 (m01 recovery exit gate, attempt 8)
+
+**Date:** 2026-11-08
+**Review artifact (local-only):** reviews/archived/range-review-2026-11-08T040057Z.md
+
+**Findings:** Critical 0 · High 0 · Medium 0 · Low 0 (gate `codex-6-sol-xhigh`, run 52e01ff1-0c64-4f1d-ade8-93a101a80d06, reviewed head aa1da62cea9621cebedd98cd18852853f7965567)
+
+**Outcome:** passed. Exit carrier allowed/fresh at aa1da62cea9621cebedd98cd18852853f7965567 (2026-11-08T04:04:35Z); recovery stage → reviewing (fresh integrated review next).
+
 ### PR review received: d01 (PR #25, CodeRabbit)
 
 **Date:** 2026-11-08
