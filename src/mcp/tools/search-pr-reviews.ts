@@ -28,7 +28,9 @@ export const searchPrReviewsTool = defineTool({
     state: z
       .enum(['APPROVED', 'CHANGES_REQUESTED', 'COMMENTED', 'DISMISSED'])
       .optional()
-      .describe('Only reviews with this state'),
+      .describe(
+        'Only reviews with this state, and the inline comments submitted with them',
+      ),
     since: z
       .string()
       .optional()
@@ -68,16 +70,29 @@ export const searchPrReviewsTool = defineTool({
     const queryLower = input.query?.toLowerCase();
 
     let results = (await readAllPRReviews(source))
-      .map(({ frontmatter: record }) => ({
-        record,
-        reviews: record.reviews.filter(
-          (r) =>
-            inRange(r.submittedAt) && (!input.state || r.state === input.state),
-        ),
-        comments: input.state
-          ? []
-          : record.comments.filter((c) => inRange(c.createdAt)),
-      }))
+      .map(({ frontmatter: record }) => {
+        // With a state, keep the comments submitted with a review in that
+        // state: they carry the review's substance (e.g. requested changes)
+        const reviewIdsInState = new Set(
+          record.reviews
+            .filter((r) => r.state === input.state)
+            .map((r) => r.reviewId),
+        );
+        return {
+          record,
+          reviews: record.reviews.filter(
+            (r) =>
+              inRange(r.submittedAt) &&
+              (!input.state || r.state === input.state),
+          ),
+          comments: record.comments.filter(
+            (c) =>
+              inRange(c.createdAt) &&
+              (!input.state ||
+                (c.reviewId !== null && reviewIdsInState.has(c.reviewId))),
+          ),
+        };
+      })
       .filter(({ record, reviews, comments }) => {
         if (reviews.length === 0 && comments.length === 0) return false;
         if (input.org && record.pr.org !== input.org) return false;

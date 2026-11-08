@@ -561,6 +561,19 @@ describe('search_pr_reviews', () => {
             body: '',
           },
         ],
+        comments: [
+          {
+            commentId: 30,
+            reviewId: 10,
+            inReplyToId: null,
+            path: 'db/migrate.sql',
+            line: 1,
+            createdAt: '2025-02-01T00:00:00Z',
+            updatedAt: '2025-02-01T00:00:00Z',
+            url: 'https://github.com/acme/api/pull/1#discussion_r30',
+            body: 'Needs a down migration',
+          },
+        ],
       }),
       reviewRecord('web-app', 1, {
         comments: [
@@ -599,7 +612,7 @@ describe('search_pr_reviews', () => {
       'https://github.com/acme/api/pull/1',
       'https://github.com/acme/web-app/pull/1',
     ]);
-    expect(out.totals).toEqual({ reviews: 2, comments: 1 });
+    expect(out.totals).toEqual({ reviews: 2, comments: 2 });
   });
 
   it('keeps only reviews and comments inside the date range', async () => {
@@ -623,7 +636,20 @@ describe('search_pr_reviews', () => {
     ]);
   });
 
-  it('filters by review state and searches review text', async () => {
+  it('filters by review state, keeping the inline comments of matching reviews', async () => {
+    const changes = parse(
+      await searchPrReviewsTool.handler({ state: 'CHANGES_REQUESTED' }, ctx),
+    );
+    expect(changes.total).toBe(1);
+    expect(
+      changes.results[0].reviews.map((r: { reviewId: number }) => r.reviewId),
+    ).toEqual([10]);
+    expect(
+      changes.results[0].comments.map(
+        (c: { commentId: number }) => c.commentId,
+      ),
+    ).toEqual([30]);
+
     const approved = parse(
       await searchPrReviewsTool.handler({ state: 'APPROVED' }, ctx),
     );

@@ -212,7 +212,7 @@
           "type": "string"
         },
         "state": {
-          "description": "Only reviews with this state",
+          "description": "Only reviews with this state, and the inline comments submitted with them",
           "type": "string",
           "enum": ["APPROVED", "CHANGES_REQUESTED", "COMMENTED", "DISMISSED"]
         },
