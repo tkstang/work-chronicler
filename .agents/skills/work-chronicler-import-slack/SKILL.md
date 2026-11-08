@@ -87,10 +87,13 @@ It must be outside the work log, and hold only record files named `1.md`,
 holds a few hundred records, or every kept result of the last day searched
 is written, validate and import it (step 7) and delete its directory
 (step 8) before starting the next batch here with a new `mktemp -d`. Kept
-results that did not fit go into the next batch, even after the last day. The CLI refuses a batch of more than
-10,000 records or about 32 MiB of record files (`BATCH_TOO_LARGE`: split
-it). Never validate or import a staging directory you did not create for
-this batch.
+results that did not fit go into the next batch, even after the last day.
+
+The CLI refuses a batch of more than 10,000 records, or whose records hold
+more than 64 MiB in total, each counted as its stored form plus its body
+text (`BATCH_TOO_LARGE`: split it), and a record file over 1 MiB
+(`FILE_TOO_LARGE`). Never validate or import a staging directory you did
+not create for this batch.
 
 ### 4. Search one day at a time
 
