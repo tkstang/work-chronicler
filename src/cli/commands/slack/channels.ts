@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { closeSync, openSync, readSync } from 'node:fs';
 
 import chalk from 'chalk';
 import { Command } from 'commander';
@@ -21,12 +21,38 @@ interface AddOptions extends SlackCommandOptions {
   sharedWithManager?: boolean;
 }
 
+/** Largest reason file read: far above the 200-character reason limit */
+export const MAX_REASON_FILE_BYTES = 4096;
+
+class ReasonTooLargeError extends Error {}
+
+/** Read at most {@link MAX_REASON_FILE_BYTES}, so a huge input never fills memory */
+function readBounded(file: string): Buffer {
+  const fd = file === '-' ? 0 : openSync(file, 'r');
+  try {
+    const chunks: Buffer[] = [];
+    let total = 0;
+    for (;;) {
+      const chunk = Buffer.alloc(MAX_REASON_FILE_BYTES + 1);
+      const read = readSync(fd, chunk, 0, chunk.length, null);
+      if (read === 0) break;
+      total += read;
+      if (total > MAX_REASON_FILE_BYTES) throw new ReasonTooLargeError();
+      chunks.push(chunk.subarray(0, read));
+    }
+    return Buffer.concat(chunks);
+  } finally {
+    if (fd !== 0) closeSync(fd);
+  }
+}
+
 /**
  * The reason from `--reason`, or read from `--reason-file` (`-` is standard
  * input). Read from a file or standard input, the text never passes through
  * a shell, so quotes, `$`, backticks and backslashes in it are kept as they
- * are. One trailing line break is dropped; the settings check refuses
- * anything else that is not one line of text.
+ * are. The file must be UTF-8 and at most {@link MAX_REASON_FILE_BYTES}.
+ * The settings drop surrounding whitespace (a trailing line break included)
+ * and refuse anything else that is not one line of text.
  */
 function readReason(options: AddOptions): string {
   if ((options.reason === undefined) === (options.reasonFile === undefined)) {
@@ -37,19 +63,32 @@ function readReason(options: AddOptions): string {
   }
   if (options.reason !== undefined) return options.reason;
   const file = options.reasonFile as string;
-  let text: string;
+  const from = file === '-' ? 'standard input' : file;
+  let data: Buffer;
   try {
-    text = readFileSync(file === '-' ? 0 : file, 'utf-8');
+    data = readBounded(file);
   } catch (error) {
     failSlackChange(
       options,
-      `The reason could not be read from ${file === '-' ? 'standard input' : file} (${
-        error instanceof Error ? error.message : String(error)
-      }). The config was not changed.`,
+      error instanceof ReasonTooLargeError
+        ? `The reason in ${from} is larger than ${MAX_REASON_FILE_BYTES} bytes; a reason is one line of at most 200 characters. The config was not changed.`
+        : `The reason could not be read from ${from} (${
+            error instanceof Error ? error.message : String(error)
+          }). The config was not changed.`,
       error,
     );
   }
-  return text.replace(/\r?\n$/, '');
+  let text: string;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true }).decode(data);
+  } catch (error) {
+    failSlackChange(
+      options,
+      `The reason in ${from} is not valid UTF-8. The config was not changed.`,
+      error,
+    );
+  }
+  return text;
 }
 
 const addCommand = new Command('add')

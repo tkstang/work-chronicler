@@ -371,7 +371,7 @@ the fields.
 | Command | Meaning |
 | --- | --- |
 | `slack configure --workspace <workspace> --user <user-id>` | Set up Slack: the workspace and the subject's Slack user ID (yours, or the report's). The workspace is its team ID (`T…`/`E…`) or, when no Slack tool shows the ID, its URL label (`example` for `example.slack.com` or `example.enterprise.slack.com`). The workspace or user cannot change while channels are configured; remove them first. Nor can the user change while the work log holds Slack messages by another user (they would be presented with the new user's as the subject's): remove the `messages/slack/` directory the error names first (and run `filter` again if you use a subset). |
-| `slack channels add <channel-id> --name <name> --reason <text>` | Add a channel whose messages by the subject may be imported. `--name` is the channel name (a leading `#` is dropped); `--reason` says why it holds review-relevant work (one line). Pass the reason with `--reason-file <path>` instead to read it from a file, or from standard input with `-`. |
+| `slack channels add <channel-id> --name <name> --reason <text>` | Add a channel whose messages by the subject may be imported. `--name` is the channel name (a leading `#` is dropped); `--reason` says why it holds review-relevant work (one line, at most 200 characters; surrounding spaces are dropped). Pass the reason with `--reason-file <path>` instead to read it from a file, or from standard input with `-`. |
 | `slack channels remove <channel-id>` | Remove a channel. Records already imported from it are kept; later imports refuse it. An ID that is not configured is refused (exit 1) with the configured IDs listed, so a mistyped ID is never reported as removed. |
 | `slack channels list` | List the configured channels. |
 | `slack show` | Print what an import skill uses (read-only). |
@@ -380,7 +380,7 @@ the fields.
 
 | Flag | Meaning |
 | --- | --- |
-| `--reason-file <path>` | Read the reason from a file instead of `--reason` (exactly one of the two is required); `-` reads standard input. The text is used as it is, without shell quoting, and one trailing line break is dropped. The setup skill writes the reason to a temporary file with the assistant's file-writing tool and passes that file, so no shell reads the reason and quotes, `$`, backticks or line breaks in it cannot break or extend the command. |
+| `--reason-file <path>` | Read the reason from a file instead of `--reason` (exactly one of the two is required); `-` reads standard input. The file must be UTF-8 and at most 4 KiB. The text is used without shell quoting; surrounding spaces and line breaks are dropped, and a reason that still holds a line break is refused. The setup skill writes the reason to a temporary file with the assistant's file-writing tool and passes that file, so no shell reads the reason and quotes, `$`, backticks or line breaks in it cannot break or extend the command. |
 | `--private` | Opt in to a private channel. Channels are public otherwise, and a `G…` ID (a private conversation) is refused without it. |
 | `--shared-with-manager` | Manager profiles: confirm that you and the report are both members of the channel. Required for every report channel; the CLI cannot check membership, so the setup skill checks it before passing this flag. |
 

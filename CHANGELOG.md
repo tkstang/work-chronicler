@@ -69,8 +69,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   issue in 0.6.0). `slack channels add` now takes `--reason-file <path>`
   (`-` reads standard input) as well as `--reason`, and the skill writes the
   reason to a temporary file with the assistant's file-writing tool and
-  passes that file, so no shell reads the reason. A missing or unreadable
-  reason is reported as JSON with `--json`.
+  passes that file, so no shell reads the reason. The file is read up to
+  4 KiB and must be UTF-8. A missing, unreadable, oversized or invalid reason
+  is reported as JSON with `--json`, and a reason is stored without the
+  surrounding spaces and line breaks that were already ignored when it was
+  read.
 - A subset made by `filter`, an MCP tool result or `analyze` could include
   part of an import's batch, read while the import was storing it or after
   it was interrupted. Readers now never see part of a batch: they wait for

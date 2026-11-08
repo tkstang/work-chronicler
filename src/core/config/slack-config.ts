@@ -126,7 +126,8 @@ function channelEntry(owner: SlackSettingsOwner, channel: SlackChannelInput) {
   const entry: Plain = {
     id: channel.id,
     name: channel.name,
-    reason: channel.reason,
+    // Stored as it is read: without surrounding whitespace
+    reason: channel.reason.trim(),
     private: channel.private,
   };
   if (owner.kind === 'report') entry.sharedWithManager = true;

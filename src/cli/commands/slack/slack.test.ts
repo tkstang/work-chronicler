@@ -18,6 +18,8 @@ import {
 } from '@core/import/import.test-support';
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { MAX_REASON_FILE_BYTES } from './channels';
+
 /** These tests run the built CLI several times; slow CI runners need more than the 5 s default */
 const CLI_RUNS = { timeout: 60_000 };
 
@@ -80,7 +82,14 @@ function cli(profile: string, args: string[], input?: string) {
   const result = spawnSync(
     process.execPath,
     ['--import', 'tsx', 'src/cli/index.ts', ...args],
-    { cwd: repoRoot, encoding: 'utf-8', env: env(profile), input },
+    // A bound, so a run that reads without end fails instead of hanging
+    {
+      cwd: repoRoot,
+      encoding: 'utf-8',
+      env: env(profile),
+      input,
+      timeout: 30_000,
+    },
   );
   return {
     status: result.status,
@@ -359,6 +368,76 @@ describe('slack commands: IC profile', CLI_RUNS, () => {
         reason: "Bob's on-call handoffs",
       }),
     );
+  });
+
+  it('stores the reason without surrounding whitespace', () => {
+    const file = join(root, 'padded-reason.txt');
+    writeFileSync(file, '   Padded reason  \n\n');
+
+    const run = json('solo', [
+      'slack',
+      'channels',
+      'add',
+      'C0TEST0007',
+      '--name',
+      'synthetic-padded',
+      '--reason-file',
+      file,
+    ]);
+
+    expect(run.status).toBe(0);
+    expect(run.value.channels).toContainEqual(
+      expect.objectContaining({ id: 'C0TEST0007', reason: 'Padded reason' }),
+    );
+    expect(readFileSync(soloConfig, 'utf-8')).toContain(
+      'reason: Padded reason\n',
+    );
+  });
+
+  it.each([
+    [
+      'larger than the bound',
+      () => {
+        const file = join(root, 'large-reason.txt');
+        writeFileSync(file, 'x'.repeat(MAX_REASON_FILE_BYTES + 1));
+        return file;
+      },
+      `larger than ${MAX_REASON_FILE_BYTES} bytes`,
+    ],
+    [
+      'without end',
+      () => '/dev/zero',
+      `larger than ${MAX_REASON_FILE_BYTES} bytes`,
+    ],
+    [
+      'not valid UTF-8',
+      () => {
+        const file = join(root, 'latin1-reason.txt');
+        writeFileSync(file, Buffer.from([0x63, 0x61, 0x66, 0xff]));
+        return file;
+      },
+      'not valid UTF-8',
+    ],
+  ])('refuses a reason file %s', (_label, path, message) => {
+    const before = readFileSync(soloConfig, 'utf-8');
+
+    const run = json('solo', [
+      'slack',
+      'channels',
+      'add',
+      'C0TEST0008',
+      '--name',
+      'synthetic-refused',
+      '--reason-file',
+      path(),
+    ]);
+
+    expect(run.status).toBe(1);
+    expect(run.value).toEqual({
+      ok: false,
+      error: expect.stringContaining(message),
+    });
+    expect(readFileSync(soloConfig, 'utf-8')).toBe(before);
   });
 
   it.each([
