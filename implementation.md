@@ -1271,6 +1271,17 @@ Also in p03-t15: CodeRabbit 4505014153 (docs/notice wrongly said `--overwrite` f
 
 **Outcome:** passed. m02 exit carrier allowed/fresh at 890358f95e9adde796635336ae741de206fc0e2d (2026-11-08T10:09:12Z); m02 → reviewing (integrated review next).
 
+### Review Received: m02 (integrated delivery review)
+
+**Date:** 2026-11-08
+**Review artifact (local-only):** reviews/archived/m02-review-2026-11-08T101759Z.md
+
+**Findings:** Critical 0 · High 1 · Medium 0 · Low 0 (cross-provider reviewer codex gpt-6.1-sol high via delegated task, scope `code m02: p04, p05, p06, p07, p12, p08`, reviewed head 890358f95e9adde796635336ae741de206fc0e2d)
+
+- H1 (High): stale import-lock takeover can admit two live importers (`src/core/import/transaction.ts:503`; demonstrated three-contender schedule) → fix by moving import and filter onto one shared, already-reviewed lock helper (the p05 filter lock serializes stale takeover); agree.
+
+**Outcome:** fix dispatched; m02 recovery → exit_gate after the fix (exit carrier stales), then a fresh integrated review.
+
 ### PR review received: d01 (PR #25, CodeRabbit)
 
 **Date:** 2026-11-08
