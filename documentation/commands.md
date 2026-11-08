@@ -78,6 +78,143 @@ written for the same or a wider date range are skipped. These records are never 
 A rate limit stops the run; other failures are reported per org and make the
 run exit with status 1.
 
+## Import
+
+Skills that read other services hand what they found to the CLI as a staged
+batch: a directory of record files. The CLI never contacts those services
+itself. `import` checks the whole batch and stores it; `validate` runs the same
+checks and writes nothing.
+
+| Command | Meaning |
+| --- | --- |
+| `import <dir>` | Check the batch in `<dir>` and store every record in the work log, all or nothing. |
+| `validate <dir>` | Check the batch as `import` would, without writing anything. |
+
+Both take these flags and exit with status 1 when they reject the batch:
+
+| Flag | Meaning |
+| --- | --- |
+| `--report <id>` | Manager profiles (required there, refused elsewhere): the report the records are about. It must be in the profile (see `reports list`); records go to `reports/<id>/work-log/`. |
+| `-c, --config <path>` | Import into the work log of this config file. |
+| `--json` | Print the result as JSON on stdout. |
+
+Imported records are stored only: `status`, `filter`, `analyze`, `link`, the
+MCP server and the skills do not read them yet.
+
+### The staged batch
+
+- The directory holds only record files named `*.md`: no subdirectories,
+  symlinks, hidden files or other files. A batch holds at most 10,000
+  records, each file at most 1 MiB.
+- Each file is one record: a `---` line, YAML frontmatter, a closing `---`
+  line, then the body (for a message, its text). The YAML is read strictly:
+  one document, no duplicate keys, aliases or tags, and no keys the format
+  does not define.
+- Every record names the subject it is about, which must be the import's
+  target: `{ kind: ic }` in an IC profile, or `{ kind: report, reportId: <id> }`
+  matching `--report`.
+- File names only identify records in messages. Where a record is stored
+  never depends on its file name or on anything written in it.
+
+### Record format
+
+Every record shares these frontmatter fields:
+
+| Field | Meaning |
+| --- | --- |
+| `schemaVersion` | `1`. |
+| `type` | The record type: `message`. |
+| `source` | Where the record came from: `slack`. |
+| `sourceAccount` | The workspace or account the ID belongs to. For Slack, the workspace (team) ID. |
+| `sourceId` | The item's stable ID within that account. For Slack, `<channel ID>/<message ts>`. |
+| `url` | Link to the item, or `null` (the default). |
+| `occurredAt` | When it happened (ISO 8601). |
+| `updatedAt` | When it was last edited, or `null` (the default). Not earlier than `occurredAt`. |
+| `capturedAt` | When the skill read it. Not earlier than `occurredAt`. |
+| `subject` | Who it is about: `{ kind: ic }` or `{ kind: report, reportId: <id> }`. |
+| `attribution` | Who wrote it: `status` is `verified` (the skill confirmed the author is the subject; `authorId` required) or `unverified`, with the source's `authorId` when known. |
+| `mentions` | `tickets` (keys such as `PROJ-12`, uppercased) and `pullRequests` (URLs) the record mentions. Both default to empty. |
+
+A `message` record adds a `message` field: `container` (`id` and optional
+`name` of the channel or conversation), `thread` (`null`, or the `parentId` and
+optional `parentUrl` of the thread it replies in: a reference, never the
+parent's text), and `replyCount` and `replyParticipantCount` (counts only;
+default `0`). This example uses invented data:
+
+```markdown
+---
+schemaVersion: 1
+type: message
+source: slack
+sourceAccount: T0EXAMPLE
+sourceId: C0EXAMPLE/1767261600.000100
+occurredAt: "2026-01-01T10:00:00Z"
+capturedAt: "2026-01-05T09:00:00Z"
+subject: { kind: ic }
+attribution: { status: verified, authorId: U0EXAMPLE }
+mentions: { tickets: [BILL-311], pullRequests: [] }
+message:
+  container: { id: C0EXAMPLE, name: billing-launch }
+  replyCount: 3
+  replyParticipantCount: 2
+---
+
+Usage-based invoices are live for every account (BILL-311).
+```
+
+### Where records are stored
+
+A record's identity is its `type`, `source`, `sourceAccount` and `sourceId`.
+It is stored at `work-log/messages/<source>/<hash>.md`, where `<hash>` is
+derived from the identity alone. Importing a record with the same identity again replaces the stored
+one (upsert); an identical record is left as it is, so repeating an import
+changes nothing. Records that are not in the batch are never removed.
+
+### All or nothing
+
+- `import` reads and checks every record and every destination before it
+  writes anything. Anything it cannot show to be safe rejects the whole batch:
+  a symlink, file or unreadable entry where a directory below the work log
+  should be, a destination that is not a regular file, or a stored file there
+  that is not a valid record or has a different identity or subject. The work
+  log itself must exist, and must be on a filesystem that supports hard links.
+- One import runs per work log at a time, under `.import-lock`. A lock left
+  by a process that has exited, or from before the last reboot, is taken
+  over; one held by a running process or from another machine is not
+  (`IMPORT_IN_PROGRESS`).
+- The batch is written to `.import-transaction/` first and checked, with a
+  copy of every record it replaces. Each record is then put in place only
+  after the work log, the directories leading to it and the destination are
+  checked again. If anything fails or changes on the way, every record already
+  stored is put back and the import reports that no records were changed.
+- If `import` is interrupted, the next `import` (with any batch, even an
+  empty directory) finishes it first: an unfinished batch is rolled back and
+  reported as rolled back, so none of its records are kept, and only a batch
+  whose every record was stored and verified is reported as completed.
+  `validate` reports `RECOVERY_REQUIRED` while this is pending.
+- If a record was changed by something else after an interrupted import,
+  recovery leaves it as it is and stops with `RECOVERY_CONFLICT`, keeping the
+  previous version in `.import-transaction/backup/`. Sort the record out by
+  hand, then remove `.import-transaction/`.
+
+### Errors and `--json`
+
+With `--json`, stdout holds one JSON object: `ok`, `command`, `target`,
+`workLog`, `summary` (`records`, `created`, `updated`, `unchanged`), `records`
+(each staged file with its `action`), `issues`, `warnings` and `recovery`
+(an interrupted import this run finished, or `null`). Each issue has a `code`
+and a `message`, and where they apply the staged `file`, the frontmatter
+`field`, the `line` and `column`, and the `destination` relative to the work
+log. Messages never repeat record content.
+
+| Codes | Meaning |
+| --- | --- |
+| `TARGET_INVALID`, `REPORT_NOT_FOUND`, `WORK_LOG_NOT_FOUND` | The profile, report or work log cannot take the batch. |
+| `STAGING_NOT_FOUND`, `STAGING_UNREADABLE`, `UNEXPECTED_ENTRY`, `BATCH_TOO_LARGE`, `FILE_TOO_LARGE`, `READ_FAILED`, `FILE_CHANGED` | The staging directory or a file in it. |
+| `INVALID_ENCODING`, `FRONTMATTER_MISSING`, `YAML_INVALID`, `SCHEMA_INVALID`, `SOURCE_RULE`, `SUBJECT_MISMATCH`, `DUPLICATE_IDENTITY` | A record, or two records with the same identity. |
+| `UNSAFE_DESTINATION`, `IDENTITY_CONFLICT`, `DESTINATION_COLLISION` | Where a record would be stored. |
+| `IMPORT_IN_PROGRESS`, `RECOVERY_REQUIRED`, `RECOVERY_CONFLICT`, `CHANGED_DURING_IMPORT`, `COMMIT_FAILED`, `ROLLBACK_INCOMPLETE` | The lock, the commit or recovery. |
+
 ## Link, analyze and filter
 
 | Command | Meaning |

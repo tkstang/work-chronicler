@@ -332,6 +332,20 @@ work-chronicler fetch github --report alice-smith --cache
 
 This is useful for incremental updates - only new PRs and tickets are fetched.
 
+### Importing Records for a Report
+
+Records staged by an import skill go into one report's work log with
+`--report`. Every record must name that report as its subject, and the report
+must be in the profile:
+
+```bash
+work-chronicler validate ./staged-batch --report alice-smith
+work-chronicler import ./staged-batch --report alice-smith
+```
+
+See [Import](commands.md#import) for the record format and how a batch is
+stored all or nothing.
+
 ---
 
 ## Analysis
@@ -469,12 +483,13 @@ Manager mode uses a specialized directory structure:
         │   │   │   │       │   ├── 2024-01-15_123.md
         │   │   │   │       │   └── 2024-02-20_456.md
         │   │   │   │       └── backend/...
-        │   │   │   └── jira/
-        │   │   │       └── acme-corp/
-        │   │   │           ├── PLAT/
-        │   │   │           │   ├── PLAT-100.md
-        │   │   │           │   └── PLAT-101.md
-        │   │   │           └── AUTH/...
+        │   │   │   ├── jira/
+        │   │   │   │   └── acme-corp/
+        │   │   │   │       ├── PLAT/
+        │   │   │   │       │   ├── PLAT-100.md
+        │   │   │   │       │   └── PLAT-101.md
+        │   │   │   │       └── AUTH/...
+        │   │   │   └── messages/    # Records stored by `import --report alice-smith`
         │   │   ├── analysis/        # Per-report analysis
         │   │   │   ├── stats.json
         │   │   │   ├── projects.json

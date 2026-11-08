@@ -51,6 +51,7 @@ work-chronicler/
 │   │   ├── commands/           # CLI commands (see commands/README.md)
 │   │   │   ├── fetch/          # Fetch commands (github, jira, all)
 │   │   │   ├── init/           # Interactive setup wizard
+│   │   │   ├── import/         # Staged import (validate shares it)
 │   │   │   ├── profile/        # Profile management
 │   │   │   ├── skills/         # Skill management (install, uninstall, list)
 │   │   │   └── workspace/      # Workspace path resolution
@@ -62,6 +63,7 @@ work-chronicler/
 │   │   └── tools/              # One module per tool: name, schema, handler(input, context)
 │   └── core/                   # Shared types, config, storage
 │       ├── config/             # Config loading and schema (Zod)
+│       ├── import/             # Import envelope checks, planning and atomic commit
 │       ├── storage/            # Markdown file reader/writer
 │       ├── workspace/          # Portable workspace and profile management
 │       └── types/              # Zod schemas and TypeScript types
@@ -179,6 +181,8 @@ The project has four layers:
 1. **CLI Commands** (programmatic, no AI):
    - `fetch github`, `fetch jira`, `fetch all` - Pull data from sources
    - `fetch github --reviews`, `fetch all --reviews` - Also fetch PR reviews the user gave (IC only)
+   - `import <dir>` - Validate a staged batch of records (from a skill) and commit it atomically (`--report <id>` in manager mode)
+   - `validate <dir>` - Check a staged batch without writing
    - `link` - Cross-reference PRs ↔ tickets
    - `analyze` - Generate `.analysis/` files
    - `analyze reports <id>` - Per-report analysis (manager mode)
@@ -224,6 +228,7 @@ Work data is stored in markdown files with YAML frontmatter:
 work-log/
 ├── pull-requests/<org>/<repo>/<date>_<number>.md
 ├── pr-reviews/<org>/<repo>/<number>.md  # Reviews the user gave (never authored work)
+├── messages/<source>/<hash>.md          # Imported records (`import`); hash of the record identity
 ├── jira/<org>/<project>/<key>.md
 ├── performance-reviews/     # User-added past reviews
 ├── resumes/                 # User-added existing resume(s)

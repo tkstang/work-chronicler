@@ -93,6 +93,7 @@ Data lives in `~/.work-chronicler/profiles/<profile>/`. Each profile has its own
 | --- | --- |
 | Pull PRs and tickets into markdown | `fetch github`, `fetch jira`, `fetch all` |
 | Record the PR reviews you gave | `fetch github --reviews` or `fetch all --reviews` |
+| Store records a skill gathered from another service | `validate <dir>`, then `import <dir>` |
 | Connect PRs to the tickets they reference | `link` (run automatically by `fetch all`) |
 | Classify PRs as minor, standard, major or flagship | `analyze --tag-prs` |
 | Group related work into projects and a timeline | `analyze --projects --timeline` |
@@ -112,7 +113,10 @@ What exists today:
   repo in an org), optionally the reviews and inline review comments you gave
   on other people's PRs in those orgs (IC profiles), and JIRA Cloud tickets
   assigned to you (one or more instances and projects). No other sources are
-  supported.
+  fetched.
+- **Imported records:** `import` checks a batch of message records that a
+  skill staged in a directory and stores it in the work log all or nothing.
+  The CLI never contacts the service the records came from.
 - **Local enrichment:** PR-to-ticket linking, impact classification, project
   detection from shared ticket references, a week/month timeline, and filtered
   subsets. None of these call an AI model.

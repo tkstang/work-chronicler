@@ -141,6 +141,7 @@ analysis:
         ├── pull-requests/<org>/<repo>/<YYYY-MM-DD>_<number>.md
         ├── pr-reviews/<org>/<repo>/<number>.md   # reviews you gave, from `fetch github --reviews`
         ├── jira/<instance>/<project>/<KEY>.md
+        ├── messages/<source>/<hash>.md   # records stored by `import`
         ├── notes/               # your own notes, read by skills
         ├── performance-reviews/ # past reviews you add, read by skills
         ├── resumes/             # an existing resume, for update-resume
@@ -149,7 +150,9 @@ analysis:
 ```
 
 `init` creates `notes/`, `performance-reviews/` and `.analysis/`; create
-`resumes/` yourself. When `filtered/` exists, `analyze` asks whether to use it,
+`resumes/` yourself. While `import` runs, the work log also holds
+`.import-lock` and `.import-transaction/`; see
+[Import](commands.md#import). When `filtered/` exists, `analyze` asks whether to use it,
 and the MCP server reads it instead of the full work log.
 
 Manager profiles use a different layout under `reports/<id>/`; see

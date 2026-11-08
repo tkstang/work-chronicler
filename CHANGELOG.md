@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `work-chronicler import <dir>` stores a batch of records that a skill
+  staged in a directory, and `work-chronicler validate <dir>` checks one
+  without writing. Records share one format (source, account-scoped source
+  ID, timestamps, subject, attribution with an honest `unverified` state,
+  mentions); `message` records are the first type. Each is stored at
+  `work-log/messages/<source>/<hash>.md` by its identity, so importing it
+  again updates it and repeating an import changes nothing. A batch is
+  stored all or nothing: anything unsafe or ambiguous (symlinks, a stored
+  record with another identity, a record about someone else, a report not in
+  the manager profile) rejects the whole batch, a failure puts every record
+  back, and the next import recovers one that was interrupted. Manager
+  profiles import into a report's work log with `--report <id>`. Both
+  commands exit with status 1 on rejection; `--json` gives machine-readable
+  issues that never repeat record content.
+
 ## [0.5.0] - 2026-11-08
 
 ### Added
