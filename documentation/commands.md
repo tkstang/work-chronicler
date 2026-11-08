@@ -123,8 +123,8 @@ directories, never through a link to another one.
 Imported records are never read while `.import-transaction/` exists, that is
 while an import is storing a batch or after one was interrupted, so no
 reader sees part of a batch. MCP tools that read them (`search_messages`,
-`get_linked_work`, and `get_stats` when it computes stats) return no results with an
-`error` and a `note` saying why, while the PR and ticket tools still answer;
+`get_linked_work` and `get_stats`, with or without a date range) return no
+results with an `error` and a `note` saying why, while the PR and ticket tools still answer;
 `analyze` stops with an error; `status` says messages are not counted;
 `link` links PRs and tickets and warns that mentions were not checked. Run
 `import` again (an empty directory will do) to finish an interrupted import.
