@@ -749,4 +749,45 @@ describe('a mixed work log with imported messages', () => {
     expect(core.getEffectiveOutputDir(workLog).isFiltered).toBe(true);
     expect(selection()?.filters).toEqual(['Include orgs: other']);
   });
+
+  it('status and filter name a lock left on another machine and how to remove it', async () => {
+    await run(filterCommand, ['--org', 'acme']);
+    const lockPath = join(workLog, '.filter-lock');
+    mkdirSync(lockPath);
+    writeFileSync(
+      join(lockPath, 'owner.json'),
+      JSON.stringify({
+        version: 1,
+        pid: 4242,
+        hostname: 'Old-Hostname.local',
+        startedAt: 1,
+        runId: 'x',
+      }),
+    );
+
+    logs = [];
+    await run(statusCommand, []);
+    expect(logs).toContainEqual(
+      expect.stringContaining(
+        `Filter lock: ${lockPath} is held by process 4242 on Old-Hostname.local, started 1970-01-01T00:00:00.001Z.`,
+      ),
+    );
+    expect(logs).toContainEqual(
+      expect.stringContaining(`if you know no filter is running`),
+    );
+    // filter --clear is refused while the lock is held, so it is not advised
+    expect(logs.filter((line) => line.includes('--clear`'))).toEqual([
+      expect.stringContaining('`filter --clear` are refused while it is held'),
+    ]);
+
+    for (const args of [['--org', 'other'], ['--clear']]) {
+      await expect(run(filterCommand, args)).rejects.toThrow(
+        `remove ${lockPath} and try again`,
+      );
+    }
+
+    rmSync(lockPath, { recursive: true });
+    await run(filterCommand, ['--clear']);
+    expect(core.getEffectiveOutputDir(workLog).isFiltered).toBe(false);
+  });
 });

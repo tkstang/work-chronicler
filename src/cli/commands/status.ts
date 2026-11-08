@@ -13,6 +13,7 @@ import {
   readAllPRReviews,
   readAllPRs,
   readAllTickets,
+  readFilterLock,
   scanImportedRecords,
   splitReviewRecordsByReviewer,
 } from '@core/index';
@@ -21,7 +22,26 @@ import { Command } from 'commander';
 /** How many unreadable imported record files to name */
 const SKIPPED_SHOWN = 3;
 
-function describeSubset(outputDir: string): string[] {
+/**
+ * The filter lock, when one is held: who holds it and how to recover. While
+ * it is held, `filter` and `filter --clear` are refused, so the subset lines
+ * do not recommend them.
+ */
+function describeLock(outputDir: string): string | undefined {
+  let lock: ReturnType<typeof readFilterLock>;
+  try {
+    lock = readFilterLock(outputDir);
+  } catch {
+    return undefined;
+  }
+  if (!lock) return undefined;
+  const who = lock.owner
+    ? `process ${lock.owner.pid} on ${lock.owner.hostname}, started ${new Date(lock.owner.startedAt).toISOString()}`
+    : 'an owner that cannot be read';
+  return `Filter lock: ${lock.path} is held by ${who}. \`work-chronicler filter\` and \`filter --clear\` are refused while it is held. If that run is still going, wait for it; if you know no filter is running (it was stopped, or the machine was renamed), remove ${lock.path}.`;
+}
+
+function describeSubset(outputDir: string, locked: boolean): string[] {
   let state: FilteredSubsetState;
   try {
     state = getFilteredSubsetState(outputDir);
@@ -34,9 +54,9 @@ function describeSubset(outputDir: string): string[] {
   if (state.status === 'none') {
     return ['Filtered subset: none (read commands use the full work log)'];
   }
-  if (state.status === 'interrupted' && state.locked) {
+  if (state.status === 'interrupted' && locked) {
     return [
-      'Filtered subset: a `work-chronicler filter` run is replacing filtered/ right now (it holds .filter-lock); `analyze` (without `--full`) and the MCP server refuse to run until it finishes. If no filter is running, run `work-chronicler filter` again or `work-chronicler filter --clear`.',
+      'Filtered subset: a `work-chronicler filter` run is replacing filtered/ (see the filter lock below); `analyze` (without `--full`) and the MCP server refuse to run until it finishes or the lock is removed.',
     ];
   }
   if (state.status === 'interrupted') {
@@ -45,16 +65,21 @@ function describeSubset(outputDir: string): string[] {
     ];
   }
 
+  const clearAdvice = locked
+    ? ''
+    : ' Run `work-chronicler filter --clear` to use the full work log.';
   const lines: string[] = [];
   const { selection } = state;
   if (selection) {
     const { counts } = selection;
     lines.push(
-      `Filtered subset: in use by \`analyze\` and the MCP server (${counts.pullRequests} PRs, ${counts.tickets} tickets, ${counts.prReviews} reviewed PRs, ${counts.messages} messages; filters: ${selection.filters.join('; ') || 'none'}). Run \`work-chronicler filter --clear\` to use the full work log.`,
+      `Filtered subset: in use by \`analyze\` and the MCP server (${counts.pullRequests} PRs, ${counts.tickets} tickets, ${counts.prReviews} reviewed PRs, ${counts.messages} messages; filters: ${selection.filters.join('; ') || 'none'}).${clearAdvice}`,
     );
   } else {
     lines.push(
-      'Filtered subset: in use by `analyze` and the MCP server (made before 0.6.0; run `work-chronicler filter` again to record its filters, or `work-chronicler filter --clear` to use the full work log).',
+      locked
+        ? 'Filtered subset: in use by `analyze` and the MCP server (made before 0.6.0).'
+        : 'Filtered subset: in use by `analyze` and the MCP server (made before 0.6.0; run `work-chronicler filter` again to record its filters, or `work-chronicler filter --clear` to use the full work log).',
     );
   }
   if (state.missing.includes(DIRECTORIES.PR_REVIEWS)) {
@@ -167,9 +192,11 @@ export const statusCommand = new Command('status')
       }
 
       console.log();
-      for (const line of describeSubset(outputDir)) {
+      const lock = describeLock(outputDir);
+      for (const line of describeSubset(outputDir, lock !== undefined)) {
         console.log(line);
       }
+      if (lock) console.log(lock);
 
       if (prs.length > 0 || tickets.length > 0) {
         console.log(
