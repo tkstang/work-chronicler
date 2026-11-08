@@ -773,7 +773,7 @@ export function recoverInterruptedImport(
         issues: unverified.map((op) =>
           importIssue(
             'RECOVERY_CONFLICT',
-            `an interrupted import was recorded as complete, but this record does not hold its new version; it was left as it is, and the previous version and the journal are kept in ${TRANSACTION_NAME}`,
+            `an earlier import was recorded as stored, but this record no longer holds the version it stored; it was left as it is, and the journal and any replaced versions are kept in ${TRANSACTION_NAME}`,
             { destination: displayPath(op.destination) },
           ),
         ),

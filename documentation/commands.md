@@ -192,21 +192,24 @@ changes nothing. Records that are not in the batch are never removed.
   batch was recorded as stored, it reports `ROLLBACK_INCOMPLETE` (or
   `RECOVERY_CONFLICT` for a record something else changed), says the work
   log needs recovery, and keeps `.import-transaction/`. Run `import` again
-  (an empty directory will do) to finish putting the records back.
+  (an empty directory will do) to finish: it puts the records back if the
+  batch was not recorded as stored, or completes the batch if it was.
 - Once every record is stored and checked, the batch is recorded as stored and
   is not undone. A cleanup step that fails after that is reported as a
-  warning, and the next `import` finishes the cleanup.
+  warning, and the next `import` finishes the cleanup (or stops with
+  `RECOVERY_CONFLICT` if one of those records was changed in the meantime).
 - If `import` is interrupted, the next `import` (with any batch, even an
   empty directory) finishes it first: an unfinished batch is rolled back and
   reported as rolled back, so none of its records are kept. A batch is
   reported as completed only when it was recorded as stored and every record
   still holds its new version. `validate` reports `RECOVERY_REQUIRED` while
   this is pending.
-- If a record was changed by something else during or after an interrupted
-  import, recovery leaves it as it is and stops with `RECOVERY_CONFLICT`,
-  keeping the previous version in `.import-transaction/backup/` and the
-  journal in `.import-transaction/journal.json`. Sort the record out by hand,
-  then remove `.import-transaction/`.
+- If a record was changed by something else before recovery or cleanup
+  finished (including after a successful import whose cleanup failed),
+  recovery leaves it as it is and stops with `RECOVERY_CONFLICT`. The journal
+  stays in `.import-transaction/journal.json`, and any version the batch
+  replaced stays in `.import-transaction/backup/` (a newly created record has
+  none). Sort the record out by hand, then remove `.import-transaction/`.
 
 ### Errors and `--json`
 
