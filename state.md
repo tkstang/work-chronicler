@@ -45,8 +45,58 @@ oat_workflow_mode: goal # spec-driven | quick | import | lite | brief | goal
 oat_workflow_origin: native # native | imported
 oat_milestone: m03
 oat_milestone_status: delivered
-oat_goal_status: active
-oat_goal_outcome_audit: null
+oat_goal_status: declared_met
+oat_goal_outcome_audit:
+  disposition: met
+  decided_at: '2026-11-08T18:03:34Z'
+  declaration_ref: 'implementation.md ## Final Summary (for PR/docs): **Goal declared met:**'
+  brief_identity: 53e5b6a279b41bf5a2861250159f5888ee21066e
+  phases:
+    p01: { disposition: accepted, reason: null, scope_decision_ref: null }
+    p02: { disposition: accepted, reason: null, scope_decision_ref: null }
+    p03: { disposition: accepted, reason: null, scope_decision_ref: null }
+    p04: { disposition: accepted, reason: null, scope_decision_ref: null }
+    p05: { disposition: accepted, reason: null, scope_decision_ref: null }
+    p06: { disposition: accepted, reason: null, scope_decision_ref: null }
+    p07: { disposition: accepted, reason: null, scope_decision_ref: null }
+    p12: { disposition: accepted, reason: null, scope_decision_ref: null }
+    p08: { disposition: accepted, reason: null, scope_decision_ref: null }
+    p13: { disposition: accepted, reason: null, scope_decision_ref: null }
+    p14: { disposition: accepted, reason: null, scope_decision_ref: null }
+    p15: { disposition: accepted, reason: null, scope_decision_ref: null }
+    p16: { disposition: accepted, reason: null, scope_decision_ref: null }
+    p09: { disposition: accepted, reason: null, scope_decision_ref: null }
+    p10: { disposition: accepted, reason: null, scope_decision_ref: null }
+    p11: { disposition: accepted, reason: null, scope_decision_ref: null }
+  outcomes:
+    '1':
+      disposition: met
+      evidence_or_ref: "m01 p01 accepted; migration tests and packaged-install smoke run recorded in the p01 journal; PR #25 merged (29fd722), released 0.5.0"
+      text: "**Package skills follow `work-chronicler-[manager-]<verb>-<object>` and `skills install` migrates the five renamed skills safely on every selected host.** \u2014 Evidence: migration tests (copy, live symlink, dangling symlink, replacement conflict, overwrite refusal, repeat install, per host); a packaged-install smoke test from the packed tarball into a temp `HOME`; a grep showing old names only in the migration map, its tests and CHANGELOG/upgrade notes."
+    '2':
+      disposition: met
+      evidence_or_ref: "m01 p02 accepted; mocked review-fetch tests and mixed work-log test in the p02 journal; PR #25 merged, released 0.5.0"
+      text: "**IC users can fetch the PR reviews they gave inside the fetch range, stored as their own records and never counted as authored work.** \u2014 Evidence: mocked tests for an old PR reviewed inside the range, repeated reviews on one PR, pending reviews excluded, pagination, edited comments, rate limiting, a reviewed PR absent from the work log, and equal PR numbers across repos; documentation of the invocation."
+    '3':
+      disposition: met
+      evidence_or_ref: "m02 p04 accepted; import/validate threat matrix and tests in the p04 journal; PR #26 merged (b17cb23), released 0.6.0"
+      text: "**A staged import contract lets skills hand records to the CLI: `work-chronicler import <dir>` validates, places and commits records atomically, and `work-chronicler validate` diagnoses them.** \u2014 Evidence: tests for malformed YAML, schema violations, duplicate identities, path escape, rejected batches leaving existing records intact, interrupted and repeated imports; nonzero exit and machine-readable errors on rejection."
+    '4':
+      disposition: met
+      evidence_or_ref: "m02 p05 and m03 p09 accepted; mixed work-log, MCP and linking tests over messages and Docs; skills reviewed against the CLI; PR #26 and PR #27 merged"
+      text: "**Imported evidence is visible to every consumer.** `filter`, `status`, stats, timeline, MCP tools, project detection and the writing and detection skills either include `messages` and `documents` or state their PR/ticket-only coverage, and mentions resolve to PRs and tickets where possible. \u2014 Evidence: a mixed work-log test with an existing filtered subset; MCP tool tests over imported records; linking tests for PR-URL normalization and ticket mentions; skill text reviewed against the CLI."
+    '5':
+      disposition: met
+      evidence_or_ref: "m02 p06 and p07 accepted; Slack acceptance and negative tests; redacted live walkthrough in the p07 journal; PR #26 merged, released 0.6.0"
+      text: "**Slack messages can be imported for an IC and, opt-in per report, for a manager's report**, through `work-chronicler-setup-slack` and `work-chronicler-import-slack`, under the privacy rules in Approach. \u2014 Evidence: synthetic import \u2192 validate \u2192 link \u2192 MCP acceptance test; negative tests (wrong identity, unconfigured report, prohibited channel, DM, malformed record, repeated import); a live read-only walkthrough against the user's own Slack with only redacted counts recorded."
+    '6':
+      disposition: met
+      evidence_or_ref: "m03 p09 and p10 accepted; Google Docs acceptance and negative tests (IC, configured and unconfigured report); redacted live gog walkthrough in the p10 journal; PR #27 merged (24507dc), released 0.7.0"
+      text: "**Google Docs the subject owns can be imported for an IC and, opt-in per report, for a manager's report (docs the report owns that are shared with the manager)**, through `work-chronicler-import-google-docs`. \u2014 Evidence: synthetic acceptance test; negative tests (doc not owned by the subject, unconfigured report, out-of-range doc, malformed record, repeated import); a live read-only walkthrough against the user's own Drive via `gog` with only redacted counts recorded."
+    '7':
+      disposition: met
+      evidence_or_ref: "Release records in implementation.md: 0.5.0 (PR #25, run 42448224575), 0.6.0 (PR #26, run 42477221644), 0.7.0 (PR #27, run 42501666080); npm view and GitHub Releases recorded for each"
+      text: "**Each milestone is squash-merged to `main` and released: 0.5.0 (m01), 0.6.0 (m02), 0.7.0 (m03).** \u2014 Evidence: merged PR URLs, green `release.yml` runs, `npm view work-chronicler@<version> version`, and a GitHub Release with notes from `/release-notes`."
 oat_goal_recovery: null
 oat_milestone_gates:
   m01:
@@ -320,7 +370,7 @@ oat_pr_status: merged
 oat_pr_url: https://github.com/tkstang/work-chronicler/pull/27
 oat_project_created: '2026-11-07T22:54:38.498Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-11-08T16:46:50Z"
+oat_project_state_updated: "2026-11-08T18:03:34Z"
 oat_generated: false
 ---
 
