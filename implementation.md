@@ -1519,8 +1519,66 @@ Proof: slack suites 29/29; skill text matches the CLI
 **Status:** in_progress
 **Base:** b00981489409bf782ed49e56fade418903fa1a1c
 **Executor:** phase-implementer:wce-p09-impl-1
+**Head:** 07d23decef1c2b26bf575ea6a19487c8bb312a40
 
 Branch `oat/evidence-expansion-m03`. Committing owner: the phase implementer (code); root owns the journal. Task class: consequential (new record type and privacy-bearing import rules).
+
+Verification at Head: implementer ran the full DoD batch (747 tests, 45 files; build; `npm pack --dry-run`). Root re-ran typecheck, lint, format:check and tests at Head: pass (747).
+
+Settled (Known Unknown "gog" answered at re-alignment; field names here): settings `googleDocs: { account }` (lower-cased email) per IC profile and under `reports[]`; record `type: document`, `source: google-docs`, `documents/google-docs/<hash>.md`, `sourceAccount` = owner account, `sourceId` = Drive file ID, `occurredAt` = `updatedAt` = modified time, `document: { title, mimeType, createdAt, owners, driveId, truncated }`, attribution `unverified` with `authorId: null`. Excerpt cap `MAX_DOCUMENT_EXCERPT_BYTES` = 16 KiB, no uncapped mode. Range: `import`/`validate` `--since`/`--until` replace each bound, date-only = whole UTC day, timestamps need `Z` or an offset, result echoes `range`, malformed flag refused as `RANGE_INVALID`. MCP: `search_documents` (shared `pagination.ts`), `mentionedInDocuments` in `get_linked_work`, `documents` sections in stats and timeline.
+
+Deviations (implementer, accepted by root): `get_projects`, project detection and `analyze team` label Docs as not included (Outcome 4 allows include-or-label); the timeline includes them. `google-docs` reuses the Slack subject resolver. `search_messages` keeps a `slack`-only source list (`MESSAGE_SOURCES`), golden schema unchanged.
+
+Not built (speculative, deferred under the AGENTS.md rule): `truncated` consistency check; CLI refusal of empty-body Docs (p10 skill skips them); stale-timeline note; `source` filter on `search_documents`; Docs in `analyze team`. Concerns: `stats.json` `byMonth` uses local time (pre-existing); `get_timeline` `since`/`until` compare period starts (pre-existing); manager discovery synthetic-only until p10.
+
+### Task p09-t01: Google Docs document record and its import rules
+
+**Status:** completed
+**Commit:** 4fbbeb9
+**Executor:** phase-implementer:wce-p09-impl-1
+Proof: phase suites; DoD batch green
+
+### Task p09-t02: Check Docs against the profile range in import and validate (`--since`/`--until`)
+
+**Status:** completed
+**Commit:** e3f3142
+**Executor:** phase-implementer:wce-p09-impl-1
+Proof: phase suites; DoD batch green
+
+### Task p09-t03: google-docs configure and show
+
+**Status:** completed
+**Commit:** bd359cf
+**Executor:** phase-implementer:wce-p09-impl-1
+Proof: phase suites; DoD batch green
+
+### Task p09-t04: Count imported Docs in filter, status, stats and the timeline
+
+**Status:** completed
+**Commit:** 6269abe
+**Executor:** phase-implementer:wce-p09-impl-1
+Proof: phase suites; DoD batch green
+
+### Task p09-t05: Serve imported Docs over MCP with search_documents
+
+**Status:** completed
+**Commit:** c04efdf
+**Executor:** phase-implementer:wce-p09-impl-1
+Proof: phase suites; DoD batch green
+
+### Task p09-t06: Writing and detection skills use imported Google Docs
+
+**Status:** completed
+**Commit:** cb4df5e
+**Executor:** phase-implementer:wce-p09-impl-1
+Proof: phase suites; DoD batch green
+
+### Task p09-t07: Docs, AGENTS.md, CHANGELOG, README, example config
+
+**Status:** completed
+**Commit:** 07d23de
+**Executor:** phase-implementer:wce-p09-impl-1
+Proof: phase suites; DoD batch green
 
 ---
 
@@ -1563,6 +1621,7 @@ run/v1 · request=wce-p14-rev-1 · scope=p14 · action=review · role=oat-review
   run/v1 · request=wce-p16-rev-1 · scope=p16 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p16 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
   run/v1 · request=wce-p16-rev-2 · scope=p16 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p16 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 - Root-inline phase: p16 confirmation-review L1 (skill block exits 0 on refusal) fixed by root (claude-opus-5-5) in p16-t14 b009814; skill text only.
+  run/v1 · request=wce-p09-impl-1 · scope=p09 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p09 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 - run/v1 · request=wce-p08-rev-1 · scope=p08 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p08 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 - Root-inline phase: p08 — inline exception for a version bump and CHANGELOG move; root model claude-opus-5-5
