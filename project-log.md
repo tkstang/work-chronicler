@@ -277,6 +277,17 @@ p14 passed (0 C/H/M, 2 Low: one fixed root-inline in t05, one recorded as deviat
 
 p15 passed (round 1: 0 C/H/M, 5 L fixed in t16-t20; confirmation 0 findings); fix loops: 1. Head 49b6dc3; wce-p15-outcome
 
+### 2026-11-08 · project · feedback · Speculative review findings need the user's buy-in
+
+**Category:** decision
+**Source:** wce-learning-m03-speculative
+**Origin:** oat-project-implement
+**Recorded:** 2026-11-08T14:41:46Z
+
+Observation: Reviewers kept raising very unlikely failure modes (concurrent commands, clock jumps, crafted input), and the root fixed nearly all of them by default; the m02 gate took six rounds.
+Impact: Extra phases, longer reviews and more code to maintain for little user value.
+Recommendation: Apply AGENTS.md "Get buy-in before speculative complexity" (5c1f224): fix real defects; take speculative findings to the user with their cost.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
