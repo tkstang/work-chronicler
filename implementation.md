@@ -893,7 +893,7 @@ Proof: `format:check`
 **Status:** completed
 **Base:** 76140798ed0f67bb17ab685ed76f9d364e76a4cd
 **Executor:** inline:p08-inline-exception
-**Head:** ce900184bb444954f45978a233c4478ffac09694
+**Head:** 890358f95e9adde796635336ae741de206fc0e2d
 
 Inline exception (recorded before editing): version bump and CHANGELOG section move only — no new surface, no unresolved design, not consequential before the tag push (which happens after merge under the Release authority), one proof command (the local DoD batch). Committing owner: root. Parallelism: single trivial phase.
 
@@ -944,6 +944,27 @@ Proof: `format:check`; root re-ran typecheck, lint, format:check, 574 tests at 9
 The server is bound to the full work log and resolves the subset state before every tool call, re-checking after the handler; an in-progress, interrupted or unreadable subset returns no results with an `error` and `note`, never the full log.
 Files: `src/mcp/server.ts`, `server.test.ts`, `src/mcp/tools/types.ts`, `src/cli/commands/status.ts`, `documentation/{mcp-server,commands}.md`, `CHANGELOG.md` ([0.6.0])
 Proof: same-client transport regression (full → subset → full, interrupted, in progress); root re-ran typecheck, lint, format:check, 576 tests at ce90018: pass
+
+### Task p08-t06: (gate) Route every import change through one path guard
+
+**Status:** completed
+**Commit:** cd9c09e3ff10dae6e8f14e5dcd73ce225eea2efb
+**Executor:** phase-implementer:wce-p04-impl-1 (m02 closeout fix)
+**Source review:** reviews/archived/final-review-2026-11-08T094553Z.md (H1)
+`PathGuard` vouches for every directory by recorded identity (journal v3 adds the work-log root) and checks the whole chain root → parent before every mkdir, write, link, rename, unlink, rmdir and tree removal; raw mutation calls exist only inside the guard. Call-site inventory recorded in the fix report (lock, leftovers, journal writes, staged writes, discard, rollback, created-directory removal, recovery, commit).
+Files: `src/core/import/transaction.ts`, `commit.test.ts`, `import.test-support.ts`
+Proof: gate regression and generic per-mutation ancestor-substitution loops (commit, rollback, recovery) fail on ce90018 (the loop also found a journal write through a linked `.import-transaction`) and pass now
+
+### Task p08-t07: (gate) Say every import change checks the directories it uses
+
+**Status:** completed
+**Commit:** 890358f95e9adde796635336ae741de206fc0e2d
+**Executor:** phase-implementer:wce-p04-impl-1 (m02 closeout fix)
+**Source review:** reviews/archived/final-review-2026-11-08T094553Z.md (H1)
+Files: `documentation/commands.md`, `CHANGELOG.md` ([0.6.0])
+Proof: `format:check`; root re-ran typecheck, lint, format:check, 583 tests at 890358f: pass
+
+Decision (root): recovery keeps comparing device and inode; a device change after a reboot or remount stops recovery with `RECOVERY_CONFLICT` for a manual check (fail-closed), rather than trusting inode alone.
 
 ---
 
