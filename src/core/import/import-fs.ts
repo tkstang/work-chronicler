@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import {
   type BigIntStats,
+  type Stats,
   closeSync,
   constants,
   fstatSync,
@@ -165,15 +166,15 @@ function entryKind(stat: {
 /**
  * Describe a stat result as an {@link FsEntry}.
  *
- * @param stat - A `bigint` stat result
+ * @param stat - A stat result (`bigint` keeps large inode numbers exact)
  */
-export function fsEntry(stat: BigIntStats): FsEntry {
+export function fsEntry(stat: BigIntStats | Stats): FsEntry {
   return {
     kind: entryKind(stat),
-    dev: stat.dev,
-    ino: stat.ino,
-    size: stat.size,
-    mode: Number(stat.mode & 0o7777n),
+    dev: BigInt(stat.dev),
+    ino: BigInt(stat.ino),
+    size: BigInt(stat.size),
+    mode: Number(stat.mode) & 0o7777,
     nlink: Number(stat.nlink),
     mtimeMs: Number(stat.mtimeMs),
   };

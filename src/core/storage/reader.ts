@@ -8,8 +8,10 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 
+import { errorCode, fsEntry } from '@core/import/import-fs';
 import { parseImportedRecordFile } from '@core/import/record-file';
 import { MAX_STORED_BYTES } from '@core/import/staging';
+import { reachBelowWorkLog } from '@core/import/transaction';
 import {
   getImportedRecordIdentity,
   IMPORT_SOURCES,
@@ -463,14 +465,32 @@ function scanOnce(
 } {
   const records: ImportedRecordFile[] = [];
   const skipped: SkippedImportedRecord[] = [];
+  const lstat = (path: string) => fsEntry(fs.lstat(path));
+  const refused = new Set<string>();
 
   for (const typeDir of new Set(Object.values(IMPORTED_RECORD_DIRECTORIES))) {
     for (const source of IMPORT_SOURCES) {
       const dir = join(outputDir, typeDir, source);
       let names: string[];
       try {
+        // Both directories below the work log must be its own: a symlinked
+        // one would read another directory's records as this work log's
+        if (!reachBelowWorkLog(lstat, outputDir, dir)) continue;
         names = fs.readdir(dir).sort();
       } catch (error) {
+        if (errorCode(error) === 'ECHANGED') {
+          const destination = (error as { destination?: string }).destination;
+          const filePath = join(outputDir, ...(destination ?? '').split('/'));
+          if (!refused.has(filePath)) {
+            refused.add(filePath);
+            skipped.push({
+              filePath,
+              reason: 'is a symlink or not a directory, so it is not read',
+              unreadable: false,
+            });
+          }
+          continue;
+        }
         if (!isMissing(error)) {
           skipped.push({
             filePath: dir,

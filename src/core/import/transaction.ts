@@ -212,6 +212,34 @@ class PathGuard {
     return new PathGuard(fs, root, toId(entry));
   }
 
+  /**
+   * A guard for reading below a work log that nothing has vouched for (the
+   * imported-record readers). The work log's own path is trusted as given
+   * (configured paths may pass through links); every directory below it is
+   * vouched for as {@link PathGuard.learn} first finds it. It makes no
+   * changes: any it is asked for fails with EROFS.
+   */
+  static forReading(lstat: ImportFs['lstat'], root: string): PathGuard {
+    const refuse = (): never => {
+      throw codedError('EROFS');
+    };
+    const fs: ImportFs = {
+      realpath: refuse,
+      lstat,
+      readdir: refuse,
+      readFile: refuse,
+      writeFile: refuse,
+      mkdir: refuse,
+      rename: refuse,
+      link: refuse,
+      unlink: refuse,
+      rmdir: refuse,
+      removeTree: refuse,
+      syncDirectory: refuse,
+    };
+    return new PathGuard(fs, root, { dev: '', ino: '' });
+  }
+
   /** A guard for everything a journal recorded */
   static forJournal(fs: ImportFs, root: string, journal: Journal): PathGuard {
     const guard = new PathGuard(fs, root, journal.root);
@@ -288,6 +316,21 @@ class PathGuard {
     if (this.fs.lstat(this.root).kind !== 'directory') {
       throw new ChangedError();
     }
+    return this.walk(dir, false);
+  }
+
+  /**
+   * For reading through a work log nothing has vouched for: the same walk as
+   * {@link PathGuard.reach} below the work log, except that a real directory
+   * the guard does not know yet is vouched for as found. A symlink or
+   * anything else that is not a directory throws {@link ChangedError}
+   * naming it; an absent one ends the walk (returns false).
+   */
+  learn(dir: string): boolean {
+    return this.walk(dir, true);
+  }
+
+  private walk(dir: string, learn: boolean): boolean {
     for (const current of this.below(dir)) {
       const where = this.display(current);
       let entry;
@@ -296,6 +339,9 @@ class PathGuard {
       } catch (error) {
         if (errorCode(error) === 'ENOENT') return false;
         throw error;
+      }
+      if (learn && entry.kind === 'directory' && !this.known.has(current)) {
+        this.vouch(current, toId(entry));
       }
       const id = this.known.get(current);
       if (entry.kind !== 'directory' || !id || !hasId(entry, id)) {
@@ -396,6 +442,31 @@ class PathGuard {
     }
     this.fs.removeTree(path);
   }
+}
+
+/**
+ * For readers of imported records: whether `dir`, below the work log `root`,
+ * can be listed as the work log's own. It is checked by the same
+ * {@link PathGuard} walk every import change uses: each directory from just
+ * below `root` down to `dir` must be a real directory, never a symlink (a
+ * linked `messages/slack/` would read another work log's records). `root`
+ * itself is trusted as given.
+ *
+ * @param lstat - What is at a path, not following a final symlink
+ * @param root - The work log (or a `filtered/` subset)
+ * @param dir - A directory below it
+ * @returns False when a directory on the way is absent (nothing below it
+ *   exists)
+ * @throws An error with code `ECHANGED` and, in `destination`, the
+ *   `/`-separated path below `root` of the first directory that is a symlink
+ *   or not a directory; any other filesystem error as it was raised
+ */
+export function reachBelowWorkLog(
+  lstat: ImportFs['lstat'],
+  root: string,
+  dir: string,
+): boolean {
+  return PathGuard.forReading(lstat, root).learn(dir);
 }
 
 // ---------------------------------------------------------------------------

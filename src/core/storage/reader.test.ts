@@ -349,6 +349,33 @@ describe('imported record storage', () => {
     expect(JSON.stringify(skipped)).not.toContain(SECRET);
   });
 
+  it.each([['messages/slack'], ['messages']])(
+    'reads no records through a symlinked %s directory',
+    (linked) => {
+      // Another work log's records, reachable through a link in this one
+      const other = mkdtempSync(join(tmpdir(), 'wc-storage-other-'));
+      try {
+        storeRecord(other, 1, 'Not this work log.');
+        const parts = linked.split('/');
+        mkdirSync(join(outputDir, ...parts.slice(0, -1)), { recursive: true });
+        symlinkSync(join(other, ...parts), join(outputDir, ...parts));
+
+        const { records, skipped } = scanImportedRecords(outputDir);
+
+        expect(records).toEqual([]);
+        expect(skipped).toEqual([
+          {
+            filePath: join(outputDir, ...parts),
+            reason: 'is a symlink or not a directory, so it is not read',
+            unreadable: false,
+          },
+        ]);
+      } finally {
+        rmSync(other, { recursive: true, force: true });
+      }
+    },
+  );
+
   it('returns nothing for a work log without imported records', async () => {
     expect(await readAllImportedRecords(outputDir)).toEqual([]);
     expect(await readAllImportedRecords(join(outputDir, 'missing'))).toEqual(

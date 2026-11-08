@@ -116,7 +116,9 @@ have written: the work-log lock (`.import-lock`, `.filter-lock`), what
 finished runs left (`.import-*`, `.filter-*`) and anything else in the work
 log root are ignored, and a file that is not a valid record, or is not
 stored where its identity puts it, is skipped with a warning (`status` lists
-them).
+them). So is a `messages/` or `messages/<source>/` directory that is a
+symlink (or not a directory): records are read only from the work log's own
+directories, never through a link to another one.
 
 Imported records are never read while `.import-transaction/` exists, that is
 while an import is storing a batch or after one was interrupted, so no

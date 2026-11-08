@@ -70,6 +70,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unchanged when it was stored under an upper-case hash name that readers
   skip, so search and analysis left it out. `import` now refuses such a
   destination (`IDENTITY_CONFLICT`) until the file is renamed.
+- If `messages/` or `messages/<source>/` in a work log was a symlink (for
+  example to another work log), readers read the records behind it as this
+  work log's evidence. Such a directory is now skipped with a warning.
 
 ## [0.6.0] - 2026-11-08
 
