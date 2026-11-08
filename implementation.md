@@ -464,7 +464,7 @@ Proof: 343 tests, lint, typecheck, format:check pass
 **Status:** in_progress
 **Base:** 81584c399c38f482b747f178e06114fedb37b2f1
 **Executor:** phase-implementer:wce-p05-impl-1
-**Head:** f750036a84b1aa8f6bf6fad9c871ea302343a8ea
+**Head:** 8bc34a535ea8cee5aa9e0aa07e369eb595ba895f
 
 Worktree and branch as p04. Committing owner: the phase implementer (code); root owns the journal. Parallelism: no declared group; fan-out rejected (consumers share the record readers, the filter subset contract and the linking model); one phase implementer. Task class: hard-reasoning (many consumers; filter subset replacement must keep the previous subset on failure).
 
@@ -531,6 +531,56 @@ Proof: new mixed test
 **Executor:** phase-implementer:wce-p05-impl-1
 Files: `documentation/{commands,mcp-server,configuration,index,manager-mode,available-skills}.md`, `README.md`, `AGENTS.md`, `CHANGELOG.md`, `status.ts`
 Proof: `format:check`, built CLI end-to-end in a temp home
+
+### Task p05-t08: (review) Run one filter per work log at a time
+
+**Status:** completed
+**Commit:** 40787d9466660609d604d5e1eeadf63b61639957
+**Executor:** phase-implementer:wce-p05-impl-1 (fix mode)
+**Source review:** reviews/archived/p05-review-2026-11-08T065300Z.md (M1)
+Proof: exclusive `.filter-lock` (claim then rename; stale only when the owner provably exited); a second run is refused and the subset unchanged; regression tests at both dangerous points
+
+### Task p05-t09: (review) Fail filter when a record directory or file cannot be read
+
+**Status:** completed
+**Commit:** 6c47e137d002d88e2112c654b98aaae5f9de7716
+**Executor:** phase-implementer:wce-p05-impl-1 (fix mode)
+**Source review:** reviews/archived/p05-review-2026-11-08T065300Z.md (M2)
+Proof: any read error other than ENOENT fails the filter for every record type and keeps the previous subset; injected failures via `ReaderFs`
+
+### Task p05-t10: (review) Never present reviews as the user's when the username is unknown
+
+**Status:** completed
+**Commit:** eea839420a88dffec9001a03eff8d6fb8929fd6f
+**Executor:** phase-implementer:wce-p05-impl-1 (fix mode)
+**Source review:** reviews/archived/p05-review-2026-11-08T065300Z.md (M3)
+Proof: `search_pr_reviews` returns no results plus `unattributed` and a note; `status` stops counting; the four writing skills apply the rule on the MCP path
+
+### Task p05-t11: (review) Give advice that works when filtered/ is not a directory
+
+**Status:** completed
+**Commit:** 69f6d9d1387a0033a1072ee060138fd3ecbd7dfb
+**Executor:** phase-implementer:wce-p05-impl-1 (fix mode)
+**Source review:** reviews/archived/p05-review-2026-11-08T065300Z.md (L1)
+Proof: regular file and dangling symlink cases
+
+### Task p05-t12: (review) Count only the user's review records in the filtered subset
+
+**Status:** completed
+**Commit:** 28540d5da736caa2023b823ae845c75ffbca2525
+**Executor:** phase-implementer:wce-p05-impl-1 (fix mode)
+**Source review:** reviews/archived/p05-review-2026-11-08T065300Z.md (L2)
+Proof: foreign-reviewer status test extended
+
+### Task p05-t13: (review) Say why get_stats and get_linked_work show no messages
+
+**Status:** completed
+**Commit:** 8bc34a535ea8cee5aa9e0aa07e369eb595ba895f
+**Executor:** phase-implementer:wce-p05-impl-1 (fix mode)
+**Source review:** reviews/archived/p05-review-2026-11-08T065300Z.md (L3)
+Proof: out-of-date subset note tests
+
+Root re-ran typecheck, lint, format:check and tests at 8bc34a5: pass (428).
 
 ---
 
