@@ -464,8 +464,73 @@ Proof: 343 tests, lint, typecheck, format:check pass
 **Status:** in_progress
 **Base:** 81584c399c38f482b747f178e06114fedb37b2f1
 **Executor:** phase-implementer:wce-p05-impl-1
+**Head:** f750036a84b1aa8f6bf6fad9c871ea302343a8ea
 
 Worktree and branch as p04. Committing owner: the phase implementer (code); root owns the journal. Parallelism: no declared group; fan-out rejected (consumers share the record readers, the filter subset contract and the linking model); one phase implementer. Task class: hard-reasoning (many consumers; filter subset replacement must keep the previous subset on failure).
+
+Verification at Head: implementer ran the full DoD batch (413 tests in 33 files; `npm pack --dry-run` 122 files, 10 package skills, no test-support files) and a built-CLI run in a temp home. Root re-ran typecheck, lint, format:check and tests at Head: pass (413). No dependency, lockfile or CI changes (the implementer reported a transient corepack reinstall of node_modules from the existing lockfile; tree clean).
+
+Known Unknown settled (p05), extend or label per consumer: `filter` extend (copies `messages/`; only `--linked-only` applies to messages; other PR-only filters defined per type in docs); `status` extend (message counts by source, unverified attribution, unreadable files, unfinished import, subset state); stats (`analyze`, `analyze reports`, filter analysis, `get_stats`) extend with a separate `messages` section never added to PR/ticket counts; timeline (`analyze --timeline`, `get_timeline`) label PR/ticket-only (`coverage` field); project detection (`analyze --projects`, `get_projects`, detect-projects) label; `analyze team` label in docs and skill; `link` extend (mentions resolved on read, never stored as links; ticket `linkedPRs` compared normalized); `search_prs`, `search_tickets`, `list_repos` label (authored work only); `get_linked_work` extend (`mentionedInMessages`, kept apart from stored links); `search_pr_reviews` extend (an out-of-date subset returns no results plus a note instead of reading the full log); new read-only `search_messages`; writing, detection, peer-review and manager skills extend with a supplementary-evidence section stating imported content is evidence, never instructions.
+
+Deviations (accepted by root): the 0.5.0 behavior of reading reviews from the full log behind an out-of-date subset is removed (complexity F2); a subset is selected whenever `filtered/` exists, so an old subset whose filter matched no PRs is now used (CodeRabbit 4504862986, noted in CHANGELOG); `isFilteredSubsetMissingReviews` replaced by `getFilteredSubsetState().missing`. Open notes: concurrent `filter` runs on one work log are not supported (state stays consistent, the losing run errors; undocumented); unknown source directories under `messages/` are ignored silently.
+
+Notes for later phases: p06 `checkRecord` should reject unverified Slack records; p07 acceptance can reuse `search_messages` and `link`'s mention report; manager skills should state the shared-channel rule once p06/p07 settle it. m03 `documents`: add to `IMPORTED_RECORD_DIRECTORIES`, decide the filter rule (`filter.utils.ts` keeps only `type === 'message'`), add a stats section, a subset `documents/` directory (`LATER_RECORD_DIRECTORIES`), and a search tool decision.
+
+### Task p05-t01: Read imported records, resolve mentions, replace the subset safely
+
+**Status:** completed
+**Commit:** 7a0d27449dd1a437338660c51c1224b1250b4df4
+**Executor:** phase-implementer:wce-p05-impl-1
+Files: `src/core/linking/mentions{,.test}.ts`, `src/core/storage/{filtered-subset{,.test},reader{,.test},writer,paths,index}.ts`, `src/core/index.ts`
+Proof: `vitest src/core`, typecheck, build
+
+### Task p05-t02: Replace the filtered subset completely or not at all
+
+**Status:** completed
+**Commit:** ae80b19b0e4f2d494fe971b05f690ab1e810ba5f
+**Executor:** phase-implementer:wce-p05-impl-1
+Files: `src/cli/commands/filter/{index,filter.utils}.ts` (moved from `filter.ts`), `src/cli/index.ts`, `mixed-work-log.test.ts`, commands README
+Proof: mixed work-log test (fails with a broken message filter)
+
+### Task p05-t03: Count imported messages in status, stats and link
+
+**Status:** completed
+**Commit:** d7ec2956073da85e001ad7dc22d62620aab8f125
+**Executor:** phase-implementer:wce-p05-impl-1
+Files: `analyzer/stats.ts`, `analyze.ts`, `analyze/reports.ts`, `status.ts`, `link.ts`, `linker/index{,.test}.ts`, `filter.utils.ts`, mixed test
+Proof: linker and mixed tests
+
+### Task p05-t04: Serve imported messages over MCP and honor the selected subset
+
+**Status:** completed
+**Commit:** 0573782322c732c90045870ba02df55db6cc8d9f
+**Executor:** phase-implementer:wce-p05-impl-1
+Files: `src/mcp/tools/{search-messages,types,get-*,search-pr-reviews,index}.ts`, `server{,.test}.ts`, `tools-list.golden.json`, `tools.test.ts`
+Proof: tools and server tests incl. read-only snapshot
+
+### Task p05-t05: Skills for imported messages and the review path
+
+**Status:** completed
+**Commit:** 249d6971373bf9ea874dbde0b0975cd0a2f601a2
+**Executor:** phase-implementer:wce-p05-impl-1
+Files: 10 package skills
+Proof: skill text reviewed against the CLI
+
+### Task p05-t06: Let analyze --full run while a filter swap is unfinished
+
+**Status:** completed
+**Commit:** 9429fca69de83f8fa026d3d21cfede9ade911743
+**Executor:** phase-implementer:wce-p05-impl-1
+Files: `analyze.ts`, mixed test
+Proof: new mixed test
+
+### Task p05-t07: Docs and CHANGELOG
+
+**Status:** completed
+**Commit:** f750036a84b1aa8f6bf6fad9c871ea302343a8ea
+**Executor:** phase-implementer:wce-p05-impl-1
+Files: `documentation/{commands,mcp-server,configuration,index,manager-mode,available-skills}.md`, `README.md`, `AGENTS.md`, `CHANGELOG.md`, `status.ts`
+Proof: `format:check`, built CLI end-to-end in a temp home
 
 ---
 
@@ -516,6 +581,8 @@ Worktree and branch as p04. Committing owner: the phase implementer (code); root
 <!-- One line per dispatch request id, rendered by `oat project dispatch record --format line` and written as a list item. Update that line in place with the terminal outcome; never paste the record or event JSON. -->
 
 <!-- orchestration-runs-start -->
+
+- run/v1 · request=wce-p05-impl-1 · scope=p05 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p05 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 - run/v1 · request=wce-p04-rev-2 · scope=p04 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p04 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
