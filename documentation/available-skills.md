@@ -85,10 +85,15 @@ touched. A link that points to the replaced skill (from another tool, say)
 reaches the new one. If a temporary or replaced entry (a hidden
 `.<skill>.wc-staging-…` or `.<skill>.wc-replaced-…` beside it) cannot be
 removed, the installer says where it is and carries on; the next install
-removes it. A skill that an install stopped part-way through moving aside
-(`.<skill>.wc-backup-…`) is put back by the next install when nothing else
-holds its name and its `SKILL.md` still declares the skill; otherwise the
-installer names the entry so you can remove it.
+removes it. A previous copy the installer could not move to its
+`.wc-replaced-…` name stays whole as `.<skill>.wc-backup-…`, the same name a
+skill gets when an install stops part-way through moving it aside. While the
+skill is installed, the next install only names such an entry so you can
+remove it. If the skill's name is free (after `skills uninstall`, say), the
+next install puts that copy back when it is the only one and its `SKILL.md`
+still declares the skill, and then keeps it like any existing skill; it may be
+the version you chose to overwrite, so run `skills install --overwrite` to
+refresh it. Any other backup is named so you can remove it.
 
 When a release renames a skill (0.5.0 renamed five; see `CHANGELOG.md`), the
 installer migrates it on each tool you select:
