@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import chalk from 'chalk';
 import { Command } from 'commander';
 
@@ -5,6 +7,7 @@ import {
   channelLine,
   describeChannels,
   describeSubject,
+  failSlackChange,
   resolveSlackSubject,
   runSlackChange,
   type SlackCommandOptions,
@@ -12,18 +15,54 @@ import {
 
 interface AddOptions extends SlackCommandOptions {
   name: string;
-  reason: string;
+  reason?: string;
+  reasonFile?: string;
   private?: boolean;
   sharedWithManager?: boolean;
+}
+
+/**
+ * The reason from `--reason`, or read from `--reason-file` (`-` is standard
+ * input). Read from a file or standard input, the text never passes through
+ * a shell, so quotes, `$`, backticks and backslashes in it are kept as they
+ * are. One trailing line break is dropped; the settings check refuses
+ * anything else that is not one line of text.
+ */
+function readReason(options: AddOptions): string {
+  if ((options.reason === undefined) === (options.reasonFile === undefined)) {
+    failSlackChange(
+      options,
+      'Pass the reason with either --reason <text> or --reason-file <path> (`-` reads standard input). The config was not changed.',
+    );
+  }
+  if (options.reason !== undefined) return options.reason;
+  const file = options.reasonFile as string;
+  let text: string;
+  try {
+    text = readFileSync(file === '-' ? 0 : file, 'utf-8');
+  } catch (error) {
+    failSlackChange(
+      options,
+      `The reason could not be read from ${file === '-' ? 'standard input' : file} (${
+        error instanceof Error ? error.message : String(error)
+      }). The config was not changed.`,
+      error,
+    );
+  }
+  return text.replace(/\r?\n$/, '');
 }
 
 const addCommand = new Command('add')
   .description('Add a channel whose messages by the subject may be imported')
   .argument('<channel-id>', 'Slack channel ID, such as C0123ABCD')
   .requiredOption('--name <name>', 'Channel name (without #)')
-  .requiredOption(
+  .option(
     '--reason <text>',
     'Why the channel holds review-relevant work (one line)',
+  )
+  .option(
+    '--reason-file <path>',
+    'Read the reason from a file instead (`-` reads standard input), so no shell quoting is needed',
   )
   .option(
     '--private',
@@ -37,6 +76,7 @@ const addCommand = new Command('add')
   .option('-c, --config <path>', 'Path to config file')
   .option('--json', 'Print a machine-readable result')
   .action(async (id: string, options: AddOptions) => {
+    const reason = readReason(options);
     await runSlackChange(
       options,
       {
@@ -44,7 +84,7 @@ const addCommand = new Command('add')
         channel: {
           id,
           name: options.name.replace(/^#/, ''),
-          reason: options.reason,
+          reason,
           private: options.private === true,
           sharedWithManager: options.sharedWithManager === true,
         },

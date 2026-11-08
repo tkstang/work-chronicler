@@ -368,7 +368,7 @@ the fields.
 | Command | Meaning |
 | --- | --- |
 | `slack configure --workspace <workspace> --user <user-id>` | Set up Slack: the workspace and the subject's Slack user ID (yours, or the report's). The workspace is its team ID (`T…`/`E…`) or, when no Slack tool shows the ID, its URL label (`example` for `example.slack.com` or `example.enterprise.slack.com`). The workspace or user cannot change while channels are configured; remove them first. |
-| `slack channels add <channel-id> --name <name> --reason <text>` | Add a channel whose messages by the subject may be imported. `--name` is the channel name (a leading `#` is dropped); `--reason` says why it holds review-relevant work. |
+| `slack channels add <channel-id> --name <name> --reason <text>` | Add a channel whose messages by the subject may be imported. `--name` is the channel name (a leading `#` is dropped); `--reason` says why it holds review-relevant work (one line). Pass the reason with `--reason-file <path>` instead to read it from a file, or from standard input with `-`. |
 | `slack channels remove <channel-id>` | Remove a channel. Records already imported from it are kept; later imports refuse it. An ID that is not configured is refused (exit 1) with the configured IDs listed, so a mistyped ID is never reported as removed. |
 | `slack channels list` | List the configured channels. |
 | `slack show` | Print what an import skill uses (read-only). |
@@ -377,6 +377,7 @@ the fields.
 
 | Flag | Meaning |
 | --- | --- |
+| `--reason-file <path>` | Read the reason from a file instead of `--reason` (exactly one of the two is required); `-` reads standard input. The text is used as it is, without shell quoting, and one trailing line break is dropped. The setup skill passes the reason this way, in a quoted here-document, so quotes, `$` or backticks in it cannot break or extend the command. |
 | `--private` | Opt in to a private channel. Channels are public otherwise, and a `G…` ID (a private conversation) is refused without it. |
 | `--shared-with-manager` | Manager profiles: confirm that you and the report are both members of the channel. Required for every report channel; the CLI cannot check membership, so the setup skill checks it before passing this flag. |
 

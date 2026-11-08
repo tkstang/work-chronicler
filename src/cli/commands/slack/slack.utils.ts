@@ -160,6 +160,27 @@ export function channelLine(
 }
 
 /**
+ * Fail a command that changes Slack settings. With `--json`, the failure is
+ * printed as `{ ok: false, error }` first, so a JSON reader always gets a
+ * result.
+ *
+ * @param options - Command options
+ * @param message - What went wrong (unstyled)
+ * @param cause - The underlying error, kept for debugging
+ * @throws {CliError} Always
+ */
+export function failSlackChange(
+  options: SlackCommandOptions,
+  message: string,
+  cause?: unknown,
+): never {
+  if (options.json) {
+    console.log(JSON.stringify({ ok: false, error: message }, null, 2));
+  }
+  throw new CliError(`${ERROR} ${message}`, { cause });
+}
+
+/**
  * Change the subject's Slack settings and print the result.
  *
  * @param options - Command options
@@ -180,11 +201,11 @@ export async function runSlackChange(
       change,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (options.json) {
-      console.log(JSON.stringify({ ok: false, error: message }, null, 2));
-    }
-    throw new CliError(`${ERROR} ${message}`, { cause: error });
+    failSlackChange(
+      options,
+      error instanceof Error ? error.message : String(error),
+      error,
+    );
   }
   const after = await resolveSlackSubject(options);
   if (options.json) {

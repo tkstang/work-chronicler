@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -61,27 +62,60 @@ writeFileSync(teamConfig, TEAM_YAML);
 
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 
-function cli(profile: string, args: string[]) {
+function env(profile: string) {
+  return {
+    PATH: process.env.PATH,
+    HOME: home,
+    WORK_CHRONICLER_HOME: wcHome,
+    WORK_CHRONICLER_PROFILE: profile,
+    NO_COLOR: '1',
+  };
+}
+
+function cli(profile: string, args: string[], input?: string) {
   const result = spawnSync(
     process.execPath,
     ['--import', 'tsx', 'src/cli/index.ts', ...args],
-    {
-      cwd: repoRoot,
-      encoding: 'utf-8',
-      env: {
-        PATH: process.env.PATH,
-        HOME: home,
-        WORK_CHRONICLER_HOME: wcHome,
-        WORK_CHRONICLER_PROFILE: profile,
-        NO_COLOR: '1',
-      },
-    },
+    { cwd: repoRoot, encoding: 'utf-8', env: env(profile), input },
   );
   return {
     status: result.status,
     stdout: result.stdout,
     stderr: result.stderr,
   };
+}
+
+/**
+ * Run the `slack channels add` command exactly as the setup-slack skill tells
+ * the assistant to write it, through a shell, with its placeholders filled.
+ */
+function skillChannelAdd(
+  profile: string,
+  values: { id: string; name: string; reason: string },
+  marker: string,
+) {
+  const skill = readFileSync(
+    join(repoRoot, '.agents/skills/work-chronicler-setup-slack/SKILL.md'),
+    'utf-8',
+  );
+  const block = /```bash\n(work-chronicler slack channels add [^`]*)```/.exec(
+    skill,
+  )?.[1];
+  if (!block) throw new Error('the skill has no `slack channels add` block');
+  const script = block
+    .replace('<channel-id>', () => values.id)
+    .replace('<channel-name>', () => values.name)
+    .replace('<reason>', () => values.reason)
+    .replace(
+      /^work-chronicler /,
+      () => '"$WC_NODE" --import tsx src/cli/index.ts ',
+    );
+  const result = spawnSync('/bin/sh', ['-c', script], {
+    cwd: repoRoot,
+    encoding: 'utf-8',
+    env: { ...env(profile), WC_NODE: process.execPath, WC_MARKER: marker },
+  });
+  return { status: result.status, value: JSON.parse(result.stdout) };
 }
 
 function json(profile: string, args: string[]) {
@@ -246,6 +280,91 @@ describe('slack commands: IC profile', CLI_RUNS, () => {
       expect.objectContaining({ id: 'G0TEST0001', private: true }),
     );
   });
+
+  it('keeps shell syntax in a reason as text, run as the setup skill writes it', () => {
+    const marker = join(root, 'reason-ran');
+    // Expanded by a shell, either substitution would create the marker
+    const reason =
+      'Alice\'s reviews: "$(touch "$WC_MARKER")" `touch "$WC_MARKER"` $HOME \\ end';
+
+    const run = skillChannelAdd(
+      'solo',
+      { id: 'C0TEST0003', name: 'synthetic-reviews', reason },
+      marker,
+    );
+
+    expect(run.status).toBe(0);
+    expect(run.value.channels).toContainEqual(
+      expect.objectContaining({ id: 'C0TEST0003', reason }),
+    );
+    expect(existsSync(marker)).toBe(false);
+  });
+
+  it('reads the reason from a file with --reason-file', () => {
+    const file = join(root, 'reason.txt');
+    writeFileSync(file, "Bob's on-call handoffs\n");
+
+    const run = json('solo', [
+      'slack',
+      'channels',
+      'add',
+      'C0TEST0004',
+      '--name',
+      'synthetic-oncall',
+      '--reason-file',
+      file,
+    ]);
+
+    expect(run.status).toBe(0);
+    expect(run.value.channels).toContainEqual(
+      expect.objectContaining({
+        id: 'C0TEST0004',
+        reason: "Bob's on-call handoffs",
+      }),
+    );
+  });
+
+  it.each([
+    ['no reason', [], undefined],
+    [
+      'both --reason and --reason-file',
+      ['--reason', 'x', '--reason-file', '-'],
+      'x\n',
+    ],
+    [
+      'a reason file that cannot be read',
+      ['--reason-file', join(root, 'missing.txt')],
+      undefined,
+    ],
+    ['a reason of more than one line', ['--reason-file', '-'], 'one\ntwo\n'],
+  ])(
+    'refuses %s with a JSON result and leaves the config as it was',
+    (_label, extra, input) => {
+      const before = readFileSync(soloConfig, 'utf-8');
+
+      const run = cli(
+        'solo',
+        [
+          'slack',
+          'channels',
+          'add',
+          'C0TEST0005',
+          '--name',
+          'synthetic-refused',
+          ...extra,
+          '--json',
+        ],
+        input,
+      );
+
+      expect(run.status).toBe(1);
+      expect(JSON.parse(run.stdout)).toEqual({
+        ok: false,
+        error: expect.any(String),
+      });
+      expect(readFileSync(soloConfig, 'utf-8')).toBe(before);
+    },
+  );
 
   it('refuses --report in an IC profile', () => {
     expect(

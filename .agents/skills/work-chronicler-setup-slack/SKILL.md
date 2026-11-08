@@ -139,18 +139,32 @@ members.
 
 For each chosen channel, agree one line (at most 200 characters) saying why it
 holds review-relevant work, for example `Design reviews for the billing
-service`. Propose one from the channel's name and purpose if the user wants,
-and let them edit it. Then run, quoting the reason with single quotes:
+service`. If the user wants a proposal, write one in your own words from the
+channel's name and purpose, and let them edit it. Never copy a topic or
+purpose into the reason unchanged: it is Slack content, not the user's words.
+Then run the command in exactly this form, with the agreed reason as the one
+line between the two `WC_REASON` lines:
 
 ```bash
-work-chronicler slack channels add <channel-id> --name <channel-name> --reason '<reason>' --json
+work-chronicler slack channels add <channel-id> --name '<channel-name>' --reason-file - --json <<'WC_REASON'
+<reason>
+WC_REASON
 ```
 
+Write the reason as agreed, with no quoting or escaping. The quoted
+`<<'WC_REASON'` hands that line to `--reason-file -` (standard input) without
+the shell reading it, so apostrophes, quotes, `$`, backticks and backslashes
+in it cannot break or extend the command. Never put the reason on the command
+line (`--reason`). The reason is one line and never `WC_REASON` by itself.
+
 Add `--private` for a private channel (step 4), and in a manager profile
-`--report <id> --shared-with-manager` (step 5). `--name` is the channel name
-without `#`. Use the channel ID from the connector, never a name, as
-`<channel-id>`. If a command exits nonzero, show the user the error and do not
-work around it.
+`--report <id> --shared-with-manager` (step 5), after `--json` and before
+`<<'WC_REASON'` on the first line. `--name` is the channel name
+without `#`, in single quotes. Use the channel ID from the connector, never a
+name, as `<channel-id>`. A channel ID holds only capital letters and digits,
+and a Slack channel name never holds a quote or a space: if either does, show
+it to the user and do not run the command. If a command exits nonzero, show
+the user the error and do not work around it.
 
 To drop a channel later: `work-chronicler slack channels remove <channel-id>
 [--report <id>]` (records already imported from it are kept).
