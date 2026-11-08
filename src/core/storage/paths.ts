@@ -1,5 +1,4 @@
 import { createHash } from 'node:crypto';
-import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { getGitHubNameProblem, normalizeGitHubName } from '@wc-types/github';
@@ -50,56 +49,6 @@ function toOrgDirectory(org: string): string {
   const problem = getGitHubNameProblem(normalized);
   if (problem) throw new Error(`Invalid GitHub org "${org}": ${problem}`);
   return normalized;
-}
-
-/**
- * Get the effective output directory, preferring filtered data if available.
- *
- * Checks if a `filtered/` subdirectory exists with PR data.
- * If so, returns that path for read operations to use the filtered subset.
- *
- * @param outputDir - Base work-log output directory
- * @returns Object with `dir` (path to use) and `isFiltered` (whether using filtered data)
- *
- * @example
- * ```ts
- * const { dir, isFiltered } = getEffectiveOutputDir('/path/to/work-log');
- * if (isFiltered) {
- *   console.log('Using filtered data');
- * }
- * ```
- */
-export function getEffectiveOutputDir(outputDir: string): {
-  dir: string;
-  isFiltered: boolean;
-} {
-  const filteredDir = join(outputDir, DIRECTORIES.FILTERED);
-  const filteredPRDir = join(filteredDir, DIRECTORIES.PULL_REQUESTS);
-
-  // Check if filtered directory exists and has PR data
-  if (existsSync(filteredPRDir)) {
-    return { dir: filteredDir, isFiltered: true };
-  }
-
-  return { dir: outputDir, isFiltered: false };
-}
-
-/**
- * Whether the work log's `filtered/` subset was written before any review
- * records existed: it has PRs but no `pr-reviews/` directory, while the full
- * work log has one. `filter` writes `filtered/pr-reviews/` (empty when
- * nothing matches) whenever the work log has `pr-reviews/`, so a missing
- * directory means the subset predates the first review fetch.
- *
- * @param outputDir - Base work-log output directory (not `filtered/`)
- */
-export function isFilteredSubsetMissingReviews(outputDir: string): boolean {
-  const filteredDir = join(outputDir, DIRECTORIES.FILTERED);
-  return (
-    existsSync(join(filteredDir, DIRECTORIES.PULL_REQUESTS)) &&
-    !existsSync(join(filteredDir, DIRECTORIES.PR_REVIEWS)) &&
-    existsSync(join(outputDir, DIRECTORIES.PR_REVIEWS))
-  );
 }
 
 /**

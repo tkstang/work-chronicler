@@ -1,6 +1,19 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import {
+  existsSync,
+  lstatSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+} from 'node:fs';
 import { join } from 'node:path';
 
+import { parseImportedRecordFile } from '@core/import/record-file';
+import { MAX_STORED_BYTES } from '@core/import/staging';
+import {
+  getImportedRecordIdentity,
+  IMPORT_SOURCES,
+  type ImportedRecordFile,
+} from '@wc-types/imported-record';
 import { type PullRequestFile, PullRequestSchema } from '@wc-types/pr';
 import {
   type PRReviewRecordFile,
@@ -9,7 +22,11 @@ import {
 import { type JiraTicketFile, JiraTicketSchema } from '@wc-types/ticket';
 import matter from 'gray-matter';
 
-import { DIRECTORIES } from './paths';
+import {
+  DIRECTORIES,
+  getImportedRecordSegments,
+  IMPORTED_RECORD_DIRECTORIES,
+} from './paths';
 
 /**
  * Read and parse a markdown file with frontmatter
@@ -287,4 +304,117 @@ export async function readPRReview(
   } catch {
     return null;
   }
+}
+
+/** An imported record file that could not be read, and why */
+export interface SkippedImportedRecord {
+  filePath: string;
+  /** Fixed text; never contains anything from the file */
+  reason: string;
+}
+
+function isMissing(error: unknown): boolean {
+  return (error as NodeJS.ErrnoException | undefined)?.code === 'ENOENT';
+}
+
+/**
+ * Read every imported record in a work log, and report the files that could
+ * not be read.
+ *
+ * Only the layout `import` writes is read:
+ * `<type directory>/<source>/<hash>.md`, regular files only, for known types
+ * and sources. Everything else in the work log root, such as `.import-lock`
+ * and `.import-transaction/`, is never looked at. A file is skipped when it is
+ * not a valid record or is not stored where its identity puts it (a copied or
+ * renamed file), so each identity is read at most once.
+ *
+ * @param outputDir - Base work-log directory (an IC work log, a report's, or
+ *   a `filtered/` subset)
+ */
+export function scanImportedRecords(outputDir: string): {
+  records: ImportedRecordFile[];
+  skipped: SkippedImportedRecord[];
+} {
+  const records: ImportedRecordFile[] = [];
+  const skipped: SkippedImportedRecord[] = [];
+
+  for (const typeDir of new Set(Object.values(IMPORTED_RECORD_DIRECTORIES))) {
+    for (const source of IMPORT_SOURCES) {
+      const dir = join(outputDir, typeDir, source);
+      let names: string[];
+      try {
+        names = readdirSync(dir).sort();
+      } catch (error) {
+        if (!isMissing(error)) {
+          skipped.push({
+            filePath: dir,
+            reason: 'directory could not be read',
+          });
+        }
+        continue;
+      }
+
+      for (const name of names) {
+        if (!name.endsWith('.md')) continue;
+        const filePath = join(dir, name);
+        try {
+          const stat = lstatSync(filePath);
+          if (!stat.isFile()) {
+            skipped.push({ filePath, reason: 'is not a regular file' });
+            continue;
+          }
+          if (stat.size > MAX_STORED_BYTES) {
+            skipped.push({ filePath, reason: 'is too large' });
+            continue;
+          }
+          const parsed = parseImportedRecordFile(readFileSync(filePath));
+          if (!parsed.ok) {
+            const [issue] = parsed.issues;
+            skipped.push({
+              filePath,
+              reason: `is not a valid imported record (${issue?.code ?? 'invalid'}${issue?.field ? ` at ${issue.field}` : ''})`,
+            });
+            continue;
+          }
+          const expected = getImportedRecordSegments(
+            getImportedRecordIdentity(parsed.record),
+          );
+          if (expected.join('/') !== `${typeDir}/${source}/${name}`) {
+            skipped.push({
+              filePath,
+              reason: 'is not stored where its identity puts it',
+            });
+            continue;
+          }
+          records.push({
+            frontmatter: parsed.record,
+            body: parsed.body,
+            filePath,
+          });
+        } catch {
+          skipped.push({ filePath, reason: 'could not be read' });
+        }
+      }
+    }
+  }
+
+  return { records, skipped };
+}
+
+/**
+ * Read every imported record (such as Slack messages) in a work log. Files
+ * that cannot be read are logged with warnings that never quote their
+ * contents, and skipped.
+ *
+ * @param outputDir - Base work-log directory
+ * @returns Parsed records with frontmatter, body, and file path
+ */
+export async function readAllImportedRecords(
+  outputDir: string,
+): Promise<ImportedRecordFile[]> {
+  const { records, skipped } = scanImportedRecords(outputDir);
+  for (const { filePath, reason } of skipped) {
+    console.warn(`Warning: Skipped ${filePath}: ${reason}`);
+  }
+  return records;
 }

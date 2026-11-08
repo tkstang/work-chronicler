@@ -1,7 +1,20 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  renameSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import {
+  messageFrontmatter,
+  recordFile,
+  SECRET,
+  storeRecord,
+} from '@core/import/import.test-support';
 import type { PullRequest } from '@wc-types/pr';
 import type { PRReviewRecord } from '@wc-types/pr-review';
 import type { JiraTicket } from '@wc-types/ticket';
@@ -9,12 +22,14 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { getPRFilePath, getPRReviewFilePath, getTicketFilePath } from './paths';
 import {
+  readAllImportedRecords,
   readAllPRReviews,
   readAllPRs,
   readAllTickets,
   readPR,
   readPRReview,
   readTicket,
+  scanImportedRecords,
 } from './reader';
 import { writeMarkdownFile } from './writer';
 
@@ -269,5 +284,67 @@ describe('review record storage', () => {
     expect(
       (await readAllPRReviews(outputDir)).map((r) => r.frontmatter.pr.title),
     ).toEqual(['Reviewed']);
+  });
+});
+
+describe('imported record storage', () => {
+  it('reads records where import stored them and ignores the import working files', async () => {
+    const stored = storeRecord(outputDir, 1, 'My own words.');
+    // An import in progress keeps a lock and staged copies in the root
+    writeFileSync(join(outputDir, '.import-lock'), 'owner');
+    mkdirSync(join(outputDir, '.import-transaction', 'staged'), {
+      recursive: true,
+    });
+    writeFileSync(
+      join(outputDir, '.import-transaction', 'staged', '0.md'),
+      recordFile(messageFrontmatter(2)),
+    );
+    writeFileSync(join(outputDir, 'messages', 'slack', 'notes.txt'), 'x');
+
+    const records = await readAllImportedRecords(outputDir);
+
+    expect(records).toHaveLength(1);
+    expect(records[0]?.filePath).toBe(stored);
+    expect(records[0]?.body).toBe('My own words.');
+    expect(records[0]?.frontmatter.sourceId).toBe(
+      'C0SYNTH01/1700000000.000001',
+    );
+  });
+
+  it('skips invalid, misplaced and linked files without quoting them', () => {
+    storeRecord(outputDir, 1);
+    const dir = join(outputDir, 'messages', 'slack');
+    writeFileSync(
+      join(dir, 'broken.md'),
+      `---\nsecret: ${SECRET}\n---\n\n${SECRET}\n`,
+    );
+    // A valid record copied under another name
+    const moved = storeRecord(outputDir, 3);
+    renameSync(moved, join(dir, 'copy.md'));
+    symlinkSync(join(dir, 'copy.md'), join(dir, 'link.md'));
+
+    const { records, skipped } = scanImportedRecords(outputDir);
+
+    expect(records.map((r) => r.frontmatter.sourceId)).toEqual([
+      'C0SYNTH01/1700000000.000001',
+    ]);
+    expect(skipped.map((s) => [s.filePath.split('/').pop(), s.reason])).toEqual(
+      [
+        [
+          'broken.md',
+          'is not a valid imported record (SCHEMA_INVALID at type)',
+        ],
+        ['copy.md', 'is not stored where its identity puts it'],
+        ['link.md', 'is not a regular file'],
+      ],
+    );
+    expect(JSON.stringify(skipped)).not.toContain(SECRET);
+  });
+
+  it('returns nothing for a work log without imported records', async () => {
+    expect(await readAllImportedRecords(outputDir)).toEqual([]);
+    expect(await readAllImportedRecords(join(outputDir, 'missing'))).toEqual(
+      [],
+    );
   });
 });

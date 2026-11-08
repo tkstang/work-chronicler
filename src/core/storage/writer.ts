@@ -44,14 +44,26 @@ export function writeMarkdownFile(
     mkdirSync(dir, { recursive: true });
   }
 
+  writeFileSync(filePath, serializeMarkdownFile(frontmatter, body), 'utf-8');
+}
+
+/**
+ * The exact text `writeMarkdownFile` writes for a frontmatter and body.
+ *
+ * @param frontmatter - Structured data to serialize as YAML frontmatter
+ * @param body - Markdown body content
+ * @returns File contents
+ */
+export function serializeMarkdownFile(
+  frontmatter: MarkdownFrontmatter,
+  body: string,
+): string {
   const yamlContent = stringifyYaml(frontmatter, {
     lineWidth: 0,
     defaultStringType: 'QUOTE_DOUBLE',
     defaultKeyType: 'PLAIN',
   });
-
-  const content = `---\n${yamlContent}---\n\n${body}\n`;
-  writeFileSync(filePath, content, 'utf-8');
+  return `---\n${yamlContent}---\n\n${body}\n`;
 }
 
 /**
