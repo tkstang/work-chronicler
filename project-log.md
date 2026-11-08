@@ -265,6 +265,10 @@ Uncertainty: gog output shapes may differ by account and doc type.
 
 Activated m03 (p13, p14, p15, p16, p17, p09, p10, p11); work-chronicler-evidence-expansion-activate-m03
 
+### 2026-11-08 · structural · oat-project-implement · p13
+
+p13 passed (review round 1: 0 C/H, 1 M, 4 L fixed in t08-t12; confirmation 0 findings); fix loops: 1. Head 1a19d85; wce-p13-outcome
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
