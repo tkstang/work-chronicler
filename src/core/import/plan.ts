@@ -16,7 +16,7 @@ import {
   importIssue,
 } from './issues';
 import { parseImportedRecordFile } from './record-file';
-import { MAX_RECORD_BYTES, type StagedRecord } from './staging';
+import { MAX_STORED_BYTES, type StagedRecord } from './staging';
 
 /** A filesystem object's identity (device and inode) */
 export interface FileId {
@@ -194,7 +194,7 @@ function checkDestination(
 
   let read;
   try {
-    read = fs.readFile(path, MAX_RECORD_BYTES);
+    read = fs.readFile(path, MAX_STORED_BYTES);
   } catch (error) {
     const code = errorCode(error);
     return {

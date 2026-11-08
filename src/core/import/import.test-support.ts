@@ -12,11 +12,16 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
+import { getImportedRecordFilePath } from '@storage/paths';
 import { stringify } from 'yaml';
 
 import type { ImportFs } from './import-fs';
+import {
+  parseImportedRecordFile,
+  serializeImportedRecord,
+} from './record-file';
 
 /** Planted in record content so tests can assert it is never echoed */
 export const SECRET = 'zebra-quartz-secret';
@@ -150,3 +155,121 @@ export const caseInsensitiveTmp = (() => {
     rmSync(dir, { recursive: true, force: true });
   }
 })();
+
+/** Operations that change the filesystem */
+export const MUTATING_OPS: ReadonlySet<FsOp> = new Set<FsOp>([
+  'writeFile',
+  'mkdir',
+  'rename',
+  'link',
+  'unlink',
+  'rmdir',
+  'removeTree',
+]);
+
+/**
+ * Model the process dying at the `crashAt`-th mutating operation (1-based):
+ * that operation does not happen (a write leaves half its bytes behind),
+ * and every operation after it fails, so nothing the dying process tries
+ * afterwards (such as a rollback) reaches the disk.
+ */
+export function crashingFs(base: ImportFs, crashAt: number): ImportFs {
+  let mutations = 0;
+  let dead = false;
+  const wrapped = {} as Record<string, unknown>;
+  for (const op of Object.keys(base) as FsOp[]) {
+    const fn = base[op] as (...args: unknown[]) => unknown;
+    wrapped[op] = (...args: unknown[]) => {
+      if (dead) throw fsError('ECRASHED');
+      if (MUTATING_OPS.has(op) && ++mutations === crashAt) {
+        dead = true;
+        if (op === 'writeFile') {
+          const data = args[1] as Uint8Array;
+          base.writeFile(
+            args[0] as string,
+            data.subarray(0, Math.floor(data.length / 2)),
+          );
+        }
+        throw fsError('ECRASHED');
+      }
+      return fn(...args);
+    };
+  }
+  return wrapped as unknown as ImportFs;
+}
+
+/**
+ * Fail exactly the `failAt`-th operation call (1-based, any operation) with
+ * EACCES; every other call runs normally.
+ */
+export function faultyFs(base: ImportFs, failAt: number): ImportFs {
+  let calls = 0;
+  return hookedFs(base, () => {
+    if (++calls === failAt) throw fsError('EACCES');
+  });
+}
+
+/** Count operation calls (all, and mutating only) */
+export function countingFs(base: ImportFs): {
+  fs: ImportFs;
+  counts: { all: number; mutating: number };
+} {
+  const counts = { all: 0, mutating: 0 };
+  const fs = hookedFs(base, (op) => {
+    counts.all++;
+    if (MUTATING_OPS.has(op)) counts.mutating++;
+  });
+  return { fs, counts };
+}
+
+/**
+ * Model the process dying right after the first operation for which
+ * `after` returns true: that operation completes, and every later one fails.
+ */
+export function crashAfterFs(
+  base: ImportFs,
+  after: (op: FsOp, args: unknown[]) => boolean,
+): ImportFs {
+  let armed = false;
+  let dead = false;
+  const wrapped = {} as Record<string, unknown>;
+  for (const op of Object.keys(base) as FsOp[]) {
+    const fn = base[op] as (...args: unknown[]) => unknown;
+    wrapped[op] = (...args: unknown[]) => {
+      if (dead || armed) {
+        dead = true;
+        throw fsError('ECRASHED');
+      }
+      const result = fn(...args);
+      if (after(op, args)) armed = true;
+      return result;
+    };
+  }
+  return wrapped as unknown as ImportFs;
+}
+
+/** The identity of the synthetic record numbered `n` */
+export function slackIdentity(n: number) {
+  return {
+    type: 'message',
+    source: 'slack',
+    sourceAccount: 'T0SYNTH01',
+    sourceId: `C0SYNTH01/1700000000.${String(n).padStart(6, '0')}`,
+  } as const;
+}
+
+/** Store record `n` in a work log as an earlier import would have */
+export function storeRecord(
+  workLog: string,
+  n: number,
+  body = 'Stored earlier.',
+): string {
+  const parsed = parseImportedRecordFile(
+    Buffer.from(recordFile(messageFrontmatter(n), body)),
+  );
+  if (!parsed.ok) throw new Error('fixture must be valid');
+  const path = getImportedRecordFilePath(workLog, slackIdentity(n));
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, serializeImportedRecord(parsed.record, parsed.body));
+  return path;
+}

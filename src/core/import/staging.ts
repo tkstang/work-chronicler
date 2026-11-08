@@ -25,6 +25,11 @@ import { checkSourceRules } from './sources';
 export const MAX_BATCH_RECORDS = 10_000;
 /** Largest staged record file */
 export const MAX_RECORD_BYTES = 1024 * 1024;
+/**
+ * Largest stored record. The stored form re-serializes the frontmatter, which
+ * can be somewhat longer than the staged file.
+ */
+export const MAX_STORED_BYTES = 4 * MAX_RECORD_BYTES;
 
 /**
  * A staged record that parsed and passed the schema. `content` is the stored
@@ -174,12 +179,18 @@ export function readStagingBatch(
       issues.push(...parsed.issues);
       continue;
     }
-    records.push({
-      file,
-      record: parsed.record,
-      body: parsed.body,
-      content: serializeImportedRecord(parsed.record, parsed.body),
-    });
+    const content = serializeImportedRecord(parsed.record, parsed.body);
+    if (content.length > MAX_STORED_BYTES) {
+      issues.push(
+        importIssue(
+          'FILE_TOO_LARGE',
+          `the stored form of a record holds at most ${MAX_STORED_BYTES} bytes`,
+          { file },
+        ),
+      );
+      continue;
+    }
+    records.push({ file, record: parsed.record, body: parsed.body, content });
   }
   return { records, issues };
 }

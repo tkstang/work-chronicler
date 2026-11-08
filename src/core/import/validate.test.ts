@@ -19,16 +19,13 @@ import {
   hookedFs,
   makeWorld,
   messageFrontmatter,
-  recordFile,
   SECRET,
+  slackIdentity,
   snapshot,
   stage,
+  storeRecord,
 } from './import.test-support';
 import { type ImportRunOptions, runImport } from './index';
-import {
-  parseImportedRecordFile,
-  serializeImportedRecord,
-} from './record-file';
 
 // Threat-matrix coverage for the read-only half of import: staging reads,
 // batch checks and destination planning. `validate` must reject every unsafe
@@ -54,26 +51,6 @@ function validate(
   },
 ) {
   return runImport({ mode: 'validate', target: { kind: 'ic' }, ...options });
-}
-
-const slackIdentity = (n: number) =>
-  ({
-    type: 'message',
-    source: 'slack',
-    sourceAccount: 'T0SYNTH01',
-    sourceId: `C0SYNTH01/1700000000.${String(n).padStart(6, '0')}`,
-  }) as const;
-
-/** Store a record in the work log as an earlier import would have */
-function storeRecord(workLog: string, n: number, body = 'Stored earlier.') {
-  const parsed = parseImportedRecordFile(
-    Buffer.from(recordFile(messageFrontmatter(n), body)),
-  );
-  if (!parsed.ok) throw new Error('fixture must be valid');
-  const path = getImportedRecordFilePath(workLog, slackIdentity(n));
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, serializeImportedRecord(parsed.record, parsed.body));
-  return path;
 }
 
 function codes(result: { issues: { code: string }[] }) {
@@ -221,12 +198,20 @@ describe('validate: staging directory threats', () => {
     expect(codes(result)).toEqual(['FILE_TOO_LARGE']);
   });
 
-  it('rejects a batch over the record limit', () => {
+  it('rejects a batch over the record limit before reading any file', () => {
     const w = world();
-    for (let i = 0; i <= 10_000; i++) {
-      writeFileSync(join(w.staging, `${i}.md`), '');
-    }
-    const result = validate({ stagingDir: w.staging, workLogRoot: w.workLog });
+    const env = createImportEnv();
+    const names = Array.from({ length: 10_001 }, (_, i) => `${i}.md`);
+    env.fs = hookedFs({ ...env.fs, readdir: () => names }, (op) => {
+      if (op === 'readFile') throw new Error('no file should be read');
+    });
+
+    const result = validate({
+      stagingDir: w.staging,
+      workLogRoot: w.workLog,
+      env,
+    });
+
     expect(codes(result)).toEqual(['BATCH_TOO_LARGE']);
   });
 
