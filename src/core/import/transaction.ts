@@ -239,7 +239,7 @@ class PathGuard {
     const paths = this.below(dir);
     this.expect(this.root, '.');
     for (const current of paths) {
-      this.expect(current, relative(this.root, current));
+      this.expect(current, this.display(current));
     }
   }
 
@@ -274,7 +274,7 @@ class PathGuard {
    * {@link PathGuard.reach}).
    */
   checkAt(path: string): void {
-    this.expect(path, relative(this.root, path));
+    this.expect(path, this.display(path));
   }
 
   /**
@@ -289,7 +289,7 @@ class PathGuard {
       throw new ChangedError();
     }
     for (const current of this.below(dir)) {
-      const where = relative(this.root, current);
+      const where = this.display(current);
       let entry;
       try {
         entry = this.fs.lstat(current);
@@ -303,6 +303,11 @@ class PathGuard {
       }
     }
     return true;
+  }
+
+  /** A path below the work log as reported in issues: `/`-separated on every platform */
+  private display(path: string): string {
+    return relative(this.root, path).split(sep).join('/');
   }
 
   /** Each directory from just below the work log down to `dir` itself */
