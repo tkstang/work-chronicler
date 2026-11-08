@@ -103,11 +103,14 @@ STAGING=$(mktemp -d "${TMPDIR:-/tmp}/wc-gdocs-import.XXXXXX")
 ```
 
 Both must be outside the work log. `$READS` holds `gog`'s output while you
-read it. `$STAGING` holds one chunk of record files named `1.md`, `2.md`, …:
-no other files, hidden files or subdirectories. Stage at most **500 records
-per chunk**, well below the import's batch limits (10,000 records, 64 MiB);
-when a chunk is full, validate and import it (step 9), then empty `$STAGING`
-and continue numbering from `1.md`.
+read a Doc, and each staged record's own frontmatter and excerpt
+(`$READS/<n>.front.md` and `$READS/<n>.txt`, the same `<n>` as its record)
+until its chunk is imported. `$STAGING` holds one chunk of record files
+named `1.md`, `2.md`, …: no other files, hidden files or subdirectories.
+Number records once for the whole run, never reusing a number. Stage at
+most **500 records per chunk**, well below the import's batch limits
+(10,000 records, 64 MiB); when a chunk is full, validate and import it
+(step 9), then start the next chunk.
 
 ### 5. List the Docs
 
@@ -202,34 +205,34 @@ wc -c < "$READS/doc.txt"
   `truncated: false`:
 
   ```bash
-  cp "$READS/doc.txt" "$READS/excerpt.txt"
+  cp "$READS/doc.txt" "$READS/<n>.txt"
   ```
 
 - **More than 16384 bytes**: the Doc is longer than the cap. Cut it at the
   last whole line within the cap, with `truncated: true`:
 
   ```bash
-  head -c 16384 "$READS/doc.txt" | LC_ALL=C sed '$d' > "$READS/excerpt.txt"
+  head -c 16384 "$READS/doc.txt" | LC_ALL=C sed '$d' > "$READS/<n>.txt"
   ```
 
   If that leaves nothing but whitespace (the first line is one very long
   paragraph), cut at the last space within the cap instead:
 
   ```bash
-  head -c 16384 "$READS/doc.txt" | LC_ALL=C sed '$s/[^ ]*$//' > "$READS/excerpt.txt"
+  head -c 16384 "$READS/doc.txt" | LC_ALL=C sed '$s/[^ ]*$//' > "$READS/<n>.txt"
   ```
 
-  If that still leaves nothing but whitespace, skip the Doc and count it as
-  **unreadable**.
+  If that still leaves nothing but whitespace, delete `$READS/<n>.txt`,
+  skip the Doc and count it as **unreadable**.
 
-Never edit `$READS/excerpt.txt` by hand: it becomes the record body byte for
-byte.
+`<n>` is the number the Doc's record will have (step 8). Never edit
+`$READS/<n>.txt` by hand: it becomes the record body byte for byte.
 
 Find the mentions (step 8) in the excerpt without reading it whole:
 
 ```bash
-LC_ALL=C grep -owE '[A-Z][A-Z0-9_]*-[1-9][0-9]*' "$READS/excerpt.txt" | sort -u
-LC_ALL=C grep -oE 'https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/pull/[0-9]+' "$READS/excerpt.txt" | sort -u
+LC_ALL=C grep -owE '[A-Z][A-Z0-9_]*-[1-9][0-9]*' "$READS/<n>.txt" | sort -u
+LC_ALL=C grep -oE 'https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/pull/[0-9]+' "$READS/<n>.txt" | sort -u
 ```
 
 Of the first list, keep only ticket keys (drop look-alikes such as `UTF-8`).
@@ -237,7 +240,7 @@ Of the first list, keep only ticket keys (drop look-alikes such as `UTF-8`).
 ### 8. Write one record per kept Doc
 
 Write only the record's frontmatter with your file-writing tool, as
-`$READS/front.md`, filling in the template and double-quoting every string
+`$READS/<n>.front.md`, filling in the template and double-quoting every string
 value. It must end with the closing `---` line and then one blank line:
 
 ```markdown
@@ -268,7 +271,7 @@ document:
 Then put the frontmatter and the excerpt together as the record:
 
 ```bash
-cat "$READS/front.md" "$READS/excerpt.txt" > "$STAGING/<n>.md"
+cat "$READS/<n>.front.md" "$READS/<n>.txt" > "$STAGING/<n>.md"
 ```
 
 The import reads the blank line as the start of the body, so the body is the
@@ -288,10 +291,12 @@ excerpt exactly. Field by field:
 | `document.owners` | Each owner's `emailAddress` from `drive get`, in lower case. Never added or changed by you. |
 | `document.driveId` | `null` (a Doc in a shared drive was skipped in step 6). |
 | `document.truncated` | From step 7. |
-| Body | `$READS/excerpt.txt` from step 7, added by `cat`: never retype, reword or shorten it. |
+| Body | `$READS/<n>.txt` from step 7, added by `cat`: never retype, reword or shorten it. |
 
-Build each record as you go (the next Doc's `gog` output replaces
-`doc.txt`, `excerpt.txt` and `front.md`), and count it as **staged**.
+Build each record as you go (the next Doc's `gog` output replaces only
+`doc.txt`), and count it as **staged**. A record is always rebuilt from its
+own `$READS/<n>.front.md` and `$READS/<n>.txt`, never from another number's
+files.
 
 ### 9. Validate, then import each chunk
 
@@ -319,17 +324,22 @@ If `ok` is `false`, read each issue's `code`, `file` and `field`:
 - `SOURCE_RULE` on `sourceAccount`, `attribution`, `document.owners`,
   `document.driveId`, `document.mimeType` or `occurredAt`: the Doc is not
   the subject's own Google Doc, or not in the range. Delete that record file
-  and count it as **refused** by its field; never edit it to pass.
-- `SOURCE_RULE` on `body`: the excerpt is longer than the cap. Cut it
-  shorter with the commands in step 7, set `truncated: true`, rebuild the
-  record with `cat` and validate again.
-- `FRONTMATTER_MISSING`: `front.md` did not end with the `---` line and a
-  newline. Rewrite the frontmatter and rebuild the record with `cat`.
+  (`$STAGING/<n>.md`, with `$READS/<n>.front.md` and `$READS/<n>.txt`) and
+  count it as **refused** by its field; never edit it to pass.
+- `SOURCE_RULE` on `body`: the excerpt is longer than the cap. Delete the
+  record and its two `$READS` files, and redo that Doc from step 6 under the
+  same `<n>`.
+- `FRONTMATTER_MISSING`: `$READS/<n>.front.md` did not end with the `---`
+  line and a newline. Fix that file, then rebuild the record from its own
+  files with the `cat` command in step 8, and validate again.
 - `SOURCE_RULE` on `url`, `updatedAt` or `document.createdAt`,
-  `SCHEMA_INVALID` or `YAML_INVALID`: a mistake in the file. Fix that field
-  following step 8 (or set `url` to `null`) and validate again.
-- `BATCH_TOO_LARGE`: split the chunk in two (move half the files to a new
-  staging directory, renumbering each from `1.md`) and validate each.
+  `SCHEMA_INVALID` or `YAML_INVALID`: a mistake in the frontmatter. Fix that
+  field in `$READS/<n>.front.md` following step 8 (or set `url` to `null`),
+  rebuild the record with `cat` and validate again.
+- `BATCH_TOO_LARGE`: split the chunk in two: move half the record files,
+  keeping their names (the import accepts any `<name>.md`), to a new staging
+  directory made like `$STAGING`, and validate each. Delete that directory
+  with the chunk.
 - `RANGE_INVALID`: the range override cannot be read. Fix it with the user.
 - `RECOVERY_REQUIRED`: an earlier import was interrupted. The next `import`
   finishes it first; tell the user.
@@ -339,7 +349,12 @@ When `validate` passes, run the `importCommand` itself the same way (same
 none. If it fails, show the user the issue codes and fields (they never
 contain Doc text) and count the chunk as **not imported**. Count each
 chunk's outcome: imported (with its `created`, `updated` and `unchanged`) or
-not imported, and why.
+not imported, and why. Then empty the chunk before starting the next one,
+removing its records and their `$READS` files together:
+
+```bash
+rm -f "$STAGING"/*.md "$READS"/*.front.md "$READS"/*.txt
+```
 
 ### 10. Clean up
 
