@@ -1301,6 +1301,19 @@ Also in p03-t15: CodeRabbit 4505014153 (docs/notice wrongly said `--overwrite` f
 
 **Outcome:** fix dispatched; m02 recovery → exit_gate after the fix (exit carrier stales), then a fresh integrated review.
 
+### Review Received: p04-p08 (m02 recovery exit gate, attempt 4)
+
+**Date:** 2026-11-08
+**Review artifact (local-only):** reviews/archived/range-review-2026-11-08T103910Z.md
+
+**Findings:** Critical 0 · High 1 · Medium 2 · Low 0 (gate `codex-6-sol-xhigh`, run 05afe7af-ae18-440a-84e3-0234d6283a4b, reviewed head 1ad43f40604571e0cf3262d6f5c2e10d745fcf1d)
+
+- H1 (High): a missing journal is always treated as interrupted preparation, so recovery discards the transaction (backups included) even when `applying/` markers show records were applied, reporting success over a half-updated batch (`src/core/import/transaction.ts:961`) → fix; agree.
+- M1 (Medium): `commitImportPlan` drops `unchanged` records from verification, so a planned-unchanged record deleted mid-import still yields `ok: true` (`transaction.ts:1175`) → fix; agree.
+- M2 (Medium): after `filter` publishes the new subset, a leftover-enumeration error rejects and the CLI says the subset was not changed (`src/core/storage/filtered-subset.ts:678`) → fix; agree.
+
+**Outcome:** fixes dispatched.
+
 ### PR review received: d01 (PR #25, CodeRabbit)
 
 **Date:** 2026-11-08
