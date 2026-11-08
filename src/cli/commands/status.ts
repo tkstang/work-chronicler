@@ -13,7 +13,7 @@ import {
   readAllPRReviews,
   readAllPRs,
   readAllTickets,
-  readFilterLock,
+  readWorkLogLockHolders,
   scanImportedRecords,
   splitReviewRecordsByReviewer,
 } from '@core/index';
@@ -23,22 +23,36 @@ import { Command } from 'commander';
 const SKIPPED_SHOWN = 3;
 
 /**
- * The filter lock, when one is held: who holds it and how to recover. While
- * it is held, `filter` and `filter --clear` are refused, so the subset lines
- * do not recommend them.
+ * The work-log lock (shared by `import` and `filter`), when it is held: who
+ * holds it and how to recover, one line per run holding it. While it is
+ * held, `import`, `filter` and `filter --clear` are refused, so the subset
+ * lines do not recommend them.
  */
-function describeLock(outputDir: string): string | undefined {
-  let lock: ReturnType<typeof readFilterLock>;
+function describeLock(outputDir: string): string[] {
+  let holders: ReturnType<typeof readWorkLogLockHolders>;
   try {
-    lock = readFilterLock(outputDir);
+    holders = readWorkLogLockHolders(outputDir);
   } catch {
-    return undefined;
+    return [];
   }
-  if (!lock) return undefined;
-  const who = lock.owner
-    ? `process ${lock.owner.pid} on ${lock.owner.hostname}, started ${new Date(lock.owner.startedAt).toISOString()}`
-    : 'an owner that cannot be read';
-  return `Filter lock: ${lock.path} is held by ${who}. \`work-chronicler filter\` and \`filter --clear\` are refused while it is held. If that run is still going, wait for it; if you know no filter is running (it was stopped, or the machine was renamed), remove ${lock.path}.`;
+  // A run holds every name of the lock with one owner: name it once
+  const byRun = new Map<string, typeof holders>();
+  for (const holder of holders) {
+    const key = holder.owner
+      ? JSON.stringify([holder.owner.runId, holder.owner.pid])
+      : holder.path;
+    byRun.set(key, [...(byRun.get(key) ?? []), holder]);
+  }
+  return [...byRun.values()].map((group) => {
+    const [first] = group;
+    const paths = group.map((holder) => holder.path).join(' and ');
+    const command = first?.command ?? 'import';
+    const owner = first?.owner;
+    const who = owner
+      ? `\`work-chronicler ${command}\` (process ${owner.pid} on ${owner.hostname}, started ${new Date(owner.startedAt).toISOString()})`
+      : 'an owner that cannot be read';
+    return `Work-log lock: ${paths} ${group.length > 1 ? 'are' : 'is'} held by ${who}. \`work-chronicler import\`, \`filter\` and \`filter --clear\` are refused while it is held. If that run is still going, wait for it; if you know no ${command} is running (it was stopped, or the machine was renamed), remove ${paths}.`;
+  });
 }
 
 function describeSubset(outputDir: string, locked: boolean): string[] {
@@ -56,7 +70,7 @@ function describeSubset(outputDir: string, locked: boolean): string[] {
   }
   if (state.status === 'interrupted' && locked) {
     return [
-      'Filtered subset: a `work-chronicler filter` run is replacing filtered/ (see the filter lock below); `analyze` (without `--full`) refuses to run and MCP tools return no results until it finishes or the lock is removed.',
+      'Filtered subset: a `work-chronicler filter` run is replacing filtered/ (see the work-log lock below); `analyze` (without `--full`) refuses to run and MCP tools return no results until it finishes or the lock is removed.',
     ];
   }
   if (state.status === 'interrupted') {
@@ -193,10 +207,10 @@ export const statusCommand = new Command('status')
 
       console.log();
       const lock = describeLock(outputDir);
-      for (const line of describeSubset(outputDir, lock !== undefined)) {
+      for (const line of describeSubset(outputDir, lock.length > 0)) {
         console.log(line);
       }
-      if (lock) console.log(lock);
+      for (const line of lock) console.log(line);
 
       if (prs.length > 0 || tickets.length > 0) {
         console.log(

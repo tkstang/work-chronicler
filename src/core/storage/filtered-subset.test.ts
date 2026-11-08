@@ -110,6 +110,10 @@ function failing(
   return fs as unknown as SubsetFs;
 }
 
+/** A path of the work-log lock (either name, its claims and guards) */
+const isLockPath = (path: string) =>
+  path.includes('.filter-lock') || path.includes('.import-lock');
+
 const inStaging = (path: string) =>
   basename(path).startsWith('.filter-staging') ||
   path.includes('/.filter-staging-');
@@ -350,7 +354,7 @@ describe('replaceFilteredSubset', () => {
       ...nodeSubsetFs,
       rename: (from, to) => {
         // Taking and releasing the lock are not part of the swap
-        if (from.includes('.filter-lock') || to.includes('.filter-lock')) {
+        if (isLockPath(from) || isLockPath(to)) {
           nodeSubsetFs.rename(from, to);
           return;
         }
@@ -443,7 +447,7 @@ describe('replaceFilteredSubset', () => {
     const fs: SubsetFs = {
       ...nodeSubsetFs,
       rename: (from, to) => {
-        if (from.includes('.filter-lock') || to.includes('.filter-lock')) {
+        if (isLockPath(from) || isLockPath(to)) {
           nodeSubsetFs.rename(from, to);
           return;
         }
@@ -709,8 +713,9 @@ describe('one filter run at a time', () => {
       ...nodeSubsetFs,
       rm: (path) => {
         removed.push(basename(path));
-        // While the released copy is being removed, another run starts
-        if (!contender && basename(path).startsWith('.filter-lock.released-')) {
+        // While the last released name (`.import-lock`, taken first and
+        // released last) is being removed, another run starts
+        if (!contender && basename(path).startsWith('.import-lock.released-')) {
           contender = replaceFilteredSubset(workLog, runPlan('C'));
         }
         nodeSubsetFs.rm(path);
@@ -723,6 +728,13 @@ describe('one filter run at a time', () => {
 
     expect(warnings).toEqual([]);
     expect(removed).not.toContain('.filter-lock');
+    expect(removed).not.toContain('.import-lock');
+    // Released last-taken first: `.filter-lock` was gone before `.import-lock`
+    expect(
+      removed.findIndex((name) => name.startsWith('.filter-lock.released-')),
+    ).toBeLessThan(
+      removed.findIndex((name) => name.startsWith('.import-lock.released-')),
+    );
     // The contender found the lock free and ran normally
     await expect(contender).resolves.toMatchObject({ warnings: [] });
     const state = getFilteredSubsetState(workLog);

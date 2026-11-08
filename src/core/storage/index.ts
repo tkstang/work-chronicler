@@ -14,6 +14,7 @@ export {
   nodeSubsetFs,
   readFilterLock,
   readFilterSelection,
+  readWorkLogLockHolders,
   replaceFilteredSubset,
   type SubsetEnv,
   type SubsetFile,

@@ -56,6 +56,7 @@ export {
   readAllTickets,
   readFilterLock,
   readFilterSelection,
+  readWorkLogLockHolders,
   readPR,
   readPRReview,
   readTicket,

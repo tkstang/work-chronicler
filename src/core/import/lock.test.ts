@@ -1,6 +1,18 @@
-import { lstatSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import {
+  existsSync,
+  lstatSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+} from 'node:fs';
 import { join } from 'node:path';
 
+import {
+  clearFilteredSubset,
+  FilterInProgressError,
+  replaceFilteredSubset,
+  type SubsetPlan,
+} from '@storage/filtered-subset';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
@@ -9,7 +21,14 @@ import {
   type ImportFs,
   nodeImportFs,
 } from './import-fs';
-import { makeWorld } from './import.test-support';
+import {
+  hookedFs,
+  makeWorld,
+  messageFrontmatter,
+  stage,
+  SYNTH_SOURCES,
+} from './import.test-support';
+import { runImport } from './index';
 import { acquireImportLock, releaseImportLock } from './transaction';
 
 // The import lock is the shared work-log lock (also used by `filter`):
@@ -144,6 +163,128 @@ describe('import lock', () => {
 
     expect(refused.issue?.code).toBe('IMPORT_IN_PROGRESS');
     expect(lockOwner(root).runId).toBe('batch-b');
-    expect(readdirSync(root)).toEqual(['.import-lock']);
+    // The live run holds both names of the work-log lock; nothing else
+    expect(readdirSync(root).sort()).toEqual(['.filter-lock', '.import-lock']);
+  });
+});
+
+// `import` and `filter` share the work-log lock: each is refused while the
+// other holds it, so a filter never reads records an import is changing and
+// an import never changes records a filter is reading.
+describe('one work-log lock for import and filter', () => {
+  const emptyPlan = (validate?: SubsetPlan['validate']): SubsetPlan => {
+    const none = { pullRequests: 0, tickets: 0, prReviews: 0, messages: 0 };
+    return {
+      files: [],
+      directories: [],
+      selection: {
+        version: 1,
+        createdAt: '2026-11-08T00:00:00.000Z',
+        filters: ['synthetic'],
+        counts: none,
+        totals: none,
+      },
+      ...(validate ? { validate } : {}),
+    };
+  };
+
+  function world() {
+    const w = makeWorld();
+    roots.push(w.base);
+    stage(w.staging, 'a.md', messageFrontmatter(1));
+    return w;
+  }
+
+  const importBatch = (
+    w: ReturnType<typeof world>,
+    env: ImportEnv = createImportEnv(),
+  ) =>
+    runImport({
+      mode: 'import',
+      stagingDir: w.staging,
+      workLogRoot: w.workLog,
+      target: { kind: 'ic' },
+      sources: SYNTH_SOURCES,
+      env,
+    });
+
+  it('refuses an import while a filter holds the lock, changing no record', async () => {
+    const w = world();
+    let during: ReturnType<typeof importBatch> | undefined;
+
+    await replaceFilteredSubset(
+      w.workLog,
+      emptyPlan(() => {
+        during = importBatch(w);
+      }),
+    );
+
+    expect(during?.ok).toBe(false);
+    expect(during?.issues.map((i) => i.code)).toEqual(['IMPORT_IN_PROGRESS']);
+    expect(during?.issues[0]?.message).toMatch(
+      /`work-chronicler filter` run \(process \d+ .*\) holds the work-log lock \(\.import-lock\)/,
+    );
+    expect(existsSync(join(w.workLog, 'messages'))).toBe(false);
+    // Once the filter has finished, the same import runs
+    expect(importBatch(w).ok).toBe(true);
+  });
+
+  it('refuses filter and filter --clear while an import holds the lock', async () => {
+    const w = world();
+    let replacing: Promise<unknown> | undefined;
+    let clearing: unknown;
+    const env: ImportEnv = {
+      ...createImportEnv(),
+      fs: hookedFs(nodeImportFs, (op, args) => {
+        // Mid-commit: the first record is about to be applied
+        if (
+          replacing === undefined &&
+          op === 'writeFile' &&
+          String(args[0]).includes(join('.import-transaction', 'applying'))
+        ) {
+          replacing = replaceFilteredSubset(w.workLog, emptyPlan());
+          try {
+            clearFilteredSubset(w.workLog);
+          } catch (error) {
+            clearing = error;
+          }
+        }
+      }),
+    };
+
+    const imported = importBatch(w, env);
+
+    expect(imported.ok).toBe(true);
+    expect(replacing).toBeDefined();
+    await expect(replacing).rejects.toThrow(FilterInProgressError);
+    await expect(replacing).rejects.toThrow(
+      /Another `work-chronicler import` run \(process \d+ .*\) holds .*\.import-lock\..*If you know no import is running/,
+    );
+    expect(clearing).toBeInstanceOf(FilterInProgressError);
+    expect(existsSync(join(w.workLog, 'filtered'))).toBe(false);
+    // The import released the whole lock: filter runs now
+    await replaceFilteredSubset(w.workLog, emptyPlan());
+    expect(readdirSync(w.workLog).sort()).toEqual(['filtered', 'messages']);
+  });
+
+  it('lets validate run while a filter holds the lock (a filter changes no record)', async () => {
+    const w = world();
+    let checked: ReturnType<typeof importBatch> | undefined;
+
+    await replaceFilteredSubset(
+      w.workLog,
+      emptyPlan(() => {
+        checked = runImport({
+          mode: 'validate',
+          stagingDir: w.staging,
+          workLogRoot: w.workLog,
+          target: { kind: 'ic' },
+          sources: SYNTH_SOURCES,
+        });
+      }),
+    );
+
+    expect(checked?.ok).toBe(true);
+    expect(checked?.issues).toEqual([]);
   });
 });

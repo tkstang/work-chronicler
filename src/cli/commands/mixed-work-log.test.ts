@@ -453,13 +453,16 @@ describe('a mixed work log with imported messages', () => {
     importedMessage(2, { tickets: ['OPS-9'] }); // mentions nothing fetched
     importedMessage(3);
 
-    // An import in progress: its lock and staged copy are not records
-    writeFileSync(join(workLog, '.import-lock'), 'owner');
-    mkdirSync(join(workLog, '.import-transaction', 'staged'), {
+    // What finished imports leave behind (a released lock, a finished
+    // transaction with a staged copy) is not records and blocks nothing. An
+    // import in progress blocks `filter`: see the test below.
+    mkdirSync(join(workLog, '.import-lock.released-old'));
+    writeFileSync(join(workLog, '.import-lock.released-old', 'owner.json'), '');
+    mkdirSync(join(workLog, '.import-transaction.done-old', 'staged'), {
       recursive: true,
     });
     writeFileSync(
-      join(workLog, '.import-transaction', 'staged', '0.md'),
+      join(workLog, '.import-transaction.done-old', 'staged', '0.md'),
       recordFile(messageFrontmatter(9)),
     );
   });
@@ -661,7 +664,7 @@ describe('a mixed work log with imported messages', () => {
     expect(logs).toContain(
       'Messages:      3 imported (slack 3; supplementary evidence, not counted as PRs or tickets)',
     );
-    expect(logs).toContainEqual(
+    expect(logs).not.toContainEqual(
       expect.stringContaining('An import is running or did not finish'),
     );
     expect(logs).toContain(
@@ -769,7 +772,7 @@ describe('a mixed work log with imported messages', () => {
     await run(statusCommand, []);
     expect(logs).toContainEqual(
       expect.stringContaining(
-        `Filter lock: ${lockPath} is held by process 4242 on Old-Hostname.local, started 1970-01-01T00:00:00.001Z.`,
+        `Work-log lock: ${lockPath} is held by \`work-chronicler filter\` (process 4242 on Old-Hostname.local, started 1970-01-01T00:00:00.001Z).`,
       ),
     );
     expect(logs).toContainEqual(
@@ -789,5 +792,43 @@ describe('a mixed work log with imported messages', () => {
     rmSync(lockPath, { recursive: true });
     await run(filterCommand, ['--clear']);
     expect(core.getEffectiveOutputDir(workLog).isFiltered).toBe(false);
+  });
+
+  it('filter is refused while an import holds the work-log lock, and status names the import', async () => {
+    await run(filterCommand, ['--org', 'acme']);
+    const before = snapshot(filteredDir);
+    // A running import holds both names of the work-log lock
+    const owner = JSON.stringify({
+      version: 1,
+      pid: process.pid,
+      hostname: 'this-host-is-elsewhere',
+      startedAt: 1,
+      runId: 'running-import',
+      command: 'import',
+    });
+    const names = ['.import-lock', '.filter-lock'];
+    for (const name of names) {
+      mkdirSync(join(workLog, name));
+      writeFileSync(join(workLog, name, 'owner.json'), owner);
+    }
+    const paths = names.map((name) => join(workLog, name));
+
+    logs = [];
+    await run(statusCommand, []);
+    expect(logs).toContainEqual(
+      expect.stringContaining(
+        `Work-log lock: ${paths[0]} and ${paths[1]} are held by \`work-chronicler import\` (process ${process.pid} on this-host-is-elsewhere, started 1970-01-01T00:00:00.001Z).`,
+      ),
+    );
+    expect(logs).toContainEqual(
+      expect.stringContaining('if you know no import is running'),
+    );
+
+    for (const args of [['--org', 'other'], ['--clear']]) {
+      await expect(run(filterCommand, args)).rejects.toThrow(
+        /Another `work-chronicler import` run .* holds .*\.import-lock\./,
+      );
+    }
+    expect(snapshot(filteredDir)).toEqual(before);
   });
 });

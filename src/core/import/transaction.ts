@@ -4,8 +4,11 @@ import { IMPORTED_RECORD_DIRECTORIES } from '@storage/paths';
 import {
   acquireWorkLogLock,
   describeOwner,
+  holderCommand,
+  IMPORT_LOCK,
   type LockAcquisition,
   type LockFs,
+  type LockOwner,
   ownerIsAlive,
   readLockState,
 } from '@storage/work-log-lock';
@@ -31,10 +34,11 @@ import { MAX_STORED_BYTES } from './staging';
 /**
  * Batch commit and recovery.
  *
- * One import runs per work log at a time, under `.import-lock` (created
- * atomically with a hard link, so it always holds its owner's process ID,
- * host and start time). A batch is committed through a write-ahead journal
- * in `.import-transaction/`:
+ * An import runs under the work-log lock it shares with `filter` (see
+ * `@storage/work-log-lock`: a directory renamed into place complete with its
+ * owner's process, host, boot and run, under `.import-lock` and then
+ * `.filter-lock`), so one import or filter runs per work log at a time. A
+ * batch is committed through a write-ahead journal in `.import-transaction/`:
  *
  * 1. Prepare (nothing in the work log changes): write every new record and a
  *    backup of every record it replaces into the transaction directory, read
@@ -58,7 +62,8 @@ import { MAX_STORED_BYTES } from './staging';
  * verified) is reported as imported.
  */
 
-export const LOCK_NAME = '.import-lock';
+/** The work-log lock name every import holds (it takes `.filter-lock` too) */
+export const LOCK_NAME = IMPORT_LOCK;
 export const TRANSACTION_NAME = '.import-transaction';
 const DONE_PREFIX = `${TRANSACTION_NAME}.done-`;
 const JOURNAL = 'journal.json';
@@ -367,6 +372,13 @@ export interface ImportLock {
 const LOCK_HELD =
   'another import is running in this work log (or was started on another machine); try again when it finishes';
 
+/** Why the work-log lock is held, by the command holding it */
+function lockHeldBy(name: string, owner: LockOwner): string {
+  return holderCommand(name, owner) === 'filter'
+    ? `a \`work-chronicler filter\` run (${describeOwner(owner)}) holds the work-log lock (${name}); try again when it finishes`
+    : LOCK_HELD;
+}
+
 /**
  * The shared work-log lock's filesystem for import: every change goes
  * through the path guard, so the lock and its claims are made, moved and
@@ -410,10 +422,10 @@ function lockFsFor(guard: PathGuard): LockFs {
 }
 
 /**
- * Take the work log's import lock (`.import-lock`, see
- * `@storage/work-log-lock`, shared with `filter`). A lock whose owner is
- * provably gone is taken over, one run at a time, under
- * `.import-lock.takeover`; a live owner's lock is never moved.
+ * Take the work-log lock for an import (`.import-lock`, then `.filter-lock`;
+ * see `@storage/work-log-lock`), shared with `filter`. A lock whose owner is
+ * provably gone is taken over, one run at a time, under `<lock>.takeover`;
+ * a live owner's lock is never moved.
  *
  * @param root - Resolved work-log directory
  * @param env - Environment
@@ -441,8 +453,7 @@ export function acquireImportLock(
       fs: lockFsFor(PathGuard.atRoot(env.fs, root)),
       env,
       dir: root,
-      name: LOCK_NAME,
-      command: 'work-chronicler import',
+      command: 'import',
       randomId: env.randomId,
       runId: batchId,
     });
@@ -452,23 +463,27 @@ export function acquireImportLock(
   if (acquired.held) {
     return { lock: { root, release: acquired.release }, warnings };
   }
+  warnings.push(...acquired.warnings);
+  const { name } = acquired;
   switch (acquired.reason) {
     case 'held':
       return inProgress(
         acquired.owner
-          ? LOCK_HELD
-          : `the import lock (${LOCK_NAME}) exists but could not be read; if no import is running, remove it`,
+          ? lockHeldBy(name, acquired.owner)
+          : `the work-log lock (${name}) exists but could not be read; if no import or filter is running, remove it`,
       );
     case 'takeover-abandoned':
       return inProgress(
-        `an import (${describeOwner(acquired.taker)}) exited while taking over a lock left by an earlier import, and left ${LOCK_NAME}.takeover behind; if no import is running, remove it and try again`,
+        `a \`work-chronicler ${holderCommand(name, acquired.taker)}\` run (${describeOwner(acquired.taker)}) exited while taking over a lock left by an earlier run, and left ${name}.takeover behind; if no import or filter is running, remove it and try again`,
       );
     case 'takeover-busy':
       return inProgress(
-        'another import is taking over a lock left by an import that has exited; try again in a moment',
+        'another run is taking over a lock left by a run that has exited; try again in a moment',
       );
     default:
-      return inProgress(LOCK_HELD);
+      return inProgress(
+        acquired.owner ? lockHeldBy(name, acquired.owner) : LOCK_HELD,
+      );
   }
 }
 
@@ -534,13 +549,17 @@ export function inspectImportState(
   root: string,
   env: ImportEnv,
 ): ImportIssue | null {
+  // Every import holds `.import-lock`; a filter holding it changes no
+  // record, so only an import's (or an unreadable) lock is in progress
   const held = readLockState(
     { readFile: (path) => env.fs.readFile(path, OWNER_MAX_BYTES).data },
     join(root, LOCK_NAME),
   );
   if (
     held.kind === 'unreadable' ||
-    (held.kind === 'owner' && ownerIsAlive(held.owner, env))
+    (held.kind === 'owner' &&
+      holderCommand(LOCK_NAME, held.owner) === 'import' &&
+      ownerIsAlive(held.owner, env))
   ) {
     return importIssue('IMPORT_IN_PROGRESS', LOCK_HELD);
   }

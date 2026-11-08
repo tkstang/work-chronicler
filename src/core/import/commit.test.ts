@@ -111,13 +111,17 @@ function recover(w: World, overrides: Partial<ImportEnv> = {}) {
   return importInto(w, { stagingDir: w.empty, env: laterEnv(overrides) });
 }
 
+/** Import bookkeeping, including the work-log lock's second name */
+const isBookkeeping = (path: string) =>
+  path.startsWith('.import') || path.startsWith('.filter-lock');
+
 const hidden = (snap: Record<string, string>) =>
-  Object.keys(snap).filter((path) => path.startsWith('.import'));
+  Object.keys(snap).filter(isBookkeeping);
 
 /** Record files only (no import bookkeeping) */
 function records(dir: string): Record<string, string> {
   return Object.fromEntries(
-    Object.entries(snapshot(dir)).filter(([p]) => !p.startsWith('.import')),
+    Object.entries(snapshot(dir)).filter(([p]) => !isBookkeeping(p)),
   );
 }
 
@@ -542,16 +546,19 @@ describe('import: failures and interruption at every step', () => {
         }),
       });
       let final = recover(w);
-      const guard = join(w.workLog, '.import-lock.takeover');
-      if (!final.ok && existsSync(guard)) {
+      const guard = ['.import-lock.takeover', '.filter-lock.takeover'].find(
+        (name) => existsSync(join(w.workLog, name)),
+      );
+      if (!final.ok && guard) {
         // The recovering process died while taking over the first one's
-        // lock. Its guard is never guessed away: the refusal names it, and
-        // removing it (the documented step) lets recovery run.
+        // lock (either of its names). Its guard is never guessed away: the
+        // refusal names it, and removing it (the documented step) lets
+        // recovery run.
         expect(final.issues[0]?.code, `recovery crash ${crashAt}`).toBe(
           'IMPORT_IN_PROGRESS',
         );
-        expect(final.issues[0]?.message).toContain('.import-lock.takeover');
-        rmSync(guard, { recursive: true });
+        expect(final.issues[0]?.message).toContain(guard);
+        rmSync(join(w.workLog, guard), { recursive: true });
         final = recover(w);
       }
       expect(final.ok, `recovery crash ${crashAt}`).toBe(true);

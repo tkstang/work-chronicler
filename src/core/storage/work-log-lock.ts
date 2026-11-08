@@ -5,14 +5,22 @@ import { join } from 'node:path';
 import { z } from 'zod';
 
 /**
- * A lock one command holds in a work log while it changes it (`.filter-lock`
- * for `filter`, `.import-lock` for `import`), so a second run is refused
- * rather than racing the first.
+ * The work-log lock: `import`, `filter` and `filter --clear` hold it while
+ * they change a work log, so only one of them runs there at a time and a
+ * second run is refused rather than racing the first.
  *
- * A lock is a directory holding `owner.json` (process ID, host, start time
- * and run ID). It is created complete under a claim name and renamed into
- * place; the rename fails while the name holds a lock, and a lock is never
- * left empty, so at most one run holds it.
+ * It is held under both names 0.6.0 used, taken in a fixed order
+ * (`.import-lock`, then `.filter-lock`) and released in reverse: holding
+ * the first is what serializes runs, and holding both means a 0.6.0
+ * `import` (which takes only `.import-lock`) or `filter` (only
+ * `.filter-lock`) running beside this version is refused too, and that a
+ * lock either of them leaves is honored. No new name appears in the work
+ * log. A run that cannot take the second name releases the first.
+ *
+ * Each name is a directory holding `owner.json` (process ID, host, start
+ * time, run ID, boot ID and command). It is created complete under a claim
+ * name and renamed into place; the rename fails while the name holds a lock,
+ * and a lock is never left empty, so at most one run holds it.
  *
  * A lock whose owner is provably gone (a process on this machine that is no
  * longer running, or that ran in an earlier boot) is taken over, one run at
@@ -24,6 +32,17 @@ import { z } from 'zod';
  * holds a half-removed directory. Whatever earlier runs left beside the lock
  * is removed only when its owner has exited.
  */
+
+/** Held first: the name every run takes, and the one 0.6.0 `import` takes */
+export const IMPORT_LOCK = '.import-lock';
+/** Held second, so a 0.6.0 `filter` (which takes only this) is refused */
+export const FILTER_LOCK = '.filter-lock';
+/** The names the work-log lock is held under, in the order they are taken */
+export const WORK_LOG_LOCK_NAMES = [IMPORT_LOCK, FILTER_LOCK] as const;
+export type WorkLogLockName = (typeof WORK_LOG_LOCK_NAMES)[number];
+
+/** The commands that hold the work-log lock */
+export type WorkLogCommand = 'import' | 'filter';
 
 /** Filesystem operations a lock needs; callers adapt their own seam */
 export interface LockFs {
@@ -64,6 +83,8 @@ export const LockOwnerSchema = z.object({
   runId: z.string(),
   /** The boot the owner ran in; absent in 0.6.0 locks */
   bootId: z.string().optional(),
+  /** The command holding it (`import`, `filter`); absent in 0.6.0 locks */
+  command: z.string().optional(),
 });
 export type LockOwner = z.infer<typeof LockOwnerSchema>;
 
@@ -181,20 +202,43 @@ export function describeOwner(owner: LockOwner): string {
   return `process ${owner.pid} on ${owner.hostname}, started ${new Date(owner.startedAt).toISOString()}`;
 }
 
-/** What a lock is for and where it lives */
+/**
+ * The command holding a lock name. A 0.6.0 owner does not say, but then
+ * only that command took the name.
+ */
+export function holderCommand(name: string, owner: LockOwner | null): string {
+  if (owner?.command) return owner.command;
+  return name === FILTER_LOCK ? 'filter' : 'import';
+}
+
+/** Where a work-log lock lives and who is taking it */
 export interface WorkLogLockSpec {
   fs: LockFs;
   env: LockEnv;
   /** The work-log root the lock lives in */
   dir: string;
-  /** The lock's name in `dir`, such as `.filter-lock` */
-  name: string;
-  /** The command, for messages (`work-chronicler filter`) */
-  command: string;
+  /** The command taking it, recorded in the lock */
+  command: WorkLogCommand;
   randomId: () => string;
   /** This run's ID; a new random ID when omitted */
   runId?: string;
 }
+
+/** One of the lock's names, as it is taken */
+interface NameSpec extends WorkLogLockSpec {
+  name: WorkLogLockName;
+}
+
+/** Why one name of the lock could not be taken */
+export type LockRefusal =
+  /** Another run holds the lock (`owner` null when it cannot be read) */
+  | { reason: 'held'; owner: LockOwner | null }
+  /** A run that exited while taking over left the guard behind */
+  | { reason: 'takeover-abandoned'; taker: LockOwner }
+  /** Another run is taking over a lock left by an exited run */
+  | { reason: 'takeover-busy'; taker: LockOwner | null }
+  /** Other runs kept taking and releasing the lock */
+  | { reason: 'contended'; owner: LockOwner | null; exists: boolean };
 
 export type LockAcquisition =
   | {
@@ -203,19 +247,17 @@ export type LockAcquisition =
       /** Release the lock; returns any warnings, including cleanup ones */
       release: () => string[];
     }
-  /** Another run holds the lock (`owner` null when it cannot be read) */
-  | { held: false; reason: 'held'; owner: LockOwner | null }
-  /** A run that exited while taking over left the guard behind */
-  | { held: false; reason: 'takeover-abandoned'; taker: LockOwner }
-  /** Another run is taking over a lock left by an exited run */
-  | { held: false; reason: 'takeover-busy'; taker: LockOwner | null }
-  /** Other runs kept taking and releasing the lock */
-  | {
+  | ({
       held: false;
-      reason: 'contended';
-      owner: LockOwner | null;
-      exists: boolean;
-    };
+      /** The name that could not be taken (none of the lock is held) */
+      name: WorkLogLockName;
+      /** Warnings from releasing the names this run had taken */
+      warnings: string[];
+    } & LockRefusal);
+
+type NameAcquisition =
+  | { held: true; release: () => string[] }
+  | ({ held: false } & LockRefusal);
 
 /**
  * Move a lock-shaped directory out of the way under a name only this run
@@ -224,7 +266,6 @@ export type LockAcquisition =
  */
 function retireQuietly(
   fs: LockFs,
-  command: string,
   path: string,
   aside: string,
   warnings: string[],
@@ -234,7 +275,7 @@ function retireQuietly(
   } catch (error) {
     if (errorCode(error) !== 'ENOENT') {
       warnings.push(
-        `Could not release ${path} (${errorCode(error) ?? 'error'}); the next \`${command}\` run will take it over once this process has exited.`,
+        `Could not release ${path} (${errorCode(error) ?? 'error'}); the next \`work-chronicler import\` or \`filter\` run will take it over once this process has exited.`,
       );
     }
     return;
@@ -266,7 +307,7 @@ function removeQuietly(fs: LockFs, path: string): void {
  * @returns Whether this run now holds `path`
  */
 function claimLockPath(
-  spec: WorkLogLockSpec,
+  spec: NameSpec,
   path: string,
   owner: LockOwner,
   tag: string,
@@ -301,7 +342,7 @@ function claimLockPath(
  * only when its owner is provably gone, or when it never named an owner
  * within the grace period, so a run that is about to claim is not disturbed.
  */
-function removeLockLeftovers(spec: WorkLogLockSpec, warnings: string[]): void {
+function removeLockLeftovers(spec: NameSpec, warnings: string[]): void {
   const { fs, env } = spec;
   let names: string[];
   try {
@@ -342,17 +383,15 @@ function removeLockLeftovers(spec: WorkLogLockSpec, warnings: string[]): void {
 }
 
 /**
- * Take a work-log lock, taking over one whose owner is provably gone, one
- * run at a time (see the module comment). Filesystem errors other than the
- * lock being held are thrown.
+ * Take the work-log lock: each of its names in order, releasing the names
+ * already taken if one cannot be (see the module comment). Filesystem
+ * errors other than the lock being held are thrown, with nothing held.
  *
- * @param spec - The lock, its filesystem and this process
+ * @param spec - The work log, its filesystem, this process and the command
  * @returns The held lock and how to release it, or why it is not held
  */
 export function acquireWorkLogLock(spec: WorkLogLockSpec): LockAcquisition {
-  const { fs, env } = spec;
-  const lockPath = join(spec.dir, spec.name);
-  const guardPath = join(spec.dir, `${spec.name}.takeover`);
+  const { env } = spec;
   const bootId = env.bootId();
   const owner: LockOwner = {
     version: 1,
@@ -361,7 +400,38 @@ export function acquireWorkLogLock(spec: WorkLogLockSpec): LockAcquisition {
     startedAt: env.now(),
     runId: spec.runId ?? spec.randomId(),
     ...(bootId !== null ? { bootId } : {}),
+    command: spec.command,
   };
+  const releases: (() => string[])[] = [];
+  // Last taken, first released, so no run finds the first name free while
+  // this one still holds a later one
+  const releaseTaken = () =>
+    [...releases].reverse().flatMap((release) => release());
+
+  for (const name of WORK_LOG_LOCK_NAMES) {
+    let taken: NameAcquisition;
+    try {
+      taken = acquireLockName({ ...spec, name }, owner);
+    } catch (error) {
+      releaseTaken();
+      throw error;
+    }
+    if (!taken.held) {
+      return { ...taken, name, warnings: releaseTaken() };
+    }
+    releases.push(taken.release);
+  }
+  return { held: true, owner, release: releaseTaken };
+}
+
+/**
+ * Take one name of the lock, taking over one whose owner is provably gone,
+ * one run at a time.
+ */
+function acquireLockName(spec: NameSpec, owner: LockOwner): NameAcquisition {
+  const { fs, env } = spec;
+  const lockPath = join(spec.dir, spec.name);
+  const guardPath = join(spec.dir, `${spec.name}.takeover`);
 
   for (let attempt = 0; attempt < MAX_LOCK_ATTEMPTS; attempt++) {
     if (claimLockPath(spec, lockPath, owner, '')) {
@@ -369,7 +439,6 @@ export function acquireWorkLogLock(spec: WorkLogLockSpec): LockAcquisition {
       removeLockLeftovers(spec, warnings);
       return {
         held: true,
-        owner,
         release: () => {
           const released: string[] = [...warnings];
           const current = readLockOwner(fs, lockPath);
@@ -381,7 +450,6 @@ export function acquireWorkLogLock(spec: WorkLogLockSpec): LockAcquisition {
           }
           retireQuietly(
             fs,
-            spec.command,
             lockPath,
             join(spec.dir, `${spec.name}.released-${owner.runId}`),
             released,
@@ -435,7 +503,6 @@ export function acquireWorkLogLock(spec: WorkLogLockSpec): LockAcquisition {
     } finally {
       retireQuietly(
         fs,
-        spec.command,
         guardPath,
         join(spec.dir, `${spec.name}.released-${owner.runId}.guard`),
         [],
@@ -451,4 +518,32 @@ export function acquireWorkLogLock(spec: WorkLogLockSpec): LockAcquisition {
         owner: null,
         exists: fs.exists(lockPath),
       };
+}
+
+/** One name of the work-log lock as it is on disk, for diagnostics */
+export interface LockHolder {
+  name: WorkLogLockName;
+  path: string;
+  /** Null when no owner can be read */
+  owner: LockOwner | null;
+  /** The command holding it, as the owner says or as 0.6.0 used the name */
+  command: string;
+}
+
+/**
+ * Who holds the work-log lock: every name of it that exists, with its
+ * owner. Empty when the lock is free.
+ */
+export function readWorkLogLock(
+  fs: Pick<LockFs, 'readFile' | 'exists'>,
+  dir: string,
+): LockHolder[] {
+  const holders: LockHolder[] = [];
+  for (const name of WORK_LOG_LOCK_NAMES) {
+    const path = join(dir, name);
+    if (!fs.exists(path)) continue;
+    const owner = readLockOwner(fs, path);
+    holders.push({ name, path, owner, command: holderCommand(name, owner) });
+  }
+  return holders;
 }

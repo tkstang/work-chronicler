@@ -20,11 +20,17 @@ import { DIRECTORIES } from './paths';
 import {
   acquireWorkLogLock,
   describeOwner,
+  FILTER_LOCK,
+  holderCommand,
   type LockFs,
+  type LockHolder,
   type LockOwner,
   readLockOwner,
+  readWorkLogLock,
   systemBootId,
 } from './work-log-lock';
+
+export { FILTER_LOCK } from './work-log-lock';
 
 /**
  * The `filtered/` subset of a work log.
@@ -43,11 +49,12 @@ import {
  * to guess (`interrupted`), and the next `filter` puts the previous subset
  * back before it does anything else.
  *
- * One `filter` (or `filter --clear`) runs per work log at a time, under
- * `.filter-lock`: a second run is refused rather than racing the first, so
- * one run can never move or delete another run's subsets. A lock left by a
- * process on this machine that has exited (or ran in an earlier boot) is
- * taken over; any other lock is respected.
+ * `filter` and `filter --clear` run under the work-log lock, which `import`
+ * holds too (see `./work-log-lock`): one of them runs per work log at a
+ * time, and a second run is refused rather than racing the first, so one run
+ * can never move or delete another run's subsets, nor read records an import
+ * is changing. A lock left by a process on this machine that has exited (or
+ * ran in an earlier boot) is taken over; any other lock is respected.
  */
 
 /** The selection marker, written inside the subset with its contents */
@@ -56,10 +63,6 @@ const STAGING_PREFIX = '.filter-staging-';
 const PREVIOUS_PREFIX = '.filter-previous-';
 /** A subset `filter --clear` deselected; never restored */
 const CLEARED_PREFIX = '.filter-cleared-';
-/** Held while a `filter` run changes the subset */
-export const FILTER_LOCK = '.filter-lock';
-/** Held while a lock left by an exited run is taken over */
-const LOCK_TAKEOVER_GUARD = `${FILTER_LOCK}.takeover`;
 
 /**
  * Record directories a subset can be missing because it was written before
@@ -115,8 +118,8 @@ export type FilteredSubsetState =
     }
   /**
    * `filtered/` is missing while an earlier subset waits beside it: a
-   * `filter` run is swapping subsets right now (`locked`), or stopped while
-   * swapping them
+   * `filter` run is swapping subsets right now (`locked`: a filter holds the
+   * work-log lock), or stopped while swapping them
    */
   | { status: 'interrupted'; previous: string[]; locked: boolean };
 
@@ -301,7 +304,9 @@ export function getFilteredSubsetState(
       ? {
           status: 'interrupted',
           previous,
-          locked: exists(fs, join(outputDir, FILTER_LOCK)),
+          locked: readWorkLogLockHolders(outputDir, fs).some(
+            (holder) => holder.command === 'filter',
+          ),
         }
       : { status: 'none' };
   }
@@ -404,22 +409,27 @@ const defaultRandomId = () => randomBytes(8).toString('hex');
 
 /**
  * Why a run could not take the lock, with a recovery step that is safe: the
- * lock is removed only by someone who knows no filter is running.
+ * lock is removed only by someone who knows no such run is going.
  */
-function lockHeldMessage(lockPath: string, owner: LockOwner | null): string {
+function lockHeldMessage(
+  lockPath: string,
+  owner: LockOwner | null,
+  command: string,
+): string {
   const who = owner
-    ? `Another \`work-chronicler filter\` run (${describeOwner(owner)}) holds ${lockPath}`
+    ? `Another \`work-chronicler ${command}\` run (${describeOwner(owner)}) holds ${lockPath}`
     : `${lockPath} exists but does not say which run holds it`;
   return (
     `${who}. If it is still running, try again when it finishes. ` +
-    `If you know no filter is running (it was stopped, or the machine was renamed), remove ${lockPath} and try again. ` +
+    `If you know no ${command} is running (it was stopped, or the machine was renamed), remove ${lockPath} and try again. ` +
     'The subset was not changed.'
   );
 }
 
 /**
- * The work log's filter lock, for diagnostics: its path and owner (null when
- * the owner cannot be read), or null when no lock is held.
+ * The work log's filter lock name (`.filter-lock`), for diagnostics: its
+ * path and owner (null when the owner cannot be read), or null when it is
+ * not held. See {@link readWorkLogLockHolders} for the whole work-log lock.
  */
 export function readFilterLock(
   outputDir: string,
@@ -434,6 +444,17 @@ export function readFilterLock(
       ? { pid: owner.pid, hostname: owner.hostname, startedAt: owner.startedAt }
       : null,
   };
+}
+
+/**
+ * Who holds the work-log lock (shared by `import` and `filter`): each of
+ * its names that exists, with its owner and command. Empty when it is free.
+ */
+export function readWorkLogLockHolders(
+  outputDir: string,
+  fs: SubsetFs = nodeSubsetFs,
+): LockHolder[] {
+  return readWorkLogLock(lockFs(fs), outputDir);
 }
 
 /** The subset's filesystem, as the shared work-log lock uses it */
@@ -451,12 +472,13 @@ function lockFs(fs: SubsetFs): LockFs {
 }
 
 /**
- * Take the work log's filter lock (see `./work-log-lock`). A lock whose
+ * Take the work-log lock for `filter` (see `./work-log-lock`). A lock whose
  * owner is provably gone is taken over, one run at a time, under
- * `.filter-lock.takeover`.
+ * `<lock>.takeover`.
  *
  * @returns A function that releases the lock and returns any warnings
- * @throws {FilterInProgressError} When another run holds the lock
+ * @throws {FilterInProgressError} When another run (an `import` or a
+ *   `filter`) holds the lock
  */
 function acquireFilterLock(
   fs: SubsetFs,
@@ -464,38 +486,49 @@ function acquireFilterLock(
   outputDir: string,
   randomId: () => string,
 ): () => string[] {
-  const lockPath = join(outputDir, FILTER_LOCK);
-  const guardPath = join(outputDir, LOCK_TAKEOVER_GUARD);
   fs.mkdirp(outputDir);
   const lock = acquireWorkLogLock({
     fs: lockFs(fs),
     env,
     dir: outputDir,
-    name: FILTER_LOCK,
-    command: 'work-chronicler filter',
+    command: 'filter',
     randomId,
   });
   if (lock.held) return lock.release;
+  const lockPath = join(outputDir, lock.name);
+  const guardPath = `${lockPath}.takeover`;
+  const releaseNotes = lock.warnings.length
+    ? ` ${lock.warnings.join(' ')}`
+    : '';
   switch (lock.reason) {
     case 'held':
-      throw new FilterInProgressError(lockHeldMessage(lockPath, lock.owner));
+      throw new FilterInProgressError(
+        lockHeldMessage(
+          lockPath,
+          lock.owner,
+          holderCommand(lock.name, lock.owner),
+        ) + releaseNotes,
+      );
     case 'takeover-abandoned':
       throw new FilterInProgressError(
-        `A \`work-chronicler filter\` run (${describeOwner(lock.taker)}) exited while taking over ${lockPath} and left ${guardPath} behind. ` +
-          `If no filter is running, remove ${guardPath} and try again. The subset was not changed.`,
+        `A \`work-chronicler ${holderCommand(lock.name, lock.taker)}\` run (${describeOwner(lock.taker)}) exited while taking over ${lockPath} and left ${guardPath} behind. ` +
+          `If no import or filter is running, remove ${guardPath} and try again. The subset was not changed.${releaseNotes}`,
       );
     case 'takeover-busy':
       throw new FilterInProgressError(
-        `Another \`work-chronicler filter\` run${lock.taker ? ` (${describeOwner(lock.taker)})` : ''} is taking over ${lockPath} from a run that has exited. ` +
-          `Try again in a moment. If no filter is running, remove ${guardPath} and try again. The subset was not changed.`,
+        `Another run${lock.taker ? ` (${describeOwner(lock.taker)})` : ''} is taking over ${lockPath} from a run that has exited. ` +
+          `Try again in a moment. If no import or filter is running, remove ${guardPath} and try again. The subset was not changed.${releaseNotes}`,
       );
     default:
       throw new FilterInProgressError(
-        lock.owner
-          ? lockHeldMessage(lockPath, lock.owner)
-          : lock.exists
-            ? lockHeldMessage(lockPath, null)
-            : 'Other `work-chronicler filter` runs kept taking and releasing the lock; try again. The subset was not changed.',
+        (lock.owner || lock.exists
+          ? lockHeldMessage(
+              lockPath,
+              lock.owner,
+              holderCommand(lock.name, lock.owner),
+            )
+          : 'Other `work-chronicler import` or `filter` runs kept taking and releasing the lock; try again. The subset was not changed.') +
+          releaseNotes,
       );
   }
 }
