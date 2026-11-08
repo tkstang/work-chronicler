@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-11-07
-oat_current_task_id: p03
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -42,7 +42,7 @@ oat_generated: false
 | ----- | --------- | ----- | -------- |
 | p01   | completed | 1     | 1/1      |
 | p02   | pending   | 1     | 0/1      |
-| p03   | pending   | 1     | 0/1      |
+| p03   | completed | 1     | 1/1      |
 | p04   | pending   | 1     | 0/1      |
 | p05   | pending   | 1     | 0/1      |
 | p06   | pending   | 1     | 0/1      |
@@ -52,7 +52,7 @@ oat_generated: false
 | p10   | pending   | 1     | 0/1      |
 | p11   | pending   | 1     | 0/1      |
 
-**Total:** 2/11 phases accepted
+**Total:** 3/11 phases accepted
 
 ---
 
@@ -192,10 +192,10 @@ Review fix. Proof: full DoD batch.
 
 ## Phase p03: 0.5.0 release preparation
 
-**Status:** in_progress
+**Status:** completed
 **Base:** 23a4f1aae63ebd37c8966dca2c2136f794f14190
 **Executor:** inline:p03-inline-exception
-**Head:** 7d148a7283165fc803573e2b80080c58e7b6e292
+**Head:** 81017148924eb180394a8b92dde7e48fa80d0590
 
 Inline exception (recorded before editing): version bump and CHANGELOG section move only — no new surface, no unresolved design, not consequential before the tag push (which happens after merge under the Release authority), one proof command (the local DoD batch). Committing owner: root. Parallelism: single trivial phase.
 
@@ -208,6 +208,14 @@ Verification at Head: `pnpm format && pnpm lint && pnpm format:check && pnpm typ
 **Executor:** root
 
 `package.json` 0.5.0; CHANGELOG `[0.5.0]` section and compare links; breaking-rename note now recommends `--overwrite` to refresh unchanged copies.
+
+### Task p03-t02: Report the package version from the MCP server
+
+**Status:** completed
+**Commit:** 81017148924eb180394a8b92dde7e48fa80d0590
+**Executor:** root
+
+Review `reviews/p03-review-2026-11-08T000907Z.md` (0 C/H/M, 1 Low) passed; root fixed the Low (MCP server hardcoded `0.1.0`), added a server test and a CHANGELOG Fixed entry. Proof: lint, format:check, typecheck, 223 tests, build plus a built-module import. Not independently re-reviewed; covered by the m01 integrated review.
 
 ---
 
@@ -272,6 +280,8 @@ Verification at Head: `pnpm format && pnpm lint && pnpm format:check && pnpm typ
 - run/v1 · request=wce-p02-rev-1 · scope=p02 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p02 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 - Root-inline phase: p03 — inline exception for a version bump and CHANGELOG move; root model claude-opus-5-5
+
+- run/v1 · request=wce-p03-rev-1 · scope=p03 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p03 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 <!-- orchestration-runs-end -->
 

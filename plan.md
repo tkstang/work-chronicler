@@ -356,7 +356,7 @@ Default is `[]` (fully sequential, no worktrees).
 | plan  | artifact | passed  | 2026-11-07 | structured (no file); 3 attempts, 0 Critical/High residual; attempt-3 Low folded without re-review | 723168a978b9e76cf9eda18afebf3b1c264bc48e | oat-reviewer-claude-claude-opus-5-5-high | -           |
 | p01   | code     | passed  | 2026-11-07 | reviews/p01-review-2026-11-07T233956Z.md (0 C/H, 5 Low fixed in 6014af5)                           | 8f8e9883f370e5c748b2e4992db332befb411a3c | oat-reviewer-claude-claude-opus-5-5-high | -           |
 | p02   | code     | passed  | 2026-11-08 | reviews/p02-review-2026-11-08T000100Z.md (0 C/H; 2 Med, 4 Low fixed in 7d04ae4..23a4f1a)           | 57a1470018120c3d0aa9a1914896db8bfbaaaf90 | oat-reviewer-claude-claude-opus-5-5-high | -           |
-| p03   | code     | pending | -          | -                                                                                                  | -                                        | -                                        | -           |
+| p03   | code     | passed  | 2026-11-08 | reviews/p03-review-2026-11-08T000907Z.md (0 C/H/M; 1 Low fixed in 8101714) | 7d148a7283165fc803573e2b80080c58e7b6e292 | oat-reviewer-claude-claude-opus-5-5-high | -           |
 | final | code     | pending | -          | -                                                                                                  | -                                        | -                                        | -           |
 
 Add one `code` row per phase as phases become concrete. For code-review events,
