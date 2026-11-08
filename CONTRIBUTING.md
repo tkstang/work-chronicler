@@ -21,6 +21,10 @@ scratch workspace so your own profiles are untouched:
 WORK_CHRONICLER_HOME="$(mktemp -d)" pnpm cli init
 ```
 
+To try a published version with `npx work-chronicler@<version>`, run it from
+a directory outside this repository: inside it, npx resolves the local
+workspace package and fails with "command not found".
+
 ## Checks
 
 The `package.json` scripts are the source of truth for linting, formatting,
