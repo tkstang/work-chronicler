@@ -1151,8 +1151,53 @@ Proof: 638 tests; DoD batch green
 **Status:** in_progress
 **Base:** 1a19d8554d802670f182ecec38952dfde9833ed6
 **Executor:** phase-implementer:wce-p14-impl-1
+**Head:** ac4d4cb864cee1dd60c7f06cdbc3b311be85157c
 
 Branch `oat/evidence-expansion-m03`. Committing owner: the phase implementer (code); root owns the journal. Task class: consequential (refactor of safety-sensitive filesystem code; a behavior change is the failure mode).
+
+Verification at Head: implementer ran the full DoD batch (639 tests, 40 files; build). Root re-ran typecheck, lint, format:check and tests at Head: pass (639).
+
+Before-list (implementer, before the change). Ancestor checks: `requireDirectory`, `requireAncestors`, `verifyRoot`, `verifyDirectories`, `PathGuard.check` (`transaction.ts`), `checkDirectory` (`plan.ts`). Helper duplicates: `errorCode` (`issues.ts`, `work-log-lock.ts`, `filtered-subset.ts`, `replace.ts`); `codedError` (`import-fs.ts`, `transaction.ts`); `removeQuietly` (`work-log-lock.ts`, `filtered-subset.ts`, `config-file.ts`); `isProcessAlive` (`import-fs.ts`, `filtered-subset.ts`); `exists`/inline `exists`/`entryAt` (`filtered-subset.ts`, `transaction.ts`, `replace.ts`); `systemBootId` (`work-log-lock.ts`); `LockEnv`, `SubsetEnv`, `nodeSubsetEnv`, the `importEnv` option, and `SubsetFs` re-implementing `ImportFs` operations.
+
+After: helper definitions only in `src/core/import/import-fs.ts`; `requireDirectory`, `requireAncestors`, `verifyRoot`, `verifyDirectories`, `LockEnv`, `SubsetEnv`, `nodeSubsetEnv`, `importEnv`, `stageAsTheSkillDoes` absent from `src/`; ancestor checks are PathGuard methods. Remaining: `plan.ts` `checkDirectory` runs at planning time, before identities exist, and records the identities PathGuard later enforces (kept).
+
+Deviation (accepted by root): finding 1 (create the fixed record directories in place at the commit step) not done. A directory created in place has no recorded identity until a later journal write; a crash in between leaves an empty `messages/` that recovery cannot prove is the import's, and the crash-at-every-write test would have to be weakened. Avoiding that needs a leftover-directory behavior change or a journal format change. The existing staged directory creation stays; the "rejected batch creates no directory" test was added (t03). Source of truth: implementation.
+
+Changed tests (t04): removed two assertions on the test helper's own filtering (`{kept: 3, skipped: 4}`, the helper's own error); replaced by CLI-boundary refusals (another person's message refused with `SOURCE_RULE` on `attribution.authorId`, not echoed, nothing stored; the unshared-channel refusal kept) and a new `slack show` field check. Range and empty-text skipping are skill-only rules the CLI never enforced.
+
+Accepted concerns (implementer): `SubsetFs` keeps its own `stat`, `readFile`, `writeFile`, `mkdirp` (moving them would change fsync, symlink and size behavior); `reach` checks the work log by kind, not identity, as before; `nodeSubsetFs.lstat` now uses bigint stats (millisecond `mtimeMs`, used only for the 60 s claim grace). Also touched `config-file.ts` and `replace.ts` (held duplicate helpers).
+
+### Task p14-t01: One filesystem and process seam for import, lock and filter
+
+**Status:** completed
+**Commit:** a7544e9
+**Executor:** phase-implementer:wce-p14-impl-1
+Files: `import-fs.ts`, `issues.ts`, `plan.ts`, `staging.ts`, `transaction.ts`, `work-log-lock.ts`(+test), `filtered-subset.ts`(+test), `config-file.ts`, `replace.ts`, `core/index.ts`, `storage/index.ts`
+Proof: typecheck; 458 affected tests
+
+### Task p14-t02: Make PathGuard the only ancestor checker
+
+**Status:** completed
+**Commit:** aba0df6
+**Executor:** phase-implementer:wce-p14-impl-1
+Files: `transaction.ts`
+Proof: 297 import/storage/filter/mixed tests incl. crash, fault and substitution loops
+
+### Task p14-t03: A validated or rejected batch creates no record directory
+
+**Status:** completed
+**Commit:** 90cfbce
+**Executor:** phase-implementer:wce-p14-impl-1
+Files: `commit.test.ts`
+Proof: new test
+
+### Task p14-t04: Literal Slack envelopes instead of re-implementing the skill
+
+**Status:** completed
+**Commit:** ac4d4cb
+**Executor:** phase-implementer:wce-p14-impl-1
+Files: `slack-acceptance.test.ts`
+Proof: 5/5
 
 ---
 
@@ -1205,6 +1250,8 @@ run/v1 · request=wce-p13-impl-1 · scope=p13 · action=implementation · role=o
 run/v1 · request=wce-p13-rev-1 · scope=p13 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p13 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 run/v1 · request=wce-p13-rev-2 · scope=p13 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p13 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
+
+run/v1 · request=wce-p14-impl-1 · scope=p14 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p14 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 - run/v1 · request=wce-p08-rev-1 · scope=p08 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p08 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
@@ -1602,9 +1649,10 @@ Known docs follow-up: the shipped CHANGELOG 0.5.0 entry still says `fetch --revi
 
 Document any intentional deviations from the brief. Include accepted review findings where the shipped implementation is source of truth and the brief needs alignment.
 
-| Phase / Review | Source Artifact                              | Planned / Documented                             | Actual / Accepted               | Reason                                        | Source of Truth | Follow-up                   |
-| -------------- | -------------------------------------------- | ------------------------------------------------ | ------------------------------- | --------------------------------------------- | --------------- | --------------------------- |
-| p02            | plan.md Approach > Design (PR reviews given) | Inclusion regardless of the reviewed PR's author | The user's own PRs are excluded | Comments on your own PR are not reviews given | Implementation  | None (minor; recorded here) |
+| Phase / Review | Source Artifact                              | Planned / Documented                                            | Actual / Accepted                                         | Reason                                                                                                 | Source of Truth | Follow-up                   |
+| -------------- | -------------------------------------------- | --------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | --------------- | --------------------------- |
+| p02            | plan.md Approach > Design (PR reviews given) | Inclusion regardless of the reviewed PR's author                | The user's own PRs are excluded                           | Comments on your own PR are not reviews given                                                          | Implementation  | None (minor; recorded here) |
+| p14            | plan.md Phase p14 Intent                     | Create the fixed record directories in place at the commit step | Staged directory creation kept; rejected-batch test added | In-place creation leaves an unprovable empty directory after a crash, or needs a journal format change | Implementation  | None                        |
 
 ## Final Summary (for PR/docs)
 
