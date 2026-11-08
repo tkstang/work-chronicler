@@ -18,7 +18,7 @@ import {
   normalizeGitHubName,
   normalizePullRequestUrl,
   type PRImpact,
-  readAllImportedRecords,
+  type ReaderFs,
   readAllPRReviews,
   readAllPRs,
   readAllTickets,
@@ -165,15 +165,33 @@ export async function writeFilteredSubset(params: {
   config: Config;
   criteria: FilterCriteria;
   fs?: SubsetFs;
+  /** Filesystem reads (tests inject failures) */
+  readFs?: ReaderFs;
   now?: Date;
 }): Promise<FilterResult> {
   const { outputDir, config, criteria } = params;
   const inScope = buildScope(criteria);
 
-  const allPRs = await readAllPRs(outputDir);
-  const allTickets = await readAllTickets(outputDir);
-  const allReviews = await readAllPRReviews(outputDir);
-  const allMessages = (await readAllImportedRecords(outputDir)).filter(
+  // Strict reads: a directory or file that cannot be read fails the filter
+  // (keeping the previous subset) instead of looking like no records
+  const read = {
+    strict: true,
+    ...(params.readFs ? { fs: params.readFs } : {}),
+  };
+  const allPRs = await readAllPRs(outputDir, read);
+  const allTickets = await readAllTickets(outputDir, read);
+  const allReviews = await readAllPRReviews(outputDir, read);
+  const imported = scanImportedRecords(outputDir, read);
+  const unreadable = imported.skipped.filter((s) => s.unreadable);
+  if (unreadable.length > 0) {
+    throw new Error(
+      `Could not read ${unreadable.map((s) => s.filePath).join(', ')}; the filtered subset was not changed`,
+    );
+  }
+  for (const { filePath, reason } of imported.skipped) {
+    console.warn(`Warning: Skipped ${filePath}: ${reason}`);
+  }
+  const allMessages = imported.records.filter(
     (record) => record.frontmatter.type === 'message',
   );
 

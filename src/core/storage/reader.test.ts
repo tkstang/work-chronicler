@@ -18,10 +18,11 @@ import {
 import type { PullRequest } from '@wc-types/pr';
 import type { PRReviewRecord } from '@wc-types/pr-review';
 import type { JiraTicket } from '@wc-types/ticket';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getPRFilePath, getPRReviewFilePath, getTicketFilePath } from './paths';
 import {
+  nodeReaderFs,
   readAllImportedRecords,
   readAllPRReviews,
   readAllPRs,
@@ -29,6 +30,7 @@ import {
   readPR,
   readPRReview,
   readTicket,
+  type ReaderFs,
   scanImportedRecords,
 } from './reader';
 import { writeMarkdownFile } from './writer';
@@ -346,5 +348,100 @@ describe('imported record storage', () => {
     expect(await readAllImportedRecords(join(outputDir, 'missing'))).toEqual(
       [],
     );
+  });
+});
+
+/** Fail reads of paths matching `match` with a filesystem error */
+function failingReads(
+  op: 'readdir' | 'readFile',
+  match: (path: string) => boolean,
+  code = 'EACCES',
+): ReaderFs {
+  const fail = (path: string) => {
+    if (match(path)) {
+      throw Object.assign(new Error(`${code}: injected`), { code });
+    }
+  };
+  return {
+    ...nodeReaderFs,
+    readdir: (path) => {
+      if (op === 'readdir') fail(path);
+      return nodeReaderFs.readdir(path);
+    },
+    readFile: (path) => {
+      if (op === 'readFile') fail(path);
+      return nodeReaderFs.readFile(path);
+    },
+  };
+}
+
+describe('read failures', () => {
+  it('reports an unreadable directory or record file apart from invalid ones', () => {
+    const stored = storeRecord(outputDir, 1);
+    storeRecord(outputDir, 2);
+    writeFileSync(join(outputDir, 'messages', 'slack', 'broken.md'), 'x');
+
+    const dirFailure = scanImportedRecords(outputDir, {
+      fs: failingReads('readdir', (p) => p.endsWith(join('messages', 'slack'))),
+    });
+    expect(dirFailure.records).toEqual([]);
+    expect(dirFailure.skipped).toEqual([
+      {
+        filePath: join(outputDir, 'messages', 'slack'),
+        reason: 'directory could not be read',
+        unreadable: true,
+      },
+    ]);
+
+    const fileFailure = scanImportedRecords(outputDir, {
+      fs: failingReads('readFile', (p) => p === stored, 'EIO'),
+    });
+    expect(fileFailure.records).toHaveLength(1);
+    expect(
+      fileFailure.skipped
+        .map((s) => [s.filePath.split('/').pop(), s.unreadable])
+        .sort(),
+    ).toEqual(
+      [
+        ['broken.md', false],
+        [stored.split('/').pop(), true],
+      ].sort(),
+    );
+  });
+
+  it('throws on an unreadable PR file only when strict, and still skips invalid ones', async () => {
+    const authored = pr('Authored');
+    const path = getPRFilePath(
+      outputDir,
+      'acme',
+      'app',
+      new Date(authored.createdAt),
+      42,
+    );
+    writeMarkdownFile(path, authored, '');
+    writeFileSync(
+      join(outputDir, 'pull-requests', 'acme', 'app', 'invalid.md'),
+      '---\ntitle: 1\n---\n',
+    );
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const fs = failingReads('readFile', (p) => p === path, 'EIO');
+
+    expect(await readAllPRs(outputDir, { fs })).toEqual([]);
+    await expect(readAllPRs(outputDir, { fs, strict: true })).rejects.toThrow(
+      'EIO',
+    );
+    expect(await readAllPRs(outputDir, { strict: true })).toHaveLength(1);
+    // A missing directory is not a failure
+    await expect(readAllTickets(outputDir, { strict: true })).resolves.toEqual(
+      [],
+    );
+    mkdirSync(join(outputDir, 'jira'));
+    await expect(
+      readAllTickets(outputDir, {
+        strict: true,
+        fs: failingReads('readdir', (p) => p.endsWith('jira')),
+      }),
+    ).rejects.toThrow('EACCES');
+    warn.mockRestore();
   });
 });

@@ -570,6 +570,44 @@ describe('a mixed work log with imported messages', () => {
       ).toEqual([]);
     }
 
+    // Records that cannot be read are not mistaken for absent ones
+    for (const readFs of [
+      {
+        ...core.nodeReaderFs,
+        readdir: (path: string) => {
+          if (path.endsWith(join('messages', 'slack'))) {
+            throw Object.assign(new Error('EACCES: injected failure'), {
+              code: 'EACCES',
+            });
+          }
+          return core.nodeReaderFs.readdir(path);
+        },
+      },
+      {
+        ...core.nodeReaderFs,
+        readFile: (path: string) => {
+          if (path.endsWith('2025-02-10_7.md')) {
+            throw Object.assign(new Error('EIO: injected failure'), {
+              code: 'EIO',
+            });
+          }
+          return core.nodeReaderFs.readFile(path);
+        },
+      },
+    ]) {
+      await expect(
+        writeFilteredSubset({
+          outputDir: workLog,
+          config,
+          criteria: { org: ['acme'] },
+          readFs,
+        }),
+      ).rejects.toThrow(
+        /EIO: injected failure|Could not read .*messages.slack; the filtered subset was not changed/,
+      );
+      expect(snapshot(filteredDir)).toEqual(before);
+    }
+
     // A selector error is reported before anything is written
     await expect(run(filterCommand, ['--org', '@'])).rejects.toThrow(
       /Invalid org selector/,

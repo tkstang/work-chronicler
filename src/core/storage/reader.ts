@@ -3,6 +3,7 @@ import {
   lstatSync,
   readdirSync,
   readFileSync,
+  type Stats,
   statSync,
 } from 'node:fs';
 import { join } from 'node:path';
@@ -29,13 +30,54 @@ import {
 } from './paths';
 
 /**
+ * Filesystem reads the work-log readers use, so tests can inject failures
+ * without relying on permissions.
+ */
+export interface ReaderFs {
+  readdir(path: string): string[];
+  stat(path: string): Stats;
+  lstat(path: string): Stats;
+  readFile(path: string): Buffer;
+}
+
+export const nodeReaderFs: ReaderFs = {
+  readdir: (path) => readdirSync(path),
+  stat: (path) => statSync(path),
+  lstat: (path) => lstatSync(path),
+  readFile: (path) => readFileSync(path),
+};
+
+/**
+ * How a reader treats files it cannot use.
+ */
+export interface ReadOptions {
+  fs?: ReaderFs;
+  /**
+   * Throw when a directory or file cannot be read (any filesystem error
+   * other than a missing directory), instead of warning and skipping it.
+   * Files that are read but are not valid records are still skipped with a
+   * warning. Use it when a missing record would be mistaken for an absent
+   * one, as when `filter` replaces the subset.
+   */
+  strict?: boolean;
+}
+
+/** A filesystem error (it has an error code), as opposed to a parse error */
+function isFilesystemError(error: unknown): boolean {
+  return typeof (error as NodeJS.ErrnoException | undefined)?.code === 'string';
+}
+
+/**
  * Read and parse a markdown file with frontmatter
  */
-function readMarkdownFile(filePath: string): {
+function readMarkdownFile(
+  filePath: string,
+  fs: ReaderFs = nodeReaderFs,
+): {
   data: unknown;
   content: string;
 } {
-  const fileContent = readFileSync(filePath, 'utf-8');
+  const fileContent = fs.readFile(filePath).toString('utf-8');
   const { data, content } = matter(fileContent);
   return { data, content };
 }
@@ -51,28 +93,75 @@ function normalizeBody(content: string): string {
 }
 
 /**
- * Recursively find all markdown files in a directory
+ * Recursively find all markdown files in a directory. A missing directory
+ * has none; any other error reading the tree is thrown.
  */
-function findMarkdownFiles(dir: string): string[] {
-  if (!existsSync(dir)) {
-    return [];
+function findMarkdownFiles(dir: string, fs: ReaderFs = nodeReaderFs): string[] {
+  let entries: string[];
+  try {
+    entries = fs.readdir(dir);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw error;
   }
 
   const files: string[] = [];
-  const entries = readdirSync(dir);
-
   for (const entry of entries) {
     const fullPath = join(dir, entry);
-    const stat = statSync(fullPath);
+    const stat = fs.stat(fullPath);
 
     if (stat.isDirectory()) {
-      files.push(...findMarkdownFiles(fullPath));
+      files.push(...findMarkdownFiles(fullPath, fs));
     } else if (entry.endsWith('.md')) {
       files.push(fullPath);
     }
   }
 
   return files;
+}
+
+/**
+ * Read every markdown record under a directory that matches a schema.
+ */
+function readAllMarkdownRecords<T>(
+  dir: string,
+  schema: {
+    safeParse: (
+      data: unknown,
+    ) =>
+      | { success: true; data: T }
+      | { success: false; error: { issues: { message: string }[] } };
+  },
+  options: ReadOptions,
+): { frontmatter: T; body: string; filePath: string }[] {
+  const fs = options.fs ?? nodeReaderFs;
+  const results: { frontmatter: T; body: string; filePath: string }[] = [];
+
+  for (const filePath of findMarkdownFiles(dir, fs)) {
+    try {
+      const { data, content } = readMarkdownFile(filePath, fs);
+      const parsed = schema.safeParse(data);
+
+      if (parsed.success) {
+        results.push({
+          frontmatter: parsed.data,
+          body: normalizeBody(content),
+          filePath,
+        });
+      } else {
+        console.warn(
+          `Warning: Invalid frontmatter in ${filePath}: ${parsed.error.issues[0]?.message ?? 'unknown error'}`,
+        );
+      }
+    } catch (error) {
+      if (options.strict && isFilesystemError(error)) throw error;
+      console.warn(
+        `Warning: Failed to parse ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  return results;
 }
 
 /**
@@ -94,35 +183,13 @@ function findMarkdownFiles(dir: string): string[] {
  */
 export async function readAllPRs(
   outputDir: string,
+  options: ReadOptions = {},
 ): Promise<PullRequestFile[]> {
-  const prDir = join(outputDir, DIRECTORIES.PULL_REQUESTS);
-  const files = findMarkdownFiles(prDir);
-  const results: PullRequestFile[] = [];
-
-  for (const filePath of files) {
-    try {
-      const { data, content } = readMarkdownFile(filePath);
-      const parsed = PullRequestSchema.safeParse(data);
-
-      if (parsed.success) {
-        results.push({
-          frontmatter: parsed.data,
-          body: normalizeBody(content),
-          filePath,
-        });
-      } else {
-        console.warn(
-          `Warning: Invalid frontmatter in ${filePath}: ${parsed.error.issues[0]?.message ?? 'unknown error'}`,
-        );
-      }
-    } catch (error) {
-      console.warn(
-        `Warning: Failed to parse ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
-  }
-
-  return results;
+  return readAllMarkdownRecords(
+    join(outputDir, DIRECTORIES.PULL_REQUESTS),
+    PullRequestSchema,
+    options,
+  );
 }
 
 /**
@@ -144,35 +211,13 @@ export async function readAllPRs(
  */
 export async function readAllTickets(
   outputDir: string,
+  options: ReadOptions = {},
 ): Promise<JiraTicketFile[]> {
-  const jiraDir = join(outputDir, DIRECTORIES.JIRA);
-  const files = findMarkdownFiles(jiraDir);
-  const results: JiraTicketFile[] = [];
-
-  for (const filePath of files) {
-    try {
-      const { data, content } = readMarkdownFile(filePath);
-      const parsed = JiraTicketSchema.safeParse(data);
-
-      if (parsed.success) {
-        results.push({
-          frontmatter: parsed.data,
-          body: normalizeBody(content),
-          filePath,
-        });
-      } else {
-        console.warn(
-          `Warning: Invalid frontmatter in ${filePath}: ${parsed.error.issues[0]?.message ?? 'unknown error'}`,
-        );
-      }
-    } catch (error) {
-      console.warn(
-        `Warning: Failed to parse ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
-  }
-
-  return results;
+  return readAllMarkdownRecords(
+    join(outputDir, DIRECTORIES.JIRA),
+    JiraTicketSchema,
+    options,
+  );
 }
 
 /**
@@ -256,34 +301,13 @@ export async function readTicket(
  */
 export async function readAllPRReviews(
   outputDir: string,
+  options: ReadOptions = {},
 ): Promise<PRReviewRecordFile[]> {
-  const reviewDir = join(outputDir, DIRECTORIES.PR_REVIEWS);
-  const results: PRReviewRecordFile[] = [];
-
-  for (const filePath of findMarkdownFiles(reviewDir)) {
-    try {
-      const { data, content } = readMarkdownFile(filePath);
-      const parsed = PRReviewRecordSchema.safeParse(data);
-
-      if (parsed.success) {
-        results.push({
-          frontmatter: parsed.data,
-          body: normalizeBody(content),
-          filePath,
-        });
-      } else {
-        console.warn(
-          `Warning: Invalid frontmatter in ${filePath}: ${parsed.error.issues[0]?.message ?? 'unknown error'}`,
-        );
-      }
-    } catch (error) {
-      console.warn(
-        `Warning: Failed to parse ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
-  }
-
-  return results;
+  return readAllMarkdownRecords(
+    join(outputDir, DIRECTORIES.PR_REVIEWS),
+    PRReviewRecordSchema,
+    options,
+  );
 }
 
 /**
@@ -311,6 +335,12 @@ export interface SkippedImportedRecord {
   filePath: string;
   /** Fixed text; never contains anything from the file */
   reason: string;
+  /**
+   * The directory or file could not be read (a filesystem error other than
+   * a missing directory), as opposed to a file that was read and rejected.
+   * Records may be missing behind it.
+   */
+  unreadable: boolean;
 }
 
 function isMissing(error: unknown): boolean {
@@ -331,10 +361,14 @@ function isMissing(error: unknown): boolean {
  * @param outputDir - Base work-log directory (an IC work log, a report's, or
  *   a `filtered/` subset)
  */
-export function scanImportedRecords(outputDir: string): {
+export function scanImportedRecords(
+  outputDir: string,
+  options: { fs?: ReaderFs } = {},
+): {
   records: ImportedRecordFile[];
   skipped: SkippedImportedRecord[];
 } {
+  const fs = options.fs ?? nodeReaderFs;
   const records: ImportedRecordFile[] = [];
   const skipped: SkippedImportedRecord[] = [];
 
@@ -343,12 +377,13 @@ export function scanImportedRecords(outputDir: string): {
       const dir = join(outputDir, typeDir, source);
       let names: string[];
       try {
-        names = readdirSync(dir).sort();
+        names = fs.readdir(dir).sort();
       } catch (error) {
         if (!isMissing(error)) {
           skipped.push({
             filePath: dir,
             reason: 'directory could not be read',
+            unreadable: true,
           });
         }
         continue;
@@ -358,21 +393,30 @@ export function scanImportedRecords(outputDir: string): {
         if (!name.endsWith('.md')) continue;
         const filePath = join(dir, name);
         try {
-          const stat = lstatSync(filePath);
+          const stat = fs.lstat(filePath);
           if (!stat.isFile()) {
-            skipped.push({ filePath, reason: 'is not a regular file' });
+            skipped.push({
+              filePath,
+              reason: 'is not a regular file',
+              unreadable: false,
+            });
             continue;
           }
           if (stat.size > MAX_STORED_BYTES) {
-            skipped.push({ filePath, reason: 'is too large' });
+            skipped.push({
+              filePath,
+              reason: 'is too large',
+              unreadable: false,
+            });
             continue;
           }
-          const parsed = parseImportedRecordFile(readFileSync(filePath));
+          const parsed = parseImportedRecordFile(fs.readFile(filePath));
           if (!parsed.ok) {
             const [issue] = parsed.issues;
             skipped.push({
               filePath,
               reason: `is not a valid imported record (${issue?.code ?? 'invalid'}${issue?.field ? ` at ${issue.field}` : ''})`,
+              unreadable: false,
             });
             continue;
           }
@@ -383,6 +427,7 @@ export function scanImportedRecords(outputDir: string): {
             skipped.push({
               filePath,
               reason: 'is not stored where its identity puts it',
+              unreadable: false,
             });
             continue;
           }
@@ -392,7 +437,11 @@ export function scanImportedRecords(outputDir: string): {
             filePath,
           });
         } catch {
-          skipped.push({ filePath, reason: 'could not be read' });
+          skipped.push({
+            filePath,
+            reason: 'could not be read',
+            unreadable: true,
+          });
         }
       }
     }

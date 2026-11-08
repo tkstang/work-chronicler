@@ -35,6 +35,7 @@ export {
 } from './paths';
 
 export {
+  nodeReaderFs,
   readAllImportedRecords,
   readAllPRReviews,
   readAllPRs,
@@ -42,6 +43,8 @@ export {
   readPR,
   readPRReview,
   readTicket,
+  type ReaderFs,
+  type ReadOptions,
   scanImportedRecords,
   type SkippedImportedRecord,
 } from './reader';
