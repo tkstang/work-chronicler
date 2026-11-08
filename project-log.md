@@ -273,6 +273,10 @@ p13 passed (review round 1: 0 C/H, 1 M, 4 L fixed in t08-t12; confirmation 0 fin
 
 p14 passed (0 C/H/M, 2 Low: one fixed root-inline in t05, one recorded as deviation; finding-1 in-place directory creation stopped and recorded as deviation); fix loops: 0. Head c785bc5; wce-p14-outcome
 
+### 2026-11-08 · structural · oat-project-implement · p15
+
+p15 passed (round 1: 0 C/H/M, 5 L fixed in t16-t20; confirmation 0 findings); fix loops: 1. Head 49b6dc3; wce-p15-outcome
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
