@@ -58,7 +58,7 @@ oat_generated: false
 | p10   | pending     | 1     | 0/1      |
 | p11   | pending     | 1     | 0/1      |
 
-**Total:** 12/17 phases accepted
+**Total:** 12/16 phases accepted
 
 ---
 
@@ -1390,7 +1390,7 @@ Proof: 660 tests; DoD batch green
 **Status:** in_progress
 **Base:** 49b6dc355dec62fec1ad89419c01a9631859faa2
 **Executor:** phase-implementer:wce-p16-impl-1
-**Head:** d9f924251e2774df7b4d7b5990c7408dad00a022
+**Head:** b04e0f29d011356864fc1eada0596d9c4d3a5c25
 
 Branch `oat/evidence-expansion-m03`. Committing owner: the phase implementer (code); root owns the journal. Task class: consequential (shell-safety in skill text; config rewrites).
 
@@ -1490,11 +1490,19 @@ Proof: test fails without the fix (docs/skill-only items: reviewed against the C
 CodeRabbit: review body nitpicks
 Proof: test fails without the fix (docs/skill-only items: reviewed against the CLI)
 
----
+### Task p16-t12: (review L1) setup-slack writes the reason to a temp file and passes --reason-file <path> (committed before the user deferred L1; kept: it removes the here-document)
 
-## Phase p17: Installer replacement identity and recovery
+**Status:** completed
+**Commit:** 119a52c
+**Executor:** phase-implementer:wce-p16-impl-1
+Proof: 691 tests; DoD batch green
 
-**Status:** pending
+### Task p16-t13: (review L2) --reason-file reads at most 4 KiB, decodes UTF-8 strictly and stores the reason trimmed
+
+**Status:** completed
+**Commit:** b04e0f2
+**Executor:** phase-implementer:wce-p16-impl-1
+Proof: 691 tests; DoD batch green
 
 ---
 
@@ -1540,6 +1548,7 @@ run/v1 · request=wce-p14-rev-1 · scope=p14 · action=review · role=oat-review
   run/v1 · request=wce-p15-rev-2 · scope=p15 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p15 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
   run/v1 · request=wce-p16-impl-1 · scope=p16 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p16 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 - Root-inline phase: m03 AGENTS.md rule "Get buy-in before speculative complexity" added by root (claude-opus-5-5) at the user's request in 5c1f224; docs only, outside any phase.
+  run/v1 · request=wce-p16-rev-1 · scope=p16 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p16 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 - run/v1 · request=wce-p08-rev-1 · scope=p08 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p08 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 - Root-inline phase: p08 — inline exception for a version bump and CHANGELOG move; root model claude-opus-5-5
@@ -1915,6 +1924,8 @@ Also in p03-t15: CodeRabbit 4505014153 (docs/notice wrongly said `--overwrite` f
 Known docs follow-up: the shipped CHANGELOG 0.5.0 entry still says `fetch --reviews` in one place (the CLI form is `fetch github --reviews`); correct it under Unreleased in m02.
 
 ## Deferred Findings
+
+- User decision (2026-11-08): all of p17 deferred post-goal (CodeRabbit 4506074753 verify the moved-aside entry before deleting it; 4506074768 never restore a committed replacement's backup after a failed rename; 4506074774 recover a case-differing backup), together with p16 L3 (and L1, already fixed in p16-t12). Note for L3 (implementer): locking `slack configure` alone would not close the race; `import` would also need to re-check the batch against the settings under its lock.
 
 - User decision (2026-11-08): p16 review L1 (multi-line channel reason containing a `WC_REASON` line breaks the here-document) and L3 (user-change guard runs outside the work-log lock, so a concurrent import could slip past it) are speculative and deferred post-goal; only L2 (`--reason-file` size cap and UTF-8 refusal) is fixed. The user also had the foundations rule "Get buy-in before speculative complexity" added to AGENTS.md (5c1f224): from here on, speculative review findings go to the user with their cost instead of being fixed by default.
 

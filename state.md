@@ -106,9 +106,9 @@ oat_milestone_gates:
       reviewed_head: null
       subject:
         kind: plan
-        scope: [ p13, p14, p15, p16, p17, p09, p10, p11 ]
+        scope: [ p13, p14, p15, p16, p09, p10, p11 ]
         ref: 77443a10447ddc05d24a59ab19dcd173aa3a4cc7
-      decided_at: '2026-11-08T11:49:32Z'
+      decided_at: '2026-11-08T14:44:59Z'
 oat_deliveries:
   - delivery_id: d01
     milestone: m01
@@ -261,7 +261,7 @@ oat_pr_status: merged
 oat_pr_url: https://github.com/tkstang/work-chronicler/pull/26
 oat_project_created: '2026-11-07T22:54:38.498Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-11-08T11:50:06Z"
+oat_project_state_updated: "2026-11-08T14:44:59Z"
 oat_generated: false
 ---
 
