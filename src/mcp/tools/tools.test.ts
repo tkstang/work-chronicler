@@ -39,6 +39,7 @@ import {
   type ToolContext,
 } from './index';
 import { encodeCursor } from './pagination';
+import { parseUntilDate } from './types';
 
 const LONG_BODY = 'x'.repeat(600);
 
@@ -1295,6 +1296,45 @@ describe('imported messages', () => {
       expect(await count('2025-02-28')).toBe(2);
       expect(await count('2025-02-28T11:59:59Z')).toBe(1);
       expect(await count('2025-02-27')).toBe(1);
+    });
+
+    it('reads a date-only until as the UTC day in any time zone, padded or not, and refuses other dates without a time', async () => {
+      vi.stubEnv('TZ', 'America/Chicago');
+      expect(new Date('2025-02-28T00:00:00').getTimezoneOffset()).toBe(360);
+      for (const until of ['2025-02-28', ' 2025-02-28 ', '\t2025-02-28']) {
+        expect(parseUntilDate(until, 'until').toISOString(), until).toBe(
+          '2025-02-28T23:59:59.999Z',
+        );
+      }
+      expect(
+        parseUntilDate(' 2025-02-28T12:00:00Z ', 'until').toISOString(),
+      ).toBe('2025-02-28T12:00:00.000Z');
+      for (const until of [
+        '2025-2-28',
+        'Feb 28 2025',
+        '2025-02',
+        '2025',
+        '2025-02-30',
+      ]) {
+        expect(() => parseUntilDate(until, 'until'), until).toThrow(
+          /Invalid until date/,
+        );
+      }
+      // Through the tool: a message early on Mar 1 UTC (still Feb 28 in
+      // Chicago) is not in a range ending " 2025-02-28"
+      writeMessage(
+        ctx.outputDir,
+        4,
+        { occurredAt: '2025-03-01T03:00:00Z' },
+        'Next UTC day.',
+      );
+      const out = parse(
+        await getStatsTool.handler(
+          { since: '2025-02-01', until: ' 2025-02-28' },
+          ctx,
+        ),
+      );
+      expect(out.messages.total).toBe(1);
     });
 
     it('includes message dates in the date range', async () => {

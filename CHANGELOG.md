@@ -101,8 +101,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `search_messages` and a date-filtered `get_stats` read a date-only
   `until` (`2025-02-28`) as midnight at the start of that day, leaving out
   everything later on it, such as a message posted at noon. A date alone
-  now includes that whole UTC day; a timestamp keeps its precision. Other
-  tools are unchanged.
+  now includes that whole UTC day (surrounding spaces ignored, in any time
+  zone); a timestamp keeps its precision, and other text without a time is
+  refused. Other tools are unchanged.
 - `search_messages` returned every matching message in one response, so an
   empty search after a large import could send megabytes of text and
   mentions. Results now come in pages of at most 64 KiB (each result at most

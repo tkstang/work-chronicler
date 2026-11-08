@@ -105,9 +105,11 @@ The server looks for a config in this order:
 
 Dates are ISO 8601. In `search_messages` and `get_stats`, an `until` given
 as a date alone (`2025-02-28`) includes that whole UTC day, so a message
-posted at noon that day is counted; an `until` with a time
-(`2025-02-28T12:00:00Z`) is used exactly. The other tools read a date alone
-as the start of that day (midnight UTC).
+posted at noon that day is counted, whatever the server's time zone; an
+`until` with a time (`2025-02-28T12:00:00Z`) is used exactly. Any other
+`until` without a time (`2025-2-28`, `Feb 28 2025`, `2025-02`) or a date
+that does not exist is refused there. The other tools read a date alone as
+the start of that day (midnight UTC).
 
 `search_pr_reviews` reads the review records written by
 `fetch github --reviews`. They are review work, not PRs you wrote:
