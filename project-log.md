@@ -261,6 +261,10 @@ Impact: A fix round (p07-t05..t08) after the phase was otherwise done.
 Recommendation: For m03, do a read-only live walkthrough with gog against the user's own docs early in the import-skill phase, before the gate, and record only redacted counts.
 Uncertainty: gog output shapes may differ by account and doc type.
 
+### 2026-11-08 · structural · oat-project-goal · m03
+
+Activated m03 (p13, p14, p15, p16, p17, p09, p10, p11); work-chronicler-evidence-expansion-activate-m03
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
