@@ -66,6 +66,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A mention of a ticket key that two JIRA instances both hold resolved to
   whichever ticket was read first, so `get_linked_work` could list a message
   under the wrong ticket. Such a mention now stays unresolved.
+- On a volume that ignores letter case, `import` could call a record
+  unchanged when it was stored under an upper-case hash name that readers
+  skip, so search and analysis left it out. `import` now refuses such a
+  destination (`IDENTITY_CONFLICT`) until the file is renamed.
 
 ## [0.6.0] - 2026-11-08
 

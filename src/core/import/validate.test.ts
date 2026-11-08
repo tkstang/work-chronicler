@@ -10,6 +10,7 @@ import {
 import { basename, dirname, join } from 'node:path';
 
 import { getImportedRecordFilePath } from '@storage/paths';
+import { scanImportedRecords } from '@storage/reader';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { createImportEnv } from './import-fs';
@@ -481,6 +482,52 @@ describe('validate: destination threats', () => {
       expect(codes(result)).toEqual(['UNSAFE_DESTINATION']);
     },
   );
+
+  it('refuses a stored file whose name differs only in letter case, which readers skip', () => {
+    const w = world();
+    const dest = getImportedRecordFilePath(w.workLog, slackIdentity(1));
+    // The hash in upper case: ABC….md
+    const upperHash = (path: string) =>
+      join(dirname(path), `${basename(path, '.md').toUpperCase()}.md`);
+    const upper = upperHash(dest);
+    renameSync(storeRecord(w.workLog, 1, 'Same body.'), upper);
+    stage(w.staging, 'a.md', messageFrontmatter(1), 'Same body.');
+    // A volume that ignores letter case, on any platform: a path whose
+    // file is missing finds the file named in upper case
+    const env = createImportEnv();
+    const real = env.fs;
+    const caseless =
+      <T>(read: (path: string) => T) =>
+      (path: string) => {
+        try {
+          return read(path);
+        } catch (error) {
+          if ((error as { code?: string }).code !== 'ENOENT') throw error;
+          return read(upperHash(path));
+        }
+      };
+    env.fs = {
+      ...real,
+      lstat: caseless(real.lstat),
+      readFile: (path, max) => caseless((p) => real.readFile(p, max))(path),
+    };
+
+    const result = validate({
+      stagingDir: w.staging,
+      workLogRoot: w.workLog,
+      env,
+    });
+
+    // Readers never see it as the record, so import must not call the
+    // record unchanged (stored) either
+    expect(scanImportedRecords(w.workLog).skipped).toEqual([
+      expect.objectContaining({
+        reason: 'is not stored where its identity puts it',
+      }),
+    ]);
+    expect(codes(result)).toEqual(['IDENTITY_CONFLICT']);
+    expect(result.issues[0]?.message).toContain('letter case');
+  });
 
   it.skipIf(!caseInsensitiveTmp)(
     'treats a differently cased existing directory as the same directory',

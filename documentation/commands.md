@@ -211,6 +211,9 @@ It is stored at `work-log/messages/<source>/<hash>.md`, where `<hash>` is
 derived from the identity alone. Importing a record with the same identity again replaces the stored
 one (upsert); an identical record is left as it is, so repeating an import
 changes nothing. Records that are not in the batch are never removed.
+`<hash>` is in lower case; a file whose name differs only in letter case
+(`ABC….md`, on a volume that ignores case) is not read as a record, and
+`import` refuses to store over it (`IDENTITY_CONFLICT`) until it is renamed.
 
 ### Slack records
 
