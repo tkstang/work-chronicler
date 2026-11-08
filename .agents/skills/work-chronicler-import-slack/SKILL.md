@@ -84,9 +84,10 @@ STAGING=$(mktemp -d "${TMPDIR:-/tmp}/wc-slack-import.XXXXXX")
 
 It must be outside the work log, and hold only record files named `1.md`,
 `2.md`, …: no other files, hidden files or subdirectories. When the batch
-holds a few hundred records, or the last day is searched, validate and
-import it (step 7) and delete its directory (step 8) before starting the
-next batch here with a new `mktemp -d`. The CLI refuses a batch of more than
+holds a few hundred records, or every kept result of the last day searched
+is written, validate and import it (step 7) and delete its directory
+(step 8) before starting the next batch here with a new `mktemp -d`. Kept
+results that did not fit go into the next batch, even after the last day. The CLI refuses a batch of more than
 10,000 records or about 32 MiB of record files (`BATCH_TOO_LARGE`: split
 it). Never validate or import a staging directory you did not create for
 this batch.
@@ -285,24 +286,32 @@ If `ok` is `false`, read each issue's `code`, `file` and `field`:
   finishes it first; tell the user.
 - `IMPORT_IN_PROGRESS`: another import holds the work-log lock (`import`
   also reports it while a `filter` runs). Wait a minute and run the same
-  command again; if it keeps failing, show the user the issue message.
-  Never remove the lock yourself.
+  command again, keeping the staging directory, a few times. Never remove
+  the lock yourself.
 
 When `validate` passes, run the `importCommand` itself with `$STAGING` and
-`--json`. It stores every record or none. If it fails, show the user the
-issue codes and fields (they never contain message text).
+`--json`. It stores every record or none. On `IMPORT_IN_PROGRESS`, wait and
+retry it the same way before anything else.
+
+If the batch still fails (retries used up, or an issue you cannot fix),
+stop the import here: show the user the issue codes and fields (they never
+contain message text), note the first and last day the batch covers, and
+do not search or import any later day. Step 8 still deletes the directory;
+running the skill again for those days later is safe.
 
 ### 8. Clean up, then continue
 
-Always delete the batch's staging directory, whether the import succeeded
-or not:
+Delete the batch's staging directory once its import succeeded or the
+import stopped (never between a failed attempt and its retry):
 
 ```bash
 rm -rf "$STAGING"
 ```
 
-While days remain, go back to step 3 for the next batch. After the last
-batch, in an IC profile, run `work-chronicler link`: it reports how many
+If the import stopped, go to step 9. Otherwise go back to step 3 while any
+day is left to search or any kept result is not yet imported: the import
+ends only when every kept result is. After the last batch, in an IC
+profile, run `work-chronicler link`: it reports how many
 PR and ticket mentions in imported messages resolve to the work log.
 
 ### 9. Report
@@ -310,8 +319,9 @@ PR and ticket mentions in imported messages resolve to the work log.
 Report counts only: days searched, whether private channels were included,
 messages found, messages skipped by reason (including "held back
 (secret)"), batches imported, and the import summary added up across
-batches (`created`, `updated`, `unchanged`). Do not quote message text or
-name anyone.
+batches (`created`, `updated`, `unchanged`). If the import stopped, say so
+and give the days not imported (from the failed batch's first day to the
+end of the range). Do not quote message text or name anyone.
 
 Importing again is safe: each message is stored by its identity
 (workspace, channel and `Message_ts`), so a rerun updates the same records

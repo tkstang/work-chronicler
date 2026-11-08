@@ -484,7 +484,8 @@ anything there. The CLI stores the settings and checks every record on import
 3. Writes one record per message (the subject's own text; a reply keeps only
    its parent's ID and link) in batches of a few hundred, each in a new
    temporary staging directory: it runs `validate`, then `import`, and
-   deletes the directory before the next batch. A message holding a
+   deletes the directory before the next batch. If a batch keeps failing,
+   it stops and reports the days it did not import. A message holding a
    password, key, token or other secret is held back and counted, never
    stored.
 4. Reports counts only. Running it again updates the same records and never
