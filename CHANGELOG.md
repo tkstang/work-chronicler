@@ -31,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A `slack` command that changed the config could narrow its permissions:
+  the replacement was created with the original mode narrowed by the
+  process umask, so with umask `077` a `0640` config became `0600` and lost
+  its group readers. The replacement now gets exactly the original mode.
 - `filter --repo acme/api` left out, and `--exclude-repo acme/api` kept, a
   PR whose `repository` holds the full name (`acme/api`) rather than the bare
   name `fetch` stores. Both forms now match.

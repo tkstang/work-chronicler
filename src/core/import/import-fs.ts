@@ -5,6 +5,7 @@ import {
   type Stats,
   closeSync,
   constants,
+  fchmodSync,
   fstatSync,
   fsyncSync,
   linkSync,
@@ -107,7 +108,10 @@ export interface ImportFs {
   readFile: (path: string, maxBytes: number) => FsFile;
   /**
    * Create a new file (never replacing anything), write it and flush it.
-   * `mode` (default `0o666`) is narrowed by the process umask.
+   * Without `mode`, the file gets `0o666` narrowed by the process umask.
+   * With it, the file gets exactly those permission bits (`0o777` at most),
+   * so a replacement keeps the permissions of the file it replaces; where
+   * the filesystem cannot set them, the umask-narrowed mode stays.
    */
   writeFile: (path: string, data: Uint8Array, mode?: number) => void;
   /** Create one directory (not recursive) */
@@ -219,6 +223,9 @@ const UNSUPPORTED_DIRECTORY_SYNC = new Set([
   'EBADF',
 ]);
 
+/** Permission changes are unsupported on some filesystems (FAT, some shares) */
+const UNSUPPORTED_MODE_CHANGE = new Set(['EPERM', 'ENOTSUP', 'EINVAL']);
+
 /**
  * The real filesystem.
  */
@@ -247,9 +254,18 @@ export const nodeImportFs: ImportFs = {
       closeSync(fd);
     }
   },
-  writeFile: (path, data, mode = 0o666) => {
-    const fd = openSync(path, CREATE_FLAGS, mode);
+  writeFile: (path, data, mode) => {
+    const fd = openSync(path, CREATE_FLAGS, mode ?? 0o666);
     try {
+      // The umask narrows the mode given to open; set it exactly
+      if (mode !== undefined) {
+        try {
+          fchmodSync(fd, mode & 0o777);
+        } catch (error) {
+          const code = errorCode(error);
+          if (!code || !UNSUPPORTED_MODE_CHANGE.has(code)) throw error;
+        }
+      }
       let offset = 0;
       while (offset < data.length) {
         offset += writeSync(fd, data, offset, data.length - offset);

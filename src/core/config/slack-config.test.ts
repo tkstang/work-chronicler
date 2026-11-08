@@ -462,6 +462,19 @@ describe('updateSlackSettings: the file is replaced whole or not at all', () => 
     expect(statSync(configPath).mode & 0o777).toBe(0o600);
   });
 
+  it('keeps permissions the process umask would narrow', () => {
+    write(IC_YAML);
+    chmodSync(configPath, 0o640);
+    const umask = process.umask(0o077);
+    try {
+      change(IC, CONFIGURE);
+    } finally {
+      process.umask(umask);
+    }
+
+    expect(statSync(configPath).mode & 0o777).toBe(0o640);
+  });
+
   it('refuses a config that is a symbolic link, leaving the target alone', () => {
     const target = join(root, 'real.yaml');
     writeFileSync(target, IC_YAML);
