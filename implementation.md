@@ -464,7 +464,7 @@ Proof: 343 tests, lint, typecheck, format:check pass
 **Status:** in_progress
 **Base:** 81584c399c38f482b747f178e06114fedb37b2f1
 **Executor:** phase-implementer:wce-p05-impl-1
-**Head:** 8bc34a535ea8cee5aa9e0aa07e369eb595ba895f
+**Head:** 5d723ff03ce1a3e3c284e99368982ccfbf16b48d
 
 Worktree and branch as p04. Committing owner: the phase implementer (code); root owns the journal. Parallelism: no declared group; fan-out rejected (consumers share the record readers, the filter subset contract and the linking model); one phase implementer. Task class: hard-reasoning (many consumers; filter subset replacement must keep the previous subset on failure).
 
@@ -581,6 +581,24 @@ Proof: foreign-reviewer status test extended
 Proof: out-of-date subset note tests
 
 Root re-ran typecheck, lint, format:check and tests at 8bc34a5: pass (428).
+
+### Task p05-t14: (review) Release the filter lock atomically and take over stale locks one at a time
+
+**Status:** completed
+**Commit:** 1e9bd6d2692ae75231a5247d10c75aa00bd3730d
+**Executor:** phase-implementer:wce-p05-impl-1 (fix mode, round 2)
+**Source review:** reviews/archived/p05-review-2026-11-08T071332Z.md (L1, L2, L3 error text)
+Release renames `.filter-lock` to `.filter-lock.released-<runId>` before removal; stale takeover runs under a `.filter-lock.takeover` guard and claims through the normal path; leftovers cleaned under the lock; refusal names path, holder and removal step.
+Proof: new lock tests; reviewer stress probe 0 deletion warnings (adjusted probe: 0 double holds over 2 and 6 processes); takeover3 probe: one run inside
+
+### Task p05-t15: (review) Show who holds the filter lock in status and how to recover
+
+**Status:** completed
+**Commit:** 5d723ff03ce1a3e3c284e99368982ccfbf16b48d
+**Executor:** phase-implementer:wce-p05-impl-1 (fix mode, round 2)
+**Source review:** reviews/archived/p05-review-2026-11-08T071332Z.md (L3)
+Files: `src/cli/commands/status.ts`, `mixed-work-log.test.ts`, `documentation/commands.md`
+Proof: mixed test with a foreign-host lock; root re-ran typecheck, lint, format:check, 435 tests at 5d723ff: pass
 
 ---
 

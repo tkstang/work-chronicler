@@ -389,7 +389,7 @@ Default is `[]` (fully sequential, no worktrees).
 | p08     | code     | pending         | -          | -                                                                                                                            | -                                        | -                                        | -                 |
 | plan    | artifact | passed          | 2026-11-08 | structured (no file); m02 amendment; 2 attempts, 0 Critical/High/Medium residual; attempt-2 Low (3) folded without re-review | 4dc87a15d08c6bff56a51c8fabb3105f56e8323e | oat-reviewer-claude-claude-opus-5-5-high | -                 |
 | p04     | code     | passed          | 2026-11-08 | reviews/archived/p04-review-2026-11-08T061551Z.md (0 C/H/M; 2 Low fixed in p04-t09)                                          | bf256dd4d3f60d4f3fc686ef6c040d9d18a7c0ad | oat-reviewer-claude-claude-opus-5-5-high | -                 |
-| p05     | code     | fixes_added     | 2026-11-08 | reviews/p05-review-2026-11-08T071332Z.md (0 C/H/M, 3 L)                                                                      | 8bc34a535ea8cee5aa9e0aa07e369eb595ba895f | oat-reviewer-claude-claude-opus-5-5-high | -                 |
+| p05     | code     | fixes_completed | 2026-11-08 | reviews/archived/p05-review-2026-11-08T071332Z.md (0 C/H/M, 3 L)                                                             | 8bc34a535ea8cee5aa9e0aa07e369eb595ba895f | oat-reviewer-claude-claude-opus-5-5-high | -                 |
 
 Add one `code` row per phase as phases become concrete. For code-review events,
 `Reviewed Head` is the full 40-character SHA at the head of the reviewed range.
