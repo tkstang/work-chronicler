@@ -90,7 +90,8 @@ select:
    the old entry (for example a symlink you made from a new name to the old
    copy, or a `scripts/` link inside a skill that points into it), the old
    name is kept so that skill keeps working, and the installer names it. A
-   skill whose files cannot all be read also keeps the old name. Give that skill an independent copy with
+   skill, or any tool's skills directory, that cannot be fully read also keeps
+   the old name. Give that skill an independent copy with
    `skills install --tool <its tool> --overwrite`; the old name is removed as
    soon as nothing resolves into it.
 

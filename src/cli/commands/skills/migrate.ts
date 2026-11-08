@@ -206,7 +206,8 @@ interface InventoryEntry {
  * Every entry in the given skills directories, whatever its name, with the
  * locations its resolution passes through: the entry itself, its
  * `SKILL.md`, and every symlink nested inside it. Directories that do not
- * exist are skipped.
+ * exist are skipped; one that cannot be read is listed as a single entry
+ * that is not fully checked.
  */
 function inventoryEntries(dirs: string[]): InventoryEntry[] {
   const seen = new Set<string>();
@@ -215,7 +216,18 @@ function inventoryEntries(dirs: string[]): InventoryEntry[] {
     let names: string[];
     try {
       names = readdirSync(dir);
-    } catch {
+    } catch (error) {
+      // A tool that is not installed has no entries. A directory that exists
+      // but cannot be read may hide entries that depend on an old copy.
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== 'ENOENT' && code !== 'ENOTDIR') {
+        inventory.push({
+          path: dir,
+          location: dir,
+          trail: [],
+          unchecked: true,
+        });
+      }
       continue;
     }
     for (const name of names) {

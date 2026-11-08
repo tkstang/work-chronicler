@@ -441,6 +441,44 @@ describe('skills install rename migration', () => {
       },
     );
 
+    it.skipIf(process.getuid?.() === 0)(
+      'keeps the old copy when another tool skills directory cannot be read',
+      async () => {
+        const oldDir = seedCopy('claude', OLD_NAMES.bullets);
+        mkdirSync(join(oldDir, 'scripts'));
+        writeFileSync(join(oldDir, 'scripts', 'helper.sh'), 'echo helper\n');
+        const cursorSkill = join(skillsDir('cursor'), 'my-skill');
+        mkdirSync(cursorSkill, { recursive: true });
+        symlinkSync(
+          join(oldDir, 'scripts'),
+          join(cursorSkill, 'scripts'),
+          'dir',
+        );
+
+        chmodSync(skillsDir('cursor'), 0o000);
+        let result: { error?: Error };
+        try {
+          result = await install([
+            '--tool',
+            'claude',
+            '--method',
+            'copy',
+            '--yes',
+          ]);
+        } finally {
+          chmodSync(skillsDir('cursor'), 0o755);
+        }
+
+        expect(result.error).toBeUndefined();
+        expect(
+          readFileSync(join(cursorSkill, 'scripts', 'helper.sh'), 'utf8'),
+        ).toBe('echo helper\n');
+        expect(output()).toContain(
+          `(used by ${skillsDir('cursor')} (could not be fully checked))`,
+        );
+      },
+    );
+
     it('still removes the old copy when a nested link target is missing', async () => {
       const oldDir = seedCopy('claude', OLD_NAMES.bullets);
       const newDir = join(skillsDir('claude'), NEW_NAMES.bullets);
