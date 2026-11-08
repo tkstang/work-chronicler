@@ -464,6 +464,10 @@ Proof: `pnpm format:check`
 
 **Outcome:** passed. No deferred Medium findings; no Low findings. m01 → delivering.
 
+### Delivery: m01 → d01
+
+**PR:** https://github.com/tkstang/work-chronicler/pull/25 (scope `m01: p01, p02, p03`, registered 2026-11-08, endpoint `merged`)
+
 ## Deferred Findings
 
 <!-- One line per approved deferral (finding, rationale, approval, follow-up trigger), plus excluded parallel phases and unmerged worktrees. -->
