@@ -100,6 +100,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   favor of the full work log.
 - The 0.5.0 notes below say "your first `fetch --reviews`"; the command is
   `fetch github --reviews` (or `fetch all --reviews`).
+- `skills install --overwrite` no longer deletes an installed skill before
+  its replacement is in place. Each skill is staged beside its destination
+  and checked first; the old entry is moved aside and removed only once the
+  new one checks out, so a failed copy or link keeps the previous skill. A
+  temporary or replaced entry that cannot be removed is reported with its
+  location instead of stopping the run, and the next install cleans up after
+  an install that was interrupted part-way.
 
 ## [0.5.0] - 2026-11-08
 
