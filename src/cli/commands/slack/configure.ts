@@ -9,11 +9,11 @@ interface ConfigureOptions extends SlackCommandOptions {
 
 export const configureCommand = new Command('configure')
   .description(
-    'Set up Slack for this profile, or for a report with --report (workspace and user IDs)',
+    'Set up Slack for this profile, or for a report with --report (workspace and user ID)',
   )
   .requiredOption(
-    '--workspace <team-id>',
-    'Slack workspace (team) ID, such as T0123ABCD',
+    '--workspace <workspace>',
+    'Slack workspace: its team ID (T0123ABCD), or its URL label when no tool shows the ID (example, for example.slack.com)',
   )
   .requiredOption(
     '--user <user-id>',

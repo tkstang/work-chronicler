@@ -116,6 +116,24 @@ describe('Slack records: opt-in and identity', () => {
     ]);
   });
 
+  it('accepts a workspace configured by its URL label, and only that label', () => {
+    const slack = SYNTH_SOURCES.slack as NonNullable<
+      ImportSourceSettings['slack']
+    >;
+    const sources = { slack: { ...slack, workspace: 'example' } };
+
+    expect(check({ sourceAccount: 'example' }, { sources }).ok).toBe(true);
+    expect(problems(check({}, { sources }))).toEqual([
+      ['SOURCE_RULE', 'sourceAccount'],
+    ]);
+    expect(
+      problems(check({ sourceAccount: 'Example.slack.com' }, { sources })),
+    ).toEqual([
+      ['SOURCE_RULE', 'sourceAccount'],
+      ['SOURCE_RULE', 'sourceAccount'],
+    ]);
+  });
+
   it('refuses a message whose author is not the configured user', () => {
     const result = check({
       attribution: { status: 'verified', authorId: 'U0OTHER01' },

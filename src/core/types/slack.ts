@@ -12,11 +12,25 @@ import { z } from 'zod';
  */
 
 /** A Slack workspace (team) ID, such as `T0123ABCD` (`E…` for an org) */
+const SLACK_TEAM_ID = /^[TE][A-Z0-9]{2,31}$/;
+
+/**
+ * A workspace's URL label: the first part of its host name, as in
+ * `example.slack.com` or `example.enterprise.slack.com` (both `example`).
+ * Lower case, so it never collides with a team ID.
+ */
+const SLACK_WORKSPACE_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+
+/**
+ * The Slack workspace: its team ID (`T…`, or `E…` for an Enterprise org), or,
+ * when no Slack tool shows the team ID, its URL label (`example` for
+ * `https://example.slack.com`). Records' `sourceAccount` must be this value.
+ */
 export const SlackWorkspaceIdSchema = z
   .string()
-  .regex(
-    /^[TE][A-Z0-9]{2,31}$/,
-    'must be a Slack workspace ID (T… or E…, as in the workspace URL or a skill)',
+  .refine(
+    (value) => SLACK_TEAM_ID.test(value) || SLACK_WORKSPACE_LABEL.test(value),
+    'must be a Slack workspace ID (T… or E…) or the workspace URL label (example, for example.slack.com)',
   );
 
 /** A Slack user ID, such as `U0123ABCD` (`W…` in an org) */
@@ -127,7 +141,7 @@ function uniqueChannels(
 }
 
 const settingsShape = {
-  /** The workspace (team) ID; record `sourceAccount` must match it */
+  /** The workspace (team ID or URL label); record `sourceAccount` must match it */
   workspace: SlackWorkspaceIdSchema,
   /** The subject's Slack user ID; record authors must match it */
   user: SlackUserIdSchema,

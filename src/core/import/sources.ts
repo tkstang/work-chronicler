@@ -4,7 +4,7 @@ import type {
   ImportSource,
   ImportSubject,
 } from '@wc-types/imported-record';
-import type { SlackSettings } from '@wc-types/slack';
+import { SlackWorkspaceIdSchema, type SlackSettings } from '@wc-types/slack';
 
 /**
  * A problem a source rule found, at a frontmatter field. The message is
@@ -59,21 +59,21 @@ export interface ImportSourceRules {
   ) => SourceRuleProblem[];
 }
 
-const SLACK_ID = /^[A-Z][A-Z0-9]{1,31}$/;
 const SLACK_TS = /^\d{1,12}\.\d{1,9}$/;
 const SLACK_MESSAGE_ID = /^([A-Z][A-Z0-9]{1,31})\/(\d{1,12}\.\d{1,9})$/;
 
 /**
- * Slack identity: `sourceAccount` is the workspace (team) ID and `sourceId`
+ * Slack identity: `sourceAccount` is the workspace (its team ID or URL
+ * label, as configured) and `sourceId`
  * is `<channel ID>/<message ts>`, which Slack keeps stable for a message.
  * The record's `message.container.id` must be that channel.
  */
 function checkSlackIdentity(record: ImportedRecord): SourceRuleProblem[] {
   const problems: SourceRuleProblem[] = [];
-  if (!SLACK_ID.test(record.sourceAccount)) {
+  if (!SlackWorkspaceIdSchema.safeParse(record.sourceAccount).success) {
     problems.push({
       field: 'sourceAccount',
-      message: 'must be a Slack workspace ID',
+      message: 'must be a Slack workspace ID or workspace URL label',
     });
   }
   const match = SLACK_MESSAGE_ID.exec(record.sourceId);

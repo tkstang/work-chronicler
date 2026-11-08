@@ -72,7 +72,7 @@ export const showCommand = new Command('show')
       );
       console.log(
         chalk.gray(
-          `Set it up with \`work-chronicler slack configure --workspace <team-id> --user <user-id>${subject.owner.kind === 'report' ? ` --report ${subject.owner.reportId}` : ''}\`.`,
+          `Set it up with \`work-chronicler slack configure --workspace <workspace> --user <user-id>${subject.owner.kind === 'report' ? ` --report ${subject.owner.reportId}` : ''}\`.`,
         ),
       );
       return;

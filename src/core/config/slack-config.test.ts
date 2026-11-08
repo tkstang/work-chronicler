@@ -151,6 +151,34 @@ describe('Slack config schema', () => {
     expect(ConfigSchema.safeParse(withChannels([entry])).success).toBe(false);
   });
 
+  it.each(['T0TEST0001', 'E0TEST0001', 'example', 'ex-ample-2', 'a'])(
+    'accepts the workspace %s (a team ID or a URL label)',
+    (workspace) => {
+      const config = {
+        ...withChannels([]),
+        slack: { ...withChannels([]).slack, workspace },
+      };
+      expect(ConfigSchema.safeParse(config).success).toBe(true);
+    },
+  );
+
+  it.each([
+    'Example',
+    '-example',
+    'example-',
+    'example.slack.com',
+    'https://example.slack.com',
+    'x0test0001 ',
+    '',
+    'a'.repeat(64),
+  ])('refuses the workspace %j', (workspace) => {
+    const config = {
+      ...withChannels([]),
+      slack: { ...withChannels([]).slack, workspace },
+    };
+    expect(ConfigSchema.safeParse(config).success).toBe(false);
+  });
+
   it('refuses a channel listed twice', () => {
     const entry = { id: 'C0TEST0001', name: 'synthetic-eng', reason: 'x' };
     expect(ConfigSchema.safeParse(withChannels([entry, entry])).success).toBe(
@@ -187,6 +215,28 @@ describe('updateSlackSettings: IC profile', () => {
       ],
     });
     expect(leftovers()).toEqual([]);
+  });
+
+  it('configures a workspace by its URL label, and refuses a host name', () => {
+    write(IC_YAML);
+
+    expect(
+      change(IC, {
+        kind: 'configure',
+        workspace: 'example',
+        user: 'U0TEST0001',
+      }).changed,
+    ).toBe(true);
+    expect(parse(read()).slack.workspace).toBe('example');
+    const before = read();
+    expect(() =>
+      change(IC, {
+        kind: 'configure',
+        workspace: 'example.slack.com',
+        user: 'U0TEST0001',
+      }),
+    ).toThrow(/workspace URL label/);
+    expect(read()).toBe(before);
   });
 
   it('leaves the file untouched when the change is already there', () => {
