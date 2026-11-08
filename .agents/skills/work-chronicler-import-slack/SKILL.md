@@ -193,7 +193,17 @@ Field by field:
 | `mentions.pullRequests` | GitHub pull request URLs in the subject's text (`https://github.com/<owner>/<repo>/pull/<n>`), each once. From a Slack link `<URL\|label>`, take only the URL. |
 | `message.container.name` | The channel's `name` exactly as `slack show` lists it, or `null`. Never the name from search results. |
 | `message.thread` | See below. |
-| Body | The subject's own text, verbatim, with the Slack markup below rewritten. Leave out quoted or forwarded text by anyone else: every line that starts with `>` is a quote, so drop it. Never add names, reply text or the parent's text. |
+| Body | The subject's own text, verbatim: HTML entities decoded and the Slack markup below rewritten, so the body holds what the subject typed. Leave out quoted or forwarded text by anyone else: every line that starts with `>` is a quote, so drop it. Never add names, reply text or the parent's text. |
+
+Build the body from `Text` in this order:
+
+1. Decode the HTML entities Slack escapes: `&amp;` → `&`, `&lt;` → `<`,
+   `&gt;` → `>`.
+2. Rewrite the Slack markup with the table below, then look again and repeat
+   until no markup is left. A literal `<…>` the subject typed around an
+   auto-linked URL nests: `<<https://example.com/spec>>` becomes
+   `<https://example.com/spec>` after one pass and `https://example.com/spec`
+   after the second. One pass leaves markup that `validate` refuses.
 
 Slack markup in `Text`, rewritten in the body:
 
@@ -210,7 +220,9 @@ Slack markup in `Text`, rewritten in the body:
 Threads, from the `thread_ts` in the result's permalink:
 
 - **No `thread_ts`, or `thread_ts` equal to `Message_ts`** (a top-level
-  message or a thread the subject started): `thread: null`. When the detailed
+  message or a thread the subject started): `thread: null`, and the `url`
+  drops the `?thread_ts=…` a thread starter's permalink carries (it names
+  the message itself, and `validate` refuses it on `url`). When the detailed
   result shows a `Reply count: <n>` line (it does for a thread the subject
   started), copy `<n>` into `replyCount`; otherwise leave it `0`. The results
   never show how many people replied, so `replyParticipantCount` stays `0`.
@@ -246,8 +258,9 @@ If `ok` is `false`, read each issue's `code`, `file` and `field`:
   again.
 - `SOURCE_RULE` on `body`: the text still holds raw Slack markup (a
   `<@…>` mention, a `<#…>` channel link, a `<!…>` special mention or a
-  `<link>`/`<link|label>`). Rewrite it with the markup table in step 6 and
-  validate again.
+  `<link>`/`<link|label>`). Rewrite it with the markup table in step 6,
+  repeating until no markup is left (a nested `<<https://…>>` needs two
+  passes), and validate again.
 - `RECOVERY_REQUIRED`: an earlier import was interrupted. The next `import`
   finishes it first; tell the user.
 
