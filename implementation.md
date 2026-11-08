@@ -1363,6 +1363,10 @@ Also in p03-t15: CodeRabbit 4505014153 (docs/notice wrongly said `--overwrite` f
 
 **Outcome:** passed. m02 → delivering; d02 registering.
 
+### Delivery: m02 → d02
+
+**PR:** https://github.com/tkstang/work-chronicler/pull/26 (scope `m02: p04, p05, p06, p07, p12, p08`, registered 2026-11-08, endpoint `merged`)
+
 ### PR review received: d01 (PR #25, CodeRabbit)
 
 **Date:** 2026-11-08

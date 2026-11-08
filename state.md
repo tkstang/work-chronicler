@@ -12,7 +12,7 @@ oat_hill_checkpoints: [] # Configured: which phases require human-in-the-loop li
 oat_hill_completed: [] # Progress: which HiLL checkpoints have been completed
 oat_parallel_execution: false
 oat_phase: plan # Current phase: discovery | spec | design | plan | implement | decomposition
-oat_phase_status: in_progress
+oat_phase_status: pr_open
 # oat_orchestration_retry_limit: 2  # optional; override fix-loop retry limit (range 0-5)
 # oat_phase_recovery_policy: # optional; automatic append-only post-commit phase recovery
 #   default_attempt_limit: 10 # project default, integer 0-20; 0 disables automatic recovery
@@ -44,15 +44,10 @@ oat_dispatch_policy:
 oat_workflow_mode: goal # spec-driven | quick | import | lite | brief | goal
 oat_workflow_origin: native # native | imported
 oat_milestone: m02
-oat_milestone_status: reviewing
+oat_milestone_status: delivered
 oat_goal_status: active
 oat_goal_outcome_audit: null
-oat_goal_recovery:
-  milestone: m02
-  delivery_id: null
-  phase_ids: [ p04, p05, p06, p07, p12, p08 ]
-  stage: delivering
-  review_artifact: null
+oat_goal_recovery: null
 oat_milestone_gates:
   m01:
     plan:
@@ -155,7 +150,7 @@ oat_deliveries:
     scope: [ p04, p05, p06, p07, p12, p08 ]
     endpoint: merged
     kind: pr
-    status: registering
+    status: open
     superseded_by: null
     covers_scope_of: null
     corrects_delivery_id: null
@@ -163,11 +158,20 @@ oat_deliveries:
       repository: tkstang/work-chronicler
       head_branch: oat/evidence-expansion-m02
       head_sha_at_registration: 9548ee32b4b8b7595a6907bac00b9c18ff211b86
-    members: []
+    members:
+      - url: https://github.com/tkstang/work-chronicler/pull/26
+        base: 29fd72279976b9aa0f74d83ef488de353d379108
+        reviewed_head: 9548ee32b4b8b7595a6907bac00b9c18ff211b86
+        observed_head: 9548ee32b4b8b7595a6907bac00b9c18ff211b86
+        observed_base: 29fd72279976b9aa0f74d83ef488de353d379108
+        status: open
     integrated_review:
       artifact: reviews/archived/m02-review-2026-11-08T111220Z.md
       scope: [ p04, p05, p06, p07, p12, p08 ]
-      bound_revisions: []
+      bound_revisions:
+        - member: 0
+          head: 9548ee32b4b8b7595a6907bac00b9c18ff211b86
+          base: 29fd72279976b9aa0f74d83ef488de353d379108
       disposition: passed
     exit_gate:
       status: allowed
@@ -235,11 +239,11 @@ oat_deliveries:
 #   reviewed_head: null # full SHA of the commit the gate reviewed; provenance only
 #   decided_at: null # ISO 8601 UTC
 oat_docs_updated: null # null | skipped | complete — documentation sync status
-oat_pr_status: merged
-oat_pr_url: https://github.com/tkstang/work-chronicler/pull/25
+oat_pr_status: open
+oat_pr_url: https://github.com/tkstang/work-chronicler/pull/26
 oat_project_created: '2026-11-07T22:54:38.498Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-11-08T11:14:34Z"
+oat_project_state_updated: "2026-11-08T11:15:00Z"
 oat_generated: false
 ---
 
