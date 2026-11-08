@@ -1438,6 +1438,10 @@ export function commitImportPlan(
     fs.syncDirectory(join(txn, BACKUP_DIR));
     fs.syncDirectory(join(txn, DIRS_DIR));
     writeJournal(guard, txn, journal);
+    // The transaction directory's own entry in the work log must reach the
+    // disk before any record changes: after a power failure, a replaced
+    // record whose journal and backup were lost could not be rolled back
+    fs.syncDirectory(plan.root);
   } catch (error) {
     discardTransaction(guard, txn, env, warnings, transaction);
     return { ok: false, issues: [failureIssue(error, true)], warnings };

@@ -11,7 +11,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
+import { dirname, join, relative, sep } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 
 import { getImportedRecordFilePath } from '@storage/paths';
@@ -347,6 +347,80 @@ describe('import: paths changing between validation and commit', () => {
     expect(result.issues[0]?.code).toBe('CHANGED_DURING_IMPORT');
     expect(existsSync(first)).toBe(false);
     expect(readFileSync(second, 'utf-8')).toBe('created meanwhile');
+  });
+});
+
+describe('import: what a power failure keeps', () => {
+  /**
+   * A filesystem that records every operation and models a power failure:
+   * an entry made, renamed or removed in a directory reaches the disk only
+   * once that directory is flushed. For each change to a record file it
+   * notes the directories whose entries were still unflushed just before.
+   */
+  function durabilityFs(workLog: string) {
+    const unflushed = new Set<string>();
+    const sequence: string[] = [];
+    const recordChanges: { op: string; unflushed: string[] }[] = [];
+    const isRecord = (path: string) =>
+      relative(workLog, path).startsWith('messages');
+    const fs = hookedFs(nodeImportFs, (op, args) => {
+      const [from = '', to = ''] = args.map(String);
+      sequence.push(
+        `${op} ${relative(workLog, from).split(sep).join('/') || '.'}`,
+      );
+      if (op === 'syncDirectory') {
+        unflushed.delete(from);
+        return;
+      }
+      if ((op === 'rename' || op === 'link') && isRecord(to)) {
+        recordChanges.push({ op, unflushed: [...unflushed] });
+      }
+      if (op === 'rename') unflushed.add(dirname(from));
+      if (op === 'rename' || op === 'link') unflushed.add(dirname(to));
+      if (MUTATING_OPS.has(op) && op !== 'rename' && op !== 'link') {
+        unflushed.add(dirname(from));
+      }
+    });
+    return { fs, sequence, recordChanges };
+  }
+
+  it('flushes the work log, so the transaction directory is on disk before an update-only batch changes a record', () => {
+    const w = world();
+    storeRecord(w.workLog, 1, 'Old body.');
+    storeRecord(w.workLog, 2, 'Old body.');
+    stage(w.staging, 'a.md', messageFrontmatter(1), 'New body.');
+    stage(w.staging, 'b.md', messageFrontmatter(2), 'New body.');
+    const { fs, sequence, recordChanges } = durabilityFs(w.workLog);
+
+    const result = importInto(w, { env: env({ fs }) });
+
+    expect(result.ok).toBe(true);
+    expect(result.summary.updated).toBe(2);
+    // Recorded order: the transaction directory is made, the work log is
+    // flushed, and only then is the first record replaced
+    const made = sequence.indexOf('mkdir .import-transaction');
+    const flushed = sequence.indexOf('syncDirectory .', made);
+    const firstChange = sequence.findIndex((entry) =>
+      entry.startsWith('rename .import-transaction/staged/'),
+    );
+    expect(made).toBeGreaterThanOrEqual(0);
+    expect(flushed).toBeGreaterThan(made);
+    expect(firstChange).toBeGreaterThan(flushed);
+    // A power failure at any record change keeps the transaction directory,
+    // its journal, the backups and the record's marker (a staged copy
+    // already moved into place may linger; recovery goes by content hash)
+    const txn = join(w.workLog, '.import-transaction');
+    expect(recordChanges).toHaveLength(2);
+    for (const change of recordChanges) {
+      expect(change.op).toBe('rename');
+      for (const dir of [
+        w.workLog,
+        txn,
+        ...['backup', 'applying'].map((f) => join(txn, f)),
+      ]) {
+        expect(change.unflushed).not.toContain(dir);
+      }
+    }
   });
 });
 

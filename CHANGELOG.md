@@ -49,6 +49,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now finds and sets aside every such subset before deselecting, and when it
   cannot (listing the work log or moving one fails) it is refused with the
   selected subset still in use.
+- A power failure while `import` stored a batch that only updated records
+  could keep some replaced records but lose the batch's journal and backups,
+  so the next import could not roll the partial batch back. The work log is
+  now flushed after the transaction directory is created, before any record
+  changes.
 
 ## [0.6.0] - 2026-11-08
 
