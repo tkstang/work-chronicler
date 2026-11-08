@@ -893,7 +893,7 @@ Proof: `format:check`
 **Status:** completed
 **Base:** 76140798ed0f67bb17ab685ed76f9d364e76a4cd
 **Executor:** inline:p08-inline-exception
-**Head:** 1ad43f40604571e0cf3262d6f5c2e10d745fcf1d
+**Head:** 9548ee32b4b8b7595a6907bac00b9c18ff211b86
 
 Inline exception (recorded before editing): version bump and CHANGELOG section move only — no new surface, no unresolved design, not consequential before the tag push (which happens after merge under the Release authority), one proof command (the local DoD batch). Committing owner: root. Parallelism: single trivial phase.
 
@@ -984,6 +984,35 @@ Proof: reviewer's three-contender schedule fails on 890358f and passes now; stal
 **Source review:** reviews/archived/m02-review-2026-11-08T101759Z.md (H1)
 Files: `documentation/{commands,configuration}.md`, `CHANGELOG.md` ([0.6.0])
 Proof: `format:check`; root re-ran typecheck, lint, format:check, 586 tests at 1ad43f4: pass
+
+### Task p08-t10: (gate) Report a published subset when later cleanup cannot list
+
+**Status:** completed
+**Commit:** bcdf38eed2cc89a1add12313e88c6d679b905752
+**Executor:** phase-implementer:wce-p04-impl-1 (m02 closeout fix)
+**Source review:** reviews/archived/range-review-2026-11-08T103910Z.md (M2)
+After publication (or `--clear` deselection) listing or removal failures are warnings; the one failure that leaves the subset changed throws `FilteredSubsetNotRestoredError` and the CLI says so.
+Files: `src/core/storage/filtered-subset.ts` (+test), `src/core/storage/index.ts`, `src/core/index.ts`, `src/cli/commands/filter/index.ts`
+Proof: listing regressions fail on 1ad43f4; existing filter tests unmodified
+
+### Task p08-t11: (gate) Recover only on proof and verify unchanged batch members
+
+**Status:** completed
+**Commit:** 6324b4cfe83ec7cd2453d05bb482ea5fcd561635
+**Executor:** phase-implementer:wce-p04-impl-1 (m02 closeout fix)
+**Source review:** reviews/archived/range-review-2026-11-08T103910Z.md (H1, M1)
+Without a journal, the transaction is discarded only when its contents prove nothing was applied; otherwise `RECOVERY_CONFLICT` with all files kept. Unchanged batch members are re-verified before acceptance. Recovery-branch audit (12 branches) found and fixed two more unproven branches: a `prepared` journal discarded without checking, and a used staged copy with a missing marker skipped in rollback.
+Files: `src/core/import/transaction.ts`, `commit.test.ts`
+Proof: 7 new regressions fail on 1ad43f4; safe-preparation control passes on both
+
+### Task p08-t12: (gate) Describe proof-based recovery and filter cleanup warnings
+
+**Status:** completed
+**Commit:** 9548ee32b4b8b7595a6907bac00b9c18ff211b86
+**Executor:** phase-implementer:wce-p04-impl-1 (m02 closeout fix)
+**Source review:** reviews/archived/range-review-2026-11-08T103910Z.md (H1, M1, M2)
+Files: `documentation/commands.md`, `CHANGELOG.md` ([0.6.0])
+Proof: `format:check`; root re-ran typecheck, lint, format:check, 597 tests at 9548ee3: pass
 
 ---
 
