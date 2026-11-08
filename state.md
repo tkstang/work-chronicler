@@ -44,10 +44,15 @@ oat_dispatch_policy:
 oat_workflow_mode: goal # spec-driven | quick | import | lite | brief | goal
 oat_workflow_origin: native # native | imported
 oat_milestone: m02
-oat_milestone_status: delivered
+oat_milestone_status: reviewing
 oat_goal_status: active
 oat_goal_outcome_audit: null
-oat_goal_recovery: null
+oat_goal_recovery:
+  milestone: m02
+  delivery_id: d02
+  phase_ids: [ p04, p05, p06, p07, p12, p08 ]
+  stage: exit_gate
+  review_artifact: null
 oat_milestone_gates:
   m01:
     plan:
@@ -94,8 +99,8 @@ oat_milestone_gates:
       subject:
         kind: code
         scope: [ p04, p05, p06, p07, p12, p08 ]
-      freshness: fresh
-      freshness_reason: null
+      freshness: stale
+      freshness_reason: "delivery refresh (d02): disallowed-path: 6360304b9d261a54a8cdc1f46089ab7a6068a163 changes src/cli/commands/slack/slack-acceptance.test.ts, which is not permitted bookkeeping"
       decided_at: "2026-11-08T11:00:51Z"
 oat_deliveries:
   - delivery_id: d01
@@ -162,7 +167,7 @@ oat_deliveries:
       - url: https://github.com/tkstang/work-chronicler/pull/26
         base: 29fd72279976b9aa0f74d83ef488de353d379108
         reviewed_head: 9548ee32b4b8b7595a6907bac00b9c18ff211b86
-        observed_head: 9548ee32b4b8b7595a6907bac00b9c18ff211b86
+        observed_head: 6360304b9d261a54a8cdc1f46089ab7a6068a163
         observed_base: 29fd72279976b9aa0f74d83ef488de353d379108
         status: open
     integrated_review:
@@ -172,7 +177,7 @@ oat_deliveries:
         - member: 0
           head: 9548ee32b4b8b7595a6907bac00b9c18ff211b86
           base: 29fd72279976b9aa0f74d83ef488de353d379108
-      disposition: passed
+      disposition: stale
     exit_gate:
       status: allowed
       disposition: passed
@@ -243,7 +248,7 @@ oat_pr_status: open
 oat_pr_url: https://github.com/tkstang/work-chronicler/pull/26
 oat_project_created: '2026-11-07T22:54:38.498Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-11-08T11:15:00Z"
+oat_project_state_updated: "2026-11-08T11:18:37Z"
 oat_generated: false
 ---
 

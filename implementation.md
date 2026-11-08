@@ -893,7 +893,7 @@ Proof: `format:check`
 **Status:** completed
 **Base:** 76140798ed0f67bb17ab685ed76f9d364e76a4cd
 **Executor:** inline:p08-inline-exception
-**Head:** 9548ee32b4b8b7595a6907bac00b9c18ff211b86
+**Head:** 6360304b9d261a54a8cdc1f46089ab7a6068a163
 
 Inline exception (recorded before editing): version bump and CHANGELOG section move only — no new surface, no unresolved design, not consequential before the tag push (which happens after merge under the Release authority), one proof command (the local DoD batch). Committing owner: root. Parallelism: single trivial phase.
 
@@ -1014,6 +1014,14 @@ Proof: 7 new regressions fail on 1ad43f4; safe-preparation control passes on bot
 Files: `documentation/commands.md`, `CHANGELOG.md` ([0.6.0])
 Proof: `format:check`; root re-ran typecheck, lint, format:check, 597 tests at 9548ee3: pass
 
+### Task p08-t13: (CI) Give the CLI-running Slack suites a 60 s timeout
+
+**Status:** completed
+**Commit:** 6360304b9d261a54a8cdc1f46089ab7a6068a163
+**Executor:** inline:p08 root (CI failure on PR #26: two tests timed out at vitest's 5 s default on the runner)
+Files: `src/cli/commands/slack/{slack,slack-acceptance}.test.ts`
+Proof: Slack suites 13/13 locally; ready-PR CI re-run
+
 ---
 
 ## Phase p09: Google Docs documents record and config
@@ -1039,6 +1047,8 @@ Proof: `format:check`; root re-ran typecheck, lint, format:check, 597 tests at 9
 <!-- One line per dispatch request id, rendered by `oat project dispatch record --format line` and written as a list item. Update that line in place with the terminal outcome; never paste the record or event JSON. -->
 
 <!-- orchestration-runs-start -->
+
+- Root-inline phase: p08 (fix p08-t13) — test-only timeout for two CLI-running suites after a CI timeout; root model claude-opus-5-5
 
 - run/v1 · request=wce-p08-rev-1 · scope=p08 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p08 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
@@ -1366,6 +1376,10 @@ Also in p03-t15: CodeRabbit 4505014153 (docs/notice wrongly said `--overwrite` f
 ### Delivery: m02 → d02
 
 **PR:** https://github.com/tkstang/work-chronicler/pull/26 (scope `m02: p04, p05, p06, p07, p12, p08`, registered 2026-11-08, endpoint `merged`)
+
+### CI failure on d02 (PR #26)
+
+**Date:** 2026-11-08 · ci run 42474884622: two CLI-running Slack tests timed out at 5 s on the runner (591 passed). Fixed in p08-t13 (test-only timeout). The commit stales the exit carrier and the integrated review (disallowed path under section 12.8); m02 → reviewing with recovery for d02 at `exit_gate`.
 
 ### PR review received: d01 (PR #25, CodeRabbit)
 
