@@ -445,7 +445,7 @@ twice under another capitalization.
 | --- | --- |
 | `--exclude-impact <levels...>` | Drop PRs at these levels (`minor`, `standard`, `major`, `flagship`). |
 | `--min-impact <level>` | Keep PRs at this level or higher. |
-| `--min-loc <lines>` | Keep PRs with at least this many lines changed. |
+| `--min-loc <lines>` | Keep PRs with at least this many lines changed (a whole number). |
 | `--linked-only` | Keep only PRs linked to tickets, tickets linked to PRs, and messages that mention a PR or ticket in the subset. |
 | `--merged-only` | Keep only merged PRs. |
 | `--exclude-status <statuses...>` | Drop tickets with these statuses, for example `"To Do"`. |
@@ -455,6 +455,8 @@ twice under another capitalization.
 | `-c, --config <path>`, `-v, --verbose` | As above. |
 
 Impact filters use the PR's stored `impact`, or classify untagged PRs on the fly.
+An impact level that is not one of the four, or a `--min-loc` that is not a
+whole number, is refused (exit 1) and the subset is left as it was.
 Most filters describe authored PRs or tickets. For other evidence:
 
 | Record type | Filters that apply |

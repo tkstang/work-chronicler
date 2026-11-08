@@ -105,3 +105,27 @@ describe('filter: repository selectors', () => {
     expect(await selected()).toEqual([3, 4]);
   });
 });
+
+describe('filter: invalid values', () => {
+  beforeEach(async () => {
+    await filter(['--repo', 'acme/web']);
+  });
+
+  it.each([
+    [['--min-impact', 'majoor'], /--min-impact "majoor"/],
+    [['--exclude-impact', 'minor', 'minr'], /--exclude-impact "minr"/],
+    [['--merged-only', '--min-loc', 'abc'], /--min-loc "abc"/],
+    [['--merged-only', '--min-loc', '10abc'], /--min-loc "10abc"/],
+    [['--merged-only', '--min-loc', '-5'], /--min-loc "-5"/],
+  ])('refuses %j and keeps the previous subset', async (args, message) => {
+    await expect(filter(args)).rejects.toThrow(message);
+    expect(await selected()).toEqual([3, 4]);
+  });
+
+  it('accepts a whole number of lines', async () => {
+    await filter(['--min-loc', '151']);
+    expect(await selected()).toEqual([]);
+    await filter(['--min-loc', '150']);
+    expect(await selected()).toEqual([1, 2, 3, 4]);
+  });
+});

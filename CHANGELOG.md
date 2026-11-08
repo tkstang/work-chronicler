@@ -31,6 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `filter` accepted a mistyped impact level or line count and dropped that
+  restriction, so `--min-impact majoor` (or `--exclude-impact minr`, or
+  `--min-loc abc` next to another filter) replaced the subset with a broader
+  one. A level that is not `minor`, `standard`, `major` or `flagship`, or a
+  `--min-loc` that is not a whole number, is now refused before the work log
+  is read, and the subset is left as it was.
 - A `slack` command could write a config larger than 1 MiB, which every
   later `slack` change then refused to edit. A change that would make the
   config larger than that is now refused and the config is left as it was.
