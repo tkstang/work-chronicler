@@ -397,13 +397,24 @@ describe('list_repos', () => {
 });
 
 describe('get_stats', () => {
-  it('returns generated stats.json verbatim when no dates are given', async () => {
+  it('returns generated stats.json when no dates are given, with messages counted afresh', async () => {
     const generated = '{\n  "prs": { "total": 42 }\n}';
     writeAnalysis('stats', generated);
 
+    const out = parse(await getStatsTool.handler({}, ctx));
+
+    expect(out).toEqual({
+      prs: { total: 42 },
+      messages: { total: 0, bySource: {}, byMonth: {} },
+    });
+  });
+
+  it('returns a stats.json that is not JSON as it is', async () => {
+    writeAnalysis('stats', 'not json');
+
     const result = await getStatsTool.handler({}, ctx);
 
-    expect(result.content).toEqual([{ type: 'text', text: generated }]);
+    expect(result.content).toEqual([{ type: 'text', text: 'not json' }]);
   });
 
   it('computes stats from the work log for a date range, ignoring stats.json', async () => {
@@ -1053,6 +1064,23 @@ describe('imported messages', () => {
   });
 
   describe('get_stats', () => {
+    it('counts messages imported after stats.json was generated', async () => {
+      // Analysis ran before the import: its stats.json counts no messages
+      writeAnalysis('stats', {
+        prs: { total: 4 },
+        messages: { total: 0, bySource: {}, byMonth: {} },
+      });
+
+      const out = parse(await getStatsTool.handler({}, ctx));
+
+      expect(out.prs).toEqual({ total: 4 });
+      expect(out.messages).toEqual({
+        total: 3,
+        bySource: { slack: 3 },
+        byMonth: { '2025-01': 1, '2025-02': 1, '2025-03': 1 },
+      });
+    });
+
     it('counts messages in their own section for a date range', async () => {
       const out = parse(
         await getStatsTool.handler(

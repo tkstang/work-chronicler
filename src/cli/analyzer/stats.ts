@@ -61,6 +61,32 @@ function sortByMonth(byMonth: Record<string, number>): Record<string, number> {
 }
 
 /**
+ * Count imported messages by source and month (`stats.json`'s `messages`
+ * section). Records of other types are not counted.
+ *
+ * @param importedRecords - Imported records from one work log
+ */
+export function countMessages(
+  importedRecords: ImportedRecordFile[],
+): AnalysisStats['messages'] {
+  const messages: AnalysisStats['messages'] = {
+    total: 0,
+    bySource: {},
+    byMonth: {},
+  };
+  for (const record of importedRecords) {
+    const fm = record.frontmatter;
+    if (fm.type !== 'message') continue;
+    messages.total++;
+    messages.bySource[fm.source] = (messages.bySource[fm.source] ?? 0) + 1;
+    const month = getYearMonth(fm.occurredAt);
+    messages.byMonth[month] = (messages.byMonth[month] ?? 0) + 1;
+  }
+  messages.byMonth = sortByMonth(messages.byMonth);
+  return messages;
+}
+
+/**
  * Generate statistics from PR and ticket data, plus counts of imported
  * messages (which never enter the PR or ticket figures).
  */
@@ -91,11 +117,7 @@ export function generateStats(
       prsWithTickets: 0,
       ticketsWithPRs: 0,
     },
-    messages: {
-      total: 0,
-      bySource: {},
-      byMonth: {},
-    },
+    messages: countMessages(importedRecords),
   };
 
   // Process PRs
@@ -145,19 +167,7 @@ export function generateStats(
     }
   }
 
-  // Imported messages
-  for (const record of importedRecords) {
-    const fm = record.frontmatter;
-    if (fm.type !== 'message') continue;
-    stats.messages.total++;
-    stats.messages.bySource[fm.source] =
-      (stats.messages.bySource[fm.source] ?? 0) + 1;
-    const month = getYearMonth(fm.occurredAt);
-    stats.messages.byMonth[month] = (stats.messages.byMonth[month] ?? 0) + 1;
-  }
-
   stats.prs.byMonth = sortByMonth(stats.prs.byMonth);
-  stats.messages.byMonth = sortByMonth(stats.messages.byMonth);
 
   return stats;
 }

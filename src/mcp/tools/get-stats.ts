@@ -1,5 +1,6 @@
 import * as fs from 'node:fs/promises';
 
+import { countMessages } from '@analyzer/stats';
 import {
   DIRECTORIES,
   getAnalysisFilePath,
@@ -33,7 +34,9 @@ export const getStatsTool = defineTool({
       DIRECTORIES.MESSAGES,
     );
 
-    // Without a date filter, return the generated stats.json verbatim
+    // Without a date filter, return the generated stats.json, with its
+    // messages counted afresh: messages imported after the analysis ran
+    // are counted, as the computed statistics count them
     if (!input.since && !input.until) {
       let text: string | undefined;
       try {
@@ -43,9 +46,24 @@ export const getStatsTool = defineTool({
         // Fall through to compute stats
       }
       if (text !== undefined) {
-        return gap
-          ? jsonResult({ ...JSON.parse(text), note: gap })
-          : textResult(text);
+        let cached: unknown;
+        try {
+          cached = JSON.parse(text);
+        } catch {
+          // Not JSON: returned as it is
+        }
+        if (
+          typeof cached !== 'object' ||
+          cached === null ||
+          Array.isArray(cached)
+        ) {
+          return textResult(text);
+        }
+        return jsonResult({
+          ...cached,
+          messages: countMessages(await readAllImportedRecords(outputDir)),
+          ...(gap ? { note: gap } : {}),
+        });
       }
     }
 
