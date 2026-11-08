@@ -623,6 +623,17 @@ Also in p03-t15: CodeRabbit 4505014153 (docs/notice wrongly said `--overwrite` f
 
 **Outcome:** code changed after the reviewed head; exit carrier and integrated review are stale. m01 → reviewing (recovery stage `exit_gate`).
 
+### Release: m01 → 0.5.0
+
+**Merged:** https://github.com/tkstang/work-chronicler/pull/25 as 29fd72279976b9aa0f74d83ef488de353d379108 (squash, head b079cd77e9306bdc2a179660a6536afba12f0847 matched), 2026-11-08
+**Tag:** v0.5.0 on 29fd722
+**Release run:** https://github.com/tkstang/work-chronicler/actions/runs/42448224575 (Publish to npm: success; Create GitHub Release: success; provenance signed)
+**npm:** `npm view work-chronicler@0.5.0 version` → `0.5.0`; dist-tag latest → 0.5.0
+**GitHub Release:** https://github.com/tkstang/work-chronicler/releases/tag/v0.5.0 (notes written with /release-notes)
+**Delivery:** d01 at_endpoint (merged), endpoint attainment recorded by `oat project delivery refresh`.
+
+Known docs follow-up: the shipped CHANGELOG 0.5.0 entry still says `fetch --reviews` in one place (the CLI form is `fetch github --reviews`); correct it under Unreleased in m02.
+
 ## Deferred Findings
 
 <!-- One line per approved deferral (finding, rationale, approval, follow-up trigger), plus excluded parallel phases and unmerged worktrees. -->
