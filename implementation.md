@@ -893,7 +893,7 @@ Proof: `format:check`
 **Status:** completed
 **Base:** 76140798ed0f67bb17ab685ed76f9d364e76a4cd
 **Executor:** inline:p08-inline-exception
-**Head:** 890358f95e9adde796635336ae741de206fc0e2d
+**Head:** 1ad43f40604571e0cf3262d6f5c2e10d745fcf1d
 
 Inline exception (recorded before editing): version bump and CHANGELOG section move only — no new surface, no unresolved design, not consequential before the tag push (which happens after merge under the Release authority), one proof command (the local DoD batch). Committing owner: root. Parallelism: single trivial phase.
 
@@ -965,6 +965,25 @@ Files: `documentation/commands.md`, `CHANGELOG.md` ([0.6.0])
 Proof: `format:check`; root re-ran typecheck, lint, format:check, 583 tests at 890358f: pass
 
 Decision (root): recovery keeps comparing device and inode; a device change after a reboot or remount stops recovery with `RECOVERY_CONFLICT` for a manual check (fail-closed), rather than trusting inode alone.
+
+### Task p08-t08: (review) Share the filter lock's stale takeover with import
+
+**Status:** completed
+**Commit:** f6274a6e682676f69c82684cce9dc8f51ab28b16
+**Executor:** phase-implementer:wce-p04-impl-1 (m02 integrated-review fix)
+**Source review:** reviews/archived/m02-review-2026-11-08T101759Z.md (H1)
+One shared helper (`src/core/storage/work-log-lock.ts`, the reviewed filter-lock algorithm moved as is) now serves `.filter-lock` and `.import-lock`; the import lock becomes a directory (`.import-lock/owner.json`; 0.6.0 unreleased, no migration) with a `.takeover` guard; its seam goes through the PathGuard. Filter-lock tests unchanged (empty diff).
+Files: `src/core/storage/{work-log-lock,filtered-subset}.ts`, `src/core/import/{transaction,import-fs,index,commit.test,lock.test}.ts`
+Proof: reviewer's three-contender schedule fails on 890358f and passes now; stale takeover and live-owner controls; full suite 586
+
+### Task p08-t09: (review) Describe the shared import lock and its takeover guard
+
+**Status:** completed
+**Commit:** 1ad43f40604571e0cf3262d6f5c2e10d745fcf1d
+**Executor:** phase-implementer:wce-p04-impl-1 (m02 integrated-review fix)
+**Source review:** reviews/archived/m02-review-2026-11-08T101759Z.md (H1)
+Files: `documentation/{commands,configuration}.md`, `CHANGELOG.md` ([0.6.0])
+Proof: `format:check`; root re-ran typecheck, lint, format:check, 586 tests at 1ad43f4: pass
 
 ---
 
