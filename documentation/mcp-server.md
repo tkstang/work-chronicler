@@ -154,8 +154,10 @@ produces one huge response. Search tools added later use the same contract:
   on the last page. Because the cursor is a position, following it never
   skips or repeats a result, even when records are imported between calls;
   a record imported meanwhile that sorts before the cursor appears only when
-  you start again without a cursor. A cursor that did not come from
-  `nextCursor` is refused.
+  you start again without a cursor. A cursor is bound to the tool that
+  issued it and to the filters it was issued for (the page size may
+  change): one from another tool, one passed with other filters, or a
+  malformed one is refused with an error.
 - **Counts.** `total` is the number of messages matching the filters across
   all pages (the same on every page of an unchanged work log); `returned` is
   the number on this page.

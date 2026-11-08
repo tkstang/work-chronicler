@@ -107,8 +107,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   empty search after a large import could send megabytes of text and
   mentions. Results now come in pages of at most 64 KiB (each result at most
   16 KiB, with `omittedMentions` counting mentions left out), newest first:
-  pass `nextCursor` as `cursor` for the next page. Pages never skip or
-  repeat a result, and `total` still counts every match. See
+  pass `nextCursor` as `cursor`, with the same filters, for the next page
+  (a cursor from another tool or for other filters is refused). Pages never
+  skip or repeat a result, and `total` still counts every match. See
   [Pages](documentation/mcp-server.md#pages).
 
 ## [0.6.0] - 2026-11-08

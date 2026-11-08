@@ -38,6 +38,7 @@ import {
   searchTicketsTool,
   type ToolContext,
 } from './index';
+import { encodeCursor } from './pagination';
 
 const LONG_BODY = 'x'.repeat(600);
 
@@ -1076,10 +1077,35 @@ describe('imported messages', () => {
         expect(small.omittedMentions).toBeUndefined();
       });
 
-      it('rejects a cursor it did not make', async () => {
+      it('refuses a cursor it did not issue for these filters', async () => {
         await expect(
           searchMessagesTool.handler({ cursor: 'not-a-cursor' }, ctx),
         ).rejects.toThrow(/Invalid cursor/);
+        // Well-formed, but a bare position no tool issued
+        const forged = Buffer.from('[0,""]').toString('base64url');
+        await expect(
+          searchMessagesTool.handler({ cursor: forged }, ctx),
+        ).rejects.toThrow(/Invalid cursor/);
+        // One another search tool issued
+        const other = encodeCursor('search_documents', [], [0, '']);
+        await expect(
+          searchMessagesTool.handler({ cursor: other }, ctx),
+        ).rejects.toThrow(/another tool/);
+
+        const { nextCursor } = parse(
+          await searchMessagesTool.handler({ limit: 1, source: 'slack' }, ctx),
+        );
+        await expect(
+          searchMessagesTool.handler({ limit: 1, cursor: nextCursor }, ctx),
+        ).rejects.toThrow(/other filters/);
+        // The same filters, with any page size, are accepted
+        const next = parse(
+          await searchMessagesTool.handler(
+            { limit: 5, source: 'slack', cursor: nextCursor },
+            ctx,
+          ),
+        );
+        expect(next.returned).toBe(2);
       });
     });
 
