@@ -916,7 +916,7 @@ describe('skills install replacement safety', () => {
     const { error } = await install(
       ['--tool', 'claude', '--yes', '--overwrite'],
       (name, args) => {
-        if (name === 'removeTree' && isBulletsSide(args[0], 'backup')) {
+        if (name === 'removeTree' && isBulletsSide(args[0], 'replaced')) {
           throw fsError('EBUSY');
         }
       },
@@ -930,6 +930,37 @@ describe('skills install replacement safety', () => {
     );
     expect(installedName('claude', NEW_NAMES.team)).toBe(NEW_NAMES.team);
     expect(occupied(oldTeam)).toBe(false);
+  });
+
+  it('never puts back a replaced skill whose deletion stopped part-way', async () => {
+    seedEdited('claude', BULLETS);
+    writeFileSync(join(bulletsPath(), 'notes.md'), 'mine\n');
+
+    // Deleting the replaced copy removes SKILL.md, then fails
+    const first = await install(
+      ['--tool', 'claude', '--yes', '--overwrite'],
+      (name, args) => {
+        if (
+          name === 'removeTree' &&
+          basename(String(args[0])).startsWith(`.${BULLETS}.wc-`)
+        ) {
+          rmSync(join(String(args[0]), 'SKILL.md'));
+          throw fsError('EACCES');
+        }
+      },
+    );
+    expect(first.error).toBeUndefined();
+    // The skill is then removed (as `skills uninstall` does), freeing its name
+    rmSync(bulletsPath(), { recursive: true });
+    logs = [];
+
+    const { error } = await install(['--tool', 'claude', '--yes']);
+
+    expect(error).toBeUndefined();
+    expect(installedName('claude', BULLETS)).toBe(BULLETS);
+    expect(existsSync(join(bulletsPath(), 'notes.md'))).toBe(false);
+    expect(output()).not.toContain('put back');
+    expect(hidden('claude')).toEqual([]);
   });
 
   it('replaces a symlinked skill without touching what it points to', async () => {
@@ -1047,5 +1078,23 @@ describe('skills install replacement safety', () => {
         expect(installedName('claude', BULLETS)).toBe(BULLETS);
       },
     );
+
+    it('leaves a moved-aside entry that is not a working skill and names it', async () => {
+      mkdirSync(skillsDir('claude'), { recursive: true });
+      mkdirSync(side('backup', 'a'));
+      writeFileSync(join(side('backup', 'a'), 'notes.md'), 'half deleted\n');
+
+      const { error } = await install(['--tool', 'claude', '--yes']);
+
+      expect(error).toBeUndefined();
+      expect(installedName('claude', BULLETS)).toBe(BULLETS);
+      expect(readFileSync(join(side('backup', 'a'), 'notes.md'), 'utf8')).toBe(
+        'half deleted\n',
+      );
+      expect(output()).toContain(
+        `Warning: Claude Code ${BULLETS}: an interrupted install left an entry at ${side('backup', 'a')} that is not a working copy of the skill, so it was not put back`,
+      );
+      expect(output()).not.toContain('put back 1');
+    });
   });
 });

@@ -41,8 +41,12 @@ export const nodeSkillInstallFs: SkillInstallFs = {
 /** Upper bound on the size of a `SKILL.md` read to check its name */
 const MAX_SKILL_FILE_BYTES = 1024 * 1024;
 
+/** The packaged skill being put in place */
 const STAGING = 'staging';
+/** The previous entry, moved aside while the swap is in progress */
 const BACKUP = 'backup';
+/** The previous entry after the new one checked out in place: being deleted */
+const REPLACED = 'replaced';
 
 /** Name of a temporary entry beside a skill (hidden, so never listed as a skill) */
 function sideName(skill: string, role: string, id: string): string {
@@ -132,8 +136,9 @@ export type ReplaceSkillResult =
  * the symlink method) and its `SKILL.md` must declare the skill's name.
  * Only then is the existing entry renamed aside and the staged one renamed
  * into place. The previous entry is removed only after the installed one is
- * checked again in place; any failure before that puts the previous entry
- * back, so a failed install never loses it. Links are unlinked, never
+ * checked again in place (it is first renamed to a `replaced` name, which
+ * recovery never puts back); any failure before that puts the previous
+ * entry back, so a failed install never loses it. Links are unlinked, never
  * followed. A failure to remove a temporary or replaced entry is returned as
  * a warning naming where it was left; it never fails the install.
  */
@@ -233,11 +238,17 @@ export function replaceSkill(request: ReplaceSkillRequest): ReplaceSkillResult {
   }
 
   if (existing && movedAside) {
+    // Renamed out of the backup role first, so a deletion that stops
+    // part-way never leaves something recovery would put back
+    const replaced = join(skillsDir, sideName(skill, REPLACED, id));
+    let doomed = backup;
     try {
-      removeEntry(fs, backup, existing.kind);
+      fs.rename(backup, replaced);
+      doomed = replaced;
+      removeEntry(fs, replaced, existing.kind);
     } catch (error) {
       warnings.push(
-        `${skill}: installed, but the replaced entry could not be removed and is left at ${backup} (${errorMessage(error)}); remove it yourself`,
+        `${skill}: installed, but the replaced entry could not be removed and is left at ${doomed} (${errorMessage(error)}); remove it yourself`,
       );
     }
   }
@@ -260,10 +271,12 @@ export interface InterruptedReplacementReport {
  * Clean up after a `skills install` that stopped part-way through
  * replacing a skill (a crash or a kill between its steps).
  *
- * Temporary staged entries are removed: they only ever hold a packaged
- * skill. A replaced entry that was moved aside is put back when nothing is
- * at the skill's name and it is the only one; otherwise it is left where it
- * is and named, since it may be the only copy of the user's skill.
+ * Staged entries are removed: they only ever hold a packaged skill. So are
+ * replaced entries, which were already superseded by a new install that
+ * checked out in place. An entry moved aside mid-swap is put back when
+ * nothing is at the skill's name, it is the only one, and its `SKILL.md`
+ * still declares the skill; otherwise it is left where it is and named,
+ * since it may be the only copy of the user's skill.
  */
 export function recoverInterruptedReplacements(
   fs: SkillInstallFs,
@@ -285,23 +298,26 @@ export function recoverInterruptedReplacements(
 
   for (const skill of skills) {
     const pattern = new RegExp(
-      `^\\.${escapeRegExp(skill)}\\.wc-(${STAGING}|${BACKUP})-[0-9a-f]{16}$`,
+      `^\\.${escapeRegExp(skill)}\\.wc-(${STAGING}|${BACKUP}|${REPLACED})-[0-9a-f]{16}$`,
     );
-    const staged: string[] = [];
+    const disposable: string[] = [];
     const backups: string[] = [];
     for (const name of names) {
       const role = pattern.exec(name)?.[1];
-      if (role === STAGING) staged.push(join(skillsDir, name));
-      else if (role === BACKUP) backups.push(join(skillsDir, name));
+      if (role === STAGING || role === REPLACED) {
+        disposable.push(join(skillsDir, name));
+      } else if (role === BACKUP) {
+        backups.push(join(skillsDir, name));
+      }
     }
 
-    for (const path of staged) {
+    for (const path of disposable) {
       try {
         const entry = entryAt(fs, path);
         if (entry) removeEntry(fs, path, entry.kind);
       } catch (error) {
         report.warnings.push(
-          `${skill}: a temporary copy from an interrupted install could not be removed and is left at ${path} (${errorMessage(error)}); remove it yourself`,
+          `${skill}: a leftover from an earlier install could not be removed and is left at ${path} (${errorMessage(error)}); remove it yourself`,
         );
       }
     }
@@ -316,6 +332,12 @@ export function recoverInterruptedReplacements(
     }
     const [only] = backups;
     if (free && backups.length === 1 && only !== undefined) {
+      if (!declaresSkill(fs, only, skill)) {
+        report.warnings.push(
+          `${skill}: an interrupted install left an entry at ${only} that is not a working copy of the skill, so it was not put back; remove it once you no longer need it`,
+        );
+        continue;
+      }
       try {
         fs.rename(only, target);
         report.restored.push(skill);
