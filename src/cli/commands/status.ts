@@ -2,6 +2,7 @@ import { toCliError } from '@cli/errors';
 import {
   findConfigPath,
   getOutputDirectory,
+  isFilteredSubsetMissingReviews,
   loadConfig,
   readAllPRReviews,
   readAllPRs,
@@ -42,6 +43,11 @@ export const statusCommand = new Command('status')
       console.log(
         `PR Reviews:    ${reviewRecords.length} reviewed PRs (${reviewCount} reviews, ${commentCount} inline comments; not counted as authored PRs)`,
       );
+      if (isFilteredSubsetMissingReviews(outputDir)) {
+        console.log(
+          '\nThe filtered/ subset was created before PR reviews were fetched and does not include them. Re-run `work-chronicler filter` to add them.',
+        );
+      }
 
       if (prs.length > 0 || tickets.length > 0) {
         console.log(

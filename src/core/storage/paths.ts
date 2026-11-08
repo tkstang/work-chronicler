@@ -69,6 +69,23 @@ export function getEffectiveOutputDir(outputDir: string): {
 }
 
 /**
+ * Whether the work log's `filtered/` subset was written before any review
+ * records existed: it has PRs but no `pr-reviews/` directory, while the full
+ * work log has one. `filter` always writes `filtered/pr-reviews/` (empty when
+ * nothing matches), so a missing directory means the subset is out of date.
+ *
+ * @param outputDir - Base work-log output directory (not `filtered/`)
+ */
+export function isFilteredSubsetMissingReviews(outputDir: string): boolean {
+  const filteredDir = join(outputDir, DIRECTORIES.FILTERED);
+  return (
+    existsSync(join(filteredDir, DIRECTORIES.PULL_REQUESTS)) &&
+    !existsSync(join(filteredDir, DIRECTORIES.PR_REVIEWS)) &&
+    existsSync(join(outputDir, DIRECTORIES.PR_REVIEWS))
+  );
+}
+
+/**
  * Get the file path for storing a PR markdown file.
  *
  * @param outputDir - Base work-log output directory

@@ -1,4 +1,10 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -242,5 +248,20 @@ describe('a work log with authored PRs and review records', () => {
         line.startsWith('PR Reviews:    3 reviewed PRs (3 reviews'),
       ),
     ).toBe(true);
+
+    // A filtered subset from before reviews were fetched is flagged
+    expect(
+      logs.some((line) => line.includes('Re-run `work-chronicler filter`')),
+    ).toBe(false);
+    rmSync(join(filteredDir, 'pr-reviews'), { recursive: true });
+    logs = [];
+    await run(statusCommand, []);
+    expect(
+      logs.some((line) => line.includes('Re-run `work-chronicler filter`')),
+    ).toBe(true);
+
+    // filter always writes pr-reviews/, even when no review record matches
+    await run(filterCommand, ['--org', 'other']);
+    expect(existsSync(join(filteredDir, 'pr-reviews'))).toBe(true);
   });
 });

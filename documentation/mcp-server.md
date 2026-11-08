@@ -90,7 +90,10 @@ The server looks for a config in this order:
 `search_pr_reviews` reads the review records written by
 `fetch github --reviews`. They are review work, not PRs you wrote: the other
 tools never count them, and `get_stats`, `get_projects`, `get_timeline` and
-`search_prs` cover authored PRs only.
+`search_prs` cover authored PRs only. If the filtered subset was made before
+you fetched reviews (it has no `pr-reviews/`), `search_pr_reviews` reads the
+full work log instead and adds a `note` asking you to re-run `filter`. It also
+adds a `note` when no reviews have been fetched.
 
 Example prompts once connected:
 

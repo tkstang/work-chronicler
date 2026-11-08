@@ -114,7 +114,10 @@ new links and leaves unchanged files untouched.
 Impact filters use the PR's stored `impact`, or classify untagged PRs on the fly.
 Review records (`pr-reviews/`) are copied into `filtered/` when they pass the
 `--org`, `--exclude-org`, `--repo` and `--exclude-repo` selectors; the other
-filters describe authored PRs and do not apply to them.
+filters describe authored PRs and do not apply to them. `filter` always writes
+`filtered/pr-reviews/`, even when empty. Re-run `filter` after your first
+`fetch --reviews`: a subset made before that has no `pr-reviews/`, and
+`status` says so.
 
 ## Profiles
 

@@ -70,7 +70,7 @@ export async function createServer(): Promise<MCPServerContext> {
   return {
     config,
     outputDir,
-    server: createToolServer({ outputDir }),
+    server: createToolServer({ outputDir, fullOutputDir: baseOutputDir }),
   };
 }
 

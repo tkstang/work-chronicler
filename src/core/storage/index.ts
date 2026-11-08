@@ -7,6 +7,7 @@ export {
   getPRFilePath,
   getPRReviewFilePath,
   getTicketFilePath,
+  isFilteredSubsetMissingReviews,
 } from './paths';
 
 export {

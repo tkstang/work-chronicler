@@ -337,6 +337,9 @@ export const filterCommand = new Command('filter')
       const filteredReviews = allReviews.filter((record) =>
         inScope(record.frontmatter.pr.org, record.frontmatter.pr.repository),
       );
+      // Always write the directory, even empty, so a subset without it is
+      // known to predate review fetching
+      mkdirSync(join(filteredDir, DIRECTORIES.PR_REVIEWS), { recursive: true });
       for (const record of filteredReviews) {
         const relativePath = record.filePath.replace(outputDir, '');
         writeMarkdownFile(

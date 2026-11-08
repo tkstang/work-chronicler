@@ -33,6 +33,7 @@ export {
   getPRFilePath,
   getPRReviewFilePath,
   getTicketFilePath,
+  isFilteredSubsetMissingReviews,
   type MarkdownFrontmatter,
   readAllPRReviews,
   readAllPRs,

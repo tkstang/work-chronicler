@@ -7,6 +7,11 @@ import type { z } from 'zod';
 export interface ToolContext {
   /** Work-log directory the tools read (`filtered/` when it has data). */
   outputDir: string;
+  /**
+   * The full work log when `outputDir` is its `filtered/` subset. Lets a
+   * tool notice a subset that is missing data the full work log has.
+   */
+  fullOutputDir?: string;
 }
 
 /**

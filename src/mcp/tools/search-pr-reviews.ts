@@ -1,4 +1,11 @@
-import { readAllPRReviews } from '@core/index';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+
+import {
+  DIRECTORIES,
+  isFilteredSubsetMissingReviews,
+  readAllPRReviews,
+} from '@core/index';
 import { z } from 'zod';
 
 import { defineTool, jsonResult, parseAndValidateDate } from './types';
@@ -32,7 +39,22 @@ export const searchPrReviewsTool = defineTool({
       .describe('End date for review and comment times (ISO format)'),
     limit: z.number().optional().describe('Maximum number of reviewed PRs'),
   },
-  handler: async (input, { outputDir }) => {
+  handler: async (input, { outputDir, fullOutputDir }) => {
+    // A filtered subset written before reviews were fetched has no
+    // pr-reviews/. Read the full work log then, and say so, rather than
+    // reporting no reviews. A subset that has pr-reviews/ is always used.
+    let source = outputDir;
+    let note: string | undefined;
+    const fullDir = fullOutputDir ?? outputDir;
+    if (fullDir !== outputDir && isFilteredSubsetMissingReviews(fullDir)) {
+      source = fullDir;
+      note =
+        'The filtered subset was created before PR reviews were fetched, so these results come from the full work log. Re-run `work-chronicler filter` to apply your filters to reviews.';
+    } else if (!existsSync(join(fullDir, DIRECTORIES.PR_REVIEWS))) {
+      note =
+        'No PR reviews have been fetched. Run `work-chronicler fetch github --reviews` (IC profiles only).';
+    }
+
     const since = input.since
       ? parseAndValidateDate(input.since, 'since')
       : null;
@@ -45,7 +67,7 @@ export const searchPrReviewsTool = defineTool({
     };
     const queryLower = input.query?.toLowerCase();
 
-    let results = (await readAllPRReviews(outputDir))
+    let results = (await readAllPRReviews(source))
       .map(({ frontmatter: record }) => ({
         record,
         reviews: record.reviews.filter(
@@ -124,6 +146,12 @@ export const searchPrReviewsTool = defineTool({
       results = results.slice(0, input.limit);
     }
 
-    return jsonResult({ results, total, returned: results.length, totals });
+    return jsonResult({
+      results,
+      total,
+      returned: results.length,
+      totals,
+      ...(note ? { note } : {}),
+    });
   },
 });

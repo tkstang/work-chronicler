@@ -1,9 +1,17 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
   getPRFilePath,
+  getPRReviewFilePath,
+  type PRReviewRecord,
   type PullRequest,
   writeMarkdownFile,
 } from '@core/index';
@@ -102,6 +110,75 @@ describe('MCP server over a transport', () => {
         (r: { title: string }) => r.title,
       );
       expect(titles).toEqual(['Filtered subset']);
+    } finally {
+      await client.close();
+    }
+  });
+
+  it('reads reviews from the full work log, with a note, when the filtered subset predates them', async () => {
+    const workLog = join(root, 'work-log');
+    writePR(join(workLog, 'filtered'), 2, 'Filtered subset');
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const ctx = await createServer();
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test', version: '0.0.0' });
+    await ctx.server.connect(serverTransport);
+    await client.connect(clientTransport);
+    const searchReviews = async () => {
+      const result = await client.callTool({
+        name: 'search_pr_reviews',
+        arguments: {},
+      });
+      const [content] = result.content as { type: string; text: string }[];
+      return JSON.parse(content?.text ?? '');
+    };
+
+    try {
+      const nothingFetched = await searchReviews();
+      expect(nothingFetched.total).toBe(0);
+      expect(nothingFetched.note).toContain('fetch github --reviews');
+
+      const record: PRReviewRecord = {
+        type: 'pr-review',
+        reviewer: 'me',
+        pr: {
+          url: 'https://github.com/acme/api/pull/9',
+          org: 'acme',
+          repository: 'api',
+          prNumber: 9,
+          title: 'Their PR',
+          author: 'alice',
+          state: 'open',
+        },
+        prUpdatedAt: '2025-02-01T00:00:00Z',
+        reviews: [
+          {
+            reviewId: 1,
+            state: 'APPROVED',
+            submittedAt: '2025-02-01T00:00:00Z',
+            url: 'https://github.com/acme/api/pull/9#pullrequestreview-1',
+            body: '',
+          },
+        ],
+        comments: [],
+      };
+      writeMarkdownFile(
+        getPRReviewFilePath(workLog, 'acme', 'api', 9),
+        record,
+        '',
+      );
+
+      const stale = await searchReviews();
+      expect(stale.total).toBe(1);
+      expect(stale.note).toContain('Re-run `work-chronicler filter`');
+
+      // A subset written after reviews existed is used as is, even empty
+      mkdirSync(join(workLog, 'filtered', 'pr-reviews'));
+      const current = await searchReviews();
+      expect(current.total).toBe(0);
+      expect(current.note).toBeUndefined();
     } finally {
       await client.close();
     }
