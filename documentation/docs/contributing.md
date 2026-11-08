@@ -1,6 +1,6 @@
 ---
 title: Contributing
-description: 'Authoring contract, generated files, supported syntax and validation.'
+description: "Authoring contract, generated files, supported syntax and validation."
 ---
 
 # Contributing to Work Chronicler

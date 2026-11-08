@@ -1,26 +1,32 @@
 ---
 title: "Workflows"
-description: "Workflow users enter by their goal and follow an ordered sequence of tools with explicit authority and handoffs."
+description: "Step-by-step guides from a goal to a finished draft: resumes, self-reviews, peer reviews, imports and manager reviews."
 ---
 
 # Workflows
 
-Workflow users enter by their goal and follow an ordered sequence of tools with explicit authority and handoffs.
+Start here when you have a goal, such as a self-review due next week or a Slack
+channel to import. Each guide lists what to set up first, the commands and
+skills to run in order, and what you end up with. The [Tools](../tools/index.md)
+pages hold the full reference for every command and skill they use.
 
-Entry principle: Reader goal across a sequence of tools. This track owns its canonical facts; route to shared contracts and paired pages rather than copying their claims.
+Most workflows assume you have fetched and analyzed your work; see
+[Getting started](../getting-started.md).
 
 ## Contents
 
-- [Workflows: choose a safe first task](start-here.md) - Choose a safe starting state and verify the result.
+### Your own work
 
-## Starting state
+- [Write resume bullets and self-reviews](resume-and-self-review.md) - Summarize your work, draft a self-review, write resume bullets and update a resume.
+- [Write peer reviews](peer-reviews.md) - A quick review from a template, or an evidence-backed one for a colleague you track.
+- [Record the PR reviews you gave](pr-reviews-given.md) - Fetch your reviews and inline comments, then query them.
 
-State the reader goal, required inputs, authority and ready signals before a workflow begins.
+### Supplementary evidence
 
-## Sequence and handoffs
+- [Import Slack messages](import-slack.md) - Choose channels, then import your own messages (or a report's).
+- [Import Google Docs](import-google-docs.md) - Import an excerpt of each Google Doc you own (or a report owns).
 
-Order the tools and decisions, naming what each step passes to the next responsible actor.
+### Managers
 
-## Completion evidence
-
-Define the observable result that closes the workflow and where to retain its execution evidence.
+- [Manager mode](manager-mode.md) - Create a manager profile, manage reports and fetch their work.
+- [Review packets and team analysis](review-packets.md) - Analyze reports and the team, then write review packets and summaries.

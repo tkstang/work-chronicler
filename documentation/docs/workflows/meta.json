@@ -1,6 +1,15 @@
 {
   "title": "Workflows",
   "pages": [
-    "start-here"
+    "---Your own work---",
+    "resume-and-self-review",
+    "peer-reviews",
+    "pr-reviews-given",
+    "---Supplementary evidence---",
+    "import-slack",
+    "import-google-docs",
+    "---Managers---",
+    "manager-mode",
+    "review-packets"
   ]
 }

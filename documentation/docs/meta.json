@@ -1,9 +1,4 @@
 {
   "title": "Work Chronicler",
-  "pages": [
-    "index",
-    "tools",
-    "workflows",
-    "contributing"
-  ]
+  "pages": ["index", "getting-started", "workflows", "tools", "contributing"]
 }

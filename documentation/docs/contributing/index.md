@@ -1,6 +1,6 @@
 ---
 title: Contributor Guides
-description: 'Local toolchain setup and contributor resources.'
+description: "Local toolchain setup and contributor resources."
 ---
 
 # Contributor Guides

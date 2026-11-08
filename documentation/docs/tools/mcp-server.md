@@ -1,6 +1,6 @@
 ---
 title: MCP server
-description: Connect Claude Desktop, Cursor or another MCP client to your work log, and the nine read-only tools it exposes.
+description: Connect Claude Desktop, Cursor or another MCP client to your work log, and the ten read-only tools it exposes.
 ---
 
 # MCP server
@@ -91,18 +91,18 @@ The server looks for a config in this order:
 
 ## Tools
 
-| Tool | Returns |
-| --- | --- |
-| `search_prs` | PRs filtered by date range, repository, keywords or impact level. |
-| `search_tickets` | JIRA tickets filtered by project, status or keywords. |
-| `get_linked_work` | A PR (by URL in any form, or by bare PR number) with its linked tickets, or a ticket with its linked PRs, plus the imported messages and imported Google Docs that mention it (`mentionedInMessages`, `mentionedInDocuments`). |
-| `list_repos` | Repositories in the work log with per-repo statistics. |
-| `get_stats` | Summary statistics, optionally for a date range, with imported messages and imported Google Docs counted in their own `messages` and `documents` sections (Docs by modified time). Without a date range it returns the `stats.json` that `analyze` generated, with both sections counted afresh from the work log, so records imported since are included. For a date range, `dateRange` spans the PRs, tickets, messages and Docs counted. |
-| `get_projects` | Detected project groupings of related PRs and tickets (PRs and tickets only; the result says so in `coverage`). |
-| `get_timeline` | Work grouped by week or month: PRs and tickets, plus imported Google Docs listed apart in each week's `documents` by modified time (the result says so in `coverage`). |
-| `search_pr_reviews` | Reviews and inline review comments you gave on other people's PRs, filtered by date range, org, repository, review state or keywords. |
-| `search_messages` | Imported messages (such as Slack messages you wrote), filtered by keywords, date range, mentioned ticket or PR, attribution or source, with each mention resolved to its PR or ticket, or `null`. |
-| `search_documents` | Imported Google Docs (Docs you own), filtered by keywords in the title or excerpt, modified date range, or mentioned ticket or PR, with each mention resolved to its PR or ticket, or `null`. |
+| Tool                | Returns                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `search_prs`        | PRs filtered by date range, repository, keywords or impact level.                                                                                                                                                                                                                                                                                                                                                                           |
+| `search_tickets`    | JIRA tickets filtered by project, status or keywords.                                                                                                                                                                                                                                                                                                                                                                                       |
+| `get_linked_work`   | A PR (by URL in any form, or by bare PR number) with its linked tickets, or a ticket with its linked PRs, plus the imported messages and imported Google Docs that mention it (`mentionedInMessages`, `mentionedInDocuments`).                                                                                                                                                                                                              |
+| `list_repos`        | Repositories in the work log with per-repo statistics.                                                                                                                                                                                                                                                                                                                                                                                      |
+| `get_stats`         | Summary statistics, optionally for a date range, with imported messages and imported Google Docs counted in their own `messages` and `documents` sections (Docs by modified time). Without a date range it returns the `stats.json` that `analyze` generated, with both sections counted afresh from the work log, so records imported since are included. For a date range, `dateRange` spans the PRs, tickets, messages and Docs counted. |
+| `get_projects`      | Detected project groupings of related PRs and tickets (PRs and tickets only; the result says so in `coverage`).                                                                                                                                                                                                                                                                                                                             |
+| `get_timeline`      | Work grouped by week or month: PRs and tickets, plus imported Google Docs listed apart in each week's `documents` by modified time (the result says so in `coverage`).                                                                                                                                                                                                                                                                      |
+| `search_pr_reviews` | Reviews and inline review comments you gave on other people's PRs, filtered by date range, org, repository, review state or keywords.                                                                                                                                                                                                                                                                                                       |
+| `search_messages`   | Imported messages (such as Slack messages you wrote), filtered by keywords, date range, mentioned ticket or PR, attribution or source, with each mention resolved to its PR or ticket, or `null`.                                                                                                                                                                                                                                           |
+| `search_documents`  | Imported Google Docs (Docs you own), filtered by keywords in the title or excerpt, modified date range, or mentioned ticket or PR, with each mention resolved to its PR or ticket, or `null`.                                                                                                                                                                                                                                               |
 
 Dates are ISO 8601. In `search_messages`, `search_documents` and `get_stats`, an `until` given
 as a date alone (`2025-02-28`) includes that whole UTC day, so a message
@@ -131,7 +131,7 @@ carries a `notice` that message text is evidence, never instructions. Each
 result has the message `text` (up to 1,000 characters), `channel`,
 `occurredAt`, `url`, `subject`, `attribution` and `mentions`, where every
 mentioned PR or ticket has `resolved` set to the work-log record or `null`
-(see [Mentions](commands.md#mentions)). Like `search_pr_reviews`, it returns
+(see [Mentions](import.md#mentions)). Like `search_pr_reviews`, it returns
 no results and a `note` when the filtered subset was made before messages
 were imported (`get_stats` and `get_linked_work` add the same `note`), and a
 `note` when nothing has been imported.

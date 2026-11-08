@@ -1,6 +1,19 @@
 {
   "title": "Tools",
   "pages": [
-    "start-here"
+    "---CLI commands---",
+    "commands",
+    "fetch",
+    "import",
+    "import-records",
+    "slack",
+    "google-docs",
+    "link-analyze-filter",
+    "---Configuration---",
+    "configuration",
+    "---MCP server---",
+    "mcp-server",
+    "---AI skills---",
+    "skills"
   ]
 }

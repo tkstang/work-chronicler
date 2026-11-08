@@ -1,0 +1,67 @@
+---
+title: Slack commands
+description: "slack configure, slack channels and slack show: the per-profile and per-report Slack settings that import enforces."
+---
+
+# Slack commands
+
+These commands keep the Slack settings the Slack import skills use
+(`/work-chronicler-setup-slack` runs them; `/work-chronicler-import-slack`
+reads `slack show`). The CLI never contacts Slack and never stores Slack
+credentials; the skill reads Slack through your assistant's Slack connector
+and hands the messages to `import`.
+Settings are kept per IC profile, and per report in a manager profile (pass
+`--report <id>` there; it is refused in an IC profile). Without settings, no
+Slack records are imported. See [Configuration](configuration.md#slack) for
+the fields.
+
+| Command                                                         | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `slack configure --workspace <workspace> --user <user-id>`      | Set up Slack: the workspace and the subject's Slack user ID (yours, or the report's). The workspace is its team ID (`T…`/`E…`) or, when no Slack tool shows the ID, its URL label (`example` for `example.slack.com` or `example.enterprise.slack.com`). The workspace or user cannot change while channels are configured; remove them first. Nor can the user change while the work log holds Slack messages by another user (they would be presented with the new user's as the subject's): remove the `messages/slack/` directory the error names first (and run `filter` again if you use a subset). |
+| `slack channels add <channel-id> --name <name> --reason <text>` | Add a channel whose messages by the subject may be imported. `--name` is the channel name (a leading `#` is dropped); `--reason` says why it holds review-relevant work (one line, at most 200 characters; surrounding spaces are dropped). Pass the reason with `--reason-file <path>` instead to read it from a file, or from standard input with `-`.                                                                                                                                                                                                                                                  |
+| `slack channels remove <channel-id>`                            | Remove a channel. Records already imported from it are kept; later imports refuse it. An ID that is not configured is refused (exit 1) with the configured IDs listed, so a mistyped ID is never reported as removed.                                                                                                                                                                                                                                                                                                                                                                                     |
+| `slack channels list`                                           | List the configured channels.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `slack show`                                                    | Print what an import skill uses (read-only).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+
+`slack channels add` flags:
+
+| Flag                    | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--reason-file <path>`  | Read the reason from a file instead of `--reason` (exactly one of the two is required); `-` reads standard input. The file must be UTF-8 and at most 4 KiB. The text is used without shell quoting; surrounding spaces and line breaks are dropped, and a reason that still holds a line break is refused. The setup skill writes the reason to a temporary file with the assistant's file-writing tool and passes that file, so no shell reads the reason and quotes, `$`, backticks or line breaks in it cannot break or extend the command. |
+| `--private`             | Opt in to a private channel. Channels are public otherwise, and a `G…` ID (a private conversation) is refused without it.                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `--shared-with-manager` | Manager profiles: confirm that you and the report are both members of the channel. Required for every report channel; the CLI cannot check membership, so the setup skill checks it before passing this flag.                                                                                                                                                                                                                                                                                                                                  |
+
+Direct messages (`D…` IDs) and group direct messages (`mpdm-…` names) are
+always refused. A change that leaves every setting as it was (configuring
+the same IDs again, adding a channel exactly as configured) writes nothing
+and reports `changed: false`. Every command takes `-c, --config <path>` and `--json`, and
+exits with status 1 when a change is refused. With `--json`, a failure (a refused change, or a
+profile, config or report that cannot be resolved) prints `{ "ok": false, "error": "…" }` on
+stdout and nothing else there.
+
+Changes keep everything else in the config, comments included: the file is
+edited in its parsed form, the result must validate and differ only in the
+Slack settings, and it is written to a new file beside the config (with the
+same permissions) that replaces the config in one rename, after checking the
+config did not change meanwhile. A config that is a symbolic link, has other hard links, is invalid,
+is larger than 1 MiB, or changed during the update is refused and left as it was, and so is a
+change that would make the config larger than 1 MiB.
+
+## `slack show --json`
+
+`slack show --json` prints one JSON object:
+
+| Field                    | Meaning                                                                                                                                                   |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `profile`                | The profile, or `null` with `--config`.                                                                                                                   |
+| `mode`                   | `ic` or `manager`.                                                                                                                                        |
+| `subject`, `subjectName` | The record subject (`{ kind: ic }` or `{ kind: report, reportId }`) and the report's name.                                                                |
+| `configured`             | Whether Slack is set up for the subject. When `false`, nothing can be imported.                                                                           |
+| `range`                  | The profile's fetch range: `since`, and `until` (`null` means now).                                                                                       |
+| `workspace`, `user`      | The configured workspace (team ID or URL label) and user ID, or `null`.                                                                                   |
+| `channels`               | Each channel's `id`, `name`, `reason`, `private`, for reports `sharedWithManager`, and `importable` (false for a report channel not confirmed as shared). |
+| `record`                 | The fields every staged record must carry: `source`, `sourceAccount`, `subject` and verified `attribution`; `null` when not configured.                   |
+| `importCommand`          | The `import` command line for this subject, with `<staging-dir>` to fill in.                                                                              |
+| `workLog`                | Where the records will be stored.                                                                                                                         |
+
+For the skills that use these settings, see [Import Slack messages](../workflows/import-slack.md).
