@@ -25,6 +25,7 @@ import {
   replaceFilteredSubset,
   scanImportedRecords,
   serializeMarkdownFile,
+  splitReviewRecordsByReviewer,
   type SubsetFile,
   type SubsetFs,
   type SubsetRecordCounts,
@@ -140,9 +141,13 @@ function buildScope(
 export interface FilterResult {
   /** The subset directory */
   dir: string;
-  /** Records in the new subset */
+  /**
+   * Records in the new subset. `prReviews` counts only review records
+   * attributed to the configured GitHub user; others are copied but not
+   * counted.
+   */
   counts: SubsetRecordCounts;
-  /** Records in the full work log */
+  /** Records in the full work log, counted the same way */
   totals: SubsetRecordCounts;
   /** Statistics for the subset (also written to its `.analysis/`) */
   stats: AnalysisStats;
@@ -284,18 +289,26 @@ export async function writeFilteredSubset(params: {
     })),
   ];
 
+  // Every review record is copied (readers leave out other people's), but
+  // only the user's own count as their reviewed PRs, as in `status`. Without
+  // a configured username none can be attributed.
+  const username = config.github.username;
+  const ownReviews = (records: typeof allReviews) =>
+    username ? splitReviewRecordsByReviewer(records, username).own.length : 0;
   const counts: SubsetRecordCounts = {
     pullRequests: prs.length,
     tickets: tickets.length,
-    prReviews: reviews.length,
+    prReviews: ownReviews(reviews),
     messages: messages.length,
   };
   const totals: SubsetRecordCounts = {
     pullRequests: allPRs.length,
     tickets: allTickets.length,
-    prReviews: allReviews.length,
+    prReviews: ownReviews(allReviews),
     messages: allMessages.length,
   };
+  // What is written, for the read-back check
+  const written: SubsetRecordCounts = { ...counts, prReviews: reviews.length };
 
   const { dir, warnings } = await replaceFilteredSubset(
     outputDir,
@@ -328,7 +341,7 @@ export async function writeFilteredSubset(params: {
         };
         if (
           imported.skipped.length > 0 ||
-          JSON.stringify(readBack) !== JSON.stringify(counts)
+          JSON.stringify(readBack) !== JSON.stringify(written)
         ) {
           throw new Error(
             'The new filtered subset did not read back with the records it was written with; the previous subset is unchanged',

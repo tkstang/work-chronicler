@@ -337,6 +337,20 @@ describe('a work log with authored PRs and review records', () => {
         '1 review record(s) in pr-reviews/ belong to another GitHub user (alice), not me, and are not counted',
       ),
     );
+
+    // Nor in the filtered subset's counts
+    await run(filterCommand, ['--org', 'acme']);
+    expect(
+      readFileSync(
+        join(filteredDir, 'pr-reviews', 'acme', 'api', '50.md'),
+        'utf-8',
+      ),
+    ).toContain('reviewer: "alice"');
+    logs = [];
+    await run(statusCommand, []);
+    expect(logs).toContainEqual(
+      expect.stringMatching(/^Filtered subset: in use .* 3 reviewed PRs, /),
+    );
   });
 });
 

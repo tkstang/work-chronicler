@@ -81,7 +81,10 @@ export const FilterSelectionSchema = z.object({
   createdAt: IsoDateTimeSchema,
   /** The filters, as `filter` described them */
   filters: z.array(z.string()),
-  /** Records in the subset */
+  /**
+   * Records in the subset (`prReviews`: only review records attributed to
+   * the configured GitHub user)
+   */
   counts: RecordCountsSchema,
   /** Records in the full work log when the subset was made */
   totals: RecordCountsSchema,
