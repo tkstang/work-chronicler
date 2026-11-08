@@ -1024,6 +1024,18 @@ Proof: Slack suites 13/13 locally; ready-PR CI re-run
 
 ---
 
+## Phase p13: Import and filter locking and recovery
+
+**Status:** pending
+
+---
+
+## Phase p14: Import internals simplification
+
+**Status:** pending
+
+---
+
 ## Phase p09: Google Docs documents record and config
 
 **Status:** pending
@@ -1409,6 +1421,8 @@ Also in p03-t15: CodeRabbit 4505014153 (docs/notice wrongly said `--overwrite` f
 Known docs follow-up: the shipped CHANGELOG 0.5.0 entry still says `fetch --reviews` in one place (the CLI form is `fetch github --reviews`); correct it under Unreleased in m02.
 
 ## Deferred Findings
+
+- m03 re-alignment disposition (2026-11-08, Astra-advised, artifact-reviewed): the `filter --clear` Medium (gate attempt 5, M1) and PR #26 complexity finding 4 (one lock for import and filter) move to p13; findings 1–3 and 6 (fixed-depth staging, one ancestor checker, shared fs seams, `stageAsTheSkillDoes`) and the stale `transaction.ts` comment move to p14 (comment to p13); finding 5 (installer recovery) is a post-goal follow-up: non-blocking simplification of safety-sensitive code, not a known defect. The m01 post-goal list is unchanged.
 
 - Non-blocking (PR #26 self-review, complexity lens, independent Claude reviewer at 9548ee3): (1) directory staging built for any depth although records only go to `messages/<source>/` — create the two known directories up front through the PathGuard; (2) ancestor checks repeated at several layers — make PathGuard the only checker; (3) `SubsetFs`/`SubsetEnv`, `LockEnv`, `errorCode`/`removeQuietly`/`codedError` duplicate `ImportFs`/`ImportEnv` helpers; (4) two lock names where one work-log lock could serialize import and filter (today `filter` can run during an `import`); (5) installer crash recovery could be simplified; (6) `stageAsTheSkillDoes` re-implements skill prose; stale header comment at `transaction.ts:34-36` (lock is now mkdir+rename). Deferred by root (autonomous run): changing code now would stale the running gate for cleanup only. Follow-up trigger: m03 re-alignment / p09 (`filter` rework for `documents`); (4) decide there whether import and filter should exclude each other.
 
