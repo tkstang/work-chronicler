@@ -151,8 +151,11 @@ function nestedLinkTrails(path: string): string[] | null {
     let real: string;
     try {
       real = realpathSync(dir);
-    } catch {
-      return true; // a dangling link has nothing below it
+    } catch (error) {
+      // Only a target proven missing has nothing below it; a permission or
+      // other failure leaves the scan incomplete
+      const code = (error as NodeJS.ErrnoException).code;
+      return code === 'ENOENT' || code === 'ENOTDIR';
     }
     if (visited.has(real)) return true;
     visited.add(real);

@@ -400,6 +400,69 @@ describe('skills install rename migration', () => {
       expect(output()).toContain(`(used by ${newDir})`);
     });
 
+    it.skipIf(process.getuid?.() === 0)(
+      'keeps the old copy when a nested link cannot be followed',
+      async () => {
+        const oldDir = seedCopy('claude', OLD_NAMES.bullets);
+        mkdirSync(join(oldDir, 'scripts'));
+        writeFileSync(join(oldDir, 'scripts', 'helper.sh'), 'echo helper\n');
+        const resources = join(root, 'private', 'resources');
+        mkdirSync(resources, { recursive: true });
+        symlinkSync(join(oldDir, 'scripts'), join(resources, 'helpers'), 'dir');
+        const newDir = join(skillsDir('claude'), NEW_NAMES.bullets);
+        mkdirSync(newDir);
+        writeFileSync(
+          join(newDir, 'SKILL.md'),
+          `---\nname: ${NEW_NAMES.bullets}\n---\nmy edits\n`,
+        );
+        symlinkSync(resources, join(newDir, 'scripts'), 'dir');
+
+        chmodSync(join(root, 'private'), 0o000);
+        let result: { error?: Error };
+        try {
+          result = await install([
+            '--tool',
+            'claude',
+            '--method',
+            'copy',
+            '--yes',
+          ]);
+        } finally {
+          chmodSync(join(root, 'private'), 0o755);
+        }
+
+        expect(result.error).toBeUndefined();
+        expect(
+          readFileSync(join(newDir, 'scripts', 'helpers', 'helper.sh'), 'utf8'),
+        ).toBe('echo helper\n');
+        expect(output()).toContain(
+          `(used by ${newDir} (could not be fully checked))`,
+        );
+      },
+    );
+
+    it('still removes the old copy when a nested link target is missing', async () => {
+      const oldDir = seedCopy('claude', OLD_NAMES.bullets);
+      const newDir = join(skillsDir('claude'), NEW_NAMES.bullets);
+      mkdirSync(newDir);
+      writeFileSync(
+        join(newDir, 'SKILL.md'),
+        `---\nname: ${NEW_NAMES.bullets}\n---\nmy edits\n`,
+      );
+      symlinkSync(join(root, 'gone'), join(newDir, 'scripts'), 'dir');
+
+      const { error } = await install([
+        '--tool',
+        'claude',
+        '--method',
+        'copy',
+        '--yes',
+      ]);
+
+      expect(error).toBeUndefined();
+      expect(occupied(oldDir)).toBe(false);
+    });
+
     it('still removes the old copy when a nested link points elsewhere', async () => {
       const oldDir = seedCopy('claude', OLD_NAMES.bullets);
       const helpers = join(root, 'my-helpers');
