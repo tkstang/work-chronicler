@@ -160,7 +160,10 @@ from two JIRA instances share, since it cannot tell them apart.
   target: `{ kind: ic }` in an IC profile, or `{ kind: report, reportId: <id> }`
   matching `--report`.
 - File names only identify records in messages. Where a record is stored
-  never depends on its file name or on anything written in it.
+  follows its identity (`type`, `source`, `sourceAccount` and `sourceId`;
+  see [Where records are stored](#where-records-are-stored)), never its
+  staged file name: changing its `sourceId` stores it somewhere else,
+  renaming its file does not.
 
 ### Record format
 
