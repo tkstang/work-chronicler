@@ -44,7 +44,7 @@ oat_dispatch_policy:
 oat_workflow_mode: goal # spec-driven | quick | import | lite | brief | goal
 oat_workflow_origin: native # native | imported
 oat_milestone: m01
-oat_milestone_status: reviewing
+oat_milestone_status: implementing
 oat_goal_status: active
 oat_goal_outcome_audit: null
 oat_goal_recovery: null
@@ -70,8 +70,8 @@ oat_milestone_gates:
       subject:
         kind: code
         scope: [p01, p02, p03]
-      freshness: fresh
-      freshness_reason: null
+      freshness: stale
+      freshness_reason: "disallowed-path: 5cfd2b7 (p03-t09) changes package skill text after the reviewed head"
       decided_at: "2026-11-08T01:52:04Z"
 oat_deliveries: []
 # oat_skill_gate_overrides: # optional; per-project posture for configured lifecycle gates
@@ -131,7 +131,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: '2026-11-07T22:54:38.498Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-11-08T01:52:04Z"
+oat_project_state_updated: "2026-11-08T02:03:11Z"
 oat_generated: false
 ---
 

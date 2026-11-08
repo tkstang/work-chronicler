@@ -195,7 +195,7 @@ Review fix. Proof: full DoD batch.
 **Status:** completed
 **Base:** 23a4f1aae63ebd37c8966dca2c2136f794f14190
 **Executor:** inline:p03-inline-exception
-**Head:** fcb2a87994ef8ef608427ca5fdb0eb849382f969
+**Head:** 5cfd2b75d24d416b85bb41fa256453a5923768c5
 
 Inline exception (recorded before editing): version bump and CHANGELOG section move only — no new surface, no unresolved design, not consequential before the tag push (which happens after merge under the Release authority), one proof command (the local DoD batch). Committing owner: root. Parallelism: single trivial phase.
 
@@ -283,6 +283,17 @@ Intent: Before candidate iteration, scan stored `pr-reviews/` for records whose 
 Files: `src/cli/commands/fetch/github/github-reviews.utils.ts`, consumers if needed, tests, docs
 Proof: `pnpm lint && pnpm typecheck && pnpm test`
 
+### Task p03-t09: (review) Writing skills cite only the user's own review records
+
+**Status:** completed
+**Commit:** 5cfd2b75d24d416b85bb41fa256453a5923768c5
+**Executor:** inline:p03-inline-exception (root, small skill-text fix)
+**Source review:** reviews/archived/m01-review-2026-11-08T015940Z.md (M1, L1)
+
+Intent: The four review-citing writing skills compare each record's `reviewer` (case-insensitive) with `github.username` from the profile's `config.yaml` (`work-chronicler workspace root`), exclude and disclose foreign records, and refuse to attribute when the username is unreadable. README skill count corrected to six IC, one any-profile peer review, three manager. CHANGELOG 0.5.0 bullet extended.
+Files: four `SKILL.md` files, `README.md`, `CHANGELOG.md`
+Proof: `pnpm format:check && pnpm lint && pnpm test` (245 passed)
+
 ---
 
 ## Phase p04: Staged import contract
@@ -347,6 +358,8 @@ Proof: `pnpm lint && pnpm typecheck && pnpm test`
 
 - Root-inline phase: p03 — inline exception for a version bump and CHANGELOG move; root model claude-opus-5-5
 
+- Root-inline phase: p03 (fix p03-t09) — two small skill-text/README findings from the m01 integrated review, fixed in root per the host's small-fix rule; root model claude-opus-5-5
+
 - run/v1 · request=wce-p03-rev-1 · scope=p03 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p03 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 - run/v1 · request=wce-p03-fix-1 · scope=p03 · action=fix · role=oat-phase-implementer · target=oat-phase-implementer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p03 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
@@ -396,6 +409,18 @@ Proof: `pnpm lint && pnpm typecheck && pnpm test`
 **Operator choice:** the third gate run was directed by the user in session after attempts 1–2 exhausted `maxAttempts`.
 
 **Outcome:** passed. No deferred Medium findings to resurface; no Low findings to disposition. m01 exit carrier recorded `allowed`/`passed`.
+
+### Review Received: m01 (integrated delivery review)
+
+**Date:** 2026-11-08
+**Review artifact (local-only):** reviews/archived/m01-review-2026-11-08T015940Z.md
+
+**Findings:** Critical 0 · High 0 · Medium 1 · Low 1 (cross-provider reviewer codex gpt-6.1-sol high via delegated task, scope `code m01: p01, p02, p03`, reviewed head fcb2a87994ef8ef608427ca5fdb0eb849382f969)
+
+- M1 (Medium): four writing skills attribute raw review records to the user without checking `reviewer` → fix task p03-t09; agree, `filter` copies foreign records and the skills read raw files.
+- L1 (Low): README says seven skills work with any profile → fixed in p03-t09; agree, cheap and user-facing.
+
+**Outcome:** fixes completed in p03-t09 (5cfd2b75d24d416b85bb41fa256453a5923768c5). The exit gate must run again on the new head, then a fresh integrated review.
 
 ## Deferred Findings
 

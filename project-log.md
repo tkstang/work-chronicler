@@ -51,6 +51,10 @@ target=codex-6-sol-xhigh threshold=high findings=critical:0,high:0,medium:0,low:
 
 m01 exit gate attempt 3 (operator-directed) passed at fcb2a87 with 0 findings; p03 accepted; exit carrier allowed/fresh; m01 -> reviewing; wce-m01-exit-gate-passed
 
+### 2026-11-08 · structural · oat-project-review-receive · m01
+
+m01 integrated review (Sol high) found 1 Medium, 1 Low; both fixed in p03-t09 (5cfd2b7); exit carrier stale; gate rerun next; wce-m01-integrated-review-1
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
