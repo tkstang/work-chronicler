@@ -893,8 +893,19 @@ Proof: `format:check`
 **Status:** in_progress
 **Base:** 76140798ed0f67bb17ab685ed76f9d364e76a4cd
 **Executor:** inline:p08-inline-exception
+**Head:** 3c4e449cb7d98c1c991d3e65a5dcf012619f7d05
 
 Inline exception (recorded before editing): version bump and CHANGELOG section move only — no new surface, no unresolved design, not consequential before the tag push (which happens after merge under the Release authority), one proof command (the local DoD batch). Committing owner: root. Parallelism: single trivial phase.
+
+Verification at Head: `pnpm format && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build && npm pack --dry-run` pass (568 tests; tarball `work-chronicler-0.6.0.tgz`, 133 files, 12 package skills). Ready-PR CI is the merge precondition.
+
+### Task p08-t01: Prepare 0.6.0 release
+
+**Status:** completed
+**Commit:** 3c4e449cb7d98c1c991d3e65a5dcf012619f7d05
+**Executor:** inline:p08-inline-exception (root)
+Files: `package.json`, `CHANGELOG.md`
+Proof: local DoD batch
 
 ---
 
