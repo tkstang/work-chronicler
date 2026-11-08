@@ -998,6 +998,58 @@ describe('imported messages', () => {
     expect(snapshot(ctx.outputDir)).toEqual(before);
   });
 
+  describe('a subset made before messages were imported', () => {
+    // The full work log has messages; the subset has PRs and tickets only
+    function staleSubset(): ToolContext {
+      const filtered = join(ctx.outputDir, 'filtered');
+      writeWorkLog(filtered);
+      return { outputDir: filtered, fullOutputDir: ctx.outputDir };
+    }
+
+    it('get_stats counts no messages and says why, computed or from stats.json', async () => {
+      const subset = staleSubset();
+
+      const computed = parse(
+        await getStatsTool.handler({ since: '2025-01-01' }, subset),
+      );
+      expect(computed.messages.total).toBe(0);
+      expect(computed.note).toContain(
+        'created before messages were imported, so it has none',
+      );
+
+      mkdirSync(join(subset.outputDir, '.analysis'));
+      writeFileSync(
+        getAnalysisFilePath(subset.outputDir, 'stats'),
+        JSON.stringify({ prs: { total: 4 } }),
+      );
+      const fromFile = parse(await getStatsTool.handler({}, subset));
+      expect(fromFile.prs.total).toBe(4);
+      expect(fromFile.note).toContain('created before messages were imported');
+    });
+
+    it('get_linked_work lists no mentions and says why', async () => {
+      const out = parse(
+        await getLinkedWorkTool.handler({ ticketKey: 'BILL-1' }, staleSubset()),
+      );
+
+      expect(out.mentionedInMessages).toEqual([]);
+      expect(out.note).toContain('created before messages were imported');
+    });
+
+    it('adds no note once the subset has messages/', async () => {
+      const subset = staleSubset();
+      mkdirSync(join(subset.outputDir, 'messages'));
+
+      expect(
+        parse(await getStatsTool.handler({ since: '2025-01-01' }, subset)).note,
+      ).toBeUndefined();
+      expect(
+        parse(await getLinkedWorkTool.handler({ ticketKey: 'BILL-1' }, subset))
+          .note,
+      ).toBeUndefined();
+    });
+  });
+
   describe('get_stats', () => {
     it('counts messages in their own section for a date range', async () => {
       const out = parse(

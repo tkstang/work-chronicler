@@ -113,7 +113,8 @@ result has the message `text` (up to 1,000 characters), `channel`,
 mentioned PR or ticket has `resolved` set to the work-log record or `null`
 (see [Mentions](commands.md#mentions)). Like `search_pr_reviews`, it returns
 no results and a `note` when the filtered subset was made before messages
-were imported, and a `note` when nothing has been imported.
+were imported (`get_stats` and `get_linked_work` add the same `note`), and a
+`note` when nothing has been imported.
 
 Example prompts once connected:
 

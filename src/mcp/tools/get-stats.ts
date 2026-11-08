@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 
 import {
+  DIRECTORIES,
   getAnalysisFilePath,
   readAllImportedRecords,
   readAllPRs,
@@ -12,6 +13,7 @@ import {
   defineTool,
   jsonResult,
   parseAndValidateDate,
+  subsetGapNote,
   textResult,
 } from './types';
 
@@ -23,14 +25,27 @@ export const getStatsTool = defineTool({
     since: z.string().optional().describe('Start date (ISO format)'),
     until: z.string().optional().describe('End date (ISO format)'),
   },
-  handler: async (input, { outputDir }) => {
+  handler: async (input, { outputDir, fullOutputDir }) => {
+    // A subset made before messages were imported counts none: say why
+    const gap = subsetGapNote(
+      outputDir,
+      fullOutputDir ?? outputDir,
+      DIRECTORIES.MESSAGES,
+    );
+
     // Without a date filter, return the generated stats.json verbatim
     if (!input.since && !input.until) {
+      let text: string | undefined;
       try {
         const statsPath = getAnalysisFilePath(outputDir, 'stats');
-        return textResult(await fs.readFile(statsPath, 'utf-8'));
+        text = await fs.readFile(statsPath, 'utf-8');
       } catch {
         // Fall through to compute stats
+      }
+      if (text !== undefined) {
+        return gap
+          ? jsonResult({ ...JSON.parse(text), note: gap })
+          : textResult(text);
       }
     }
 
@@ -142,6 +157,7 @@ export const getStatsTool = defineTool({
         earliest: sortedDates[0] ?? null,
         latest: sortedDates[sortedDates.length - 1] ?? null,
       },
+      ...(gap ? { note: gap } : {}),
     });
   },
 });

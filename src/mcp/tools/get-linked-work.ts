@@ -1,5 +1,6 @@
 import {
   buildMentionIndex,
+  DIRECTORIES,
   type ImportedRecordFile,
   normalizePullRequestUrl,
   readAllImportedRecords,
@@ -9,7 +10,13 @@ import {
 } from '@core/index';
 import { z } from 'zod';
 
-import { defineTool, EVIDENCE_NOTICE, jsonResult, truncate } from './types';
+import {
+  defineTool,
+  EVIDENCE_NOTICE,
+  jsonResult,
+  subsetGapNote,
+  truncate,
+} from './types';
 
 /** A message that mentions the looked-up PR or ticket */
 function mentionSummary(record: ImportedRecordFile) {
@@ -41,7 +48,7 @@ export const getLinkedWorkTool = defineTool({
       .describe('GitHub PR URL to look up (any form), or a bare PR number'),
     ticketKey: z.string().optional().describe('JIRA ticket key to look up'),
   },
-  handler: async (input, { outputDir }) => {
+  handler: async (input, { outputDir, fullOutputDir }) => {
     if (!input.prUrl && !input.ticketKey) {
       return jsonResult({
         error: 'Either prUrl or ticketKey must be provided',
@@ -58,9 +65,16 @@ export const getLinkedWorkTool = defineTool({
         record,
         mentions: resolveMentions(record.frontmatter, index),
       }));
+    // A subset made before messages were imported has none to list
+    const gap = subsetGapNote(
+      outputDir,
+      fullOutputDir ?? outputDir,
+      DIRECTORIES.MESSAGES,
+    );
     const mentionFields = (matches: ImportedRecordFile[]) => ({
       mentionedInMessages: matches.map(mentionSummary),
       ...(matches.length > 0 ? { notice: EVIDENCE_NOTICE } : {}),
+      ...(gap ? { note: gap } : {}),
     });
 
     if (input.prUrl) {
