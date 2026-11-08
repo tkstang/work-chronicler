@@ -91,6 +91,20 @@ export function parseAndValidateDate(dateStr: string, fieldName: string): Date {
   return date;
 }
 
+/** A date without a time: `2025-02-28` */
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Validate and parse an inclusive end date. A date without a time
+ * (`2025-02-28`) means the end of that UTC day, so everything on it is
+ * included; a timestamp keeps its precision.
+ */
+export function parseUntilDate(dateStr: string, fieldName: string): Date {
+  const date = parseAndValidateDate(dateStr, fieldName);
+  if (!DATE_ONLY.test(dateStr.trim())) return date;
+  return new Date(date.getTime() + 24 * 60 * 60 * 1000 - 1);
+}
+
 /**
  * Shorten text for a tool result.
  */

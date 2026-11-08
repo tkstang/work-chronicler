@@ -103,6 +103,12 @@ The server looks for a config in this order:
 | `search_pr_reviews` | Reviews and inline review comments you gave on other people's PRs, filtered by date range, org, repository, review state or keywords. |
 | `search_messages` | Imported messages (such as Slack messages you wrote), filtered by keywords, date range, mentioned ticket or PR, attribution or source, with each mention resolved to its PR or ticket, or `null`. |
 
+Dates are ISO 8601. In `search_messages` and `get_stats`, an `until` given
+as a date alone (`2025-02-28`) includes that whole UTC day, so a message
+posted at noon that day is counted; an `until` with a time
+(`2025-02-28T12:00:00Z`) is used exactly. The other tools read a date alone
+as the start of that day (midnight UTC).
+
 `search_pr_reviews` reads the review records written by
 `fetch github --reviews`. They are review work, not PRs you wrote:
 `search_prs`, `get_stats`, `get_projects` and `get_timeline` never count

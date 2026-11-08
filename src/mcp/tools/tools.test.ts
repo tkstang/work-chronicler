@@ -921,6 +921,27 @@ describe('imported messages', () => {
       ).rejects.toThrow(/Invalid since date/);
     });
 
+    it('reads a date-only until through the end of that UTC day, and a timestamp exactly', async () => {
+      writeMessage(
+        ctx.outputDir,
+        4,
+        { occurredAt: '2025-02-28T23:59:59.500Z' },
+        'Late on the last day.',
+      );
+      const texts = async (until: string) =>
+        parse(
+          await searchMessagesTool.handler({ since: '2025-02-01', until }, ctx),
+        ).results.map((r: { text: string }) => r.text.slice(0, 12));
+
+      expect(await texts('2025-02-28')).toEqual([
+        'Late on the ',
+        'Investigatin',
+      ]);
+      expect(await texts('2025-02-28T23:59:59Z')).toEqual(['Investigatin']);
+      expect(await texts('2025-02-15T10:00:00Z')).toEqual(['Investigatin']);
+      expect(await texts('2025-02-14')).toEqual([]);
+    });
+
     it('says when no messages have been imported', async () => {
       rmSync(join(ctx.outputDir, 'messages'), { recursive: true });
 
@@ -1091,6 +1112,22 @@ describe('imported messages', () => {
 
       expect(out.messages).toEqual({ total: 2, bySource: { slack: 2 } });
       expect(out.prs.total).toBe(2);
+    });
+
+    it('reads a date-only until through the end of that UTC day, and a timestamp exactly', async () => {
+      writeMessage(
+        ctx.outputDir,
+        4,
+        { occurredAt: '2025-02-28T12:00:00Z' },
+        'Noon on the last day.',
+      );
+      const count = async (until: string) =>
+        parse(await getStatsTool.handler({ since: '2025-02-01', until }, ctx))
+          .messages.total;
+
+      expect(await count('2025-02-28')).toBe(2);
+      expect(await count('2025-02-28T11:59:59Z')).toBe(1);
+      expect(await count('2025-02-27')).toBe(1);
     });
 
     it('includes message dates in the date range', async () => {

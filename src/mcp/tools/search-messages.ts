@@ -18,6 +18,7 @@ import {
   defineTool,
   jsonResult,
   parseAndValidateDate,
+  parseUntilDate,
   subsetGapNote,
   truncate,
 } from './types';
@@ -42,7 +43,9 @@ export const searchMessagesTool = defineTool({
     until: z
       .string()
       .optional()
-      .describe('End date for when messages were posted (ISO format)'),
+      .describe(
+        'End date for when messages were posted (ISO format; a date alone includes that whole UTC day)',
+      ),
     ticketKey: z
       .string()
       .optional()
@@ -81,9 +84,7 @@ export const searchMessagesTool = defineTool({
     const since = input.since
       ? parseAndValidateDate(input.since, 'since')
       : null;
-    const until = input.until
-      ? parseAndValidateDate(input.until, 'until')
-      : null;
+    const until = input.until ? parseUntilDate(input.until, 'until') : null;
     const queryLower = input.query?.toLowerCase();
     const ticketKey = input.ticketKey?.trim().toUpperCase();
     const prUrl = input.prUrl

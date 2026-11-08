@@ -14,6 +14,7 @@ import {
   defineTool,
   jsonResult,
   parseAndValidateDate,
+  parseUntilDate,
   subsetGapNote,
   textResult,
 } from './types';
@@ -24,7 +25,12 @@ export const getStatsTool = defineTool({
     'Get summary statistics about work history, optionally filtered by date range. Imported messages are counted in their own section, never as PRs or tickets',
   inputSchema: {
     since: z.string().optional().describe('Start date (ISO format)'),
-    until: z.string().optional().describe('End date (ISO format)'),
+    until: z
+      .string()
+      .optional()
+      .describe(
+        'End date (ISO format; a date alone includes that whole UTC day)',
+      ),
   },
   handler: async (input, { outputDir, fullOutputDir }) => {
     // A subset made before messages were imported counts none: say why
@@ -85,7 +91,7 @@ export const getStatsTool = defineTool({
     }
 
     if (input.until) {
-      const untilDate = parseAndValidateDate(input.until, 'until');
+      const untilDate = parseUntilDate(input.until, 'until');
       prs = prs.filter((pr) => new Date(pr.frontmatter.createdAt) <= untilDate);
       tickets = tickets.filter(
         (t) => new Date(t.frontmatter.createdAt) <= untilDate,

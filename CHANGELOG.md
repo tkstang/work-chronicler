@@ -96,6 +96,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from its PRs alone (or today, with no PRs), although the statistics count
   its messages too. The stats range now spans the messages as well; projects
   and the timeline keep the PR range.
+- `search_messages` and a date-filtered `get_stats` read a date-only
+  `until` (`2025-02-28`) as midnight at the start of that day, leaving out
+  everything later on it, such as a message posted at noon. A date alone
+  now includes that whole UTC day; a timestamp keeps its precision. Other
+  tools are unchanged.
 
 ## [0.6.0] - 2026-11-08
 

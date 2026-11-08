@@ -131,7 +131,7 @@
           "type": "string"
         },
         "until": {
-          "description": "End date (ISO format)",
+          "description": "End date (ISO format; a date alone includes that whole UTC day)",
           "type": "string"
         }
       },
@@ -255,7 +255,7 @@
           "type": "string"
         },
         "until": {
-          "description": "End date for when messages were posted (ISO format)",
+          "description": "End date for when messages were posted (ISO format; a date alone includes that whole UTC day)",
           "type": "string"
         },
         "ticketKey": {
