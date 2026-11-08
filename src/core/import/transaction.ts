@@ -553,8 +553,10 @@ export function inspectImportState(
   root: string,
   env: ImportEnv,
 ): ImportIssue | null {
-  // Every import holds `.import-lock`; a filter holding it changes no
-  // record, so only an import's (or an unreadable) lock is in progress
+  // Every import holds `.import-lock`. A filter holding it changes records
+  // only while finishing an interrupted import, and `.import-transaction/`
+  // exists throughout (reported below as RECOVERY_REQUIRED), so only an
+  // import's (or an unreadable) lock is in progress
   const held = readLockState(
     { readFile: (path) => env.fs.readFile(path, OWNER_MAX_BYTES).data },
     join(root, LOCK_NAME),
