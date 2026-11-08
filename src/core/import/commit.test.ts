@@ -583,7 +583,7 @@ describe('import: failures and interruption at every step', () => {
 
 describe('import: interrupted imports and the lock', () => {
   /** Leave an import interrupted with its lock held, before any commit */
-  function interruptHoldingLock(w: World) {
+  function interruptHoldingLock(w: World, overrides: Partial<ImportEnv> = {}) {
     importInto(w, {
       env: env({
         fs: crashAfterFs(
@@ -592,6 +592,7 @@ describe('import: interrupted imports and the lock', () => {
             op === 'rename' && String(args[1]).endsWith('.import-lock'),
         ),
         pid: DEAD_PID,
+        ...overrides,
       }),
     });
   }
@@ -635,18 +636,34 @@ describe('import: interrupted imports and the lock', () => {
     expect(result.issues.map((i) => i.code)).toEqual(['IMPORT_IN_PROGRESS']);
   });
 
-  it('takes over a lock taken before the machine last booted', () => {
+  it('takes over a lock taken in an earlier boot, judged by boot ID', () => {
     const w = world();
     scenarios[1]?.setup(w);
-    interruptHoldingLock(w);
+    interruptHoldingLock(w, { bootId: () => 'earlier-boot' });
 
     const result = importInto(w, {
-      // The PID is in use again, but by a process started after a reboot
-      env: env({ isProcessAlive: () => true, bootTime: () => Date.now() + 1 }),
+      // The PID is in use again, but by a process of this boot
+      env: env({ isProcessAlive: () => true, bootId: () => 'this-boot' }),
     });
 
     expect(result.ok).toBe(true);
     expect(hidden(snapshot(w.workLog))).toEqual([]);
+  });
+
+  it('never takes over a running import because the clock jumped', () => {
+    const w = world();
+    scenarios[1]?.setup(w);
+    // Its start time reads as long before this boot: the clock was wrong
+    // when it started, or has jumped since
+    interruptHoldingLock(w, { bootId: () => 'this-boot', now: () => 1 });
+    const before = snapshot(w.workLog);
+
+    const result = importInto(w, {
+      env: env({ isProcessAlive: () => true, bootId: () => 'this-boot' }),
+    });
+
+    expect(result.issues.map((i) => i.code)).toEqual(['IMPORT_IN_PROGRESS']);
+    expect(snapshot(w.workLog)).toEqual(before);
   });
 
   it('rolls an interrupted batch back, reports it, then imports the new batch', () => {

@@ -17,7 +17,9 @@ import {
   unlinkSync,
   writeSync,
 } from 'node:fs';
-import { hostname, uptime } from 'node:os';
+import { hostname } from 'node:os';
+
+import { systemBootId } from '@storage/work-log-lock';
 
 /**
  * The filesystem and process operations the import engine uses. Everything
@@ -84,8 +86,8 @@ export interface ImportEnv {
   hostname: string;
   /** Current time in milliseconds */
   now: () => number;
-  /** When this machine last booted, in milliseconds */
-  bootTime: () => number;
+  /** This boot's ID, or null when the platform gives none */
+  bootId: () => string | null;
   /** Whether a process is running; true when that cannot be determined */
   isProcessAlive: (pid: number) => boolean;
   /** A short random string for unique temporary names */
@@ -230,7 +232,7 @@ export function createImportEnv(): ImportEnv {
     pid: process.pid,
     hostname: hostname(),
     now: () => Date.now(),
-    bootTime: () => Date.now() - uptime() * 1000,
+    bootId: systemBootId,
     isProcessAlive,
     randomId: () => randomBytes(8).toString('hex'),
   };

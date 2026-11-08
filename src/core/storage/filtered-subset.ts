@@ -10,7 +10,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { hostname, uptime } from 'node:os';
+import { hostname } from 'node:os';
 import { dirname, isAbsolute, join, normalize, sep } from 'node:path';
 
 import { IsoDateTimeSchema } from '@wc-types/pr';
@@ -23,6 +23,7 @@ import {
   type LockFs,
   type LockOwner,
   readLockOwner,
+  systemBootId,
 } from './work-log-lock';
 
 /**
@@ -45,7 +46,7 @@ import {
  * One `filter` (or `filter --clear`) runs per work log at a time, under
  * `.filter-lock`: a second run is refused rather than racing the first, so
  * one run can never move or delete another run's subsets. A lock left by a
- * process on this machine that has exited (or ran before the last boot) is
+ * process on this machine that has exited (or ran in an earlier boot) is
  * taken over; any other lock is respected.
  */
 
@@ -367,8 +368,8 @@ export interface SubsetEnv {
   pid: number;
   hostname: string;
   now: () => number;
-  /** When this machine last booted, as epoch milliseconds */
-  bootTime: () => number;
+  /** This boot's ID, or null when the platform gives none */
+  bootId: () => string | null;
   isProcessAlive: (pid: number) => boolean;
 }
 
@@ -389,7 +390,7 @@ export const nodeSubsetEnv: SubsetEnv = {
   pid: process.pid,
   hostname: hostname(),
   now: () => Date.now(),
-  bootTime: () => Date.now() - uptime() * 1000,
+  bootId: systemBootId,
   isProcessAlive,
 };
 

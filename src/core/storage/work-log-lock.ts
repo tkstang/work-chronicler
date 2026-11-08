@@ -1,3 +1,5 @@
+import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { z } from 'zod';
@@ -13,7 +15,7 @@ import { z } from 'zod';
  * left empty, so at most one run holds it.
  *
  * A lock whose owner is provably gone (a process on this machine that is no
- * longer running, or started before the last boot) is taken over, one run at
+ * longer running, or that ran in an earlier boot) is taken over, one run at
  * a time: the taker first holds the takeover guard (`<lock>.takeover`,
  * created the same way), checks under it that the lock still names the gone
  * owner, moves it aside and removes it, then claims the lock like any other
@@ -44,8 +46,11 @@ export interface LockEnv {
   pid: number;
   hostname: string;
   now: () => number;
-  /** When this machine last booted, as epoch milliseconds */
-  bootTime: () => number;
+  /**
+   * An ID unique to this boot of this machine, or null when the platform
+   * gives none. Never derived from the wall clock.
+   */
+  bootId: () => string | null;
   isProcessAlive: (pid: number) => boolean;
 }
 
@@ -57,6 +62,8 @@ export const LockOwnerSchema = z.object({
   hostname: z.string(),
   startedAt: z.number(),
   runId: z.string(),
+  /** The boot the owner ran in; absent in 0.6.0 locks */
+  bootId: z.string().optional(),
 });
 export type LockOwner = z.infer<typeof LockOwnerSchema>;
 
@@ -120,13 +127,54 @@ export function sameOwner(a: LockOwner, b: LockOwner): boolean {
 }
 
 /**
- * Only a process on this machine that is provably gone (not running, or
- * started before the last boot) counts as dead.
+ * Only a process on this machine that is provably gone counts as dead: its
+ * PID is not running, or it recorded a boot ID other than this boot's (so a
+ * PID in use again after a reboot is not mistaken for it). The wall clock is
+ * never used, so a clock that jumps cannot make a live owner look dead; an
+ * owner without a boot ID (a 0.6.0 lock) is judged by its process alone.
  */
 export function ownerIsAlive(owner: LockOwner, env: LockEnv): boolean {
   if (owner.hostname !== env.hostname) return true;
-  if (owner.startedAt < env.bootTime()) return false;
+  if (owner.bootId !== undefined) {
+    const current = env.bootId();
+    if (current !== null && current !== owner.bootId) return false;
+  }
   return env.isProcessAlive(owner.pid);
+}
+
+function readSystemBootId(): string | null {
+  try {
+    if (process.platform === 'linux') {
+      const id = readFileSync('/proc/sys/kernel/random/boot_id', 'utf-8');
+      return id.trim() || null;
+    }
+    if (process.platform === 'darwin') {
+      const id = execFileSync(
+        '/usr/sbin/sysctl',
+        ['-n', 'kern.bootsessionuuid'],
+        {
+          encoding: 'utf-8',
+          timeout: 5_000,
+          stdio: ['ignore', 'pipe', 'ignore'],
+        },
+      );
+      return id.trim() || null;
+    }
+  } catch {
+    // No ID: owners are then judged by their process alone
+  }
+  return null;
+}
+
+let systemBootIdCache: string | null | undefined;
+
+/**
+ * This boot's ID: Linux's `boot_id`, or macOS's boot session UUID. Null on
+ * other platforms or when it cannot be read.
+ */
+export function systemBootId(): string | null {
+  if (systemBootIdCache === undefined) systemBootIdCache = readSystemBootId();
+  return systemBootIdCache;
 }
 
 export function describeOwner(owner: LockOwner): string {
@@ -305,12 +353,14 @@ export function acquireWorkLogLock(spec: WorkLogLockSpec): LockAcquisition {
   const { fs, env } = spec;
   const lockPath = join(spec.dir, spec.name);
   const guardPath = join(spec.dir, `${spec.name}.takeover`);
+  const bootId = env.bootId();
   const owner: LockOwner = {
     version: 1,
     pid: env.pid,
     hostname: env.hostname,
     startedAt: env.now(),
     runId: spec.runId ?? spec.randomId(),
+    ...(bootId !== null ? { bootId } : {}),
   };
 
   for (let attempt = 0; attempt < MAX_LOCK_ATTEMPTS; attempt++) {

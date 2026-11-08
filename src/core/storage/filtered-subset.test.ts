@@ -607,7 +607,7 @@ describe('one filter run at a time', () => {
 
   const env = (alive: boolean) => ({
     hostname: 'this-host',
-    bootTime: () => 1_000,
+    bootId: () => 'this-boot',
     isProcessAlive: () => alive,
   });
 
@@ -628,6 +628,18 @@ describe('one filter run at a time', () => {
   it.each<[string, Record<string, unknown>, boolean]>([
     ['a running process on another machine', { hostname: 'elsewhere' }, false],
     ['an unreadable owner', { version: 'x' }, false],
+    // The wall clock never decides: an owner whose start time looks older
+    // than this boot (a clock that jumped) is respected while it runs
+    [
+      'a running process of this boot whose start time looks older',
+      { startedAt: 500, bootId: 'this-boot' },
+      true,
+    ],
+    [
+      'a running process from 0.6.0 (no boot ID), whatever its start time',
+      { startedAt: 500 },
+      true,
+    ],
   ])('respects a lock held by %s', async (_, owner, alive) => {
     await previousSubset();
     holdLock(owner);
@@ -638,12 +650,14 @@ describe('one filter run at a time', () => {
   });
 
   it.each<[string, Record<string, unknown>]>([
-    ['has exited', {}],
-    ['started before the last boot', { startedAt: 500 }],
+    ['has exited', { bootId: 'this-boot' }],
+    ['has exited (a 0.6.0 lock, no boot ID)', {}],
+    // Its PID is running again, but it ran in an earlier boot
+    ['ran in an earlier boot', { bootId: 'earlier-boot' }],
   ])('takes over a lock whose owner %s', async (_, owner) => {
     await previousSubset();
     holdLock(owner);
-    const alive = owner['startedAt'] === 500;
+    const alive = owner['bootId'] === 'earlier-boot';
 
     await replaceFilteredSubset(workLog, runPlan('B'), { env: env(alive) });
 
@@ -751,7 +765,7 @@ describe('one filter run at a time', () => {
       holdLock({ pid: 999 });
       const deadEnv = {
         hostname: 'this-host',
-        bootTime: () => 1_000,
+        bootId: () => 'this-boot',
         isProcessAlive: (pid: number) => pid !== 999,
       };
       let inside = 0;
@@ -834,7 +848,7 @@ describe('one filter run at a time', () => {
     const run = replaceFilteredSubset(workLog, runPlan('A'), {
       env: {
         hostname: 'this-host',
-        bootTime: () => 1_000,
+        bootId: () => 'this-boot',
         isProcessAlive: (pid) => pid !== 999 && pid !== 998,
       },
     });
@@ -870,7 +884,7 @@ describe('one filter run at a time', () => {
     await replaceFilteredSubset(workLog, runPlan('A'), {
       env: {
         hostname: 'this-host',
-        bootTime: () => 1_000,
+        bootId: () => 'this-boot',
         isProcessAlive: (pid) => pid !== 999 && pid !== 1,
       },
     });
