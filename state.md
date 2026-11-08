@@ -50,8 +50,8 @@ oat_goal_outcome_audit: null
 oat_goal_recovery:
   milestone: m01
   delivery_id: d01
-  phase_ids: [p01, p02, p03]
-  stage: reviewing
+  phase_ids: [ p01, p02, p03 ]
+  stage: delivering
   review_artifact: null
 oat_milestone_gates:
   m01:
@@ -95,27 +95,30 @@ oat_deliveries:
     members:
       - url: https://github.com/tkstang/work-chronicler/pull/25
         base: main
-        reviewed_head: ed8b20df93efb15f5dbdeee10733453e7cd52f0d
-        observed_head: ed8b20df93efb15f5dbdeee10733453e7cd52f0d
+        reviewed_head: b079cd77e9306bdc2a179660a6536afba12f0847
+        observed_head: b079cd77e9306bdc2a179660a6536afba12f0847
         observed_base: b8189269dfab0ff9da136f5b2dead7dc8e4b2ad3
         status: open
     integrated_review:
-      artifact: reviews/archived/m01-review-2026-11-08T022438Z.md
-      scope: m01
-      bound_revisions: [ ed8b20df93efb15f5dbdeee10733453e7cd52f0d ]
-      disposition: stale
+      artifact: reviews/archived/m01-review-2026-11-08T044332Z.md
+      scope: [ p01, p02, p03 ]
+      bound_revisions:
+        - member: 0
+          head: b079cd77e9306bdc2a179660a6536afba12f0847
+          base: b8189269dfab0ff9da136f5b2dead7dc8e4b2ad3
+      disposition: passed
     exit_gate:
       status: allowed
       disposition: passed
       resolution: configured
       config_fingerprint: null
-      reviewed_head: ed8b20df93efb15f5dbdeee10733453e7cd52f0d
+      reviewed_head: b079cd77e9306bdc2a179660a6536afba12f0847
       subject:
         kind: code
         scope: [ p01, p02, p03 ]
       freshness: fresh
       freshness_reason: null
-      decided_at: "2026-11-08T02:19:33Z"
+      decided_at: "2026-11-08T04:37:35Z"
     endpoint_attainment: null
 # oat_skill_gate_overrides: # optional; per-project posture for configured lifecycle gates
 #   oat-project-implement: disabled # only the literal value `disabled`; absence means follow configuration
@@ -174,7 +177,7 @@ oat_pr_status: open
 oat_pr_url: https://github.com/tkstang/work-chronicler/pull/25
 oat_project_created: '2026-11-07T22:54:38.498Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-11-08T04:37:35Z"
+oat_project_state_updated: "2026-11-08T04:45:47Z"
 oat_generated: false
 ---
 

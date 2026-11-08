@@ -607,6 +607,15 @@ Also in p03-t15: CodeRabbit 4505014153 (docs/notice wrongly said `--overwrite` f
 
 **Outcome:** passed. Exit carrier allowed/fresh at b079cd77e9306bdc2a179660a6536afba12f0847 (2026-11-08T04:37:35Z); recovery stage → reviewing.
 
+### Review Received: m01 (integrated delivery re-review at b079cd7)
+
+**Date:** 2026-11-08
+**Review artifact (local-only):** reviews/archived/m01-review-2026-11-08T044332Z.md
+
+**Findings:** Critical 0 · High 0 · Medium 0 · Low 0 (cross-provider reviewer codex gpt-6.1-sol high via delegated task, scope `code m01: p01, p02, p03`, reviewed head b079cd77e9306bdc2a179660a6536afba12f0847, with an adversarial pass over the old-skill removal decision)
+
+**Outcome:** passed. Recovery stage → delivering; d01 evidence rebound to b079cd7.
+
 ### PR review received: d01 (PR #25, CodeRabbit)
 
 **Date:** 2026-11-08
