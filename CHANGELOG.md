@@ -31,6 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `/work-chronicler-summarize-work`, `/work-chronicler-write-self-review`,
+  `/work-chronicler-write-resume-bullets` and `/work-chronicler-update-resume`
+  summarized a `search_messages` result from its text alone, which stops at
+  1,000 characters, so a decision stated later in a long message could be
+  left out. They now read the full message from its record file first.
 - `/work-chronicler-setup-slack` put the agreed channel reason into the
   `slack channels add` command in single quotes, so a reason with an
   apostrophe broke the command, and shell syntax in it (copied from a

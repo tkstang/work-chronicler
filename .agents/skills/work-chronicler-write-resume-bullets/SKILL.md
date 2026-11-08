@@ -138,8 +138,13 @@ mentioned PR or ticket resolved to its work-log record, or `null` when the
 work log does not have it; `get_linked_work` lists the messages that mention
 a PR or ticket. Results come in pages: while `nextCursor` is not null, call
 `search_messages` again with the same filters and `cursor` set to it.
-Without the MCP tool, read the files: the body is the message
-text, and the frontmatter holds `source`, `occurredAt`, `url`, `subject`,
+A result's `text` stops at 1,000 characters and then ends in `...`, so a
+decision or outcome can be cut off: before using such a message, read its
+full text in its record file, the one under `messages/<source>/`
+(`filtered/messages/<source>/` when `filtered/` exists) whose frontmatter
+has the same `sourceAccount` and `sourceId` (search the directory for the
+`sourceId` value). Without the MCP tool, read the files: the body is the
+message text, and the frontmatter holds `source`, `occurredAt`, `url`, `subject`,
 `attribution` (`status`, `authorId`), `mentions` (`tickets`, `pullRequests`)
 and `message` (the channel as `container`, a `thread` parent reference,
 `replyCount`).
