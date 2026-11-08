@@ -66,9 +66,11 @@ the next `filter` restores it. Once the new subset is in place, a failure to
 tidy up what earlier runs left is only a warning. The subset always has `pull-requests/`, `jira/`, `pr-reviews/` and
 `messages/`, even when empty.
 
-The subset is in use whenever `filtered/` exists, even when nothing matched:
-`analyze` (unless `--full`) and the MCP server read it and never fall back to
-the full work log, and `status` shows the filters and counts. Run
+The subset is in use whenever `filtered/` exists, even when nothing matched.
+`analyze` (unless `--full`) asks "Filtered data found. Analyze filtered data
+instead of full?" (default yes): yes analyzes the subset, no analyzes the full
+work log. The MCP server reads the subset and never falls back to the full work
+log, and `status` shows the filters and counts. Run
 `filter --clear` to go back to the full work log. A subset made before you
 first fetched reviews or imported messages lacks that directory: `status`
 says so, and `search_pr_reviews` and `search_messages` return no results with

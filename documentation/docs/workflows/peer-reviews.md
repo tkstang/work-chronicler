@@ -76,8 +76,8 @@ For ongoing peer relationships where you want to track notes and evidence:
 work-chronicler init --mode manager  # If not in manager mode
 work-chronicler reports add "Alice Smith"
 
-# Add supporting data
-echo "Observations about Alice..." > reports/alice-smith/notes/collaboration.md
+# Add supporting data (workspace root prints the manager profile directory)
+echo "Observations about Alice..." > "$(work-chronicler workspace root)/reports/alice-smith/notes/collaboration.md"
 
 # Optional: fetch their work-log
 work-chronicler fetch github --report alice-smith

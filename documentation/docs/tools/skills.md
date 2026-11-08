@@ -205,8 +205,8 @@ work-chronicler workspace profile     # Get active profile name
 
 Skills automatically detect:
 
-- **IC mode**: Read from `<profile>/work-log/`, `<profile>/analysis/`
-- **Manager mode**: Detect report context, read from `reports/{id}/work-log/`, etc.
+- **IC mode**: Read from `<profile>/work-log/`, with analysis in `<profile>/work-log/.analysis/` (what `workspace analysis` prints)
+- **Manager mode**: Detect report context, read from `reports/{id}/work-log/` and per-report analysis in `reports/{id}/analysis/`; team analysis is in the manager profile's `analysis/`
 - **Active profile**: Use current profile set via `profile switch` or `WORK_CHRONICLER_PROFILE`
 
 ### Data Sources

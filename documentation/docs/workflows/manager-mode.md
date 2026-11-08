@@ -171,22 +171,21 @@ Org: acme-corp
 Reports (3):
   1. Alice Smith (alice-smith)
      GitHub: alice | Email: alice@acme.com
-     Repos: 12 | Jira Projects: 2 (PLAT, AUTH)
-     Last fetch: 2026-02-01 10:30 AM
-     Status: ✓ Up to date
+     Repos: 12 | Jira Projects: 2
+     Last fetch: 2/1/2026, 10:30:00 AM
 
   2. Bob Jones (bob-jones)
      GitHub: bjones | Email: bob.jones@acme.com
-     Repos: 8 | Jira Projects: 1 (PLAT)
-     Last fetch: 2026-02-03 2:15 PM
-     Status: ✓ Up to date
+     Repos: 8 | Jira Projects: 1
+     Last fetch: 2/3/2026, 2:15:00 PM
 
   3. Charlie Davis (charlie-davis)
      GitHub: cdavis | Email: charlie@acme.com
      Repos: 5 | Jira Projects: 0
-     Last fetch: Never
-     Status: ⚠ Not yet fetched
 ```
+
+Each report shows its repo and JIRA project counts. A "Last fetch" line (in
+your locale's date format) appears only once the report has been fetched.
 
 ### Updating Reports
 
@@ -244,7 +243,11 @@ All fetch commands (`github`, `jira`, `all`) support three modes in manager mode
 - **Single report**: `--report <id>` to fetch for one report
 - **All reports**: `--all-reports` to fetch for all reports
 
-**Important**: Each report is fetched using their individual credentials (GitHub username, email), not the manager's credentials.
+**Important**: Reports are fetched with the manager's tokens. GitHub requests use
+the manager's GitHub token and fetch PRs authored by the report's GitHub
+username. JIRA requests use the manager's JIRA API token with the report's
+email as the account email, and fetch tickets assigned to that account in the
+report's JIRA projects.
 
 ### Fetch All Reports
 

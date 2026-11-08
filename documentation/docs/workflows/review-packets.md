@@ -342,7 +342,11 @@ work-chronicler analyze team
 3. Review `stats.json` for each report - filter by impact:
    - `flagship` - Biggest initiatives
    - `major` - Significant features
-4. Use AI skills: `/work-chronicler-detect-projects` - Identify cross-team initiatives
+4. Review team-level projects: `analyze team`, then `team-projects.json` and
+   `contributor-matrix.json` in the manager profile's `analysis/`
+5. Use AI skills: `/work-chronicler-manager-write-team-summary` - Team overview
+   built from that team analysis (`/work-chronicler-detect-projects` reads the
+   profile's own work log, not the reports')
 
 **Use cases**:
 
@@ -413,7 +417,7 @@ work-chronicler analyze team
 
 **Solution**:
 
-1. Verify data exists: `reports list` (check "Last fetch" column)
+1. Verify data exists: `reports list` (a fetched report has a "Last fetch" line)
 2. Run fetch if needed: `fetch all --report <id>`
 3. Generate analysis: `analyze reports <id>`
 4. Confirm workspace: `workspace root` should show manager profile
