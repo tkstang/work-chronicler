@@ -24,9 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stored record back. If putting a record back also fails, or a record was
   changed by something else, `import` says so (`ROLLBACK_INCOMPLETE`,
   `RECOVERY_CONFLICT`) and the next import finishes the recovery, as it does
-  for an import that was interrupted. Putting records back and recovery act
-  only through the directories the import recorded, and stop with
-  `RECOVERY_CONFLICT` rather than act through one that was moved, replaced
+  for an import that was interrupted. Every change import makes goes only
+  through the directories it recorded; it refuses
+  (`CHANGED_DURING_IMPORT`, or `RECOVERY_CONFLICT` while putting records
+  back or recovering) rather than act through one that was moved, replaced
   or made a link. Manager
   profiles import into a report's work log with `--report <id>`. Both
   commands exit with status 1 on rejection; `--json` gives machine-readable

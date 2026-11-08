@@ -273,14 +273,17 @@ rejected (`SCHEMA_INVALID`).
   stays in `.import-transaction/journal.json`, and any version the batch
   replaced stays in `.import-transaction/backup/` (a newly created record has
   none). Sort the record out by hand, then remove `.import-transaction/`.
-- Putting records back and recovering only ever act through directories the
-  import recorded: `.import-transaction/` and each folder in it, and every
-  directory on the way to a record, must still be the same directory (not
-  moved, replaced or made a link). A directory the batch created is removed
-  only if it is still that directory and empty. If any of this does not hold,
-  `import` changes nothing through that path and stops with
-  `RECOVERY_CONFLICT`, keeping `.import-transaction/`. Check the path it
-  names, then remove `.import-transaction/`.
+- Every change `import` makes (storing, putting records back, recovering and
+  cleaning up) goes only through directories it recorded: the work log,
+  `.import-transaction/` and each folder in it, and every directory on the
+  way to a record must still be the same directory (not moved, replaced or
+  made a link). A directory the batch created is removed only if it is still
+  that directory and empty. While storing, a path that fails this check
+  rejects the batch (`CHANGED_DURING_IMPORT`) and nothing is changed through
+  it. While putting records back or recovering, `import` changes nothing
+  through that path and stops with `RECOVERY_CONFLICT`, keeping
+  `.import-transaction/`. Check the path it names, then remove
+  `.import-transaction/`.
 
 ### Errors and `--json`
 
