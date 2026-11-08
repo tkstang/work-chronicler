@@ -1682,7 +1682,7 @@ Proof: 753 tests; DoD batch green
 **Status:** completed
 **Base:** 0ea25d70690080f5f0960b3a3eb23951c3e8ed83
 **Executor:** root
-**Head:** 157e2f86c79c60b4722a1199819483a72b2827cf
+**Head:** 806f36cc245745a520a730c77012d7cd8ae8e495
 
 Version bump and CHANGELOG only; root-inline (see Orchestration Runs). Verification at Head (root): lint, format:check, typecheck, tests (753, 46 files), `pnpm build`, `npm pack --dry-run` (version 0.7.0, 143 files including the new skill): pass.
 
@@ -1693,6 +1693,14 @@ Version bump and CHANGELOG only; root-inline (see Orchestration Runs). Verificat
 **Executor:** root
 Files: `package.json`, `CHANGELOG.md`
 Proof: DoD batch above; `[0.7.0]` section and link refs; the setup-slack reason fix (0.6.0 known issue) leads Fixed
+
+### Task p11-t02: (review L1) Readers refuse during an import, they do not wait
+
+**Status:** completed
+**Commit:** 806f36c
+**Executor:** root
+Files: `CHANGELOG.md`
+Proof: CHANGELOG is outside the formatter; text checked against `reader.ts`
 
 ---
 
@@ -1731,6 +1739,7 @@ run/v1 · request=wce-p14-rev-1 · scope=p14 · action=review · role=oat-review
   run/v1 · request=wce-p10-rev-2 · scope=p10 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p10 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
   run/v1 · request=wce-p10-rev-3 · scope=p10 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p10 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 - Root-inline phase: p11 (0.7.0 version bump and CHANGELOG) done by root (claude-opus-5-5); mechanical release prep, no dispatch needed.
+  run/v1 · request=wce-p11-rev-1 · scope=p11 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p11 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 - run/v1 · request=wce-p08-rev-1 · scope=p08 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p08 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 - Root-inline phase: p08 — inline exception for a version bump and CHANGELOG move; root model claude-opus-5-5
