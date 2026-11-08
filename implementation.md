@@ -1034,8 +1034,75 @@ Proof: Slack suites 13/13 locally; ready-PR CI re-run
 **Status:** in_progress
 **Base:** 1bdd3d8737dde4aa3305a3ac5a1b06f81e04a2bc
 **Executor:** phase-implementer:wce-p13-impl-1
+**Head:** 3805888bd85c9395db12e36ef24da3cfeea97add
 
 Branch `oat/evidence-expansion-m03` (from m02 head 6360304 with origin/main b17cb23 merged at 1bdd3d8). Committing owner: the phase implementer (code); root owns the journal. Task class: consequential (concurrent writers to the work log; data loss and stale evidence are the failure modes).
+
+Verification at Head: implementer ran the full DoD batch (638 tests, 40 files; build). Root re-ran typecheck, lint, format:check and tests at Head: pass (638).
+
+Lock decision: one work-log lock, held under both 0.6.0 names (`.import-lock` then `.filter-lock`, released in reverse). Every 0.7.0 run takes `.import-lock` first, so `import` and `filter` (including `--clear`) are serialized; holding `.filter-lock` too refuses a 0.6.0 `filter`, and `.import-lock` refuses a 0.6.0 `import`. No new name, so reader-ignore prefixes are unchanged. Lock records carry the command and a boot ID (`validate` ignores a filter's lock; `status` names the holder). Reason: one mechanism, no legacy gap, no new names.
+
+Threat matrix (implementer, written before code; each row tested): concurrent import/filter; mixed 0.6.0/0.7.0 runs; stale vs live owner and clock jump (boot ID; conservative for 0.6.0 owners without one); partial acquisition; import interrupted before `filter`; 0.6.0 v3 journal (literal fixture); readers during import (refuse while `.import-transaction/` exists; retry a changed scan, refuse after 3); crash at each lock rename; crash during `filter --clear`; `--clear` listing failure.
+
+CodeRabbit (PR #26) dispositions: `reader.ts` partial batch: fixed (t03, t04). `work-log-lock.ts` wall clock: fixed with boot ID (t01). `filtered-subset.ts` cleanup order: fixed (t05). Deferred m02 Medium M1 (`filter --clear`): fixed (t05).
+
+Accepted concerns (implementer): whole-second directory timestamps can miss a batch stored within the same second during a scan (documented); a 0.6.0 lock without a boot ID whose PID is reused after reboot reads as held until removed (message says how); cached `get_stats` during a pending import is p15; recovery inside `filter` uses the real import fs (p14 unifies seams). Deviations: `documentation/mcp-server.md` and an AGENTS.md note updated (behavior changed).
+
+### Task p13-t01: Judge lock owners by boot ID, never the wall clock
+
+**Status:** completed
+**Commit:** 43570c7
+**Executor:** phase-implementer:wce-p13-impl-1
+Files: `work-log-lock.ts`, `import-fs.ts`, `filtered-subset.ts`, tests (new `work-log-lock.test.ts`)
+Proof: storage and import suites
+
+### Task p13-t02: One work-log lock for import and filter; status shows the holder
+
+**Status:** completed
+**Commit:** b6f478e
+**Executor:** phase-implementer:wce-p13-impl-1
+Files: `work-log-lock.ts`, `transaction.ts`, `filtered-subset.ts`, `status.ts`, import/filter `index.ts`, tests
+Proof: 621 tests
+
+### Task p13-t03: Filter finishes an interrupted import before reading
+
+**Status:** completed
+**Commit:** c3699a4
+**Executor:** phase-implementer:wce-p13-impl-1
+Files: `transaction.ts`, `import/index.ts`, `filtered-subset.ts`, `filter.utils.ts`, new `settle.test.ts`
+Proof: 628 tests; literal 0.6.0 v3 journal recovers through filter and import
+
+### Task p13-t04: Readers never read part of an import's batch
+
+**Status:** completed
+**Commit:** b9de45c
+**Executor:** phase-implementer:wce-p13-impl-1
+Files: `reader.ts`, `paths.ts`, `server.ts`, `linker/index.ts`, `status.ts`, tests
+Proof: 633 tests
+
+### Task p13-t05: filter --clear sets previous subsets aside before deselecting
+
+**Status:** completed
+**Commit:** 2a8eca9
+**Executor:** phase-implementer:wce-p13-impl-1
+Files: `filtered-subset.ts`, `filtered-subset.test.ts`
+Proof: 3 new tests fail before, pass after; 636 tests
+
+### Task p13-t06: Docs and CHANGELOG
+
+**Status:** completed
+**Commit:** 21515f5
+**Executor:** phase-implementer:wce-p13-impl-1
+Files: `AGENTS.md`, `CHANGELOG.md`, `documentation/{commands,configuration,mcp-server}.md`
+Proof: format:check
+
+### Task p13-t07: Import honors a live 0.6.0 filter lock and takes over a stale one
+
+**Status:** completed
+**Commit:** 3805888
+**Executor:** phase-implementer:wce-p13-impl-1
+Files: `src/core/import/lock.test.ts`
+Proof: 8 lock tests
 
 ---
 
@@ -1088,6 +1155,8 @@ Branch `oat/evidence-expansion-m03` (from m02 head 6360304 with origin/main b17c
 <!-- orchestration-runs-start -->
 
 - Root-inline phase: p08 (fix p08-t13) — test-only timeout for two CLI-running suites after a CI timeout; root model claude-opus-5-5
+
+run/v1 · request=wce-p13-impl-1 · scope=p13 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p13 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 - run/v1 · request=wce-p08-rev-1 · scope=p08 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p08 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
