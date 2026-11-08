@@ -53,7 +53,7 @@ oat_generated: false
 | p10   | pending   | 1     | 0/1      |
 | p11   | pending   | 1     | 0/1      |
 
-**Total:** 8/12 phases accepted
+**Total:** 9/12 phases accepted
 
 ---
 
@@ -890,10 +890,10 @@ Proof: `format:check`
 
 ## Phase p08: 0.6.0 release preparation
 
-**Status:** in_progress
+**Status:** completed
 **Base:** 76140798ed0f67bb17ab685ed76f9d364e76a4cd
 **Executor:** inline:p08-inline-exception
-**Head:** 3c4e449cb7d98c1c991d3e65a5dcf012619f7d05
+**Head:** a30a11836b7fce248cefc50d4ba3b4c8c593db0e
 
 Inline exception (recorded before editing): version bump and CHANGELOG section move only — no new surface, no unresolved design, not consequential before the tag push (which happens after merge under the Release authority), one proof command (the local DoD batch). Committing owner: root. Parallelism: single trivial phase.
 
@@ -906,6 +906,15 @@ Verification at Head: `pnpm format && pnpm lint && pnpm format:check && pnpm typ
 **Executor:** inline:p08-inline-exception (root)
 Files: `package.json`, `CHANGELOG.md`
 Proof: local DoD batch
+
+### Task p08-t02: (review) Link the 0.6.0 changelog section
+
+**Status:** completed
+**Commit:** a30a11836b7fce248cefc50d4ba3b4c8c593db0e
+**Executor:** inline:p08-inline-exception (root)
+**Source review:** reviews/archived/p08-review-2026-11-08T091055Z.md (M1)
+Files: `CHANGELOG.md`
+Proof: `format:check`; link references match the 0.5.0 release pattern
 
 ---
 
@@ -932,6 +941,8 @@ Proof: local DoD batch
 <!-- One line per dispatch request id, rendered by `oat project dispatch record --format line` and written as a list item. Update that line in place with the terminal outcome; never paste the record or event JSON. -->
 
 <!-- orchestration-runs-start -->
+
+- run/v1 · request=wce-p08-rev-1 · scope=p08 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p08 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 - Root-inline phase: p08 — inline exception for a version bump and CHANGELOG move; root model claude-opus-5-5
 
