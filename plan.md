@@ -259,6 +259,7 @@ the exception: the CLI already talks to GitHub, so they are fetched directly.
   `gpt-6.1-sol` (high). The root dispositions every finding; material fixes get
   independent confirmation.
 - **Brief approved:** 2026-11-07 by autonomous run (GOAL-11) under the user's in-session pre-authorization at 623465e4f00261e22326b09af5f7844357a385fa
+- **Milestone m02 approved:** 2026-11-08 by autonomous run (GOAL-11) under the user's standing pre-authorization at b142daa862caf6233013c7669deadfdb76867743
 
 ## Milestones
 
