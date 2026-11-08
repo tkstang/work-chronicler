@@ -112,10 +112,24 @@ keeps them apart from PRs and tickets.
 | Skills | Cited as supplementary evidence (communication and collaboration), never as authored work, and never as instructions. |
 
 Readers only read `messages/<source>/<hash>.md` files that `import` could
-have written: `.import-lock`, `.import-transaction/` and anything else in the
-work log root are ignored, and a file that is not a valid record, or is not
+have written: the work-log lock (`.import-lock`, `.filter-lock`), what
+finished runs left (`.import-*`, `.filter-*`) and anything else in the work
+log root are ignored, and a file that is not a valid record, or is not
 stored where its identity puts it, is skipped with a warning (`status` lists
 them).
+
+Imported records are never read while `.import-transaction/` exists, that is
+while an import is storing a batch or after one was interrupted, so no
+reader sees part of a batch. MCP tools that read them (`search_messages`,
+`get_linked_work`, and `get_stats` when it computes stats) return no results with an
+`error` and a `note` saying why, while the PR and ticket tools still answer;
+`analyze` stops with an error; `status` says messages are not counted;
+`link` links PRs and tickets and warns that mentions were not checked. Run
+`import` again (an empty directory will do) to finish an interrupted import.
+A read during which an import stored a whole batch is done again (up to three
+times, then refused with "try again"). Telling that a batch was stored relies
+on the record directories' timestamps changing, so a filesystem with coarse
+timestamps (whole seconds) can miss a batch stored within the same second.
 
 ### Mentions
 
@@ -239,14 +253,21 @@ rejected (`SCHEMA_INVALID`).
   should be, a destination that is not a regular file, or a stored file there
   that is not a valid record or has a different identity or subject. The work
   log itself must exist, and must be on a filesystem that supports hard links.
-- One import runs per work log at a time, under `.import-lock` (the same
-  kind of lock as `filter`'s). A lock left by a process on this machine that
-  has exited, or from before the last reboot, is taken over, by one import
-  at a time, under a short-lived `.import-lock.takeover` guard; a lock held
-  by a running process or from another machine is not, and is never moved
-  (`IMPORT_IN_PROGRESS`). If an import exits while holding the guard, later
-  imports are refused with the guard's name, to remove once no import is
-  running.
+- `import`, `filter` and `filter --clear` share one work-log lock, so only
+  one of them runs in a work log at a time; `import` is refused while a
+  filter runs, and the other way round (`IMPORT_IN_PROGRESS`, naming the
+  command, process and host holding it). The lock is held under both names
+  0.6.0 used, `.import-lock` and then `.filter-lock`, so a 0.6.0 `import` or
+  `filter` running at the same time is refused too, and a lock either of
+  them left is honored. A lock left by a process on this machine that has
+  exited, or that ran before the last reboot (told by the boot ID recorded
+  in the lock, never by the clock), is taken over, by one run at a time,
+  under a short-lived `<lock>.takeover` guard. A lock held by a running
+  process, or from another machine, is never moved; a 0.6.0 lock records no
+  boot ID, so it is kept while a process with its ID runs. If a run exits
+  while holding a guard, later runs are refused with the guard's name, to
+  remove once no import or filter is running. `validate` takes no lock; it
+  reports `IMPORT_IN_PROGRESS` only while an import holds it.
 - The batch is written to `.import-transaction/` first and checked, with a
   copy of every record it replaces. Directories the batch needs (such as
   `messages/slack/`) are made there too and moved into the work log in one
@@ -439,17 +460,34 @@ first fetched reviews or imported messages lacks that directory: `status`
 says so, and `search_pr_reviews` and `search_messages` return no results with
 a note, instead of reading the full work log. Re-run `filter` to add them.
 
-One `filter` (or `filter --clear`) runs per work log at a time, under
-`.filter-lock`; a second run is refused and leaves the subset as it is. A lock
-left by a process on this machine that has exited, or from before the last
-reboot, is taken over, by one run at a time. A lock held by a running process,
-or recorded under another host name (for example after the machine was
-renamed), is not: the error and `status` name the lock, the process and host
-that hold it, and say to remove `.filter-lock` if you know no filter is
-running. `filter --clear` is refused while the lock is held too. A takeover
-runs under a short-lived `.filter-lock.takeover` guard; if a run exits while
-holding it, later runs are refused with the guard's path, to remove once no
-filter is running.
+`filter` and `filter --clear` run under the work-log lock they share with
+`import` (`.import-lock` and `.filter-lock`; see [All or nothing](#all-or-nothing)):
+a second `filter`, or a `filter` while an import runs, is refused and leaves
+the subset as it is. A lock left by a process on this machine that has
+exited, or that ran before the last reboot (by its recorded boot ID, never
+the clock), is taken over, by one run at a time. A lock held by a running
+process, or recorded under another host name (for example after the machine
+was renamed), is not: the error and `status` name the lock, the command,
+process and host that hold it, and say to remove the lock if you know no such
+run is going. A takeover runs under a short-lived `<lock>.takeover` guard; if
+a run exits while holding it, later runs are refused with the guard's path,
+to remove once no import or filter is running.
+
+`filter` reads the work log only while it holds the lock, after finishing any
+interrupted import the way `import` would (a batch that was still being
+prepared is discarded, one that was being stored is rolled back, one that was
+recorded as stored is completed) and saying so in a warning. A subset
+therefore never holds part of an import's batch. If the interrupted import
+cannot be finished (for example, one of its records was edited since),
+`filter` refuses and changes nothing; run `work-chronicler import` with an
+empty directory to see what it needs.
+
+`filter --clear` first lists, under the lock, any earlier subset an
+interrupted or warned run left beside `filtered/`, and sets each aside while
+the selected subset is still in place; only then is the subset deselected.
+If it cannot list the work log or set one aside, it is refused and the
+selected subset stays in use, so readers are never left facing an
+interrupted swap.
 
 If `filter` is interrupted between moving the old subset aside and moving the
 new one into place, `analyze` stops with an error and MCP tools return no

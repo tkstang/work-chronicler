@@ -247,7 +247,11 @@ work-log/
 Imported records are supplementary evidence: consumers count them apart from
 PRs and tickets (or say they cover PRs and tickets only), and resolve their
 mentions on read (`src/core/linking/`). Readers ignore `.import-*` and
-`.filter-*` entries in the work-log root.
+`.filter-*` entries in the work-log root, and never read imported records
+while `.import-transaction/` exists (`ImportInProgressError`). `import`,
+`filter` and `filter --clear` share one work-log lock
+(`src/core/storage/work-log-lock.ts`, held as `.import-lock` then
+`.filter-lock`); `filter` reads records only under it.
 
 ### Manager Mode
 

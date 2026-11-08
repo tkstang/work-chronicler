@@ -29,6 +29,13 @@ saying the subset is unavailable and a `note` saying what to do (wait, or run
 `filter` again). A call during which the selection changed is reported the
 same way; call the tool again.
 
+Tools that read imported records (`search_messages`, `get_linked_work`, and
+`get_stats` when it computes stats) return no results while an import is
+storing a batch in the full work log, or after one was interrupted: an
+`error` saying imported records are unavailable and a `note` saying what to
+do (wait, or run `work-chronicler import` with an empty directory to finish
+it). They never return part of a batch. The PR and ticket tools still answer.
+
 ## Client configuration
 
 Clients start the server themselves. Add an entry like this to the client's MCP

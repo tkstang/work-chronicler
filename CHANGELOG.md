@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `import`, `filter` and `filter --clear` now share one work-log lock, so
+  only one of them runs in a work log at a time: `filter` is refused while an
+  import runs and `import` while a filter runs, each naming the command,
+  process and host that holds it (`status` shows it too). The lock is held
+  under both names 0.6.0 used (`.import-lock`, then `.filter-lock`), so a
+  0.6.0 `import` or `filter` running at the same time is refused as well,
+  and a lock either of them left is honored while its process runs and taken
+  over once it has exited. No new names appear in the work log. `validate`
+  reports `IMPORT_IN_PROGRESS` only while an import, not a filter, holds the
+  lock.
+- `filter` reads the work log only while it holds the lock, after finishing
+  any interrupted import the way `import` would (and saying so in a
+  warning). If that import cannot be finished, `filter` refuses and changes
+  nothing.
+- Imported records are not read while `.import-transaction/` exists (an
+  import is storing a batch, or was interrupted): MCP tools that read them
+  return no results with a note, the PR and ticket tools still answer,
+  `analyze` stops with an error, `status` says messages are not counted, and
+  `link` links PRs and tickets and warns that mentions were not checked.
+
+### Fixed
+
+- A subset made by `filter`, an MCP tool result or `analyze` could include
+  part of an import's batch, read while the import was storing it or after
+  it was interrupted. Readers now never see part of a batch: they wait for
+  the import (see Changed), and a read during which a whole batch was stored
+  is done again.
+- A running `import` or `filter` could have its lock taken over when the
+  system clock jumped forward, because a lock's owner counted as gone when
+  its recorded start time looked older than the last boot. Locks now record
+  the boot they were taken in, and a running process's lock is never taken
+  over because of the clock; a lock from before a reboot is still taken over
+  even when its process ID is in use again.
+- `filter --clear` could report success while an earlier subset left beside
+  `filtered/` made `analyze` and the MCP server see an interrupted swap. It
+  now finds and sets aside every such subset before deselecting, and when it
+  cannot (listing the work log or moving one fails) it is refused with the
+  selected subset still in use.
+
 ## [0.6.0] - 2026-11-08
 
 ### Added
