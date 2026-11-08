@@ -809,13 +809,14 @@ function removeLeftoversQuietly(
     'previous',
     'cleared',
   ],
+  done = 'the filtered subset is in place',
 ): void {
   let leftovers: ReturnType<typeof findLeftovers>;
   try {
     leftovers = findLeftovers(fs, outputDir);
   } catch (error) {
     warnings.push(
-      `Could not list ${outputDir} to remove what earlier runs left there (${errorCode(error) ?? 'error'}); the filtered subset is in place, and the next \`work-chronicler filter\` run removes them.`,
+      `Could not list ${outputDir} to remove what earlier runs left there (${errorCode(error) ?? 'error'}); ${done}, and the next \`work-chronicler filter\` run removes them.`,
     );
     return;
   }
@@ -859,6 +860,13 @@ export function clearFilteredSubset(
   }
 }
 
+/**
+ * Clear under the lock. Every restorable previous subset is found and set
+ * aside first, while the selected subset (if any) is still in place: if
+ * listing the work log or setting one aside fails, `filter --clear` is
+ * refused with the selection unchanged, and once `filtered/` is renamed
+ * aside no previous subset waits beside it for readers to stop at.
+ */
 function clearUnderLock(
   fs: SubsetFs,
   randomId: () => string,
@@ -866,35 +874,46 @@ function clearUnderLock(
   filteredDir: string,
   warnings: string[],
 ): boolean {
-  let cleared = false;
-  if (subsetExists(fs, filteredDir)) {
-    fs.rename(filteredDir, join(outputDir, `${CLEARED_PREFIX}${randomId()}`));
-    cleared = true;
+  const hadSubset = subsetExists(fs, filteredDir);
+  let previous: string[];
+  try {
+    ({ previous } = findLeftovers(fs, outputDir));
+  } catch (error) {
+    throw new Error(
+      `Could not list ${outputDir} to find subsets earlier runs left there (${errorCode(error) ?? 'error'}). The subset was not changed.`,
+      { cause: error },
+    );
   }
   // An interrupted run's previous subset is cleared too, so it is not
-  // restored. Once the subset is deselected, failing to look is a warning:
-  // a previous subset only waits beside a missing `filtered/`.
-  let leftovers: ReturnType<typeof findLeftovers>;
-  try {
-    leftovers = findLeftovers(fs, outputDir);
-  } catch (error) {
-    if (!cleared) throw error;
-    warnings.push(
-      `Could not list ${outputDir} to remove what earlier runs left there (${errorCode(error) ?? 'error'}); the filtered subset is cleared, and the next \`work-chronicler filter\` run removes them.`,
-    );
-    return cleared;
-  }
-  if (leftovers.previous.length > 0) cleared = true;
-  for (const name of leftovers.previous) {
+  // restored
+  for (const name of previous) {
     try {
       fs.rename(
         join(outputDir, name),
         join(outputDir, `${CLEARED_PREFIX}${randomId()}`),
       );
     } catch (error) {
-      if (errorCode(error) !== 'ENOENT') throw error;
+      if (errorCode(error) === 'ENOENT') continue;
+      throw new Error(
+        `Could not set aside ${join(outputDir, name)} (${errorCode(error) ?? 'error'}), a subset an earlier run left. ${
+          hadSubset
+            ? 'The subset was not changed.'
+            : 'Run `work-chronicler filter --clear` again.'
+        }`,
+        { cause: error },
+      );
     }
   }
-  removeLeftoversQuietly(fs, outputDir, warnings, ['staging', 'cleared']);
-  return cleared;
+  if (hadSubset) {
+    fs.rename(filteredDir, join(outputDir, `${CLEARED_PREFIX}${randomId()}`));
+  }
+  // Deselected: failing to tidy up is only a warning
+  removeLeftoversQuietly(
+    fs,
+    outputDir,
+    warnings,
+    ['staging', 'cleared'],
+    'the filtered subset is cleared',
+  );
+  return hadSubset || previous.length > 0;
 }

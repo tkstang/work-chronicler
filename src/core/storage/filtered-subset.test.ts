@@ -535,6 +535,85 @@ describe('clearFilteredSubset', () => {
     expect(getFilteredSubsetState(workLog)).toEqual({ status: 'none' });
   });
 
+  // A previous subset an earlier replacement could not remove (it warned)
+  // waits beside the selected subset. Clearing must not leave it beside a
+  // missing filtered/, where readers would see an interrupted swap.
+  const retainPrevious = () => {
+    mkdirSync(join(workLog, '.filter-previous-old', 'pull-requests'), {
+      recursive: true,
+    });
+  };
+
+  it('retires a retained previous subset before deselecting, so readers are not blocked after a later listing failure', async () => {
+    await previousSubset();
+    retainPrevious();
+    let deselected = false;
+    const fs: SubsetFs = {
+      ...nodeSubsetFs,
+      rename: (from, to) => {
+        nodeSubsetFs.rename(from, to);
+        if (from === filtered) deselected = true;
+      },
+      readdir: (path) => {
+        if (deselected && path === workLog) {
+          throw Object.assign(new Error('injected readdir failure'), {
+            code: 'EIO',
+          });
+        }
+        return nodeSubsetFs.readdir(path);
+      },
+    };
+
+    const { cleared, warnings } = clearFilteredSubset(workLog, { fs });
+
+    expect(cleared).toBe(true);
+    expect(warnings).toEqual([
+      expect.stringMatching(/Could not list .*the filtered subset is cleared/),
+    ]);
+    expect(getFilteredSubsetState(workLog)).toEqual({ status: 'none' });
+    expect(getEffectiveOutputDir(workLog).isFiltered).toBe(false);
+  });
+
+  it('refuses, with the subset intact and readers unblocked, when it cannot list what earlier runs left', async () => {
+    const before = await previousSubset();
+    retainPrevious();
+    // Every listing of the work log fails (the lock's own cleanup ignores it)
+    const fs: SubsetFs = {
+      ...nodeSubsetFs,
+      readdir: (path) => {
+        if (path === workLog) {
+          throw Object.assign(new Error('injected readdir failure'), {
+            code: 'EIO',
+          });
+        }
+        return nodeSubsetFs.readdir(path);
+      },
+    };
+
+    expect(() => clearFilteredSubset(workLog, { fs })).toThrow(
+      /Could not list .*EIO.*The subset was not changed/,
+    );
+    expect(snapshot(filtered)).toEqual(before);
+    expect(existsSync(join(workLog, '.filter-previous-old'))).toBe(true);
+    expect(getFilteredSubsetState(workLog).status).toBe('selected');
+    expect(getEffectiveOutputDir(workLog).dir).toBe(filtered);
+    expect(rootLeftovers()).toEqual(['.filter-previous-old']);
+  });
+
+  it('keeps the subset selected when a previous subset cannot be set aside', async () => {
+    const before = await previousSubset();
+    retainPrevious();
+    const fs = failing('rename', (path) =>
+      basename(path).startsWith('.filter-previous-'),
+    );
+
+    expect(() => clearFilteredSubset(workLog, { fs })).toThrow(
+      /Could not set aside .*\.filter-previous-old.*EIO.*The subset was not changed/,
+    );
+    expect(snapshot(filtered)).toEqual(before);
+    expect(getFilteredSubsetState(workLog).status).toBe('selected');
+  });
+
   it('clears an interrupted swap so it is not restored', () => {
     mkdirSync(join(workLog, '.filter-previous-crash'));
 
