@@ -22,8 +22,10 @@ WORK_CHRONICLER_HOME="$(mktemp -d)" pnpm cli init
 ```
 
 To try a published version with `npx work-chronicler@<version>`, run it from
-a directory outside this repository: inside it, npx resolves the local
-workspace package and fails with "command not found".
+an isolated temporary directory outside any npm project or workspace (for
+example `cd "$(mktemp -d)"`). Inside this repository, or a project that
+links a checkout, npx may resolve the local package instead of the
+published version.
 
 ## Checks
 
