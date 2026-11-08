@@ -1,29 +1,37 @@
 import { basename, dirname, isAbsolute, join, relative, sep } from 'node:path';
 
-import { IMPORTED_RECORD_DIRECTORIES } from '@storage/paths';
+import {
+  IMPORT_TRANSACTION_DIRECTORY,
+  IMPORTED_RECORD_DIRECTORIES,
+} from '@storage/paths';
 import {
   acquireWorkLogLock,
   describeOwner,
+  holderCommand,
+  IMPORT_LOCK,
   type LockAcquisition,
   type LockFs,
+  type LockOwner,
   ownerIsAlive,
   readLockState,
 } from '@storage/work-log-lock';
 import { IMPORT_SOURCES } from '@wc-types/imported-record';
 import { z } from 'zod';
 
-import type { ImportEnv, ImportFs } from './import-fs';
 import {
-  describeFsError,
+  codedError,
+  entryAt,
   errorCode,
-  type ImportIssue,
-  importIssue,
-} from './issues';
+  type ImportEnv,
+  type ImportFs,
+} from './import-fs';
+import { describeFsError, type ImportIssue, importIssue } from './issues';
 import {
   displayPath,
   type FileId,
   type ImportPlan,
   type PlannedRecord,
+  resolveWorkLogRoot,
   sha256,
 } from './plan';
 import { MAX_STORED_BYTES } from './staging';
@@ -31,10 +39,11 @@ import { MAX_STORED_BYTES } from './staging';
 /**
  * Batch commit and recovery.
  *
- * One import runs per work log at a time, under `.import-lock` (created
- * atomically with a hard link, so it always holds its owner's process ID,
- * host and start time). A batch is committed through a write-ahead journal
- * in `.import-transaction/`:
+ * An import runs under the work-log lock it shares with `filter` (see
+ * `@storage/work-log-lock`: a directory renamed into place complete with its
+ * owner's process, host, boot and run, under `.import-lock` and then
+ * `.filter-lock`), so one import or filter runs per work log at a time. A
+ * batch is committed through a write-ahead journal in `.import-transaction/`:
  *
  * 1. Prepare (nothing in the work log changes): write every new record and a
  *    backup of every record it replaces into the transaction directory, read
@@ -58,8 +67,9 @@ import { MAX_STORED_BYTES } from './staging';
  * verified) is reported as imported.
  */
 
-export const LOCK_NAME = '.import-lock';
-export const TRANSACTION_NAME = '.import-transaction';
+/** The work-log lock name every import holds (it takes `.filter-lock` too) */
+export const LOCK_NAME = IMPORT_LOCK;
+export const TRANSACTION_NAME = IMPORT_TRANSACTION_DIRECTORY;
 const DONE_PREFIX = `${TRANSACTION_NAME}.done-`;
 const JOURNAL = 'journal.json';
 const JOURNAL_TMP = 'journal.json.tmp';
@@ -161,10 +171,6 @@ class ChangedError extends Error {
   }
 }
 
-function codedError(code: string): Error {
-  return Object.assign(new Error(code), { code });
-}
-
 function toId(id: FileId): Id {
   return { dev: String(id.dev), ino: String(id.ino) };
 }
@@ -174,30 +180,8 @@ function hasId(entry: FileId, id: Id): boolean {
 }
 
 /**
- * Require a real directory (never a symlink) with this identity at `path`.
- * Anything else, including its absence, means the path is not the one the
- * import recorded.
- */
-function requireDirectory(
-  fs: ImportFs,
-  path: string,
-  id: Id,
-  where: string,
-): void {
-  let entry;
-  try {
-    entry = fs.lstat(path);
-  } catch (error) {
-    if (errorCode(error) === 'ENOENT') throw new ChangedError(where);
-    throw error;
-  }
-  if (entry.kind !== 'directory' || !hasId(entry, id)) {
-    throw new ChangedError(where);
-  }
-}
-
-/**
- * The only way this module changes the filesystem.
+ * The only way this module changes the filesystem, and the only place that
+ * checks the directories on the way to a path.
  *
  * A guard knows the identity of every directory it vouches for: the work
  * log, the transaction directory, its folders and the directories a batch
@@ -206,6 +190,8 @@ function requireDirectory(
  * each must be a real directory (never a link) holding its recorded
  * identity. A directory it cannot vouch for refuses the change with
  * {@link ChangedError}, so no call site can skip a component on the way.
+ * Reads that must not pass through a substituted directory use
+ * {@link PathGuard.reach} the same way.
  */
 class PathGuard {
   private readonly known = new Map<string, Id>();
@@ -224,6 +210,34 @@ class PathGuard {
     const entry = fs.lstat(root);
     if (entry.kind !== 'directory') throw new ChangedError();
     return new PathGuard(fs, root, toId(entry));
+  }
+
+  /**
+   * A guard for reading below a work log that nothing has vouched for (the
+   * imported-record readers). The work log's own path is trusted as given
+   * (configured paths may pass through links); every directory below it is
+   * vouched for as {@link PathGuard.learn} first finds it. It makes no
+   * changes: any it is asked for fails with EROFS.
+   */
+  static forReading(lstat: ImportFs['lstat'], root: string): PathGuard {
+    const refuse = (): never => {
+      throw codedError('EROFS');
+    };
+    const fs: ImportFs = {
+      realpath: refuse,
+      lstat,
+      readdir: refuse,
+      readFile: refuse,
+      writeFile: refuse,
+      mkdir: refuse,
+      rename: refuse,
+      link: refuse,
+      unlink: refuse,
+      rmdir: refuse,
+      removeTree: refuse,
+      syncDirectory: refuse,
+    };
+    return new PathGuard(fs, root, { dev: '', ino: '' });
   }
 
   /** A guard for everything a journal recorded */
@@ -250,22 +264,131 @@ class PathGuard {
 
   /** Check every directory from the work log down to `dir` itself */
   check(dir: string): void {
+    const paths = this.below(dir);
+    this.expect(this.root, '.');
+    for (const current of paths) {
+      this.expect(current, this.display(current));
+    }
+  }
+
+  /**
+   * The work log must still be where it was resolved to (no symlinked
+   * directory above it) and the directory with its recorded identity.
+   * Throws {@link ChangedError} without a destination otherwise.
+   */
+  checkRoot(): void {
+    try {
+      const entry = this.fs.lstat(this.root);
+      const id = this.known.get(this.root);
+      if (
+        this.fs.realpath(this.root) !== this.root ||
+        entry.kind !== 'directory' ||
+        !id ||
+        !hasId(entry, id)
+      ) {
+        throw new ChangedError();
+      }
+    } catch (error) {
+      if (error instanceof ChangedError || errorCode(error) === 'ENOENT') {
+        throw new ChangedError();
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Check one directory the guard vouches for, at `path` itself (its
+   * ancestors are checked separately, by {@link PathGuard.check} or
+   * {@link PathGuard.reach}).
+   */
+  checkAt(path: string): void {
+    this.expect(path, this.display(path));
+  }
+
+  /**
+   * For reading through the work log: check every directory below it down
+   * to `dir` itself, from the top, as {@link PathGuard.check} does, except
+   * that one that is absent ends the walk, so nothing below it exists
+   * (returns false). The work log itself must be a directory; its identity
+   * is checked before any change by {@link PathGuard.check}.
+   */
+  reach(dir: string): boolean {
+    if (this.fs.lstat(this.root).kind !== 'directory') {
+      throw new ChangedError();
+    }
+    return this.walk(dir, false);
+  }
+
+  /**
+   * For reading through a work log nothing has vouched for: the same walk as
+   * {@link PathGuard.reach} below the work log, except that a real directory
+   * the guard does not know yet is vouched for as found. A symlink or
+   * anything else that is not a directory throws {@link ChangedError}
+   * naming it; an absent one ends the walk (returns false).
+   */
+  learn(dir: string): boolean {
+    return this.walk(dir, true);
+  }
+
+  private walk(dir: string, learn: boolean): boolean {
+    for (const current of this.below(dir)) {
+      const where = this.display(current);
+      let entry;
+      try {
+        entry = this.fs.lstat(current);
+      } catch (error) {
+        if (errorCode(error) === 'ENOENT') return false;
+        throw error;
+      }
+      if (learn && entry.kind === 'directory' && !this.known.has(current)) {
+        this.vouch(current, toId(entry));
+      }
+      const id = this.known.get(current);
+      if (entry.kind !== 'directory' || !id || !hasId(entry, id)) {
+        throw new ChangedError(where);
+      }
+    }
+    return true;
+  }
+
+  /** A path below the work log as reported in issues: `/`-separated on every platform */
+  private display(path: string): string {
+    return relative(this.root, path).split(sep).join('/');
+  }
+
+  /** Each directory from just below the work log down to `dir` itself */
+  private below(dir: string): string[] {
     const rel = relative(this.root, dir);
     if (rel.startsWith('..') || isAbsolute(rel)) throw new ChangedError(rel);
-    this.expect(this.root, '.');
-    if (rel === '') return;
+    if (rel === '') return [];
+    const paths: string[] = [];
     let current = this.root;
     // `rel` is built from this module's own joins, never from input text
     for (const part of rel.split(sep)) {
       current = join(current, part);
-      this.expect(current, relative(this.root, current));
+      paths.push(current);
     }
+    return paths;
   }
 
+  /**
+   * Require a real directory (never a symlink) with its vouched identity at
+   * `path`. Anything else, including its absence, means the path is not the
+   * one the import recorded.
+   */
   private expect(path: string, where: string): void {
     const id = this.known.get(path);
     if (!id) throw new ChangedError(where);
-    requireDirectory(this.fs, path, id, where);
+    let entry;
+    try {
+      entry = this.fs.lstat(path);
+    } catch (error) {
+      if (errorCode(error) === 'ENOENT') throw new ChangedError(where);
+      throw error;
+    }
+    if (entry.kind !== 'directory' || !hasId(entry, id)) {
+      throw new ChangedError(where);
+    }
   }
 
   /** Make a directory below a vouched one and vouch for it */
@@ -322,36 +445,28 @@ class PathGuard {
 }
 
 /**
- * Check every directory on the way to `segments` (all but the last) against
- * the identities in the journal, from the work log down. Returns false when
- * one is absent, so nothing below it exists; throws {@link ChangedError}
- * when one is a symlink, not a directory, or not the recorded directory.
+ * For readers of imported records: whether `dir`, below the work log `root`,
+ * can be listed as the work log's own. It is checked by the same
+ * {@link PathGuard} walk every import change uses: each directory from just
+ * below `root` down to `dir` must be a real directory, never a symlink (a
+ * linked `messages/slack/` would read another work log's records). `root`
+ * itself is trusted as given.
+ *
+ * @param lstat - What is at a path, not following a final symlink
+ * @param root - The work log (or a `filtered/` subset)
+ * @param dir - A directory below it
+ * @returns False when a directory on the way is absent (nothing below it
+ *   exists)
+ * @throws An error with code `ECHANGED` and, in `destination`, the
+ *   `/`-separated path below `root` of the first directory that is a symlink
+ *   or not a directory; any other filesystem error as it was raised
  */
-function requireAncestors(
-  fs: ImportFs,
+export function reachBelowWorkLog(
+  lstat: ImportFs['lstat'],
   root: string,
-  journal: Journal,
-  segments: string[],
+  dir: string,
 ): boolean {
-  if (fs.lstat(root).kind !== 'directory') throw new ChangedError();
-  for (let depth = 1; depth < segments.length; depth++) {
-    const dir = segments.slice(0, depth);
-    const key = displayPath(dir);
-    const known = journal.directories.find(
-      (d) => displayPath(d.segments) === key,
-    );
-    let entry;
-    try {
-      entry = fs.lstat(join(root, ...dir));
-    } catch (error) {
-      if (errorCode(error) === 'ENOENT') return false;
-      throw error;
-    }
-    if (entry.kind !== 'directory' || !known || !hasId(entry, known.id)) {
-      throw new ChangedError(key);
-    }
-  }
-  return true;
+  return PathGuard.forReading(lstat, root).learn(dir);
 }
 
 // ---------------------------------------------------------------------------
@@ -367,6 +482,13 @@ export interface ImportLock {
 const LOCK_HELD =
   'another import is running in this work log (or was started on another machine); try again when it finishes';
 
+/** Why the work-log lock is held, by the command holding it */
+function lockHeldBy(name: string, owner: LockOwner): string {
+  return holderCommand(name, owner) === 'filter'
+    ? `a \`work-chronicler filter\` run (${describeOwner(owner)}) holds the work-log lock (${name}); try again when it finishes`
+    : LOCK_HELD;
+}
+
 /**
  * The shared work-log lock's filesystem for import: every change goes
  * through the path guard, so the lock and its claims are made, moved and
@@ -378,15 +500,7 @@ function lockFsFor(guard: PathGuard): LockFs {
     readFile: (path) => fs.readFile(path, OWNER_MAX_BYTES).data,
     readdir: (path) => fs.readdir(path),
     mtimeMs: (path) => fs.lstat(path).mtimeMs,
-    exists: (path) => {
-      try {
-        fs.lstat(path);
-        return true;
-      } catch (error) {
-        if (errorCode(error) === 'ENOENT') return false;
-        throw error;
-      }
-    },
+    exists: (path) => entryAt(fs, path) !== null,
     mkdir: (path) => {
       try {
         guard.mkdir(path);
@@ -410,10 +524,10 @@ function lockFsFor(guard: PathGuard): LockFs {
 }
 
 /**
- * Take the work log's import lock (`.import-lock`, see
- * `@storage/work-log-lock`, shared with `filter`). A lock whose owner is
- * provably gone is taken over, one run at a time, under
- * `.import-lock.takeover`; a live owner's lock is never moved.
+ * Take the work-log lock for an import (`.import-lock`, then `.filter-lock`;
+ * see `@storage/work-log-lock`), shared with `filter`. A lock whose owner is
+ * provably gone is taken over, one run at a time, under `<lock>.takeover`;
+ * a live owner's lock is never moved.
  *
  * @param root - Resolved work-log directory
  * @param env - Environment
@@ -441,9 +555,7 @@ export function acquireImportLock(
       fs: lockFsFor(PathGuard.atRoot(env.fs, root)),
       env,
       dir: root,
-      name: LOCK_NAME,
-      command: 'work-chronicler import',
-      randomId: env.randomId,
+      command: 'import',
       runId: batchId,
     });
   } catch (error) {
@@ -452,23 +564,27 @@ export function acquireImportLock(
   if (acquired.held) {
     return { lock: { root, release: acquired.release }, warnings };
   }
+  warnings.push(...acquired.warnings);
+  const { name } = acquired;
   switch (acquired.reason) {
     case 'held':
       return inProgress(
         acquired.owner
-          ? LOCK_HELD
-          : `the import lock (${LOCK_NAME}) exists but could not be read; if no import is running, remove it`,
+          ? lockHeldBy(name, acquired.owner)
+          : `the work-log lock (${name}) exists but could not be read; if no import or filter is running, remove it`,
       );
     case 'takeover-abandoned':
       return inProgress(
-        `an import (${describeOwner(acquired.taker)}) exited while taking over a lock left by an earlier import, and left ${LOCK_NAME}.takeover behind; if no import is running, remove it and try again`,
+        `a \`work-chronicler ${holderCommand(name, acquired.taker)}\` run (${describeOwner(acquired.taker)}) exited while taking over a lock left by an earlier run, and left ${name}.takeover behind; if no import or filter is running, remove it and try again`,
       );
     case 'takeover-busy':
       return inProgress(
-        'another import is taking over a lock left by an import that has exited; try again in a moment',
+        'another run is taking over a lock left by a run that has exited; try again in a moment',
       );
     default:
-      return inProgress(LOCK_HELD);
+      return inProgress(
+        acquired.owner ? lockHeldBy(name, acquired.owner) : LOCK_HELD,
+      );
   }
 }
 
@@ -534,13 +650,19 @@ export function inspectImportState(
   root: string,
   env: ImportEnv,
 ): ImportIssue | null {
+  // Every import holds `.import-lock`. A filter holding it changes records
+  // only while finishing an interrupted import, and `.import-transaction/`
+  // exists throughout (reported below as RECOVERY_REQUIRED), so only an
+  // import's (or an unreadable) lock is in progress
   const held = readLockState(
     { readFile: (path) => env.fs.readFile(path, OWNER_MAX_BYTES).data },
     join(root, LOCK_NAME),
   );
   if (
     held.kind === 'unreadable' ||
-    (held.kind === 'owner' && ownerIsAlive(held.owner, env))
+    (held.kind === 'owner' &&
+      holderCommand(LOCK_NAME, held.owner) === 'import' &&
+      ownerIsAlive(held.owner, env))
   ) {
     return importIssue('IMPORT_IN_PROGRESS', LOCK_HELD);
   }
@@ -708,12 +830,11 @@ type DestinationState = 'absent' | 'unsafe' | { hash: string };
 
 /** A destination's contents, judged without following any symlink */
 function destinationState(
-  fs: ImportFs,
-  root: string,
-  journal: Journal,
+  guard: PathGuard,
   segments: string[],
 ): DestinationState {
-  if (!requireAncestors(fs, root, journal, segments)) return 'absent';
+  const { fs, root } = guard;
+  if (!guard.reach(dirname(join(root, ...segments)))) return 'absent';
   try {
     if (fs.lstat(join(root, ...segments)).kind !== 'file') return 'unsafe';
   } catch (error) {
@@ -757,7 +878,7 @@ function rollBack(
     const destination = displayPath(op.destination);
     const dest = join(root, ...op.destination);
     try {
-      const state = destinationState(fs, root, journal, op.destination);
+      const state = destinationState(guard, op.destination);
       const hash = hashOf(state);
       if (op.action === 'create') {
         if (state === 'absent') continue;
@@ -778,8 +899,7 @@ function rollBack(
             guard.rename(backupPath, dest);
             fs.syncDirectory(dirname(dest));
             if (
-              hashOf(destinationState(fs, root, journal, op.destination)) ===
-              op.oldHash
+              hashOf(destinationState(guard, op.destination)) === op.oldHash
             ) {
               continue;
             }
@@ -855,7 +975,7 @@ function removeCreatedDirectories(
       } catch (error) {
         if (errorCode(error) !== 'ENOENT') throw error;
       }
-      if (!requireAncestors(fs, root, journal, dir.segments)) continue;
+      if (!guard.reach(dirname(path))) continue;
       let entry;
       try {
         entry = fs.lstat(path);
@@ -1123,10 +1243,7 @@ export function recoverInterruptedImport(
     // Only a batch whose every record holds its new version is completed
     const unverified = journal.operations.filter((op) => {
       try {
-        return (
-          hashOf(destinationState(fs, root, journal, op.destination)) !==
-          op.newHash
-        );
+        return hashOf(destinationState(guard, op.destination)) !== op.newHash;
       } catch {
         return true;
       }
@@ -1175,43 +1292,39 @@ export function recoverInterruptedImport(
   };
 }
 
+/**
+ * With the work-log lock held (by `import` or `filter`): remove what
+ * finished imports left, then finish any interrupted import, so the work log
+ * holds whole batches only. Issues mean an interrupted import could not be
+ * finished (its records may hold part of a batch): the caller must not read
+ * or change records.
+ *
+ * @param workLogRoot - Work-log directory (resolved here, as `import` does)
+ * @param env - Environment
+ */
+export function settleInterruptedImport(
+  workLogRoot: string,
+  env: ImportEnv,
+): {
+  report: RecoveryReport | null;
+  issues: ImportIssue[];
+  warnings: string[];
+} {
+  const resolved = resolveWorkLogRoot(workLogRoot, env.fs);
+  if ('issue' in resolved) {
+    return { report: null, issues: [resolved.issue], warnings: [] };
+  }
+  const warnings = removeLeftovers(resolved.root, env);
+  const recovered = recoverInterruptedImport(resolved.root, env);
+  return {
+    report: recovered.report,
+    issues: recovered.issues,
+    warnings: [...warnings, ...recovered.warnings],
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Commit
-
-function verifyRoot(plan: ImportPlan, fs: ImportFs): void {
-  try {
-    const entry = fs.lstat(plan.root);
-    if (
-      fs.realpath(plan.root) !== plan.root ||
-      entry.kind !== 'directory' ||
-      entry.dev !== plan.rootId.dev ||
-      entry.ino !== plan.rootId.ino
-    ) {
-      throw new ChangedError();
-    }
-  } catch (error) {
-    if (error instanceof ChangedError || errorCode(error) === 'ENOENT') {
-      throw new ChangedError();
-    }
-    throw error;
-  }
-}
-
-/** Every work-log directory the batch uses must be the recorded one */
-function verifyDirectories(
-  plan: ImportPlan,
-  journal: Journal,
-  fs: ImportFs,
-): void {
-  for (const dir of journal.directories) {
-    requireDirectory(
-      fs,
-      join(plan.root, ...dir.segments),
-      dir.id,
-      displayPath(dir.segments),
-    );
-  }
-}
 
 /** The destination must still be exactly what was planned */
 function verifyDestination(
@@ -1316,7 +1429,7 @@ export function commitImportPlan(
 
   if (records.length === 0) {
     try {
-      verifyRoot(plan, fs);
+      guard.checkRoot();
       verifyUnchanged();
     } catch (error) {
       return { ok: false, issues: [failureIssue(error, true)], warnings };
@@ -1339,7 +1452,7 @@ export function commitImportPlan(
   // journal records the identity of each directory before any is used.
   let transaction: Id;
   try {
-    verifyRoot(plan, fs);
+    guard.checkRoot();
     transaction = guard.mkdir(txn);
   } catch (error) {
     return { ok: false, issues: [failureIssue(error, true)], warnings };
@@ -1396,6 +1509,10 @@ export function commitImportPlan(
     fs.syncDirectory(join(txn, BACKUP_DIR));
     fs.syncDirectory(join(txn, DIRS_DIR));
     writeJournal(guard, txn, journal);
+    // The transaction directory's own entry in the work log must reach the
+    // disk before any record changes: after a power failure, a replaced
+    // record whose journal and backup were lost could not be rolled back
+    fs.syncDirectory(plan.root);
   } catch (error) {
     discardTransaction(guard, txn, env, warnings, transaction);
     return { ok: false, issues: [failureIssue(error, true)], warnings };
@@ -1404,7 +1521,7 @@ export function commitImportPlan(
   // 2. Commit, re-checking everything before each change.
   let attempted = 0;
   try {
-    verifyRoot(plan, fs);
+    guard.checkRoot();
     journal.state = 'committing';
     writeJournal(guard, txn, journal);
 
@@ -1414,8 +1531,8 @@ export function commitImportPlan(
     for (const dir of journal.directories) {
       if (dir.created === null || dir.created.includes('/')) continue;
       const path = join(plan.root, ...dir.segments);
-      verifyRoot(plan, fs);
-      if (!requireAncestors(fs, plan.root, journal, dir.segments)) {
+      guard.checkRoot();
+      if (!guard.reach(dirname(path))) {
         throw new ChangedError(displayPath(dir.segments.slice(0, -1)));
       }
       try {
@@ -1439,13 +1556,16 @@ export function commitImportPlan(
         }
         throw error;
       }
-      requireDirectory(fs, path, dir.id, displayPath(dir.segments));
+      guard.checkAt(path);
       fs.syncDirectory(dirname(path));
     }
 
     records.forEach((record, i) => {
-      verifyRoot(plan, fs);
-      verifyDirectories(plan, journal, fs);
+      guard.checkRoot();
+      // Every work-log directory the batch uses must be the recorded one
+      for (const dir of journal.directories) {
+        guard.checkAt(join(plan.root, ...dir.segments));
+      }
       verifyDestination(plan, record, fs);
       const dest = join(plan.root, ...record.segments);
       const staged = join(txn, STAGED_DIR, `${i}.md`);

@@ -43,7 +43,13 @@ afterEach(() => {
   rmSync(workLog, { recursive: true, force: true });
 });
 
-const counts = { pullRequests: 0, tickets: 0, prReviews: 0, messages: 0 };
+const counts = {
+  pullRequests: 0,
+  tickets: 0,
+  prReviews: 0,
+  messages: 0,
+  documents: 0,
+};
 
 function selection(
   filters: string[] = ['Include orgs: acme'],
@@ -110,6 +116,10 @@ function failing(
   return fs as unknown as SubsetFs;
 }
 
+/** A path of the work-log lock (either name, its claims and guards) */
+const isLockPath = (path: string) =>
+  path.includes('.filter-lock') || path.includes('.import-lock');
+
 const inStaging = (path: string) =>
   basename(path).startsWith('.filter-staging') ||
   path.includes('/.filter-staging-');
@@ -139,6 +149,7 @@ describe('filtered subset selection', () => {
       status: 'selected',
       dir: filtered,
       selection: null,
+      generation: expect.any(String),
       missing: [],
     });
   });
@@ -350,7 +361,7 @@ describe('replaceFilteredSubset', () => {
       ...nodeSubsetFs,
       rename: (from, to) => {
         // Taking and releasing the lock are not part of the swap
-        if (from.includes('.filter-lock') || to.includes('.filter-lock')) {
+        if (isLockPath(from) || isLockPath(to)) {
           nodeSubsetFs.rename(from, to);
           return;
         }
@@ -384,7 +395,9 @@ describe('replaceFilteredSubset', () => {
     await previousSubset();
 
     const { warnings } = await replaceFilteredSubset(workLog, plan({}), {
-      fs: failing('rm', (p) => basename(p).startsWith('.filter-previous-')),
+      fs: failing('removeTree', (p) =>
+        basename(p).startsWith('.filter-previous-'),
+      ),
     });
 
     expect(warnings).toEqual([
@@ -443,7 +456,7 @@ describe('replaceFilteredSubset', () => {
     const fs: SubsetFs = {
       ...nodeSubsetFs,
       rename: (from, to) => {
-        if (from.includes('.filter-lock') || to.includes('.filter-lock')) {
+        if (isLockPath(from) || isLockPath(to)) {
           nodeSubsetFs.rename(from, to);
           return;
         }
@@ -493,7 +506,9 @@ describe('clearFilteredSubset', () => {
     await previousSubset();
 
     const { cleared, warnings } = clearFilteredSubset(workLog, {
-      fs: failing('rm', (p) => basename(p).startsWith('.filter-cleared-')),
+      fs: failing('removeTree', (p) =>
+        basename(p).startsWith('.filter-cleared-'),
+      ),
     });
 
     expect(cleared).toBe(true);
@@ -529,6 +544,85 @@ describe('clearFilteredSubset', () => {
       ),
     ]);
     expect(getFilteredSubsetState(workLog)).toEqual({ status: 'none' });
+  });
+
+  // A previous subset an earlier replacement could not remove (it warned)
+  // waits beside the selected subset. Clearing must not leave it beside a
+  // missing filtered/, where readers would see an interrupted swap.
+  const retainPrevious = () => {
+    mkdirSync(join(workLog, '.filter-previous-old', 'pull-requests'), {
+      recursive: true,
+    });
+  };
+
+  it('retires a retained previous subset before deselecting, so readers are not blocked after a later listing failure', async () => {
+    await previousSubset();
+    retainPrevious();
+    let deselected = false;
+    const fs: SubsetFs = {
+      ...nodeSubsetFs,
+      rename: (from, to) => {
+        nodeSubsetFs.rename(from, to);
+        if (from === filtered) deselected = true;
+      },
+      readdir: (path) => {
+        if (deselected && path === workLog) {
+          throw Object.assign(new Error('injected readdir failure'), {
+            code: 'EIO',
+          });
+        }
+        return nodeSubsetFs.readdir(path);
+      },
+    };
+
+    const { cleared, warnings } = clearFilteredSubset(workLog, { fs });
+
+    expect(cleared).toBe(true);
+    expect(warnings).toEqual([
+      expect.stringMatching(/Could not list .*the filtered subset is cleared/),
+    ]);
+    expect(getFilteredSubsetState(workLog)).toEqual({ status: 'none' });
+    expect(getEffectiveOutputDir(workLog).isFiltered).toBe(false);
+  });
+
+  it('refuses, with the subset intact and readers unblocked, when it cannot list what earlier runs left', async () => {
+    const before = await previousSubset();
+    retainPrevious();
+    // Every listing of the work log fails (the lock's own cleanup ignores it)
+    const fs: SubsetFs = {
+      ...nodeSubsetFs,
+      readdir: (path) => {
+        if (path === workLog) {
+          throw Object.assign(new Error('injected readdir failure'), {
+            code: 'EIO',
+          });
+        }
+        return nodeSubsetFs.readdir(path);
+      },
+    };
+
+    expect(() => clearFilteredSubset(workLog, { fs })).toThrow(
+      /Could not list .*EIO.*The subset was not changed/,
+    );
+    expect(snapshot(filtered)).toEqual(before);
+    expect(existsSync(join(workLog, '.filter-previous-old'))).toBe(true);
+    expect(getFilteredSubsetState(workLog).status).toBe('selected');
+    expect(getEffectiveOutputDir(workLog).dir).toBe(filtered);
+    expect(rootLeftovers()).toEqual(['.filter-previous-old']);
+  });
+
+  it('keeps the subset selected when a previous subset cannot be set aside', async () => {
+    const before = await previousSubset();
+    retainPrevious();
+    const fs = failing('rename', (path) =>
+      basename(path).startsWith('.filter-previous-'),
+    );
+
+    expect(() => clearFilteredSubset(workLog, { fs })).toThrow(
+      /Could not set aside .*\.filter-previous-old.*EIO.*The subset was not changed/,
+    );
+    expect(snapshot(filtered)).toEqual(before);
+    expect(getFilteredSubsetState(workLog).status).toBe('selected');
   });
 
   it('clears an interrupted swap so it is not restored', () => {
@@ -607,7 +701,7 @@ describe('one filter run at a time', () => {
 
   const env = (alive: boolean) => ({
     hostname: 'this-host',
-    bootTime: () => 1_000,
+    bootId: () => 'this-boot',
     isProcessAlive: () => alive,
   });
 
@@ -628,6 +722,18 @@ describe('one filter run at a time', () => {
   it.each<[string, Record<string, unknown>, boolean]>([
     ['a running process on another machine', { hostname: 'elsewhere' }, false],
     ['an unreadable owner', { version: 'x' }, false],
+    // The wall clock never decides: an owner whose start time looks older
+    // than this boot (a clock that jumped) is respected while it runs
+    [
+      'a running process of this boot whose start time looks older',
+      { startedAt: 500, bootId: 'this-boot' },
+      true,
+    ],
+    [
+      'a running process from 0.6.0 (no boot ID), whatever its start time',
+      { startedAt: 500 },
+      true,
+    ],
   ])('respects a lock held by %s', async (_, owner, alive) => {
     await previousSubset();
     holdLock(owner);
@@ -638,12 +744,14 @@ describe('one filter run at a time', () => {
   });
 
   it.each<[string, Record<string, unknown>]>([
-    ['has exited', {}],
-    ['started before the last boot', { startedAt: 500 }],
+    ['has exited', { bootId: 'this-boot' }],
+    ['has exited (a 0.6.0 lock, no boot ID)', {}],
+    // Its PID is running again, but it ran in an earlier boot
+    ['ran in an earlier boot', { bootId: 'earlier-boot' }],
   ])('takes over a lock whose owner %s', async (_, owner) => {
     await previousSubset();
     holdLock(owner);
-    const alive = owner['startedAt'] === 500;
+    const alive = owner['bootId'] === 'earlier-boot';
 
     await replaceFilteredSubset(workLog, runPlan('B'), { env: env(alive) });
 
@@ -693,13 +801,14 @@ describe('one filter run at a time', () => {
     const removed: string[] = [];
     const fs: SubsetFs = {
       ...nodeSubsetFs,
-      rm: (path) => {
+      removeTree: (path) => {
         removed.push(basename(path));
-        // While the released copy is being removed, another run starts
-        if (!contender && basename(path).startsWith('.filter-lock.released-')) {
+        // While the last released name (`.import-lock`, taken first and
+        // released last) is being removed, another run starts
+        if (!contender && basename(path).startsWith('.import-lock.released-')) {
           contender = replaceFilteredSubset(workLog, runPlan('C'));
         }
-        nodeSubsetFs.rm(path);
+        nodeSubsetFs.removeTree(path);
       },
     };
 
@@ -709,6 +818,13 @@ describe('one filter run at a time', () => {
 
     expect(warnings).toEqual([]);
     expect(removed).not.toContain('.filter-lock');
+    expect(removed).not.toContain('.import-lock');
+    // Released last-taken first: `.filter-lock` was gone before `.import-lock`
+    expect(
+      removed.findIndex((name) => name.startsWith('.filter-lock.released-')),
+    ).toBeLessThan(
+      removed.findIndex((name) => name.startsWith('.import-lock.released-')),
+    );
     // The contender found the lock free and ran normally
     await expect(contender).resolves.toMatchObject({ warnings: [] });
     const state = getFilteredSubsetState(workLog);
@@ -720,7 +836,7 @@ describe('one filter run at a time', () => {
 
   it('never warns that the live lock can be deleted when its removal fails', async () => {
     const { warnings } = await replaceFilteredSubset(workLog, runPlan('A'), {
-      fs: failing('rm', (p) =>
+      fs: failing('removeTree', (p) =>
         basename(p).startsWith('.filter-lock.released-'),
       ),
     });
@@ -751,7 +867,7 @@ describe('one filter run at a time', () => {
       holdLock({ pid: 999 });
       const deadEnv = {
         hostname: 'this-host',
-        bootTime: () => 1_000,
+        bootId: () => 'this-boot',
         isProcessAlive: (pid: number) => pid !== 999,
       };
       let inside = 0;
@@ -834,7 +950,7 @@ describe('one filter run at a time', () => {
     const run = replaceFilteredSubset(workLog, runPlan('A'), {
       env: {
         hostname: 'this-host',
-        bootTime: () => 1_000,
+        bootId: () => 'this-boot',
         isProcessAlive: (pid) => pid !== 999 && pid !== 998,
       },
     });
@@ -870,7 +986,7 @@ describe('one filter run at a time', () => {
     await replaceFilteredSubset(workLog, runPlan('A'), {
       env: {
         hostname: 'this-host',
-        bootTime: () => 1_000,
+        bootId: () => 'this-boot',
         isProcessAlive: (pid) => pid !== 999 && pid !== 1,
       },
     });

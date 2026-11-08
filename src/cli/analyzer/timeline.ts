@@ -1,12 +1,15 @@
-import type {
-  JiraTicketFile,
-  PRImpact,
-  PullRequestFile,
-  TimelineAnalysis,
-  TimelineMonth,
-  TimelinePR,
-  TimelineTicket,
-  TimelineWeek,
+import {
+  type ImportedRecordFile,
+  isDocumentFile,
+  type JiraTicketFile,
+  type PRImpact,
+  type PullRequestFile,
+  type TimelineAnalysis,
+  type TimelineDocument,
+  type TimelineMonth,
+  type TimelinePR,
+  type TimelineTicket,
+  type TimelineWeek,
 } from '@core/index';
 
 import { classifyPRImpact } from './classifier';
@@ -86,14 +89,41 @@ function createEmptyImpactStats(): Record<PRImpact, number> {
   return { flagship: 0, major: 0, standard: 0, minor: 0 };
 }
 
+/** An empty week for the UTC week containing a date */
+function emptyWeek(date: Date): TimelineWeek {
+  const weekStart = getWeekStart(date);
+  return {
+    weekStart: formatDate(weekStart),
+    weekEnd: formatDate(getWeekEnd(date)),
+    weekNumber: getISOWeek(date),
+    year: weekStart.getUTCFullYear(),
+    prs: [],
+    tickets: [],
+    documents: [],
+    stats: {
+      prCount: 0,
+      ticketCount: 0,
+      documentCount: 0,
+      additions: 0,
+      deletions: 0,
+      byImpact: createEmptyImpactStats(),
+    },
+  };
+}
+
 /**
- * Generate a chronological timeline of work
+ * Generate a chronological timeline of work: authored PRs and tickets, plus
+ * imported Google Docs (by modified time, listed apart: the subject owns
+ * them, which is not authoring them). Imported messages are not included.
+ *
+ * @param importedRecords - Imported records; only documents are used
  */
 export function generateTimeline(
   prs: PullRequestFile[],
   tickets: JiraTicketFile[],
   since: string,
   until: string,
+  importedRecords: ImportedRecordFile[] = [],
 ): TimelineAnalysis {
   // Convert PRs to timeline entries
   const timelinePRs: Array<TimelinePR & { dateObj: Date }> = prs.map((pr) => {
@@ -140,23 +170,7 @@ export function generateTimeline(
     const weekStart = getWeekStart(pr.dateObj);
     const weekKey = formatDate(weekStart);
 
-    if (!weekMap.has(weekKey)) {
-      weekMap.set(weekKey, {
-        weekStart: weekKey,
-        weekEnd: formatDate(getWeekEnd(pr.dateObj)),
-        weekNumber: getISOWeek(pr.dateObj),
-        year: weekStart.getUTCFullYear(),
-        prs: [],
-        tickets: [],
-        stats: {
-          prCount: 0,
-          ticketCount: 0,
-          additions: 0,
-          deletions: 0,
-          byImpact: createEmptyImpactStats(),
-        },
-      });
-    }
+    if (!weekMap.has(weekKey)) weekMap.set(weekKey, emptyWeek(pr.dateObj));
 
     const week = weekMap.get(weekKey);
     if (week) {
@@ -177,21 +191,7 @@ export function generateTimeline(
     const weekKey = formatDate(weekStart);
 
     if (!weekMap.has(weekKey)) {
-      weekMap.set(weekKey, {
-        weekStart: weekKey,
-        weekEnd: formatDate(getWeekEnd(ticket.dateObj)),
-        weekNumber: getISOWeek(ticket.dateObj),
-        year: weekStart.getUTCFullYear(),
-        prs: [],
-        tickets: [],
-        stats: {
-          prCount: 0,
-          ticketCount: 0,
-          additions: 0,
-          deletions: 0,
-          byImpact: createEmptyImpactStats(),
-        },
-      });
+      weekMap.set(weekKey, emptyWeek(ticket.dateObj));
     }
 
     const week = weekMap.get(weekKey);
@@ -200,6 +200,26 @@ export function generateTimeline(
       const { dateObj: _, ...ticketWithoutDateObj } = ticket;
       week.tickets.push(ticketWithoutDateObj);
       week.stats.ticketCount++;
+    }
+  }
+
+  for (const record of importedRecords.filter(isDocumentFile)) {
+    const fm = record.frontmatter;
+    const dateObj = new Date(fm.occurredAt);
+    const weekKey = formatDate(getWeekStart(dateObj));
+    if (!weekMap.has(weekKey)) weekMap.set(weekKey, emptyWeek(dateObj));
+    const week = weekMap.get(weekKey);
+    if (week) {
+      const entry: TimelineDocument = {
+        source: fm.source,
+        title: fm.document.title,
+        url: fm.url,
+        createdAt: fm.document.createdAt,
+        modifiedAt: fm.occurredAt,
+        date: formatDate(dateObj),
+      };
+      week.documents.push(entry);
+      week.stats.documentCount++;
     }
   }
 
@@ -212,6 +232,7 @@ export function generateTimeline(
   for (const week of sortedWeeks) {
     week.prs.sort((a, b) => a.date.localeCompare(b.date));
     week.tickets.sort((a, b) => a.date.localeCompare(b.date));
+    week.documents.sort((a, b) => a.modifiedAt.localeCompare(b.modifiedAt));
   }
 
   // Group weeks into months
@@ -230,6 +251,7 @@ export function generateTimeline(
         stats: {
           prCount: 0,
           ticketCount: 0,
+          documentCount: 0,
           additions: 0,
           deletions: 0,
           byImpact: createEmptyImpactStats(),
@@ -242,6 +264,7 @@ export function generateTimeline(
       month.weeks.push(week);
       month.stats.prCount += week.stats.prCount;
       month.stats.ticketCount += week.stats.ticketCount;
+      month.stats.documentCount += week.stats.documentCount;
       month.stats.additions += week.stats.additions;
       month.stats.deletions += week.stats.deletions;
       month.stats.byImpact.flagship += week.stats.byImpact.flagship;

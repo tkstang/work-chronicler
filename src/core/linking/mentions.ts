@@ -66,6 +66,9 @@ export interface MentionIndex {
 
 /**
  * Index a work log's PRs by canonical URL and tickets by upper-case key.
+ * A key held by tickets from two JIRA instances (`org`) names neither for
+ * certain, so it is left out: its mentions stay unresolved rather than
+ * pointing at whichever ticket was read first.
  *
  * @param prs - Authored PRs in the work log
  * @param tickets - Tickets in the work log
@@ -80,10 +83,16 @@ export function buildMentionIndex(
     if (key && !pullRequests.has(key)) pullRequests.set(key, pr);
   }
   const ticketMap = new Map<string, JiraTicketFile>();
+  const ambiguous = new Set<string>();
   for (const ticket of tickets) {
     const key = ticket.frontmatter.key.toUpperCase();
-    if (!ticketMap.has(key)) ticketMap.set(key, ticket);
+    const first = ticketMap.get(key);
+    if (!first) ticketMap.set(key, ticket);
+    else if (first.frontmatter.org !== ticket.frontmatter.org) {
+      ambiguous.add(key);
+    }
   }
+  for (const key of ambiguous) ticketMap.delete(key);
   return { pullRequests, tickets: ticketMap };
 }
 

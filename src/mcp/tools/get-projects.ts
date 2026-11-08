@@ -8,7 +8,7 @@ import { defineTool, jsonResult, PR_TICKET_COVERAGE } from './types';
 export const getProjectsTool = defineTool({
   name: 'get_projects',
   description:
-    'Get detected project groupings that cluster related authored PRs and tickets (PR reviews given and imported messages are not included)',
+    'Get detected project groupings that cluster related authored PRs and tickets (PR reviews given, imported messages and imported Google Docs are not included)',
   inputSchema: {
     confidence: z
       .enum(['high', 'medium', 'low'])

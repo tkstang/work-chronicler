@@ -1,6 +1,7 @@
 import {
   buildMentionIndex,
   type Config,
+  ImportInProgressError,
   type JiraTicketFile,
   normalizePullRequestUrl,
   readAllImportedRecords,
@@ -42,7 +43,17 @@ async function resolveImportedMentions(
   outputDir: string,
   index: ReturnType<typeof buildMentionIndex>,
 ): Promise<LinkResult['mentions']> {
-  const records = await readAllImportedRecords(outputDir);
+  let records: Awaited<ReturnType<typeof readAllImportedRecords>>;
+  try {
+    records = await readAllImportedRecords(outputDir);
+  } catch (error) {
+    // Mentions are only reported: say why they were not, and link the rest
+    if (!(error instanceof ImportInProgressError)) throw error;
+    console.warn(
+      `Warning: Mentions in imported records were not checked. ${error.message}`,
+    );
+    return { records: 0, resolved: 0, unresolved: 0 };
+  }
   let resolved = 0;
   let unresolved = 0;
   for (const record of records) {

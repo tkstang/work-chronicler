@@ -8,6 +8,7 @@ import { CliError, handleCliError } from '@cli/errors';
 import { analyzeCommand } from '@commands/analyze';
 import { fetchCommand } from '@commands/fetch/index';
 import { filterCommand } from '@commands/filter/index';
+import { googleDocsCommand } from '@commands/google-docs/index';
 import { importCommand } from '@commands/import/index';
 import { initCommand } from '@commands/init/index';
 import { linkCommand } from '@commands/link';
@@ -100,6 +101,7 @@ function createProgram(): Command {
   program.addCommand(workspaceCommand);
   program.addCommand(skillsCommand);
   program.addCommand(slackCommand);
+  program.addCommand(googleDocsCommand);
 
   return program;
 }

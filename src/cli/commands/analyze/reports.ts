@@ -128,29 +128,35 @@ export const reportsCommand = new Command('reports')
         throw new Error('Failed to generate current date');
       }
 
-      let since: string = today;
-      let until: string = today;
-
-      if (prs.length > 0) {
-        const dates = prs
-          .map((pr) => pr.frontmatter.mergedAt || pr.frontmatter.createdAt)
-          .filter((d): d is string => Boolean(d))
-          .map((d) => {
-            const datePart = d.split('T')[0];
-            return datePart;
-          })
+      /** The first and last day (YYYY-MM-DD) of some dates, or today */
+      const rangeOf = (dates: string[]) => {
+        const days = dates
+          .map((d) => d.split('T')[0])
           .filter((d): d is string => Boolean(d))
           .sort();
+        return {
+          since: days[0] ?? today,
+          until: days[days.length - 1] ?? today,
+        };
+      };
+      const prDates = prs
+        .map((pr) => pr.frontmatter.mergedAt || pr.frontmatter.createdAt)
+        .filter((d): d is string => Boolean(d));
+      const importedDates = importedRecords.map(
+        (record) => record.frontmatter.occurredAt,
+      );
+      const documentDates = importedRecords
+        .filter((record) => record.frontmatter.type === 'document')
+        .map((record) => record.frontmatter.occurredAt);
 
-        if (dates.length > 0) {
-          const firstDate = dates[0];
-          const lastDate = dates[dates.length - 1];
-          if (firstDate && lastDate) {
-            since = firstDate;
-            until = lastDate;
-          }
-        }
-      } else {
+      // Projects cover PRs (and tickets) only; the timeline also lists
+      // Google Docs (by modified time), and stats.json counts messages and
+      // Docs, so their ranges span those too
+      const { since, until } = rangeOf(prDates);
+      const timelineRange = rangeOf([...prDates, ...documentDates]);
+      const statsRange = rangeOf([...prDates, ...importedDates]);
+
+      if (prs.length === 0) {
         console.log(
           chalk.yellow(
             'Warning: No date range found in data, using current date',
@@ -159,6 +165,11 @@ export const reportsCommand = new Command('reports')
       }
 
       console.log(`${chalk.gray('Date range:')} ${since} to ${until}`);
+      if (statsRange.since !== since || statsRange.until !== until) {
+        console.log(
+          `${chalk.gray('Statistics, with messages and Google Docs:')} ${statsRange.since} to ${statsRange.until}`,
+        );
+      }
       console.log();
 
       // Classify once, before any output, so the PR files, stats.json and
@@ -207,7 +218,13 @@ export const reportsCommand = new Command('reports')
 
       // Generate stats
       spinner.start('Generating statistics...');
-      const stats = generateStats(prs, tickets, since, until, importedRecords);
+      const stats = generateStats(
+        prs,
+        tickets,
+        statsRange.since,
+        statsRange.until,
+        importedRecords,
+      );
       spinner.succeed('Generated statistics');
 
       // Write stats file
@@ -248,7 +265,14 @@ export const reportsCommand = new Command('reports')
       if (stats.messages.total > 0) {
         console.log(chalk.bold('Imported Messages:'));
         console.log(
-          `  Total: ${chalk.cyan(stats.messages.total)} (supplementary evidence; projects and the timeline cover PRs and tickets only)`,
+          `  Total: ${chalk.cyan(stats.messages.total)} (supplementary evidence; projects and the timeline do not include messages)`,
+        );
+        console.log();
+      }
+      if (stats.documents.total > 0) {
+        console.log(chalk.bold('Imported Google Docs:'));
+        console.log(
+          `  Total: ${chalk.cyan(stats.documents.total)} (Docs the report owns, by modified time; supplementary evidence; the timeline lists them, projects do not)`,
         );
         console.log();
       }
@@ -313,7 +337,13 @@ export const reportsCommand = new Command('reports')
       if (analyzeOpts.timeline) {
         console.log();
         spinner.start('Generating timeline...');
-        const timeline = generateTimeline(prs, tickets, since, until);
+        const timeline = generateTimeline(
+          prs,
+          tickets,
+          timelineRange.since,
+          timelineRange.until,
+          importedRecords,
+        );
         spinner.succeed(
           `Generated timeline: ${chalk.cyan(timeline.summary.totalMonths)} months, ${chalk.cyan(timeline.summary.totalWeeks)} weeks`,
         );

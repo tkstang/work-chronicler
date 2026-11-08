@@ -8,6 +8,14 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import {
+  messageFrontmatter,
+  recordFile,
+} from '@core/import/import.test-support';
+import {
+  parseImportedRecordFile,
+  serializeImportedRecord,
+} from '@core/import/record-file';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Isolate HOME and the workspace so nothing here touches ~/.work-chronicler.
@@ -105,6 +113,48 @@ describe('analyze reports --tag-prs', () => {
     ]);
 
     expect(await tagAlicesPR()).toBe('major');
+  });
+
+  it('spans the messages it counts in the stats.json date range', async () => {
+    writeManagerConfig([]);
+    const { getImportedRecordFilePath, getImportedRecordIdentity } =
+      await import('@core/index');
+    const reportDir = join(
+      workspace,
+      'profiles',
+      'team-leads',
+      'reports',
+      'alice-smith',
+    );
+    // A message from before the report's only PR (merged 2025-03-05)
+    const parsed = parseImportedRecordFile(
+      Buffer.from(
+        recordFile(
+          messageFrontmatter(1, {
+            occurredAt: '2025-01-20T10:00:00Z',
+            subject: { kind: 'report', reportId: 'alice-smith' },
+          }),
+        ),
+      ),
+    );
+    if (!parsed.ok) throw new Error('fixture must be valid');
+    const path = getImportedRecordFilePath(
+      join(reportDir, 'work-log'),
+      getImportedRecordIdentity(parsed.record),
+    );
+    mkdirSync(join(path, '..'), { recursive: true });
+    writeFileSync(path, serializeImportedRecord(parsed.record, parsed.body));
+
+    await tagAlicesPR();
+
+    const stats = JSON.parse(
+      readFileSync(join(reportDir, 'analysis', 'stats.json'), 'utf8'),
+    );
+    expect(stats.messages.total).toBe(1);
+    expect(stats.dateRange).toEqual({
+      since: '2025-01-20',
+      until: '2025-03-05',
+    });
   });
 
   it('uses the default thresholds when the config sets none', async () => {

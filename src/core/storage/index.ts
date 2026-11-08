@@ -10,12 +10,12 @@ export {
   FilterSelectionSchema,
   getEffectiveOutputDir,
   getFilteredSubsetState,
-  nodeSubsetEnv,
+  InterruptedImportError,
   nodeSubsetFs,
   readFilterLock,
   readFilterSelection,
+  readWorkLogLockHolders,
   replaceFilteredSubset,
-  type SubsetEnv,
   type SubsetFile,
   type SubsetFs,
   type SubsetPlan,
@@ -33,10 +33,12 @@ export {
   getPRFilePath,
   getPRReviewFilePath,
   getTicketFilePath,
+  IMPORT_TRANSACTION_DIRECTORY,
   IMPORTED_RECORD_DIRECTORIES,
 } from './paths';
 
 export {
+  ImportInProgressError,
   nodeReaderFs,
   readAllImportedRecords,
   readAllPRReviews,

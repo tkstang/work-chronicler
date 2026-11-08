@@ -18,6 +18,7 @@ import { getImportedRecordFilePath } from '@storage/paths';
 import { stringify } from 'yaml';
 
 import { type ImportFs, nodeImportFs } from './import-fs';
+import type { ImportRangeInput } from './range';
 import {
   parseImportedRecordFile,
   serializeImportedRecord,
@@ -42,7 +43,8 @@ export function messageFrontmatter(
     sourceAccount: 'T0SYNTH01',
     sourceId: `C0SYNTH01/${ts}`,
     url: null,
-    occurredAt: '2026-03-02T10:00:00Z',
+    // The time of the ts above (1700000000), as Slack rules require
+    occurredAt: '2023-11-14T22:13:20Z',
     updatedAt: null,
     capturedAt: '2026-03-05T09:00:00Z',
     subject: { kind: 'ic' },
@@ -76,6 +78,65 @@ export const SYNTH_SOURCES: ImportSourceSettings = {
       },
     ],
   },
+};
+
+/** The synthetic Google account that owns {@link documentFrontmatter}'s Docs */
+export const SYNTH_GOOGLE_ACCOUNT = 'synthetic.owner@example.com';
+
+/**
+ * A synthetic, valid Google Docs record's frontmatter: a Doc owned by
+ * {@link SYNTH_GOOGLE_ACCOUNT}, created before {@link SYNTH_RANGE} and
+ * modified inside it. `n` varies the identity.
+ */
+export function documentFrontmatter(
+  n = 1,
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    schemaVersion: 1,
+    type: 'document',
+    source: 'google-docs',
+    sourceAccount: SYNTH_GOOGLE_ACCOUNT,
+    sourceId: `1SynthDoc${String(n).padStart(6, '0')}AbCdEf`,
+    url: null,
+    occurredAt: '2026-03-02T10:00:00Z',
+    updatedAt: '2026-03-02T10:00:00Z',
+    capturedAt: '2026-03-05T09:00:00Z',
+    subject: { kind: 'ic' },
+    attribution: { status: 'unverified', authorId: null },
+    mentions: { tickets: [], pullRequests: [] },
+    document: {
+      title: 'Synthetic design doc',
+      mimeType: 'application/vnd.google-apps.document',
+      createdAt: '2025-11-01T08:00:00Z',
+      owners: [SYNTH_GOOGLE_ACCOUNT],
+      driveId: null,
+      truncated: false,
+    },
+    ...overrides,
+  };
+}
+
+/** The identity of the synthetic Doc numbered `n` */
+export function docIdentity(n: number) {
+  return {
+    type: 'document',
+    source: 'google-docs',
+    sourceAccount: SYNTH_GOOGLE_ACCOUNT,
+    sourceId: `1SynthDoc${String(n).padStart(6, '0')}AbCdEf`,
+  } as const;
+}
+
+/** Slack settings plus Google Docs for {@link SYNTH_GOOGLE_ACCOUNT} */
+export const SYNTH_DOCS_SOURCES: ImportSourceSettings = {
+  slack: SYNTH_SOURCES.slack,
+  googleDocs: { account: SYNTH_GOOGLE_ACCOUNT },
+};
+
+/** A fetch range that holds {@link documentFrontmatter}'s modified time */
+export const SYNTH_RANGE: ImportRangeInput = {
+  since: '2026-01-01',
+  until: '2026-06-30',
 };
 
 /** A staged record file's bytes */

@@ -7,7 +7,7 @@ import {
 } from '@core/index';
 import { z } from 'zod';
 
-import { defineTool, jsonResult, PR_TICKET_COVERAGE } from './types';
+import { defineTool, jsonResult, TIMELINE_COVERAGE } from './types';
 
 interface TimelineFile {
   months: TimelineMonth[];
@@ -22,7 +22,7 @@ interface TimelineFile {
 export const getTimelineTool = defineTool({
   name: 'get_timeline',
   description:
-    'Get chronological timeline of authored PRs and tickets grouped by week or month (PR reviews given and imported messages are not included)',
+    'Get chronological timeline of authored PRs and tickets grouped by week or month, with imported Google Docs the subject owns listed apart by modified time (PR reviews given and imported messages are not included)',
   inputSchema: {
     granularity: z
       .enum(['week', 'month'])
@@ -73,7 +73,7 @@ export const getTimelineTool = defineTool({
         total: totalCount,
         returned: periods.length,
         summary: timelineData.summary,
-        coverage: PR_TICKET_COVERAGE,
+        coverage: TIMELINE_COVERAGE,
       });
     } catch {
       return jsonResult({

@@ -1,10 +1,12 @@
-import { toCliError } from '@cli/errors';
+import { CliError, toCliError } from '@cli/errors';
 import {
   clearFilteredSubset,
   FilteredSubsetNotRestoredError,
   findConfigPath,
   getOutputDirectory,
   loadConfig,
+  type PRImpact,
+  PRImpactSchema,
 } from '@core/index';
 import { promptFilterInteractive } from '@prompts';
 import chalk from 'chalk';
@@ -21,6 +23,32 @@ function ratio(part: number, whole: number): string {
   return whole > 0
     ? `${part} / ${whole} (${Math.round((part / whole) * 100)}%)`
     : `${part} / ${whole}`;
+}
+
+function refuseOption(message: string): never {
+  throw new CliError(
+    `${chalk.red('Error:')} ${message} The filtered subset was not changed.`,
+  );
+}
+
+/** An impact level option, refused unless it names a level */
+function impactLevel(flag: string, value: string): PRImpact {
+  const parsed = PRImpactSchema.safeParse(value);
+  if (!parsed.success) {
+    refuseOption(
+      `${flag} "${value}" is not an impact level; use one of ${PRImpactSchema.options.join(', ')}.`,
+    );
+  }
+  return parsed.data;
+}
+
+/** `--min-loc`, refused unless it is a whole number of lines */
+function minLines(value: string | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  if (!/^\d+$/.test(value.trim())) {
+    refuseOption(`--min-loc "${value}" is not a whole number of lines.`);
+  }
+  return Number(value.trim());
 }
 
 function printWarnings(warnings: string[]): void {
@@ -42,7 +70,7 @@ export const filterCommand = new Command('filter')
     '--min-impact <level>',
     'Minimum impact level to include (minor, standard, major, flagship)',
   )
-  .option('--min-loc <lines>', 'Minimum lines of code changed', parseInt)
+  .option('--min-loc <lines>', 'Minimum lines of code changed')
   .option(
     '--linked-only',
     'Only include PRs linked to tickets, tickets linked to PRs, and messages mentioning either',
@@ -83,10 +111,17 @@ export const filterCommand = new Command('filter')
 
       console.log(chalk.cyan('Filtering work-log...\n'));
 
+      // Checked before the work log is read: a mistyped value would
+      // otherwise drop its restriction and publish a broader subset
       const criteria: FilterCriteria = {
-        excludeImpact: options.excludeImpact,
-        minImpact: options.minImpact,
-        minLoc: options.minLoc,
+        excludeImpact: (options.excludeImpact as string[] | undefined)?.map(
+          (level) => impactLevel('--exclude-impact', level),
+        ),
+        minImpact:
+          options.minImpact === undefined
+            ? undefined
+            : impactLevel('--min-impact', options.minImpact),
+        minLoc: minLines(options.minLoc),
         linkedOnly: options.linkedOnly,
         mergedOnly: options.mergedOnly,
         excludeStatus: options.excludeStatus,

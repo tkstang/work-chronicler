@@ -1,8 +1,11 @@
 import * as fs from 'node:fs/promises';
 
+import { countDocuments, countMessages } from '@analyzer/stats';
 import {
   DIRECTORIES,
   getAnalysisFilePath,
+  isDocumentFile,
+  isMessageFile,
   readAllImportedRecords,
   readAllPRs,
   readAllTickets,
@@ -13,6 +16,7 @@ import {
   defineTool,
   jsonResult,
   parseAndValidateDate,
+  parseUntilDate,
   subsetGapNote,
   textResult,
 } from './types';
@@ -20,20 +24,28 @@ import {
 export const getStatsTool = defineTool({
   name: 'get_stats',
   description:
-    'Get summary statistics about work history, optionally filtered by date range. Imported messages are counted in their own section, never as PRs or tickets',
+    'Get summary statistics about work history, optionally filtered by date range. Imported messages and imported Google Docs (Docs the subject owns, dated by modified time) are counted in their own sections, never as PRs or tickets',
   inputSchema: {
     since: z.string().optional().describe('Start date (ISO format)'),
-    until: z.string().optional().describe('End date (ISO format)'),
+    until: z
+      .string()
+      .optional()
+      .describe(
+        'End date (ISO format; a date alone includes that whole UTC day)',
+      ),
   },
   handler: async (input, { outputDir, fullOutputDir }) => {
-    // A subset made before messages were imported counts none: say why
-    const gap = subsetGapNote(
-      outputDir,
-      fullOutputDir ?? outputDir,
-      DIRECTORIES.MESSAGES,
+    // A subset made before messages or Docs were imported counts none: say
+    // why
+    const gaps = [DIRECTORIES.MESSAGES, DIRECTORIES.DOCUMENTS].flatMap(
+      (directory) =>
+        subsetGapNote(outputDir, fullOutputDir ?? outputDir, directory) ?? [],
     );
+    const gap = gaps.length > 0 ? gaps.join(' ') : undefined;
 
-    // Without a date filter, return the generated stats.json verbatim
+    // Without a date filter, return the generated stats.json, with its
+    // messages and Docs counted afresh: those imported after the analysis
+    // ran are counted, as the computed statistics count them
     if (!input.since && !input.until) {
       let text: string | undefined;
       try {
@@ -43,17 +55,36 @@ export const getStatsTool = defineTool({
         // Fall through to compute stats
       }
       if (text !== undefined) {
-        return gap
-          ? jsonResult({ ...JSON.parse(text), note: gap })
-          : textResult(text);
+        let cached: unknown;
+        try {
+          cached = JSON.parse(text);
+        } catch {
+          // Not JSON: returned as it is
+        }
+        if (
+          typeof cached !== 'object' ||
+          cached === null ||
+          Array.isArray(cached)
+        ) {
+          return textResult(text);
+        }
+        const imported = await readAllImportedRecords(outputDir);
+        return jsonResult({
+          ...cached,
+          messages: countMessages(imported),
+          documents: countDocuments(imported),
+          ...(gap ? { note: gap } : {}),
+        });
       }
     }
 
     let prs = await readAllPRs(outputDir);
     let tickets = await readAllTickets(outputDir);
-    let messages = (await readAllImportedRecords(outputDir)).filter(
-      (record) => record.frontmatter.type === 'message',
-    );
+    const imported = await readAllImportedRecords(outputDir);
+    let messages = imported.filter(isMessageFile);
+    // Dated by modified time (occurredAt): a Doc created before the range
+    // but modified inside it is counted
+    let documents = imported.filter(isDocumentFile);
 
     if (input.since) {
       const sinceDate = parseAndValidateDate(input.since, 'since');
@@ -64,16 +95,22 @@ export const getStatsTool = defineTool({
       messages = messages.filter(
         (m) => new Date(m.frontmatter.occurredAt) >= sinceDate,
       );
+      documents = documents.filter(
+        (d) => new Date(d.frontmatter.occurredAt) >= sinceDate,
+      );
     }
 
     if (input.until) {
-      const untilDate = parseAndValidateDate(input.until, 'until');
+      const untilDate = parseUntilDate(input.until, 'until');
       prs = prs.filter((pr) => new Date(pr.frontmatter.createdAt) <= untilDate);
       tickets = tickets.filter(
         (t) => new Date(t.frontmatter.createdAt) <= untilDate,
       );
       messages = messages.filter(
         (m) => new Date(m.frontmatter.occurredAt) <= untilDate,
+      );
+      documents = documents.filter(
+        (d) => new Date(d.frontmatter.occurredAt) <= untilDate,
       );
     }
 
@@ -119,12 +156,22 @@ export const getStatsTool = defineTool({
       messagesBySource[source] = (messagesBySource[source] ?? 0) + 1;
     }
 
+    const documentsBySource: Record<string, number> = {};
+    for (const document of documents) {
+      const source = document.frontmatter.source;
+      documentsBySource[source] = (documentsBySource[source] ?? 0) + 1;
+    }
+
+    // Everything counted, messages and Docs included, ordered by time (the
+    // sources write dates in different formats)
     const sortedDates = [
       ...prs.map((pr) => pr.frontmatter.createdAt),
       ...tickets.map((t) => t.frontmatter.createdAt),
+      ...messages.map((m) => m.frontmatter.occurredAt),
+      ...documents.map((d) => d.frontmatter.occurredAt),
     ]
-      .filter(Boolean)
-      .sort();
+      .filter((date) => date && !Number.isNaN(new Date(date).getTime()))
+      .sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
 
     const prsWithTickets = prs.filter(
       (pr) => pr.frontmatter.jiraTickets?.length,
@@ -152,6 +199,11 @@ export const getStatsTool = defineTool({
       messages: {
         total: messages.length,
         bySource: messagesBySource,
+      },
+      // Docs the subject owns (not necessarily wrote), by modified time
+      documents: {
+        total: documents.length,
+        bySource: documentsBySource,
       },
       dateRange: {
         earliest: sortedDates[0] ?? null,

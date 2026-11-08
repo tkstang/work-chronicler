@@ -9,23 +9,25 @@ import {
 } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 
-import { getImportedRecordFilePath } from '@storage/paths';
-import { afterEach, describe, expect, it } from 'vitest';
-
-import { createImportEnv } from './import-fs';
+import { createImportEnv } from '@core/import/import-fs';
 import {
   caseInsensitiveTmp,
   fsError,
   hookedFs,
   makeWorld,
   messageFrontmatter,
+  recordFile,
   SECRET,
   slackIdentity,
   snapshot,
   stage,
   storeRecord,
   SYNTH_SOURCES,
-} from './import.test-support';
+} from '@core/import/import.test-support';
+import { getImportedRecordFilePath } from '@storage/paths';
+import { scanImportedRecords } from '@storage/reader';
+import { afterEach, describe, expect, it } from 'vitest';
+
 import { type ImportRunOptions, runImport } from './index';
 
 // Threat-matrix coverage for the read-only half of import: staging reads,
@@ -219,6 +221,47 @@ describe('validate: staging directory threats', () => {
     });
 
     expect(codes(result)).toEqual(['BATCH_TOO_LARGE']);
+  });
+
+  it('rejects a batch over the total size limit, and stops reading at the limit', () => {
+    // 100 near-1 MiB records (about 2 MiB each in memory, as the stored form
+    // plus the body), served without writing them to disk
+    const w = world();
+    const names = Array.from({ length: 100 }, (_, i) => `${i}.md`);
+    const body = 'x'.repeat(1024 * 1024 - 2048);
+    const file = (name: string) =>
+      Buffer.from(
+        recordFile(messageFrontmatter(Number.parseInt(name, 10) + 1), body),
+      );
+    let reads = 0;
+    const env = createImportEnv();
+    const real = env.fs;
+    const inStaging = (path: string) => dirname(path) === w.staging;
+    env.fs = {
+      ...real,
+      readdir: (path) => (path === w.staging ? names : real.readdir(path)),
+      lstat: (path) =>
+        inStaging(path)
+          ? { ...real.lstat(w.staging), kind: 'file', size: 1024n * 1024n }
+          : real.lstat(path),
+      readFile: (path, max) => {
+        if (!inStaging(path)) return real.readFile(path, max);
+        reads++;
+        const { dev, ino } = real.lstat(w.staging);
+        return { data: file(basename(path)), dev, ino };
+      },
+    };
+
+    const result = validate({
+      stagingDir: w.staging,
+      workLogRoot: w.workLog,
+      env,
+    });
+
+    expect(codes(result)).toEqual(['BATCH_TOO_LARGE']);
+    expect(result.issues[0]?.message).toContain('split it');
+    expect(result.records).toEqual([]);
+    expect(reads).toBeLessThan(40);
   });
 
   it('rejects a staging file replaced between listing and reading', () => {
@@ -481,6 +524,52 @@ describe('validate: destination threats', () => {
       expect(codes(result)).toEqual(['UNSAFE_DESTINATION']);
     },
   );
+
+  it('refuses a stored file whose name differs only in letter case, which readers skip', () => {
+    const w = world();
+    const dest = getImportedRecordFilePath(w.workLog, slackIdentity(1));
+    // The hash in upper case: ABC….md
+    const upperHash = (path: string) =>
+      join(dirname(path), `${basename(path, '.md').toUpperCase()}.md`);
+    const upper = upperHash(dest);
+    renameSync(storeRecord(w.workLog, 1, 'Same body.'), upper);
+    stage(w.staging, 'a.md', messageFrontmatter(1), 'Same body.');
+    // A volume that ignores letter case, on any platform: a path whose
+    // file is missing finds the file named in upper case
+    const env = createImportEnv();
+    const real = env.fs;
+    const caseless =
+      <T>(read: (path: string) => T) =>
+      (path: string) => {
+        try {
+          return read(path);
+        } catch (error) {
+          if ((error as { code?: string }).code !== 'ENOENT') throw error;
+          return read(upperHash(path));
+        }
+      };
+    env.fs = {
+      ...real,
+      lstat: caseless(real.lstat),
+      readFile: (path, max) => caseless((p) => real.readFile(p, max))(path),
+    };
+
+    const result = validate({
+      stagingDir: w.staging,
+      workLogRoot: w.workLog,
+      env,
+    });
+
+    // Readers never see it as the record, so import must not call the
+    // record unchanged (stored) either
+    expect(scanImportedRecords(w.workLog).skipped).toEqual([
+      expect.objectContaining({
+        reason: 'is not stored where its identity puts it',
+      }),
+    ]);
+    expect(codes(result)).toEqual(['IDENTITY_CONFLICT']);
+    expect(result.issues[0]?.message).toContain('letter case');
+  });
 
   it.skipIf(!caseInsensitiveTmp)(
     'treats a differently cased existing directory as the same directory',

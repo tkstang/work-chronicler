@@ -63,6 +63,7 @@ example.
 | `fetch.until` | no | End date, or `null` for today. |
 | `analysis.thresholds` | no | Override the impact size thresholds (see below). |
 | `slack` | no | Slack settings for the Slack import skills (see below). Absent means no Slack records are imported. |
+| `googleDocs` | no | Google Docs settings for the Google Docs import skill (see below). Absent means no Google Docs records are imported. |
 
 JIRA fetches tickets in each project that are assigned to you and were created
 inside the date range.
@@ -90,8 +91,8 @@ slack:
 
 | Field | Required | Meaning |
 | --- | --- | --- |
-| `slack.workspace` | yes | The workspace: its team ID, `T…` (or `E…` for an Enterprise org), or, when no Slack tool shows the ID, its URL label: the first part of its host name, in lower case (`example` for `example.slack.com` or `example.enterprise.slack.com`). Records' `sourceAccount` must be exactly this value, so keep it once messages are imported. |
-| `slack.user` | yes | Your Slack user ID, `U…` or `W…`. Only messages this user wrote are imported. |
+| `slack.workspace` | yes | The workspace: its team ID, `T…` (or `E…` for an Enterprise org), or, when no Slack tool shows the ID, its URL label: the first part of its host name, in lower case (`example` for `example.slack.com` or `example.enterprise.slack.com`). Records' `sourceAccount` must be exactly this value, so keep it once messages are imported. With a URL label, only permalinks on that label's host are accepted: in an Enterprise Grid org, messages from channels whose permalinks use another workspace's host (`team-a.slack.com`) are refused, so configure the team or `E…` org ID when a Slack tool shows it, or only channels on the label's host. |
+| `slack.user` | yes | Your Slack user ID, `U…` or `W…`. Only messages this user wrote are imported. `slack configure` refuses another user while the work log holds Slack messages by a different user. |
 | `slack.channels[].id` | yes | Channel ID, `C…` or `G…`. Direct messages (`D…`) are never allowed. |
 | `slack.channels[].name` | yes | Channel name without `#`. Group direct messages (`mpdm-…`) are never allowed. |
 | `slack.channels[].reason` | yes | One line saying why the channel holds review-relevant work. |
@@ -101,6 +102,30 @@ A manager profile keeps the same section under each report (`reports[].slack`),
 naming the report's Slack user, and each report channel also has
 `sharedWithManager: true`: the manager confirmed they and the report are both
 members. See [Manager mode](manager-mode.md#slack-for-a-report).
+
+### Google Docs
+
+Google Docs import is opt-in. The `googleDocs` section names the Google
+account whose Docs an import skill may collect: only Google Docs that account
+owns, modified inside the `fetch` range, are imported, and `import` refuses
+any other. The CLI never contacts Google and never stores Google credentials.
+Set it with `google-docs configure` (see [Google Docs](commands.md#google-docs))
+rather than by hand.
+
+```yaml
+googleDocs:
+  account: you@example.com   # the Google account that owns the Docs
+```
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `googleDocs.account` | yes | The subject's Google account email address, read in lower case. Records' `sourceAccount` and the Doc's owner must be this account. `google-docs configure` refuses another account while the work log holds Docs owned by a different one. |
+
+A manager profile keeps the same section under each report
+(`reports[].googleDocs`), naming the report's account, which is not the account
+the skill reads Drive as: it reads as the manager, so only Docs the report owns
+and shared with the manager can be found. See
+[Manager mode](manager-mode.md#google-docs-for-a-report).
 
 ### Names
 
@@ -177,7 +202,8 @@ analysis:
         ├── pull-requests/<org>/<repo>/<YYYY-MM-DD>_<number>.md
         ├── pr-reviews/<org>/<repo>/<number>.md   # reviews you gave, from `fetch github --reviews`
         ├── jira/<instance>/<project>/<KEY>.md
-        ├── messages/<source>/<hash>.md   # records stored by `import`
+        ├── messages/<source>/<hash>.md   # messages stored by `import`
+        ├── documents/<source>/<hash>.md  # Google Docs stored by `import`
         ├── notes/               # your own notes, read by skills
         ├── performance-reviews/ # past reviews you add, read by skills
         ├── resumes/             # an existing resume, for update-resume
@@ -186,12 +212,15 @@ analysis:
 ```
 
 `init` creates `notes/`, `performance-reviews/` and `.analysis/`; create
-`resumes/` yourself. While `import` runs, the work log also holds
-`.import-lock/` and `.import-transaction/`; see
-[Import](commands.md#import). When `filtered/` exists, even empty, `analyze` asks whether to use it,
-and the MCP server reads it instead of the full work log. While `filter`
-replaces the subset, the work log briefly holds `.filter-lock/`, `.filter-staging-<id>/` and
-`.filter-previous-<id>/`; see [Link, analyze and filter](commands.md#link-analyze-and-filter).
+`resumes/` yourself. While `import`, `filter` or `filter --clear` runs, the
+work log holds the work-log lock, `.import-lock/` and `.filter-lock/` (one
+run at a time). While `import` stores a batch, or after one was interrupted,
+it also holds `.import-transaction/`, and imported records are not read until
+it is gone; see [Import](commands.md#import). When `filtered/` exists, even
+empty, `analyze` asks whether to use it, and the MCP server reads it instead
+of the full work log. While `filter` replaces the subset, the work log
+briefly holds `.filter-staging-<id>/` and `.filter-previous-<id>/`; see
+[Link, analyze and filter](commands.md#link-analyze-and-filter).
 
 Manager profiles use a different layout under `reports/<id>/`; see
 [Manager mode](manager-mode.md).

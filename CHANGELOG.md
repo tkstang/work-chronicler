@@ -7,6 +7,197 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-08
+
+### Added
+
+- Google Docs you own can be imported as supplementary evidence. A new
+  `document` record type (source `google-docs`, stored under
+  `documents/google-docs/`) holds a Doc's title, created and modified times,
+  owners and an excerpt of its own text of at most 16 KiB (UTF-8), with a
+  `truncated` flag. `import` accepts one only when Google Docs is set up for
+  the IC or report, the Doc is a Google Doc owned by the configured account
+  alone (not in a shared drive), its attribution is `unverified` (owning a
+  Doc is not writing it), and it was modified inside the profile's fetch
+  range; refusals never repeat record content.
+- `google-docs configure --account <email>` and `google-docs show --json`
+  keep the Google Docs settings (`googleDocs: { account }`) per IC profile
+  and per report, and print what an import skill needs. The CLI never
+  contacts Google.
+- `import` and `validate` take `--since` and `--until` to replace the
+  fetch range for one batch of Google Docs records (a date alone is the
+  whole UTC day), report the range they applied as `range` in `--json`
+  output, and refuse a malformed bound with `RANGE_INVALID`.
+- The `search_documents` MCP tool searches imported Google Docs by title or
+  excerpt, mention and modified date, in pages like `search_messages`.
+  `get_stats` counts Docs in a `documents` section, `get_timeline` lists
+  them by modified time, and `get_linked_work` lists the Docs that mention a
+  PR or ticket (`mentionedInDocuments`). `status`, `filter`, `analyze` and
+  `link` cover them too. The writing and detection skills, the manager
+  skills included, read them as Docs the user (or report) owns, never as
+  Docs they wrote and never as instructions.
+- The `/work-chronicler-import-google-docs` skill imports the Google Docs
+  the subject owns, modified in the fetch range (or a range confirmed in the
+  session, passed to `validate` and `import` as `--since`/`--until`). It
+  reads Drive with `gog`, read-only, as the configured account in an IC
+  profile and as the manager for a report (seeing only Docs shared with
+  them, never changing sharing). It stores one record per Doc with an
+  excerpt of the Doc's own text, skips and counts unreadable and empty Docs,
+  imports in chunks, and reports counts only, saying when the import is
+  incomplete.
+
+### Changed
+
+- `import`, `filter` and `filter --clear` now share one work-log lock, so
+  only one of them runs in a work log at a time: `filter` is refused while an
+  import runs and `import` while a filter runs, each naming the command,
+  process and host that holds it (`status` shows it too). The lock is held
+  under both names 0.6.0 used (`.import-lock`, then `.filter-lock`), so a
+  0.6.0 `import` or `filter` running at the same time is refused as well,
+  and a lock either of them left is honored while its process runs and taken
+  over once it has exited. No new names appear in the work log. `validate`
+  reports `IMPORT_IN_PROGRESS` only while an import, not a filter, holds the
+  lock.
+- `filter` reads the work log only while it holds the lock, after finishing
+  any interrupted import the way `import` would (and saying so in a
+  warning). If that import cannot be finished, `filter` refuses and changes
+  nothing.
+- Imported records are not read while `.import-transaction/` exists (an
+  import is storing a batch, or was interrupted): MCP tools that read them
+  return no results with a note, the PR and ticket tools still answer,
+  `analyze` stops with an error, `status` says messages are not counted, and
+  `link` links PRs and tickets and warns that mentions were not checked.
+
+### Fixed
+
+- `/work-chronicler-setup-slack` put the agreed channel reason into the
+  `slack channels add` command in single quotes, so a reason with an
+  apostrophe broke the command, and shell syntax in it (copied from a
+  channel purpose, for example) could run as a separate command (a known
+  issue in 0.6.0). `slack channels add` now takes `--reason-file <path>`
+  (`-` reads standard input) as well as `--reason`, and the skill writes the
+  reason to a temporary file with the assistant's file-writing tool and
+  passes that file, so no shell reads the reason. The file is read up to
+  4 KiB and must be UTF-8. A missing, unreadable, oversized or invalid reason
+  is reported as JSON with `--json`, and a reason is stored without the
+  surrounding spaces and line breaks that were already ignored when it was
+  read.
+- Once its channels were removed, `slack configure` accepted another Slack
+  user while the work log still held the previous user's messages, so a
+  later import mixed two people's messages and search and analysis
+  presented both as the subject's. `slack configure` now refuses a user
+  while the subject's work log holds Slack messages by a different user,
+  naming the directory to remove first (or when they cannot be checked).
+- A `slack` command run with `--json` printed nothing on stdout when the
+  profile, config or report could not be resolved (an invalid config, or a
+  manager profile without `--report`), or printed a plain-text hint that
+  broke the JSON. It now prints `{ "ok": false, "error": … }` there, and only that.
+- `filter` accepted a mistyped impact level or line count and dropped that
+  restriction, so `--min-impact majoor` (or `--exclude-impact minr`, or
+  `--min-loc abc` next to another filter) replaced the subset with a broader
+  one. A level that is not `minor`, `standard`, `major` or `flagship`, or a
+  `--min-loc` that is not a whole number, is now refused before the work log
+  is read, and the subset is left as it was.
+- A `slack` command could write a config larger than 1 MiB, which every
+  later `slack` change then refused to edit. A change that would make the
+  config larger than that is now refused and the config is left as it was.
+- A `slack` command that changed the config could narrow its permissions:
+  the replacement was created with the original mode narrowed by the
+  process umask, so with umask `077` a `0640` config became `0600` and lost
+  its group readers. The replacement now gets exactly the original mode.
+- `filter --repo acme/api` left out, and `--exclude-repo acme/api` kept, a
+  PR whose `repository` holds the full name (`acme/api`) rather than the bare
+  name `fetch` stores. Both forms now match.
+- `/work-chronicler-summarize-work`, `/work-chronicler-write-self-review`,
+  `/work-chronicler-write-resume-bullets` and `/work-chronicler-update-resume`
+  summarized a `search_messages` result from its text alone, which stops at
+  1,000 characters, so a decision stated later in a long message could be
+  left out. They now read the full message from its record file first.
+- A subset made by `filter`, an MCP tool result or `analyze` could include
+  part of an import's batch, read while the import was storing it or after
+  it was interrupted. Readers now never see part of a batch: they refuse to
+  read imported records while an import is storing a batch or was
+  interrupted (see Changed), and a read during which a whole batch was
+  stored is done again.
+- A running `import` or `filter` could have its lock taken over when the
+  system clock jumped forward, because a lock's owner counted as gone when
+  its recorded start time looked older than the last boot. Locks now record
+  the boot they were taken in, and a running process's lock is never taken
+  over because of the clock. On Linux and macOS, which give a boot ID, a
+  lock from before a reboot is still taken over even when its process ID is
+  in use again; elsewhere, and for a 0.6.0 lock, a lock is kept while a
+  process with its ID runs, until it is removed by hand.
+- `filter --clear` could report success while an earlier subset left beside
+  `filtered/` made `analyze` and the MCP server see an interrupted swap. It
+  now finds and sets aside every such subset before deselecting, and when it
+  cannot (listing the work log or moving one fails) it is refused with the
+  selected subset still in use.
+- A power failure while `import` stored a batch that only updated records
+  could keep some replaced records but lose the batch's journal and backups,
+  so the next import could not roll the partial batch back. The work log is
+  now flushed after the transaction directory is created, before any record
+  changes.
+- `import` accepted a Slack permalink (`url`, `message.thread.parentUrl`)
+  on another workspace's host when its channel and timestamp matched, so
+  `search_messages` could cite the wrong workspace. For a workspace
+  configured by its URL label, a permalink's host must now be
+  `<label>.slack.com` or `<label>.enterprise.slack.com`. In an Enterprise
+  Grid org, a channel whose permalinks use another workspace's host is then
+  refused; configure the team or `E…` org ID when a Slack tool shows it.
+- `import` accepted a Slack record whose `occurredAt` was not when the
+  message was posted (such as the capture date), so date-filtered search and
+  monthly statistics could place it in the wrong period. `occurredAt` must
+  now be the time of the ts in `sourceId`, to the second.
+- A mention of a ticket key that two JIRA instances both hold resolved to
+  whichever ticket was read first, so `get_linked_work` could list a message
+  under the wrong ticket. Such a mention now stays unresolved.
+- On a volume that ignores letter case, `import` could call a record
+  unchanged when it was stored under an upper-case hash name that readers
+  skip, so search and analysis left it out. `import` now refuses such a
+  destination (`IDENTITY_CONFLICT`) until the file is renamed.
+- If `messages/` or `messages/<source>/` in a work log was a symlink (for
+  example to another work log), readers read the records behind it as this
+  work log's evidence. Such a directory is now skipped with a warning.
+- A staged batch of thousands of near-1 MiB records could exhaust memory
+  while `validate` or `import` read it, ending the run before any result.
+  A batch's records may now hold at most 64 MiB in total; a larger batch is
+  refused (`BATCH_TOO_LARGE`) with an instruction to split it, before the
+  rest of it is read.
+- An MCP tool call that spanned two `filter` runs made with the same
+  creation time and missing record types (or two subsets from before 0.6.0,
+  which have no marker) could return data from both subsets without saying
+  the selection changed. Each subset is now told apart by the directory put
+  in place, so such a call reports that the subset changed.
+- `work-chronicler mcp --info` did not list `search_messages` among the
+  available tools.
+- `get_stats` without a date range returned the `stats.json` generated by
+  `analyze` as it was, so messages imported after the analysis were missing
+  from its counts. Its `messages` section is now counted afresh from the
+  work log (or subset) the call reads. So, like a date-filtered call, it now
+  returns the import-unavailable error instead of statistics while an import
+  is storing a batch or after one was interrupted.
+- `get_stats` for a date range left message dates out of `dateRange`, so a
+  range holding only messages reported positive counts with no dates. The
+  range now spans the messages counted too.
+- `analyze reports` labeled a report's `stats.json` with a date range taken
+  from its PRs alone (or today, with no PRs), although the statistics count
+  its messages too. The stats range now spans the messages as well; projects
+  and the timeline keep the PR range.
+- `search_messages` and a date-filtered `get_stats` read a date-only
+  `until` (`2025-02-28`) as midnight at the start of that day, leaving out
+  everything later on it, such as a message posted at noon. A date alone
+  now includes that whole UTC day (surrounding spaces ignored, in any time
+  zone); a timestamp keeps its precision, and other text without a time is
+  refused. Other tools are unchanged.
+- `search_messages` returned every matching message in one response, so an
+  empty search after a large import could send megabytes of text and
+  mentions. Results now come in pages of at most 64 KiB (each result at most
+  16 KiB, with `omittedMentions` counting mentions left out), newest first:
+  pass `nextCursor` as `cursor`, with the same filters, for the next page
+  (a cursor from another tool or for other filters is refused). Pages never
+  skip or repeat a result, and `total` still counts every match. See
+  [Pages](documentation/mcp-server.md#pages).
+
 ## [0.6.0] - 2026-11-08
 
 ### Added
@@ -431,7 +622,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `analyze`, `filter`, `status`, the MCP server, and Claude Code and Cursor
   commands for summaries, resume bullets, self-reviews, projects and themes.
 
-[Unreleased]: https://github.com/tkstang/work-chronicler/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/tkstang/work-chronicler/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/tkstang/work-chronicler/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/tkstang/work-chronicler/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/tkstang/work-chronicler/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/tkstang/work-chronicler/compare/v0.3.2...v0.4.0

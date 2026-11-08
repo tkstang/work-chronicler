@@ -30,6 +30,7 @@ import {
   loadConfig,
   writeMarkdownFile,
 } from '@core/index';
+import { searchPrsTool } from '@mcp/tools/index';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -41,9 +42,9 @@ const packageJson = createRequire(import.meta.url)('../../package.json') as {
 };
 
 // Reviewed snapshot of the tools/list result from before the tools were split
-// into modules, plus search_pr_reviews and search_messages (added after the
-// split) and the coverage wording added with imported records. MCP clients
-// depend on these names, descriptions and schemas.
+// into modules, plus search_pr_reviews, search_messages and search_documents
+// (added after the split) and the coverage wording added with imported
+// records. MCP clients depend on these names, descriptions and schemas.
 const goldenTools = JSON.parse(
   readFileSync(join(import.meta.dirname, 'tools-list.golden.json'), 'utf-8'),
 );
@@ -268,6 +269,19 @@ describe('one MCP server while the filtered subset changes', () => {
       expect((await call('search_prs')).total).toBe(1);
       expect((await call('get_stats')).messages.total).toBe(1);
 
+      // While an import stores a batch (or after one was interrupted),
+      // imported records are not read; PR tools still answer
+      mkdirSync(join(workLog, '.import-transaction'));
+      const importing = await call('search_messages');
+      expect(importing.error).toContain(
+        'Imported records are unavailable while an import is storing a batch or needs recovery',
+      );
+      expect(importing.note).toContain('work-chronicler import');
+      expect(importing.results).toBeUndefined();
+      expect((await call('search_prs')).total).toBe(1);
+      rmSync(join(workLog, '.import-transaction'), { recursive: true });
+      expect((await call('search_messages')).total).toBe(1);
+
       // A subset selected after startup: linked-only keeps nothing here
       await writeFilteredSubset({
         outputDir: workLog,
@@ -327,6 +341,75 @@ describe('one MCP server while the filtered subset changes', () => {
     }
   });
 
+  it('returns unavailable, not the handler result, for a call during which the subset was replaced', async () => {
+    const workLog = join(root, 'work-log');
+    writePR(workLog, 1, 'PR');
+    const config = await loadConfig(join(root, 'work-chronicler.yaml'));
+    // Both subsets are made in the same instant, so only the subset
+    // directory itself tells them apart
+    const replace = () =>
+      writeFilteredSubset({
+        outputDir: workLog,
+        config,
+        criteria: { mergedOnly: true },
+        now: new Date('2026-01-01T00:00:00Z'),
+      });
+    await replace();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    // Pause the handler after it has read the first subset
+    const original = searchPrsTool.handler;
+    let entered = () => {};
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const handler = vi
+      .spyOn(searchPrsTool, 'handler')
+      .mockImplementation(async (input, context) => {
+        const result = await original(input, context);
+        entered();
+        await gate;
+        return result;
+      });
+
+    const ctx = await createServer();
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test', version: '0.0.0' });
+    await ctx.server.connect(serverTransport);
+    await client.connect(clientTransport);
+    const text = (result: Awaited<ReturnType<typeof client.callTool>>) => {
+      const [content] = result.content as { type: string; text: string }[];
+      return JSON.parse(content?.text ?? '');
+    };
+
+    try {
+      const pending = client.callTool({ name: 'search_prs', arguments: {} });
+      await started;
+      await replace();
+      release();
+      const out = text(await pending);
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(out.error).toContain('filtered subset is unavailable');
+      expect(out.note).toContain('changed while this call was reading it');
+      expect(out.results).toBeUndefined();
+      // The next call reads the new subset
+      handler.mockRestore();
+      expect(
+        text(await client.callTool({ name: 'search_prs', arguments: {} }))
+          .total,
+      ).toBe(1);
+    } finally {
+      release();
+      await client.close();
+    }
+  });
+
   it('tells two selections apart, so a call that spans a change is reported', async () => {
     const workLog = join(root, 'work-log');
     writePR(workLog, 1, 'PR');
@@ -354,7 +437,34 @@ describe('one MCP server while the filtered subset changes', () => {
       now: new Date('2026-01-02T00:00:00Z'),
     });
     const second = resolve();
+    // A replacement made in the same instant as the one before it
+    await writeFilteredSubset({
+      outputDir: workLog,
+      config,
+      criteria: { mergedOnly: true },
+      now: new Date('2026-01-02T00:00:00Z'),
+    });
+    const sameInstant = resolve();
+    // Subsets from before 0.6.0 have no marker at all
+    const legacy = () => {
+      const next = join(workLog, 'legacy-next');
+      mkdirSync(join(next, 'pull-requests'), { recursive: true });
+      rmSync(join(workLog, 'filtered'), { recursive: true });
+      renameSync(next, join(workLog, 'filtered'));
+      return resolve();
+    };
+    const firstLegacy = legacy();
+    const secondLegacy = legacy();
 
-    expect(new Set([full.key, first.key, second.key]).size).toBe(3);
+    expect(
+      new Set([
+        full.key,
+        first.key,
+        second.key,
+        sameInstant.key,
+        firstLegacy.key,
+        secondLegacy.key,
+      ]).size,
+    ).toBe(6);
   });
 });

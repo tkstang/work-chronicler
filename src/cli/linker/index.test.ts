@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
 import {
+  documentFrontmatter,
   messageFrontmatter,
   recordFile,
   snapshot,
@@ -235,6 +236,28 @@ describe('linkPRsToTickets links', () => {
     );
     expect(await prTickets()).toEqual({ 1: ['PAY-42'], 2: [] });
   });
+
+  it('links PRs and tickets but does not read mentions while an import is storing a batch', async () => {
+    writePR(1, 'PAY-42: refunds', '');
+    writeTicket('PAY-42');
+    mkdirSync(join(outputDir, '.import-transaction'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const result = await linkPRsToTickets({
+      config: config(['PAY']),
+      outputDir,
+    });
+
+    expect(result).toMatchObject({
+      linksFound: 1,
+      mentions: { records: 0, resolved: 0, unresolved: 0 },
+    });
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /Mentions in imported records were not checked\. An import is running/,
+      ),
+    );
+  });
 });
 
 /** A message stored where `import` would store it */
@@ -295,6 +318,44 @@ describe('linkPRsToTickets mentions in imported records', () => {
     expect(await ticketPRs()).toEqual({
       'PAY-42': ['https://github.com/acme/app/pull/1'],
     });
+  });
+
+  it('resolves mentions in imported Google Docs as in messages', async () => {
+    writePR(1, 'PAY-42: refunds', '');
+    writeTicket('PAY-42');
+    const parsed = parseImportedRecordFile(
+      Buffer.from(
+        recordFile(
+          documentFrontmatter(1, {
+            mentions: {
+              tickets: ['PAY-42', 'OPS-7'],
+              pullRequests: ['https://github.com/ACME/app/pull/1'],
+            },
+          }),
+          'Doc text',
+        ),
+      ),
+    );
+    if (!parsed.ok) throw new Error('fixture must be valid');
+    const path = getImportedRecordFilePath(
+      outputDir,
+      getImportedRecordIdentity(parsed.record),
+    );
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, serializeImportedRecord(parsed.record, parsed.body));
+    const before = snapshot(join(outputDir, 'documents'));
+
+    const result = await linkPRsToTickets({
+      config: config(['PAY']),
+      outputDir,
+    });
+
+    expect(result.mentions).toEqual({
+      records: 1,
+      resolved: 2,
+      unresolved: 1,
+    });
+    expect(snapshot(join(outputDir, 'documents'))).toEqual(before);
   });
 
   it('resolves ticket mentions when there are no PRs', async () => {

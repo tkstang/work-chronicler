@@ -26,6 +26,7 @@ User-facing docs: `README.md` (overview and quick start) and `documentation/inde
 - **The published package ships only `dist`, `bin` and `.agents/skills/work-chronicler-*`.** Repo-local skills and other agent files must stay out of the npm tarball.
 - **The CLI and MCP server never call an LLM.** AI work happens in skills, inside the user's assistant.
 - **Ask before** changing dependencies, CI workflows, the release process or the config schema in a breaking way.
+- **Get buy-in before speculative complexity.** Before adding material complexity for a failure mode that is speculative or very unlikely (concurrent commands racing, clock jumps, crafted input the CLI or a skill never produces) or for an unconfirmed future need, explain to the user the concrete problem, the evidence that it matters, simpler alternatives, and the implementation and maintenance cost, and get their buy-in. This applies to production code, tests and fixtures, and safeguards alike, and to review findings: fix real defects, and bring speculative ones to the user instead of fixing them by default. Do not expand scope silently for theoretical robustness, flexibility or scale. Ordinary regression tests, the required checks, and the established guarantees (privacy of imported content, no data loss in the user's work log or installed skills, atomic imports) still apply.
 
 ## Definition of Done
 
@@ -55,6 +56,7 @@ work-chronicler/
 │   │   │   ├── import/         # Staged import (validate shares it)
 │   │   │   ├── profile/        # Profile management
 │   │   │   ├── skills/         # Skill management (install, uninstall, list)
+│   │   │   ├── google-docs/    # Google Docs settings (configure, show)
 │   │   │   ├── slack/          # Slack settings (configure, channels, show)
 │   │   │   └── workspace/      # Workspace path resolution
 │   │   ├── linker/             # Cross-reference linking
@@ -200,6 +202,7 @@ The project has four layers:
    - `workspace profile|work-log|analysis|root` - Output workspace paths
    - `skills install|uninstall|list` - Manage AI skills
    - `slack configure`, `slack channels add|remove|list`, `slack show` - Slack settings per IC profile or report (opt-in; `import` enforces them); `show` prints what an import skill uses
+   - `google-docs configure`, `google-docs show` - Google Docs settings (the owner account) per IC profile or report (opt-in; `import` enforces ownership and the fetch range, `--since`/`--until` replacing it per batch); `show` prints what an import skill uses
 
 2. **AI Skills** (package skills in `.agents/skills/`, installed via `skills install`):
    - IC mode:
@@ -213,6 +216,8 @@ The project has four layers:
    - Slack import (IC and manager profiles; read Slack through the assistant's Slack connector, read-only):
      - `/work-chronicler-setup-slack` - Choose the channels to import from and record them with `slack configure` / `slack channels add`
      - `/work-chronicler-import-slack` - Stage the subject's own messages, then `validate` and `import` them
+   - Google Docs import (IC and manager profiles; read Drive with `gog`, read-only, after `google-docs configure`):
+     - `/work-chronicler-import-google-docs` - Stage an excerpt of each Google Doc the subject owns, modified in range, then `validate` and `import` them
    - Manager mode (`work-chronicler-manager-*`):
      - `/work-chronicler-manager-write-review-packet` - Evidence-based review content for a direct report
      - `/work-chronicler-manager-write-quarterly-highlights` - Quarterly highlights for one report
@@ -223,7 +228,7 @@ The project has four layers:
 
 4. **MCP Server** (read-only data access for AI assistants):
    - Exposes work-log data to Claude Desktop, Cursor, etc. over stdio
-   - Tools (one module each in `src/mcp/tools/`, registered in `src/mcp/server.ts`): `search_prs`, `search_tickets`, `get_linked_work`, `list_repos`, `get_stats`, `get_projects`, `get_timeline`, `search_pr_reviews`, `search_messages`
+   - Tools (one module each in `src/mcp/tools/`, registered in `src/mcp/server.ts`): `search_prs`, `search_tickets`, `get_linked_work`, `list_repos`, `get_stats`, `get_projects`, `get_timeline`, `search_pr_reviews`, `search_messages`, `search_documents`
 
 ## Data Storage
 
@@ -236,6 +241,7 @@ work-log/
 ├── pull-requests/<org>/<repo>/<date>_<number>.md
 ├── pr-reviews/<org>/<repo>/<number>.md  # Reviews the user gave (never authored work)
 ├── messages/<source>/<hash>.md          # Imported records (`import`); hash of the record identity
+├── documents/<source>/<hash>.md         # Imported Google Docs the subject owns (`import`); same hashing
 ├── jira/<org>/<project>/<key>.md
 ├── performance-reviews/     # User-added past reviews
 ├── resumes/                 # User-added existing resume(s)
@@ -247,7 +253,15 @@ work-log/
 Imported records are supplementary evidence: consumers count them apart from
 PRs and tickets (or say they cover PRs and tickets only), and resolve their
 mentions on read (`src/core/linking/`). Readers ignore `.import-*` and
-`.filter-*` entries in the work-log root.
+`.filter-*` entries in the work-log root, and never read imported records
+while `.import-transaction/` exists (`ImportInProgressError`). `import`,
+`filter` and `filter --clear` share one work-log lock
+(`src/core/storage/work-log-lock.ts`, held as `.import-lock` then
+`.filter-lock`); `filter` reads records only under it.
+Imported Google Docs are Docs the subject owns, not ones they necessarily
+wrote: their attribution is always `unverified`, their body is a capped
+excerpt (`MAX_DOCUMENT_EXCERPT_BYTES`), and consumers date them by modified
+time (`occurredAt`).
 
 ### Manager Mode
 

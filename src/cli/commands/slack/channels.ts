@@ -1,3 +1,5 @@
+import { closeSync, openSync, readSync } from 'node:fs';
+
 import chalk from 'chalk';
 import { Command } from 'commander';
 
@@ -5,6 +7,7 @@ import {
   channelLine,
   describeChannels,
   describeSubject,
+  failSlackChange,
   resolveSlackSubject,
   runSlackChange,
   type SlackCommandOptions,
@@ -12,18 +15,93 @@ import {
 
 interface AddOptions extends SlackCommandOptions {
   name: string;
-  reason: string;
+  reason?: string;
+  reasonFile?: string;
   private?: boolean;
   sharedWithManager?: boolean;
+}
+
+/** Largest reason file read: far above the 200-character reason limit */
+export const MAX_REASON_FILE_BYTES = 4096;
+
+class ReasonTooLargeError extends Error {}
+
+/** Read at most {@link MAX_REASON_FILE_BYTES}, so a huge input never fills memory */
+function readBounded(file: string): Buffer {
+  const fd = file === '-' ? 0 : openSync(file, 'r');
+  try {
+    const chunks: Buffer[] = [];
+    let total = 0;
+    for (;;) {
+      const chunk = Buffer.alloc(MAX_REASON_FILE_BYTES + 1);
+      const read = readSync(fd, chunk, 0, chunk.length, null);
+      if (read === 0) break;
+      total += read;
+      if (total > MAX_REASON_FILE_BYTES) throw new ReasonTooLargeError();
+      chunks.push(chunk.subarray(0, read));
+    }
+    return Buffer.concat(chunks);
+  } finally {
+    if (fd !== 0) closeSync(fd);
+  }
+}
+
+/**
+ * The reason from `--reason`, or read from `--reason-file` (`-` is standard
+ * input). Read from a file or standard input, the text never passes through
+ * a shell, so quotes, `$`, backticks and backslashes in it are kept as they
+ * are. The file must be UTF-8 and at most {@link MAX_REASON_FILE_BYTES}.
+ * The settings drop surrounding whitespace (a trailing line break included)
+ * and refuse anything else that is not one line of text.
+ */
+function readReason(options: AddOptions): string {
+  if ((options.reason === undefined) === (options.reasonFile === undefined)) {
+    failSlackChange(
+      options,
+      'Pass the reason with either --reason <text> or --reason-file <path> (`-` reads standard input). The config was not changed.',
+    );
+  }
+  if (options.reason !== undefined) return options.reason;
+  const file = options.reasonFile as string;
+  const from = file === '-' ? 'standard input' : file;
+  let data: Buffer;
+  try {
+    data = readBounded(file);
+  } catch (error) {
+    failSlackChange(
+      options,
+      error instanceof ReasonTooLargeError
+        ? `The reason in ${from} is larger than ${MAX_REASON_FILE_BYTES} bytes; a reason is one line of at most 200 characters. The config was not changed.`
+        : `The reason could not be read from ${from} (${
+            error instanceof Error ? error.message : String(error)
+          }). The config was not changed.`,
+      error,
+    );
+  }
+  let text: string;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true }).decode(data);
+  } catch (error) {
+    failSlackChange(
+      options,
+      `The reason in ${from} is not valid UTF-8. The config was not changed.`,
+      error,
+    );
+  }
+  return text;
 }
 
 const addCommand = new Command('add')
   .description('Add a channel whose messages by the subject may be imported')
   .argument('<channel-id>', 'Slack channel ID, such as C0123ABCD')
   .requiredOption('--name <name>', 'Channel name (without #)')
-  .requiredOption(
+  .option(
     '--reason <text>',
     'Why the channel holds review-relevant work (one line)',
+  )
+  .option(
+    '--reason-file <path>',
+    'Read the reason from a file instead (`-` reads standard input), so no shell quoting is needed',
   )
   .option(
     '--private',
@@ -37,6 +115,7 @@ const addCommand = new Command('add')
   .option('-c, --config <path>', 'Path to config file')
   .option('--json', 'Print a machine-readable result')
   .action(async (id: string, options: AddOptions) => {
+    const reason = readReason(options);
     await runSlackChange(
       options,
       {
@@ -44,7 +123,7 @@ const addCommand = new Command('add')
         channel: {
           id,
           name: options.name.replace(/^#/, ''),
-          reason: options.reason,
+          reason,
           private: options.private === true,
           sharedWithManager: options.sharedWithManager === true,
         },

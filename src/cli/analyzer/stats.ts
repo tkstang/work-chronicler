@@ -39,6 +39,16 @@ export interface AnalysisStats {
     bySource: Record<string, number>;
     byMonth: Record<string, number>;
   };
+  /**
+   * Imported Google Docs the subject owns (owned, not necessarily written):
+   * supplementary evidence, counted apart from PRs and tickets, by the month
+   * they were last modified.
+   */
+  documents: {
+    total: number;
+    bySource: Record<string, number>;
+    byMonth: Record<string, number>;
+  };
 }
 
 /**
@@ -60,9 +70,56 @@ function sortByMonth(byMonth: Record<string, number>): Record<string, number> {
   return sorted;
 }
 
+/** Count imported records of one type by source and month of `occurredAt` */
+function countImported(
+  importedRecords: ImportedRecordFile[],
+  type: ImportedRecordFile['frontmatter']['type'],
+): AnalysisStats['messages'] {
+  const counts: AnalysisStats['messages'] = {
+    total: 0,
+    bySource: {},
+    byMonth: {},
+  };
+  for (const record of importedRecords) {
+    const fm = record.frontmatter;
+    if (fm.type !== type) continue;
+    counts.total++;
+    counts.bySource[fm.source] = (counts.bySource[fm.source] ?? 0) + 1;
+    const month = getYearMonth(fm.occurredAt);
+    counts.byMonth[month] = (counts.byMonth[month] ?? 0) + 1;
+  }
+  counts.byMonth = sortByMonth(counts.byMonth);
+  return counts;
+}
+
+/**
+ * Count imported messages by source and month (`stats.json`'s `messages`
+ * section). Records of other types are not counted.
+ *
+ * @param importedRecords - Imported records from one work log
+ */
+export function countMessages(
+  importedRecords: ImportedRecordFile[],
+): AnalysisStats['messages'] {
+  return countImported(importedRecords, 'message');
+}
+
+/**
+ * Count imported documents by source and month last modified
+ * (`stats.json`'s `documents` section). Records of other types are not
+ * counted.
+ *
+ * @param importedRecords - Imported records from one work log
+ */
+export function countDocuments(
+  importedRecords: ImportedRecordFile[],
+): AnalysisStats['documents'] {
+  return countImported(importedRecords, 'document');
+}
+
 /**
  * Generate statistics from PR and ticket data, plus counts of imported
- * messages (which never enter the PR or ticket figures).
+ * messages and documents (which never enter the PR or ticket figures).
  */
 export function generateStats(
   prs: PullRequestFile[],
@@ -91,11 +148,8 @@ export function generateStats(
       prsWithTickets: 0,
       ticketsWithPRs: 0,
     },
-    messages: {
-      total: 0,
-      bySource: {},
-      byMonth: {},
-    },
+    messages: countMessages(importedRecords),
+    documents: countDocuments(importedRecords),
   };
 
   // Process PRs
@@ -145,19 +199,7 @@ export function generateStats(
     }
   }
 
-  // Imported messages
-  for (const record of importedRecords) {
-    const fm = record.frontmatter;
-    if (fm.type !== 'message') continue;
-    stats.messages.total++;
-    stats.messages.bySource[fm.source] =
-      (stats.messages.bySource[fm.source] ?? 0) + 1;
-    const month = getYearMonth(fm.occurredAt);
-    stats.messages.byMonth[month] = (stats.messages.byMonth[month] ?? 0) + 1;
-  }
-
   stats.prs.byMonth = sortByMonth(stats.prs.byMonth);
-  stats.messages.byMonth = sortByMonth(stats.messages.byMonth);
 
   return stats;
 }

@@ -1,15 +1,15 @@
 import { rmSync } from 'node:fs';
 
-import type { ImportSubject } from '@wc-types/imported-record';
-import { afterAll, describe, expect, it } from 'vitest';
-
 import {
   makeWorld,
   messageFrontmatter,
   SECRET,
   stage,
   SYNTH_SOURCES,
-} from './import.test-support';
+} from '@core/import/import.test-support';
+import type { ImportSubject } from '@wc-types/imported-record';
+import { afterAll, describe, expect, it } from 'vitest';
+
 import { type ImportSourceSettings, runImport } from './index';
 
 // Slack privacy and opt-in rules, enforced on every record `validate` and
@@ -134,6 +134,39 @@ describe('Slack records: opt-in and identity', () => {
     ]);
   });
 
+  it('accepts permalinks only on the host of a workspace configured by its URL label', () => {
+    const slack = SYNTH_SOURCES.slack as NonNullable<
+      ImportSourceSettings['slack']
+    >;
+    const sources = { slack: { ...slack, workspace: 'example' } };
+    const at = (host: string) => ({
+      sourceAccount: 'example',
+      url: `https://${host}/archives/C0SYNTH01/p${TS.replace('.', '')}`,
+      ...reply({
+        parentUrl: `https://${host}/archives/C0SYNTH01/p${PARENT_TS.replace('.', '')}`,
+      }),
+    });
+
+    for (const host of ['example.slack.com', 'example.enterprise.slack.com']) {
+      expect(check(at(host), { sources }).issues, host).toEqual([]);
+    }
+    for (const host of [
+      'other.slack.com',
+      'other.enterprise.slack.com',
+      'example.other.slack.com',
+      'slack.com',
+    ]) {
+      expect(problems(check(at(host), { sources })), host).toEqual([
+        ['SOURCE_RULE', 'url'],
+        ['SOURCE_RULE', 'message.thread.parentUrl'],
+      ]);
+    }
+    // A team ID names no host, so any Slack host is accepted for it
+    expect(
+      check({ ...at('other.slack.com'), sourceAccount: 'T0SYNTH01' }).issues,
+    ).toEqual([]);
+  });
+
   it('refuses a message whose author is not the configured user', () => {
     const result = check({
       attribution: { status: 'verified', authorId: 'U0OTHER01' },
@@ -250,6 +283,29 @@ describe('Slack records: others’ content', () => {
     ],
   ])('refuses %s', (_label, overrides, field) => {
     expect(problems(check(overrides))).toEqual([['SOURCE_RULE', field]]);
+  });
+
+  it('accepts occurredAt within a second of the ts in sourceId, and nothing further', () => {
+    // TS is 1700000000.000001: 2023-11-14T22:13:20.000001Z
+    for (const occurredAt of [
+      '2023-11-14T22:13:20Z',
+      '2023-11-14T22:13:20.000Z',
+      '2023-11-14T22:13:20.999Z',
+      '2023-11-14T22:13:19.500Z',
+    ]) {
+      expect(check({ occurredAt }).issues, occurredAt).toEqual([]);
+    }
+    for (const occurredAt of [
+      // The capture date, a day off, and a second or more off
+      '2026-03-05T09:00:00Z',
+      '2023-11-15T22:13:20Z',
+      '2023-11-14T22:13:21.001Z',
+      '2023-11-14T22:13:19Z',
+    ]) {
+      expect(problems(check({ occurredAt })), occurredAt).toEqual([
+        ['SOURCE_RULE', 'occurredAt'],
+      ]);
+    }
   });
 
   it('refuses a thread starter that names itself as its parent', () => {

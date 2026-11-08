@@ -29,6 +29,13 @@ saying the subset is unavailable and a `note` saying what to do (wait, or run
 `filter` again). A call during which the selection changed is reported the
 same way; call the tool again.
 
+Tools that read imported records (`search_messages`, `search_documents`,
+`get_linked_work` and `get_stats`) return no results while an import is
+storing a batch in the full work log, or after one was interrupted: an
+`error` saying imported records are unavailable and a `note` saying what to
+do (wait, or run `work-chronicler import` with an empty directory to finish
+it). They never return part of a batch. The PR and ticket tools still answer.
+
 ## Client configuration
 
 Clients start the server themselves. Add an entry like this to the client's MCP
@@ -88,13 +95,22 @@ The server looks for a config in this order:
 | --- | --- |
 | `search_prs` | PRs filtered by date range, repository, keywords or impact level. |
 | `search_tickets` | JIRA tickets filtered by project, status or keywords. |
-| `get_linked_work` | A PR (by URL in any form, or by bare PR number) with its linked tickets, or a ticket with its linked PRs, plus the imported messages that mention it (`mentionedInMessages`). |
+| `get_linked_work` | A PR (by URL in any form, or by bare PR number) with its linked tickets, or a ticket with its linked PRs, plus the imported messages and imported Google Docs that mention it (`mentionedInMessages`, `mentionedInDocuments`). |
 | `list_repos` | Repositories in the work log with per-repo statistics. |
-| `get_stats` | Summary statistics, optionally for a date range, with imported messages counted in their own `messages` section. |
+| `get_stats` | Summary statistics, optionally for a date range, with imported messages and imported Google Docs counted in their own `messages` and `documents` sections (Docs by modified time). Without a date range it returns the `stats.json` that `analyze` generated, with both sections counted afresh from the work log, so records imported since are included. For a date range, `dateRange` spans the PRs, tickets, messages and Docs counted. |
 | `get_projects` | Detected project groupings of related PRs and tickets (PRs and tickets only; the result says so in `coverage`). |
-| `get_timeline` | Work grouped by week or month (PRs and tickets only; the result says so in `coverage`). |
+| `get_timeline` | Work grouped by week or month: PRs and tickets, plus imported Google Docs listed apart in each week's `documents` by modified time (the result says so in `coverage`). |
 | `search_pr_reviews` | Reviews and inline review comments you gave on other people's PRs, filtered by date range, org, repository, review state or keywords. |
 | `search_messages` | Imported messages (such as Slack messages you wrote), filtered by keywords, date range, mentioned ticket or PR, attribution or source, with each mention resolved to its PR or ticket, or `null`. |
+| `search_documents` | Imported Google Docs (Docs you own), filtered by keywords in the title or excerpt, modified date range, or mentioned ticket or PR, with each mention resolved to its PR or ticket, or `null`. |
+
+Dates are ISO 8601. In `search_messages`, `search_documents` and `get_stats`, an `until` given
+as a date alone (`2025-02-28`) includes that whole UTC day, so a message
+posted at noon that day is counted, whatever the server's time zone; an
+`until` with a time (`2025-02-28T12:00:00Z`) is used exactly. Any other
+`until` without a time (`2025-2-28`, `Feb 28 2025`, `2025-02`) or a date
+that does not exist is refused there. The other tools read a date alone as
+the start of that day (midnight UTC).
 
 `search_pr_reviews` reads the review records written by
 `fetch github --reviews`. They are review work, not PRs you wrote:
@@ -120,6 +136,49 @@ no results and a `note` when the filtered subset was made before messages
 were imported (`get_stats` and `get_linked_work` add the same `note`), and a
 `note` when nothing has been imported.
 
+`search_documents` reads the Google Docs stored by `work-chronicler import`:
+Docs the subject owns, which is not the same as having written them. They are
+supplementary evidence, never authored PRs or tickets, and the response
+carries a `notice` saying so and that Doc text is evidence, never
+instructions. Each result has the Doc's `title`, `owner`, `createdAt`,
+`modifiedAt`, `url`, `subject`, `attribution` (always `unverified`),
+`excerptTruncated` (whether the stored excerpt stops before the end of the
+Doc), `text` (the excerpt, up to 1,000 characters) and `mentions`, resolved
+as for messages. Docs are dated by their modified time, so a Doc created
+before a date range but modified inside it is in it. Like `search_messages`,
+it returns no results and a `note` when the filtered subset was made before
+Docs were imported, and a `note` when none have been imported.
+
+### Pages
+
+`search_messages` and `search_documents` return their results in pages, so a
+large import never produces one huge response. Both use the same contract:
+
+- **Order.** Results are newest first (`occurredAt`: when a message was
+  posted, when a Doc was last modified), and results at the same time are
+  ordered by record identity, so the order is complete and the same on
+  every call.
+- **Size.** A page holds at most 64 KiB of serialized results, counting the
+  text and the mentions, and at most `limit` results when `limit` is given.
+  It always holds at least one result while any remain. One result is
+  bounded too: its `text` stops at 1,000 characters, and its mentions are
+  listed while the result stays within 16 KiB; any left out are counted in
+  `omittedMentions` (`pullRequests`, `tickets`), which is absent when every
+  mention is listed.
+- **Cursor.** `nextCursor` is an opaque string naming the position just
+  after the page's last result (its time and identity), not an offset. Pass
+  it as `cursor`, with the same filters, to get the next page; it is `null`
+  on the last page. Because the cursor is a position, following it never
+  skips or repeats a result, even when records are imported between calls;
+  a record imported meanwhile that sorts before the cursor appears only when
+  you start again without a cursor. A cursor is bound to the tool that
+  issued it and to the filters it was issued for (the page size may
+  change): one from another tool, one passed with other filters, or a
+  malformed one is refused with an error.
+- **Counts.** `total` is the number of results matching the filters across
+  all pages (the same on every page of an unchanged work log); `returned` is
+  the number on this page.
+
 Example prompts once connected:
 
 - "Show me my flagship PRs from last quarter."
@@ -127,3 +186,4 @@ Example prompts once connected:
 - "What was my busiest month this year?"
 - "Which PRs did I request changes on last quarter?"
 - "What did I say in Slack about the billing export?"
+- "Which of my Google Docs mention the billing export?"

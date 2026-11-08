@@ -6,8 +6,8 @@ import { IsoDateTimeSchema } from './pr';
  * Imported records: evidence a skill reads from another service (such as
  * Slack) and hands to `work-chronicler import` as a staged batch. Every
  * record type shares one thin envelope; type-specific details live under a
- * key named after the type (`message:` for messages), so later types (such
- * as `documents`) add a member without changing the envelope.
+ * key named after the type (`message:` for messages, `document:` for
+ * documents), so a new type adds a member without changing the envelope.
  */
 
 /** Envelope version written by this release */
@@ -17,11 +17,14 @@ export const IMPORT_SCHEMA_VERSION = 1;
  * Sources the CLI accepts. Each has rules in `@core/import/sources`; a
  * record from any other source is rejected.
  */
-export const IMPORT_SOURCES = ['slack'] as const;
+export const IMPORT_SOURCES = ['slack', 'google-docs'] as const;
 export type ImportSource = (typeof IMPORT_SOURCES)[number];
 
+/** Sources that produce `message` records */
+export const MESSAGE_SOURCES = ['slack'] as const;
+
 /** Record types, as written in the `type` field */
-export const IMPORTED_RECORD_TYPES = ['message'] as const;
+export const IMPORTED_RECORD_TYPES = ['message', 'document'] as const;
 export type ImportedRecordType = (typeof IMPORTED_RECORD_TYPES)[number];
 
 /**
@@ -105,9 +108,15 @@ const envelopeShape = {
   sourceId: IdentifierSchema,
   /** Link to the item at the source, when there is one */
   url: HttpUrlSchema.nullable().default(null),
-  /** When the event happened (a message was posted) */
+  /**
+   * When the event happened: a message was posted, or a document was last
+   * modified (consumers date documents by it)
+   */
   occurredAt: IsoDateTimeSchema,
-  /** When the item was last changed at the source (an edit), if ever */
+  /**
+   * When the item was last changed at the source (an edit), if ever; a
+   * document's modified time
+   */
   updatedAt: IsoDateTimeSchema.nullable().default(null),
   /** When the skill captured the item */
   capturedAt: IsoDateTimeSchema,
@@ -151,6 +160,45 @@ export const MessageRecordSchema = z.strictObject({
 });
 export type MessageRecord = z.infer<typeof MessageRecordSchema>;
 
+/**
+ * Document details. The record body is an excerpt of the document's own
+ * text, at most `MAX_DOCUMENT_EXCERPT_BYTES` (see `@core/import/sources`);
+ * it never holds a generated summary. Owning a document is not writing it:
+ * documents are attributed `unverified`, with no author.
+ */
+export const DocumentDetailsSchema = z.strictObject({
+  /** The document's title at the source (one line) */
+  title: z
+    .string()
+    .max(1000)
+    .regex(/^[^\p{Cc}]*$/u, 'must be one line of text'),
+  /** The source's file type; Google Docs records must be Google Docs */
+  mimeType: z.string().max(200),
+  /** When the document was created */
+  createdAt: IsoDateTimeSchema,
+  /**
+   * The owners' account email addresses, as the source lists them: the
+   * evidence of ownership import checks. Null when the skill could not get
+   * it; empty for a document without an individual owner.
+   */
+  owners: z.array(z.string().max(320)).max(100).nullable().default(null),
+  /** The shared drive holding the document, when it is in one */
+  driveId: IdentifierSchema.nullable().default(null),
+  /** Whether the body is cut short of the document's full text */
+  truncated: z.boolean(),
+});
+
+/**
+ * A document the subject owns. An excerpt of its text is the record body.
+ */
+export const DocumentRecordSchema = z.strictObject({
+  schemaVersion: z.literal(IMPORT_SCHEMA_VERSION),
+  type: z.literal('document'),
+  ...envelopeShape,
+  document: DocumentDetailsSchema,
+});
+export type DocumentRecord = z.infer<typeof DocumentRecordSchema>;
+
 const time = (value: string) => new Date(value).getTime();
 
 /**
@@ -158,7 +206,7 @@ const time = (value: string) => new Date(value).getTime();
  * cannot precede the event.
  */
 export const ImportedRecordSchema = z
-  .discriminatedUnion('type', [MessageRecordSchema])
+  .discriminatedUnion('type', [MessageRecordSchema, DocumentRecordSchema])
   .superRefine((record, ctx) => {
     if (
       record.updatedAt !== null &&
@@ -227,8 +275,24 @@ export function importedRecordIdentityKey(
 /**
  * Imported record file with frontmatter and body content
  */
-export interface ImportedRecordFile {
-  frontmatter: ImportedRecord;
+export interface ImportedRecordFile<
+  Record extends ImportedRecord = ImportedRecord,
+> {
+  frontmatter: Record;
   body: string;
   filePath: string;
+}
+
+/** Whether an imported record file holds a message */
+export function isMessageFile(
+  file: ImportedRecordFile,
+): file is ImportedRecordFile<MessageRecord> {
+  return file.frontmatter.type === 'message';
+}
+
+/** Whether an imported record file holds a document */
+export function isDocumentFile(
+  file: ImportedRecordFile,
+): file is ImportedRecordFile<DocumentRecord> {
+  return file.frontmatter.type === 'document';
 }

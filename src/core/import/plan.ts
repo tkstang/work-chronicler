@@ -8,13 +8,8 @@ import {
   type ImportSubject,
 } from '@wc-types/imported-record';
 
-import type { ImportFs } from './import-fs';
-import {
-  describeFsError,
-  errorCode,
-  type ImportIssue,
-  importIssue,
-} from './issues';
+import { errorCode, type ImportFs } from './import-fs';
+import { describeFsError, type ImportIssue, importIssue } from './issues';
 import { parseImportedRecordFile } from './record-file';
 import { MAX_STORED_BYTES, type StagedRecord } from './staging';
 
@@ -159,6 +154,9 @@ function checkDirectory(
 
 /**
  * Check one destination file and decide the action.
+ *
+ * @param listDirectory - The names in a record directory (listed once per
+ *   directory per plan)
  */
 function checkDestination(
   root: string,
@@ -166,6 +164,7 @@ function checkDestination(
   segments: string[],
   target: ImportSubject,
   fs: ImportFs,
+  listDirectory: (segments: string[]) => Set<string>,
 ): { existing: ExistingRecord | null } | { issue: ImportIssue } {
   const where = { file: staged.file, destination: displayPath(segments) };
   const path = join(root, ...segments);
@@ -178,6 +177,31 @@ function checkDestination(
       issue: importIssue(
         'UNSAFE_DESTINATION',
         `destination could not be checked (${describeFsError(error)})`,
+        where,
+      ),
+    };
+  }
+  // On a volume that ignores letter case, the destination can be found
+  // under a name cased differently (`ABC….md`). Readers skip such a file as
+  // not stored where its identity puts it, so it is never this record: only
+  // a file under the exact name is.
+  let names: Set<string>;
+  try {
+    names = listDirectory(segments.slice(0, -1));
+  } catch (error) {
+    return {
+      issue: importIssue(
+        'UNSAFE_DESTINATION',
+        `the record directory could not be listed (${describeFsError(error)})`,
+        where,
+      ),
+    };
+  }
+  if (!names.has(segments[segments.length - 1] ?? '')) {
+    return {
+      issue: importIssue(
+        'IDENTITY_CONFLICT',
+        'a file whose name differs from the destination only in letter case is stored there, and readers skip it; rename it to the destination name',
         where,
       ),
     };
@@ -325,6 +349,17 @@ export function planImport(
     directories.push({ segments: dir, existing: checked.existing });
   }
 
+  const listings = new Map<string, Set<string>>();
+  const listDirectory = (dir: string[]) => {
+    const key = displayPath(dir);
+    let names = listings.get(key);
+    if (!names) {
+      names = new Set(fs.readdir(join(root, ...dir)));
+      listings.set(key, names);
+    }
+    return names;
+  };
+
   const planned: PlannedRecord[] = [];
   records.forEach((staged, index) => {
     const segments = destinations[index] ?? [];
@@ -342,7 +377,14 @@ export function planImport(
       });
       return;
     }
-    const checked = checkDestination(root, staged, segments, target, fs);
+    const checked = checkDestination(
+      root,
+      staged,
+      segments,
+      target,
+      fs,
+      listDirectory,
+    );
     if ('issue' in checked) {
       issues.push(checked.issue);
       return;

@@ -11,6 +11,14 @@ export const importCommand = new Command('import')
     '--report <id>',
     'Manager profile: the report the records are about (see `reports list`)',
   )
+  .option(
+    '--since <date>',
+    'Google Docs records: start of the range they must be modified in, for this batch (YYYY-MM-DD, the whole UTC day, or an ISO timestamp); replaces fetch.since',
+  )
+  .option(
+    '--until <date>',
+    'Google Docs records: end of that range (YYYY-MM-DD includes the whole UTC day); replaces fetch.until',
+  )
   .option('-c, --config <path>', 'Path to config file')
   .option('--json', 'Print a machine-readable result')
   .action(async (dir: string, options: ImportCommandOptions) => {

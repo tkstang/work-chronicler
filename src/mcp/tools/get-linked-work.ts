@@ -1,7 +1,11 @@
 import {
   buildMentionIndex,
   DIRECTORIES,
+  type DocumentRecord,
   type ImportedRecordFile,
+  isDocumentFile,
+  isMessageFile,
+  type MessageRecord,
   normalizePullRequestUrl,
   readAllImportedRecords,
   readAllPRs,
@@ -11,6 +15,7 @@ import {
 import { z } from 'zod';
 
 import {
+  DOCUMENT_NOTICE,
   defineTool,
   EVIDENCE_NOTICE,
   jsonResult,
@@ -19,7 +24,7 @@ import {
 } from './types';
 
 /** A message that mentions the looked-up PR or ticket */
-function mentionSummary(record: ImportedRecordFile) {
+function mentionSummary(record: ImportedRecordFile<MessageRecord>) {
   const fm = record.frontmatter;
   return {
     source: fm.source,
@@ -27,6 +32,20 @@ function mentionSummary(record: ImportedRecordFile) {
     occurredAt: fm.occurredAt,
     attribution: fm.attribution.status,
     channel: fm.message.container.name,
+    text: truncate(record.body, 300),
+  };
+}
+
+/** A Google Doc that mentions the looked-up PR or ticket */
+function documentSummary(record: ImportedRecordFile<DocumentRecord>) {
+  const fm = record.frontmatter;
+  return {
+    source: fm.source,
+    url: fm.url,
+    title: fm.document.title,
+    createdAt: fm.document.createdAt,
+    modifiedAt: fm.occurredAt,
+    attribution: fm.attribution.status,
     text: truncate(record.body, 300),
   };
 }
@@ -40,7 +59,7 @@ function pullNumberOf(url: string): number | null {
 export const getLinkedWorkTool = defineTool({
   name: 'get_linked_work',
   description:
-    'Get a PR with its linked JIRA tickets, or a ticket with its linked PRs, plus imported messages that mention it (mentions are supplementary evidence, not links)',
+    'Get a PR with its linked JIRA tickets, or a ticket with its linked PRs, plus imported messages and imported Google Docs that mention it (mentions are supplementary evidence, not links)',
   inputSchema: {
     prUrl: z
       .string()
@@ -59,23 +78,36 @@ export const getLinkedWorkTool = defineTool({
     const allTickets = await readAllTickets(outputDir);
     // Mentions resolve on read; they are reported apart from stored links
     const index = buildMentionIndex(allPRs, allTickets);
-    const messages = (await readAllImportedRecords(outputDir))
-      .filter((record) => record.frontmatter.type === 'message')
-      .map((record) => ({
+    const imported = (await readAllImportedRecords(outputDir)).map(
+      (record) => ({
         record,
         mentions: resolveMentions(record.frontmatter, index),
-      }));
-    // A subset made before messages were imported has none to list
-    const gap = subsetGapNote(
-      outputDir,
-      fullOutputDir ?? outputDir,
-      DIRECTORIES.MESSAGES,
+      }),
     );
-    const mentionFields = (matches: ImportedRecordFile[]) => ({
-      mentionedInMessages: matches.map(mentionSummary),
-      ...(matches.length > 0 ? { notice: EVIDENCE_NOTICE } : {}),
-      ...(gap ? { note: gap } : {}),
-    });
+    // A subset made before messages or Docs were imported has none to list
+    const gaps = [DIRECTORIES.MESSAGES, DIRECTORIES.DOCUMENTS].flatMap(
+      (directory) =>
+        subsetGapNote(outputDir, fullOutputDir ?? outputDir, directory) ?? [],
+    );
+    const mentionFields = (
+      mentions: (m: ReturnType<typeof resolveMentions>) => boolean,
+    ) => {
+      const matches = imported
+        .filter(({ mentions: m }) => mentions(m))
+        .map(({ record }) => record);
+      const messages = matches.filter(isMessageFile);
+      const documents = matches.filter(isDocumentFile);
+      const notices = [
+        ...(messages.length > 0 ? [EVIDENCE_NOTICE] : []),
+        ...(documents.length > 0 ? [DOCUMENT_NOTICE] : []),
+      ];
+      return {
+        mentionedInMessages: messages.map(mentionSummary),
+        mentionedInDocuments: documents.map(documentSummary),
+        ...(notices.length > 0 ? { notice: notices.join(' ') } : {}),
+        ...(gaps.length > 0 ? { note: gaps.join(' ') } : {}),
+      };
+    };
 
     if (input.prUrl) {
       const prUrl = input.prUrl.trim();
@@ -121,12 +153,8 @@ export const getLinkedWorkTool = defineTool({
           ...t.frontmatter,
           body: t.body,
         })),
-        ...mentionFields(
-          messages
-            .filter(({ mentions }) =>
-              mentions.pullRequests.some((m) => m.resolved === pr),
-            )
-            .map(({ record }) => record),
+        ...mentionFields((mentions) =>
+          mentions.pullRequests.some((m) => m.resolved === pr),
         ),
       });
     }
@@ -154,12 +182,8 @@ export const getLinkedWorkTool = defineTool({
           ...p.frontmatter,
           body: p.body,
         })),
-        ...mentionFields(
-          messages
-            .filter(({ mentions }) =>
-              mentions.tickets.some((m) => m.resolved === ticket),
-            )
-            .map(({ record }) => record),
+        ...mentionFields((mentions) =>
+          mentions.tickets.some((m) => m.resolved === ticket),
         ),
       });
     }

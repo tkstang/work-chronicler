@@ -1,7 +1,11 @@
+import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import {
+  type BigIntStats,
+  type Stats,
   closeSync,
   constants,
+  fchmodSync,
   fstatSync,
   fsyncSync,
   linkSync,
@@ -9,6 +13,7 @@ import {
   mkdirSync,
   openSync,
   readdirSync,
+  readFileSync,
   readSync,
   realpathSync,
   renameSync,
@@ -17,14 +22,59 @@ import {
   unlinkSync,
   writeSync,
 } from 'node:fs';
-import { hostname, uptime } from 'node:os';
+import { hostname } from 'node:os';
 
 /**
- * The filesystem and process operations the import engine uses. Everything
- * the engine does to disk goes through one of these, so the engine can be
+ * The shared filesystem and process seam. The import engine, the work-log
+ * lock, the filtered subset, config updates and `skills install` reach the
+ * disk and the process only through these types and helpers, so each can be
  * run against injected failures (permissions, interruption, concurrent
- * changes) without relying on the current user's privileges.
+ * changes) without relying on the current user's privileges. A component
+ * that needs fewer operations picks them from {@link ImportFs}; one that
+ * needs other semantics adds only those (`SubsetFs`, `SkillInstallFs`).
  */
+
+/**
+ * The `code` of a Node.js filesystem error, if it has one.
+ *
+ * @param error - Any caught value
+ */
+export function errorCode(error: unknown): string | undefined {
+  if (typeof error === 'object' && error !== null && 'code' in error) {
+    const code = (error as { code: unknown }).code;
+    return typeof code === 'string' ? code : undefined;
+  }
+  return undefined;
+}
+
+/**
+ * An error carrying a filesystem-style `code`, for conditions the platform
+ * does not report itself.
+ *
+ * @param code - Error code, such as `ENOTREG`
+ */
+export function codedError(code: string): Error {
+  return Object.assign(new Error(code), { code });
+}
+
+/**
+ * Remove something whose removal must never fail the caller. Any failure is
+ * passed to `onFailure` (and otherwise ignored), except ENOENT: what is
+ * already gone needs no removing.
+ *
+ * @param remove - The removal
+ * @param onFailure - Told about any other failure
+ */
+export function removeQuietly(
+  remove: () => void,
+  onFailure?: (error: unknown) => void,
+): void {
+  try {
+    remove();
+  } catch (error) {
+    if (errorCode(error) !== 'ENOENT') onFailure?.(error);
+  }
+}
 
 /** What is at a path, without following a final symlink */
 export interface FsEntry {
@@ -58,7 +108,10 @@ export interface ImportFs {
   readFile: (path: string, maxBytes: number) => FsFile;
   /**
    * Create a new file (never replacing anything), write it and flush it.
-   * `mode` (default `0o666`) is narrowed by the process umask.
+   * Without `mode`, the file gets `0o666` narrowed by the process umask.
+   * With it, the file gets exactly those permission bits (`0o777` at most),
+   * so a replacement keeps the permissions of the file it replaces; where
+   * the filesystem cannot set them, the umask-narrowed mode stays.
    */
   writeFile: (path: string, data: Uint8Array, mode?: number) => void;
   /** Create one directory (not recursive) */
@@ -76,24 +129,31 @@ export interface ImportFs {
 }
 
 /**
- * The process facts the import lock needs, plus the filesystem.
+ * This process and machine, as the work-log lock, the filtered subset and
+ * the import engine see them. Tests replace members.
  */
-export interface ImportEnv {
-  fs: ImportFs;
+export interface ProcessEnv {
   pid: number;
   hostname: string;
   /** Current time in milliseconds */
   now: () => number;
-  /** When this machine last booted, in milliseconds */
-  bootTime: () => number;
+  /**
+   * An ID unique to this boot of this machine, or null when the platform
+   * gives none. Never derived from the wall clock.
+   */
+  bootId: () => string | null;
   /** Whether a process is running; true when that cannot be determined */
   isProcessAlive: (pid: number) => boolean;
   /** A short random string for unique temporary names */
   randomId: () => string;
 }
 
-function codedError(code: string): Error {
-  return Object.assign(new Error(code), { code });
+/**
+ * The process facts plus the filesystem: what the import engine (and a
+ * `filter` run that finishes an interrupted import) works with.
+ */
+export interface ImportEnv extends ProcessEnv {
+  fs: ImportFs;
 }
 
 function entryKind(stat: {
@@ -105,6 +165,42 @@ function entryKind(stat: {
   if (stat.isFile()) return 'file';
   if (stat.isDirectory()) return 'directory';
   return 'other';
+}
+
+/**
+ * Describe a stat result as an {@link FsEntry}.
+ *
+ * @param stat - A stat result (`bigint` keeps large inode numbers exact)
+ */
+export function fsEntry(stat: BigIntStats | Stats): FsEntry {
+  return {
+    kind: entryKind(stat),
+    dev: BigInt(stat.dev),
+    ino: BigInt(stat.ino),
+    size: BigInt(stat.size),
+    mode: Number(stat.mode) & 0o7777,
+    nlink: Number(stat.nlink),
+    mtimeMs: Number(stat.mtimeMs),
+  };
+}
+
+/**
+ * What is at `path` (not following a final symlink), or null only when it
+ * is proven absent (ENOENT); any other error is thrown.
+ *
+ * @param fs - Filesystem
+ * @param path - Path to check
+ */
+export function entryAt(
+  fs: Pick<ImportFs, 'lstat'>,
+  path: string,
+): FsEntry | null {
+  try {
+    return fs.lstat(path);
+  } catch (error) {
+    if (errorCode(error) === 'ENOENT') return null;
+    throw error;
+  }
 }
 
 /** O_NOFOLLOW where the platform has it; O_NONBLOCK so a FIFO cannot hang */
@@ -127,23 +223,15 @@ const UNSUPPORTED_DIRECTORY_SYNC = new Set([
   'EBADF',
 ]);
 
+/** Permission changes are unsupported on some filesystems (FAT, some shares) */
+const UNSUPPORTED_MODE_CHANGE = new Set(['EPERM', 'ENOTSUP', 'EINVAL']);
+
 /**
  * The real filesystem.
  */
 export const nodeImportFs: ImportFs = {
   realpath: (path) => realpathSync(path),
-  lstat: (path) => {
-    const stat = lstatSync(path, { bigint: true });
-    return {
-      kind: entryKind(stat),
-      dev: stat.dev,
-      ino: stat.ino,
-      size: stat.size,
-      mode: Number(stat.mode & 0o7777n),
-      nlink: Number(stat.nlink),
-      mtimeMs: Number(stat.mtimeMs),
-    };
-  },
+  lstat: (path) => fsEntry(lstatSync(path, { bigint: true })),
   readdir: (path) => readdirSync(path),
   readFile: (path, maxBytes) => {
     const fd = openSync(path, READ_FLAGS);
@@ -166,9 +254,18 @@ export const nodeImportFs: ImportFs = {
       closeSync(fd);
     }
   },
-  writeFile: (path, data, mode = 0o666) => {
-    const fd = openSync(path, CREATE_FLAGS, mode);
+  writeFile: (path, data, mode) => {
+    const fd = openSync(path, CREATE_FLAGS, mode ?? 0o666);
     try {
+      // The umask narrows the mode given to open; set it exactly
+      if (mode !== undefined) {
+        try {
+          fchmodSync(fd, mode & 0o777);
+        } catch (error) {
+          const code = errorCode(error);
+          if (!code || !UNSUPPORTED_MODE_CHANGE.has(code)) throw error;
+        }
+      }
       let offset = 0;
       while (offset < data.length) {
         offset += writeSync(fd, data, offset, data.length - offset);
@@ -190,14 +287,14 @@ export const nodeImportFs: ImportFs = {
     try {
       fd = openSync(path, constants.O_RDONLY);
     } catch (error) {
-      const code = (error as { code?: string }).code;
+      const code = errorCode(error);
       if (code && UNSUPPORTED_DIRECTORY_SYNC.has(code)) return;
       throw error;
     }
     try {
       fsyncSync(fd);
     } catch (error) {
-      const code = (error as { code?: string }).code;
+      const code = errorCode(error);
       if (!code || !UNSUPPORTED_DIRECTORY_SYNC.has(code)) throw error;
     } finally {
       closeSync(fd);
@@ -207,17 +304,66 @@ export const nodeImportFs: ImportFs = {
 
 /**
  * Whether a process is running. A permission error means it exists; any
- * other doubt also counts as running, so a live import is never taken over.
+ * other doubt also counts as running, so a live run is never taken over.
  *
  * @param pid - Process ID
  */
-function isProcessAlive(pid: number): boolean {
+export function isProcessAlive(pid: number): boolean {
   try {
     process.kill(pid, 0);
     return true;
   } catch (error) {
-    return (error as { code?: string }).code !== 'ESRCH';
+    return errorCode(error) !== 'ESRCH';
   }
+}
+
+function readSystemBootId(): string | null {
+  try {
+    if (process.platform === 'linux') {
+      const id = readFileSync('/proc/sys/kernel/random/boot_id', 'utf-8');
+      return id.trim() || null;
+    }
+    if (process.platform === 'darwin') {
+      const id = execFileSync(
+        '/usr/sbin/sysctl',
+        ['-n', 'kern.bootsessionuuid'],
+        {
+          encoding: 'utf-8',
+          timeout: 5_000,
+          stdio: ['ignore', 'pipe', 'ignore'],
+        },
+      );
+      return id.trim() || null;
+    }
+  } catch {
+    // No ID: owners are then judged by their process alone
+  }
+  return null;
+}
+
+let systemBootIdCache: string | null | undefined;
+
+/**
+ * This boot's ID: Linux's `boot_id`, or macOS's boot session UUID. Null on
+ * other platforms or when it cannot be read.
+ */
+export function systemBootId(): string | null {
+  if (systemBootIdCache === undefined) systemBootIdCache = readSystemBootId();
+  return systemBootIdCache;
+}
+
+/**
+ * The real process and machine. Callers may replace any member.
+ */
+export function createProcessEnv(): ProcessEnv {
+  return {
+    pid: process.pid,
+    hostname: hostname(),
+    now: () => Date.now(),
+    bootId: systemBootId,
+    isProcessAlive,
+    randomId: () => randomBytes(8).toString('hex'),
+  };
 }
 
 /**
@@ -225,13 +371,5 @@ function isProcessAlive(pid: number): boolean {
  * Callers may replace any member (tests inject failures this way).
  */
 export function createImportEnv(): ImportEnv {
-  return {
-    fs: nodeImportFs,
-    pid: process.pid,
-    hostname: hostname(),
-    now: () => Date.now(),
-    bootTime: () => Date.now() - uptime() * 1000,
-    isProcessAlive,
-    randomId: () => randomBytes(8).toString('hex'),
-  };
+  return { fs: nodeImportFs, ...createProcessEnv() };
 }

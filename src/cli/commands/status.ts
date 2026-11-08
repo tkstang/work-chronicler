@@ -9,11 +9,12 @@ import {
   findConfigPath,
   getFilteredSubsetState,
   getOutputDirectory,
+  ImportInProgressError,
   loadConfig,
   readAllPRReviews,
   readAllPRs,
   readAllTickets,
-  readFilterLock,
+  readWorkLogLockHolders,
   scanImportedRecords,
   splitReviewRecordsByReviewer,
 } from '@core/index';
@@ -23,25 +24,49 @@ import { Command } from 'commander';
 const SKIPPED_SHOWN = 3;
 
 /**
- * The filter lock, when one is held: who holds it and how to recover. While
- * it is held, `filter` and `filter --clear` are refused, so the subset lines
- * do not recommend them.
+ * The work-log lock (shared by `import` and `filter`), when it is held: who
+ * holds it and how to recover, one line per run holding it. While it is
+ * held, `import`, `filter` and `filter --clear` are refused, so the subset
+ * lines do not recommend them.
  */
-function describeLock(outputDir: string): string | undefined {
-  let lock: ReturnType<typeof readFilterLock>;
+type LockHolders = ReturnType<typeof readWorkLogLockHolders>;
+
+/** Who holds the work-log lock; none when it cannot be read */
+function lockHolders(outputDir: string): LockHolders {
   try {
-    lock = readFilterLock(outputDir);
+    return readWorkLogLockHolders(outputDir);
   } catch {
-    return undefined;
+    return [];
   }
-  if (!lock) return undefined;
-  const who = lock.owner
-    ? `process ${lock.owner.pid} on ${lock.owner.hostname}, started ${new Date(lock.owner.startedAt).toISOString()}`
-    : 'an owner that cannot be read';
-  return `Filter lock: ${lock.path} is held by ${who}. \`work-chronicler filter\` and \`filter --clear\` are refused while it is held. If that run is still going, wait for it; if you know no filter is running (it was stopped, or the machine was renamed), remove ${lock.path}.`;
 }
 
-function describeSubset(outputDir: string, locked: boolean): string[] {
+function describeLock(holders: LockHolders): string[] {
+  // A run holds every name of the lock with one owner: name it once
+  const byRun = new Map<string, typeof holders>();
+  for (const holder of holders) {
+    const key = holder.owner
+      ? JSON.stringify([holder.owner.runId, holder.owner.pid])
+      : holder.path;
+    byRun.set(key, [...(byRun.get(key) ?? []), holder]);
+  }
+  return [...byRun.values()].map((group) => {
+    const [first] = group;
+    const paths = group.map((holder) => holder.path).join(' and ');
+    const command = first?.command ?? 'import';
+    const owner = first?.owner;
+    const who = owner
+      ? `\`work-chronicler ${command}\` (process ${owner.pid} on ${owner.hostname}, started ${new Date(owner.startedAt).toISOString()})`
+      : 'an owner that cannot be read';
+    return `Work-log lock: ${paths} ${group.length > 1 ? 'are' : 'is'} held by ${who}. \`work-chronicler import\`, \`filter\` and \`filter --clear\` are refused while it is held. If that run is still going, wait for it; if you know no ${command} is running (it was stopped, or the machine was renamed), remove ${paths}.`;
+  });
+}
+
+/**
+ * The subset's state. `holders` (the work-log lock) hides advice to run
+ * `filter --clear`, which is refused while any run holds the lock.
+ */
+function describeSubset(outputDir: string, holders: LockHolders): string[] {
+  const locked = holders.length > 0;
   let state: FilteredSubsetState;
   try {
     state = getFilteredSubsetState(outputDir);
@@ -54,9 +79,16 @@ function describeSubset(outputDir: string, locked: boolean): string[] {
   if (state.status === 'none') {
     return ['Filtered subset: none (read commands use the full work log)'];
   }
-  if (state.status === 'interrupted' && locked) {
+  // Only a filter holding the lock is replacing the subset (`state.locked`)
+  if (state.status === 'interrupted' && state.locked) {
     return [
-      'Filtered subset: a `work-chronicler filter` run is replacing filtered/ (see the filter lock below); `analyze` (without `--full`) refuses to run and MCP tools return no results until it finishes or the lock is removed.',
+      'Filtered subset: a `work-chronicler filter` run is replacing filtered/ (see the work-log lock below); `analyze` (without `--full`) refuses to run and MCP tools return no results until it finishes or the lock is removed.',
+    ];
+  }
+  if (state.status === 'interrupted' && locked) {
+    const command = holders[0]?.command ?? 'import';
+    return [
+      `Filtered subset: an earlier \`work-chronicler filter\` run was interrupted while replacing filtered/; \`analyze\` (without \`--full\`) refuses to run and MCP tools return no results until \`work-chronicler filter\` restores it once the \`work-chronicler ${command}\` holding the work-log lock (see below) finishes.`,
     ];
   }
   if (state.status === 'interrupted') {
@@ -73,7 +105,7 @@ function describeSubset(outputDir: string, locked: boolean): string[] {
   if (selection) {
     const { counts } = selection;
     lines.push(
-      `Filtered subset: in use by \`analyze\` and the MCP server (${counts.pullRequests} PRs, ${counts.tickets} tickets, ${counts.prReviews} reviewed PRs, ${counts.messages} messages; filters: ${selection.filters.join('; ') || 'none'}).${clearAdvice}`,
+      `Filtered subset: in use by \`analyze\` and the MCP server (${counts.pullRequests} PRs, ${counts.tickets} tickets, ${counts.prReviews} reviewed PRs, ${counts.messages} messages, ${counts.documents} Google Docs; filters: ${selection.filters.join('; ') || 'none'}).${clearAdvice}`,
     );
   } else {
     lines.push(
@@ -90,6 +122,11 @@ function describeSubset(outputDir: string, locked: boolean): string[] {
   if (state.missing.includes(DIRECTORIES.MESSAGES)) {
     lines.push(
       'The filtered/ subset was created before messages were imported and does not include them. Re-run `work-chronicler filter` to add them.',
+    );
+  }
+  if (state.missing.includes(DIRECTORIES.DOCUMENTS)) {
+    lines.push(
+      'The filtered/ subset was created before Google Docs were imported and does not include them. Re-run `work-chronicler filter` to add them.',
     );
   }
   return lines;
@@ -128,8 +165,16 @@ export const statusCommand = new Command('status')
         (sum, r) => sum + r.frontmatter.comments.length,
         0,
       );
-      const imported = scanImportedRecords(outputDir);
-      const messages = imported.records.filter(
+      // Not read while an import is storing a batch or needs recovery: the
+      // counts could hold part of a batch (said below)
+      let imported: ReturnType<typeof scanImportedRecords> | null;
+      try {
+        imported = scanImportedRecords(outputDir);
+      } catch (error) {
+        if (!(error instanceof ImportInProgressError)) throw error;
+        imported = null;
+      }
+      const messages = (imported?.records ?? []).filter(
         (r) => r.frontmatter.type === 'message',
       );
       const bySource = new Map<string, number>();
@@ -139,6 +184,9 @@ export const statusCommand = new Command('status')
       }
       const unverified = messages.filter(
         (m) => m.frontmatter.attribution.status === 'unverified',
+      ).length;
+      const documents = (imported?.records ?? []).filter(
+        (r) => r.frontmatter.type === 'document',
       ).length;
 
       console.log('Work Chronicler Status');
@@ -157,9 +205,16 @@ export const statusCommand = new Command('status')
         .map(([source, count]) => `${source} ${count}`)
         .join(', ');
       console.log(
-        `Messages:      ${messages.length} imported (${sources ? `${sources}; ` : ''}supplementary evidence, not counted as PRs or tickets${unverified > 0 ? `; ${unverified} with unverified attribution` : ''})`,
+        imported
+          ? `Messages:      ${messages.length} imported (${sources ? `${sources}; ` : ''}supplementary evidence, not counted as PRs or tickets${unverified > 0 ? `; ${unverified} with unverified attribution` : ''})`
+          : 'Messages:      not counted while an import is running or needs recovery (see below)',
       );
-      if (imported.skipped.length > 0) {
+      console.log(
+        imported
+          ? `Google Docs:   ${documents} imported (Docs the subject owns, not necessarily wrote; supplementary evidence, not counted as PRs or tickets)`
+          : 'Google Docs:   not counted while an import is running or needs recovery (see below)',
+      );
+      if (imported && imported.skipped.length > 0) {
         console.log(
           `\n${imported.skipped.length} imported record file(s) could not be read and are ignored:`,
         );
@@ -192,11 +247,11 @@ export const statusCommand = new Command('status')
       }
 
       console.log();
-      const lock = describeLock(outputDir);
-      for (const line of describeSubset(outputDir, lock !== undefined)) {
+      const holders = lockHolders(outputDir);
+      for (const line of describeSubset(outputDir, holders)) {
         console.log(line);
       }
-      if (lock) console.log(lock);
+      for (const line of describeLock(holders)) console.log(line);
 
       if (prs.length > 0 || tickets.length > 0) {
         console.log(

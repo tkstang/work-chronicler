@@ -11,18 +11,15 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
+import { dirname, join, relative, sep } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
-
-import { getImportedRecordFilePath } from '@storage/paths';
-import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   createImportEnv,
   type ImportEnv,
   type ImportFs,
   nodeImportFs,
-} from './import-fs';
+} from '@core/import/import-fs';
 import {
   afterMutationsFs,
   countingFs,
@@ -42,10 +39,13 @@ import {
   stage,
   storeRecord,
   SYNTH_SOURCES,
-} from './import.test-support';
+} from '@core/import/import.test-support';
+import { planImport } from '@core/import/plan';
+import { readStagingBatch } from '@core/import/staging';
+import { getImportedRecordFilePath } from '@storage/paths';
+import { afterEach, describe, expect, it } from 'vitest';
+
 import { type ImportRunOptions, runImport } from './index';
-import { planImport } from './plan';
-import { readStagingBatch } from './staging';
 import { commitImportPlan } from './transaction';
 
 /** The exhaustive loops run an import per operation; give slow CI room */
@@ -111,13 +111,17 @@ function recover(w: World, overrides: Partial<ImportEnv> = {}) {
   return importInto(w, { stagingDir: w.empty, env: laterEnv(overrides) });
 }
 
+/** Import bookkeeping, including the work-log lock's second name */
+const isBookkeeping = (path: string) =>
+  path.startsWith('.import') || path.startsWith('.filter-lock');
+
 const hidden = (snap: Record<string, string>) =>
-  Object.keys(snap).filter((path) => path.startsWith('.import'));
+  Object.keys(snap).filter(isBookkeeping);
 
 /** Record files only (no import bookkeeping) */
 function records(dir: string): Record<string, string> {
   return Object.fromEntries(
-    Object.entries(snapshot(dir)).filter(([p]) => !p.startsWith('.import')),
+    Object.entries(snapshot(dir)).filter(([p]) => !isBookkeeping(p)),
   );
 }
 
@@ -206,6 +210,26 @@ describe('import: committing a batch', () => {
 
     expect(result.ok).toBe(false);
     expect(snapshot(w.workLog)).toEqual(before);
+  });
+
+  it('creates no record directory when a batch is only validated or is rejected', () => {
+    // A fresh work log: storing this batch would create messages/slack/
+    const w = world();
+    scenarios[0]?.setup(w);
+    expect(snapshot(w.workLog)).toEqual({});
+
+    const validated = importInto(w, { mode: 'validate' });
+    expect(validated.ok).toBe(true);
+    expect(validated.summary.created).toBe(2);
+    expect(snapshot(w.workLog)).toEqual({});
+
+    // One bad record rejects the batch, valid records included
+    writeFileSync(join(w.staging, 'z.md'), '---\nnot: [valid\n---\n');
+    for (const mode of ['validate', 'import'] as const) {
+      const rejected = importInto(w, { mode });
+      expect(rejected.ok, mode).toBe(false);
+      expect(snapshot(w.workLog), mode).toEqual({});
+    }
   });
 });
 
@@ -323,6 +347,80 @@ describe('import: paths changing between validation and commit', () => {
     expect(result.issues[0]?.code).toBe('CHANGED_DURING_IMPORT');
     expect(existsSync(first)).toBe(false);
     expect(readFileSync(second, 'utf-8')).toBe('created meanwhile');
+  });
+});
+
+describe('import: what a power failure keeps', () => {
+  /**
+   * A filesystem that records every operation and models a power failure:
+   * an entry made, renamed or removed in a directory reaches the disk only
+   * once that directory is flushed. For each change to a record file it
+   * notes the directories whose entries were still unflushed just before.
+   */
+  function durabilityFs(workLog: string) {
+    const unflushed = new Set<string>();
+    const sequence: string[] = [];
+    const recordChanges: { op: string; unflushed: string[] }[] = [];
+    const isRecord = (path: string) =>
+      relative(workLog, path).startsWith('messages');
+    const fs = hookedFs(nodeImportFs, (op, args) => {
+      const [from = '', to = ''] = args.map(String);
+      sequence.push(
+        `${op} ${relative(workLog, from).split(sep).join('/') || '.'}`,
+      );
+      if (op === 'syncDirectory') {
+        unflushed.delete(from);
+        return;
+      }
+      if ((op === 'rename' || op === 'link') && isRecord(to)) {
+        recordChanges.push({ op, unflushed: [...unflushed] });
+      }
+      if (op === 'rename') unflushed.add(dirname(from));
+      if (op === 'rename' || op === 'link') unflushed.add(dirname(to));
+      if (MUTATING_OPS.has(op) && op !== 'rename' && op !== 'link') {
+        unflushed.add(dirname(from));
+      }
+    });
+    return { fs, sequence, recordChanges };
+  }
+
+  it('flushes the work log, so the transaction directory is on disk before an update-only batch changes a record', () => {
+    const w = world();
+    storeRecord(w.workLog, 1, 'Old body.');
+    storeRecord(w.workLog, 2, 'Old body.');
+    stage(w.staging, 'a.md', messageFrontmatter(1), 'New body.');
+    stage(w.staging, 'b.md', messageFrontmatter(2), 'New body.');
+    const { fs, sequence, recordChanges } = durabilityFs(w.workLog);
+
+    const result = importInto(w, { env: env({ fs }) });
+
+    expect(result.ok).toBe(true);
+    expect(result.summary.updated).toBe(2);
+    // Recorded order: the transaction directory is made, the work log is
+    // flushed, and only then is the first record replaced
+    const made = sequence.indexOf('mkdir .import-transaction');
+    const flushed = sequence.indexOf('syncDirectory .', made);
+    const firstChange = sequence.findIndex((entry) =>
+      entry.startsWith('rename .import-transaction/staged/'),
+    );
+    expect(made).toBeGreaterThanOrEqual(0);
+    expect(flushed).toBeGreaterThan(made);
+    expect(firstChange).toBeGreaterThan(flushed);
+    // A power failure at any record change keeps the transaction directory,
+    // its journal, the backups and the record's marker (a staged copy
+    // already moved into place may linger; recovery goes by content hash)
+    const txn = join(w.workLog, '.import-transaction');
+    expect(recordChanges).toHaveLength(2);
+    for (const change of recordChanges) {
+      expect(change.op).toBe('rename');
+      for (const dir of [
+        w.workLog,
+        txn,
+        ...['backup', 'applying'].map((f) => join(txn, f)),
+      ]) {
+        expect(change.unflushed).not.toContain(dir);
+      }
+    }
   });
 });
 
@@ -542,16 +640,19 @@ describe('import: failures and interruption at every step', () => {
         }),
       });
       let final = recover(w);
-      const guard = join(w.workLog, '.import-lock.takeover');
-      if (!final.ok && existsSync(guard)) {
+      const guard = ['.import-lock.takeover', '.filter-lock.takeover'].find(
+        (name) => existsSync(join(w.workLog, name)),
+      );
+      if (!final.ok && guard) {
         // The recovering process died while taking over the first one's
-        // lock. Its guard is never guessed away: the refusal names it, and
-        // removing it (the documented step) lets recovery run.
+        // lock (either of its names). Its guard is never guessed away: the
+        // refusal names it, and removing it (the documented step) lets
+        // recovery run.
         expect(final.issues[0]?.code, `recovery crash ${crashAt}`).toBe(
           'IMPORT_IN_PROGRESS',
         );
-        expect(final.issues[0]?.message).toContain('.import-lock.takeover');
-        rmSync(guard, { recursive: true });
+        expect(final.issues[0]?.message).toContain(guard);
+        rmSync(join(w.workLog, guard), { recursive: true });
         final = recover(w);
       }
       expect(final.ok, `recovery crash ${crashAt}`).toBe(true);
@@ -583,7 +684,7 @@ describe('import: failures and interruption at every step', () => {
 
 describe('import: interrupted imports and the lock', () => {
   /** Leave an import interrupted with its lock held, before any commit */
-  function interruptHoldingLock(w: World) {
+  function interruptHoldingLock(w: World, overrides: Partial<ImportEnv> = {}) {
     importInto(w, {
       env: env({
         fs: crashAfterFs(
@@ -592,6 +693,7 @@ describe('import: interrupted imports and the lock', () => {
             op === 'rename' && String(args[1]).endsWith('.import-lock'),
         ),
         pid: DEAD_PID,
+        ...overrides,
       }),
     });
   }
@@ -635,18 +737,34 @@ describe('import: interrupted imports and the lock', () => {
     expect(result.issues.map((i) => i.code)).toEqual(['IMPORT_IN_PROGRESS']);
   });
 
-  it('takes over a lock taken before the machine last booted', () => {
+  it('takes over a lock taken in an earlier boot, judged by boot ID', () => {
     const w = world();
     scenarios[1]?.setup(w);
-    interruptHoldingLock(w);
+    interruptHoldingLock(w, { bootId: () => 'earlier-boot' });
 
     const result = importInto(w, {
-      // The PID is in use again, but by a process started after a reboot
-      env: env({ isProcessAlive: () => true, bootTime: () => Date.now() + 1 }),
+      // The PID is in use again, but by a process of this boot
+      env: env({ isProcessAlive: () => true, bootId: () => 'this-boot' }),
     });
 
     expect(result.ok).toBe(true);
     expect(hidden(snapshot(w.workLog))).toEqual([]);
+  });
+
+  it('never takes over a running import because the clock jumped', () => {
+    const w = world();
+    scenarios[1]?.setup(w);
+    // Its start time reads as long before this boot: the clock was wrong
+    // when it started, or has jumped since
+    interruptHoldingLock(w, { bootId: () => 'this-boot', now: () => 1 });
+    const before = snapshot(w.workLog);
+
+    const result = importInto(w, {
+      env: env({ isProcessAlive: () => true, bootId: () => 'this-boot' }),
+    });
+
+    expect(result.issues.map((i) => i.code)).toEqual(['IMPORT_IN_PROGRESS']);
+    expect(snapshot(w.workLog)).toEqual(before);
   });
 
   it('rolls an interrupted batch back, reports it, then imports the new batch', () => {

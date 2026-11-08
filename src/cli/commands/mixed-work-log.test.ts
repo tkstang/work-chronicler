@@ -12,9 +12,13 @@ import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 
 import {
+  crashAfterFs,
+  documentFrontmatter,
   messageFrontmatter,
   recordFile,
   snapshot,
+  stage,
+  SYNTH_SOURCES,
 } from '@core/import/import.test-support';
 import {
   parseImportedRecordFile,
@@ -37,6 +41,7 @@ const { analyzeCommand } = await import('./analyze');
 const { filterCommand } = await import('./filter/index');
 const { writeFilteredSubset } = await import('./filter/filter.utils');
 const { statusCommand } = await import('./status');
+const importer = await import('@core/import/index');
 
 const configPath = join(root, 'work-chronicler.yaml');
 const workLog = join(root, 'work-log');
@@ -453,13 +458,16 @@ describe('a mixed work log with imported messages', () => {
     importedMessage(2, { tickets: ['OPS-9'] }); // mentions nothing fetched
     importedMessage(3);
 
-    // An import in progress: its lock and staged copy are not records
-    writeFileSync(join(workLog, '.import-lock'), 'owner');
-    mkdirSync(join(workLog, '.import-transaction', 'staged'), {
+    // What finished imports leave behind (a released lock, a finished
+    // transaction with a staged copy) is not records and blocks nothing. An
+    // import in progress blocks `filter`: see the test below.
+    mkdirSync(join(workLog, '.import-lock.released-old'));
+    writeFileSync(join(workLog, '.import-lock.released-old', 'owner.json'), '');
+    mkdirSync(join(workLog, '.import-transaction.done-old', 'staged'), {
       recursive: true,
     });
     writeFileSync(
-      join(workLog, '.import-transaction', 'staged', '0.md'),
+      join(workLog, '.import-transaction.done-old', 'staged', '0.md'),
       recordFile(messageFrontmatter(9)),
     );
   });
@@ -528,6 +536,7 @@ describe('a mixed work log with imported messages', () => {
       tickets: 0,
       prReviews: 0,
       messages: 0,
+      documents: 0,
     });
     // Read commands get the empty subset, not the full work log
     const results = parse(
@@ -562,6 +571,7 @@ describe('a mixed work log with imported messages', () => {
       tickets: 0,
       prReviews: 0,
       messages: 3,
+      documents: 0,
     });
     expect(core.getEffectiveOutputDir(workLog).isFiltered).toBe(true);
   });
@@ -661,7 +671,7 @@ describe('a mixed work log with imported messages', () => {
     expect(logs).toContain(
       'Messages:      3 imported (slack 3; supplementary evidence, not counted as PRs or tickets)',
     );
-    expect(logs).toContainEqual(
+    expect(logs).not.toContainEqual(
       expect.stringContaining('An import is running or did not finish'),
     );
     expect(logs).toContain(
@@ -673,7 +683,7 @@ describe('a mixed work log with imported messages', () => {
     await run(statusCommand, []);
     expect(logs).toContainEqual(
       expect.stringContaining(
-        'Filtered subset: in use by `analyze` and the MCP server (1 PRs, 2 tickets, 1 reviewed PRs, 3 messages; filters: Include orgs: acme)',
+        'Filtered subset: in use by `analyze` and the MCP server (1 PRs, 2 tickets, 1 reviewed PRs, 3 messages, 0 Google Docs; filters: Include orgs: acme)',
       ),
     );
 
@@ -688,7 +698,7 @@ describe('a mixed work log with imported messages', () => {
     );
   });
 
-  it('stats count messages; projects and the timeline stay PR/ticket-only and say so', async () => {
+  it('stats count messages; projects and the timeline leave them out and say so', async () => {
     const analysis = async () => {
       await run(analyzeCommand, ['--all', '--full']);
       return readAnalysis(workLog);
@@ -708,7 +718,7 @@ describe('a mixed work log with imported messages', () => {
     expect(withMessages.stats.tickets.total).toBe(2);
     expect(logs).toContainEqual(
       expect.stringContaining(
-        'Projects and the timeline cover PRs and tickets only',
+        'Projects and the timeline do not include messages',
       ),
     );
 
@@ -769,7 +779,7 @@ describe('a mixed work log with imported messages', () => {
     await run(statusCommand, []);
     expect(logs).toContainEqual(
       expect.stringContaining(
-        `Filter lock: ${lockPath} is held by process 4242 on Old-Hostname.local, started 1970-01-01T00:00:00.001Z.`,
+        `Work-log lock: ${lockPath} is held by \`work-chronicler filter\` (process 4242 on Old-Hostname.local, started 1970-01-01T00:00:00.001Z).`,
       ),
     );
     expect(logs).toContainEqual(
@@ -789,5 +799,340 @@ describe('a mixed work log with imported messages', () => {
     rmSync(lockPath, { recursive: true });
     await run(filterCommand, ['--clear']);
     expect(core.getEffectiveOutputDir(workLog).isFiltered).toBe(false);
+  });
+
+  it('filter finishes an interrupted import before reading, so the subset never holds part of its batch', async () => {
+    const staging = mkdtempSync(join(root, 'staging-'));
+    // Rewrite message 1 and add message 4; stop right after message 1 is
+    // replaced, as a crash would
+    stage(
+      staging,
+      'a.md',
+      messageFrontmatter(1, { capturedAt: '2025-06-02T00:00:00Z' }),
+      'Rewritten by an import that stopped.',
+    );
+    stage(staging, 'b.md', messageFrontmatter(4), 'Added by it too.');
+    const crashed = importer.runImport({
+      mode: 'import',
+      stagingDir: staging,
+      workLogRoot: workLog,
+      target: { kind: 'ic' },
+      sources: SYNTH_SOURCES,
+      env: {
+        ...importer.createImportEnv(),
+        pid: 4_000_001,
+        fs: crashAfterFs(
+          (await import('@core/import/import-fs')).nodeImportFs,
+          (op, args) =>
+            op === 'rename' && String(args[1]).includes('messages/slack/'),
+        ),
+      },
+    });
+    expect(crashed.ok).toBe(false);
+    expect(existsSync(join(workLog, '.import-transaction'))).toBe(true);
+
+    await run(filterCommand, ['--org', 'acme']);
+
+    expect((await subsetRecords()).messages).toEqual([
+      'Message 1 in my own words.',
+      'Message 2 in my own words.',
+      'Message 3 in my own words.',
+    ]);
+    expect(logs).toContainEqual(
+      expect.stringContaining(
+        'An interrupted import was rolled back before filtering (2 records in its batch, none kept)',
+      ),
+    );
+    expect(existsSync(join(workLog, '.import-transaction'))).toBe(false);
+    rmSync(staging, { recursive: true, force: true });
+  });
+
+  it('filter is refused while an import holds the work-log lock, and status names the import', async () => {
+    await run(filterCommand, ['--org', 'acme']);
+    const before = snapshot(filteredDir);
+    // A running import holds both names of the work-log lock
+    const owner = JSON.stringify({
+      version: 1,
+      pid: process.pid,
+      hostname: 'this-host-is-elsewhere',
+      startedAt: 1,
+      runId: 'running-import',
+      command: 'import',
+    });
+    const names = ['.import-lock', '.filter-lock'];
+    for (const name of names) {
+      mkdirSync(join(workLog, name));
+      writeFileSync(join(workLog, name, 'owner.json'), owner);
+    }
+    const paths = names.map((name) => join(workLog, name));
+    // ...and is storing its batch
+    mkdirSync(join(workLog, '.import-transaction'));
+
+    logs = [];
+    await run(statusCommand, []);
+    expect(logs).toContain(
+      'Messages:      not counted while an import is running or needs recovery (see below)',
+    );
+    expect(logs).toContainEqual(
+      expect.stringContaining('An import is running or did not finish'),
+    );
+    expect(logs).toContainEqual(
+      expect.stringContaining(
+        `Work-log lock: ${paths[0]} and ${paths[1]} are held by \`work-chronicler import\` (process ${process.pid} on this-host-is-elsewhere, started 1970-01-01T00:00:00.001Z).`,
+      ),
+    );
+    expect(logs).toContainEqual(
+      expect.stringContaining('if you know no import is running'),
+    );
+
+    for (const args of [['--org', 'other'], ['--clear']]) {
+      await expect(run(filterCommand, args)).rejects.toThrow(
+        /Another `work-chronicler import` run .* holds .*\.import-lock\./,
+      );
+    }
+    expect(snapshot(filteredDir)).toEqual(before);
+    // Reading the full work log's imported records waits for the import
+    await expect(run(analyzeCommand, ['--all', '--full'])).rejects.toThrow(
+      /An import is running in .*, or was interrupted/,
+    );
+
+    // An earlier filter was interrupted mid-swap: no filter is running, so
+    // status must not say one is replacing the subset, and points at filter
+    // once the import holding the lock finishes (no --clear advice while
+    // the lock is held)
+    renameSync(filteredDir, join(workLog, '.filter-previous-old'));
+    logs = [];
+    await run(statusCommand, []);
+    const subsetLines = logs.filter((line) =>
+      line.startsWith('Filtered subset:'),
+    );
+    expect(subsetLines).toEqual([
+      expect.stringContaining(
+        'an earlier `work-chronicler filter` run was interrupted while replacing filtered/',
+      ),
+    ]);
+    expect(subsetLines[0]).toContain(
+      '`work-chronicler filter` restores it once the `work-chronicler import` holding the work-log lock (see below) finishes',
+    );
+    expect(subsetLines[0]).not.toContain('is replacing');
+    expect(subsetLines[0]).not.toContain('--clear');
+  });
+});
+
+/**
+ * A Google Doc the subject owns, stored where `import` would store it.
+ */
+function importedDoc(
+  n: number,
+  doc: {
+    createdAt: string;
+    modifiedAt: string;
+    tickets?: string[];
+  },
+) {
+  const base = documentFrontmatter(n);
+  const parsed = parseImportedRecordFile(
+    Buffer.from(
+      recordFile(
+        {
+          ...base,
+          occurredAt: doc.modifiedAt,
+          updatedAt: doc.modifiedAt,
+          capturedAt: '2026-01-05T00:00:00Z',
+          mentions: { tickets: doc.tickets ?? [], pullRequests: [] },
+          document: {
+            ...(base.document as Record<string, unknown>),
+            title: `Synthetic Doc ${n}`,
+            createdAt: doc.createdAt,
+          },
+        },
+        `Text of synthetic Doc ${n}.`,
+      ),
+    ),
+  );
+  if (!parsed.ok) throw new Error('fixture must be valid');
+  const path = core.getImportedRecordFilePath(
+    workLog,
+    core.getImportedRecordIdentity(parsed.record),
+  );
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, serializeImportedRecord(parsed.record, parsed.body));
+  return path;
+}
+
+describe('a mixed work log with imported Google Docs', () => {
+  let logs: string[];
+
+  beforeEach(() => {
+    rmSync(workLog, { recursive: true, force: true });
+    logs = [];
+    vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
+      logs.push(args.join(' '));
+    });
+    writeConfig();
+
+    authoredPR('acme', 'api', 7, { jiraTickets: ['BILL-1'] });
+    authoredPR('other', 'api', 4, { createdAt: '2025-05-01T09:00:00Z' });
+    ticketRecord('BILL-1', 'Done', ['https://github.com/Acme/API/pull/7']);
+    importedMessage(1, {
+      pullRequests: ['https://github.com/acme/api/pull/7'],
+    });
+    // Created before the range (2025), modified inside it; mentions BILL-1
+    importedDoc(1, {
+      createdAt: '2024-11-01T08:00:00Z',
+      modifiedAt: '2025-03-12T15:00:00Z',
+      tickets: ['BILL-1'],
+    });
+    // Modified late on the range's date-only until day
+    importedDoc(2, {
+      createdAt: '2025-06-01T08:00:00Z',
+      modifiedAt: '2025-12-31T23:30:00Z',
+    });
+  });
+
+  const docTitles = async (dir: string) =>
+    (await core.readAllImportedRecords(dir))
+      .filter(core.isDocumentFile)
+      .map((record) => record.frontmatter.document.title)
+      .sort();
+
+  it('filter copies Docs, keeps only linked ones with --linked-only, and counts them', async () => {
+    await run(filterCommand, ['--org', 'acme']);
+    expect(await docTitles(filteredDir)).toEqual([
+      'Synthetic Doc 1',
+      'Synthetic Doc 2',
+    ]);
+    expect(selection()).toMatchObject({
+      counts: { messages: 1, documents: 2 },
+      totals: { messages: 1, documents: 2 },
+    });
+
+    await run(filterCommand, ['--org', 'acme', '--linked-only']);
+    // Only the Doc whose mention resolves to a ticket in the subset
+    expect(await docTitles(filteredDir)).toEqual(['Synthetic Doc 1']);
+    expect(selection()).toMatchObject({
+      counts: { documents: 1 },
+      totals: { documents: 2 },
+    });
+    expect(readAnalysis(filteredDir).stats.documents).toMatchObject({
+      total: 1,
+      bySource: { 'google-docs': 1 },
+    });
+  });
+
+  it('status counts Docs apart from PRs and tickets and flags a subset made before them', async () => {
+    await run(statusCommand, []);
+    expect(logs).toContain(
+      'Google Docs:   2 imported (Docs the subject owns, not necessarily wrote; supplementary evidence, not counted as PRs or tickets)',
+    );
+
+    await run(filterCommand, ['--org', 'acme']);
+    rmSync(join(filteredDir, 'documents'), { recursive: true });
+    logs = [];
+    await run(statusCommand, []);
+    expect(logs).toContainEqual(
+      expect.stringContaining(
+        'created before Google Docs were imported and does not include them',
+      ),
+    );
+  });
+
+  it('stats count Docs; the timeline lists them by modified time; projects leave them out', async () => {
+    const analysis = async () => {
+      await run(analyzeCommand, ['--all', '--full']);
+      return readAnalysis(workLog);
+    };
+
+    const withDocs = await analysis();
+    expect(withDocs.stats.documents).toMatchObject({
+      total: 2,
+      bySource: { 'google-docs': 2 },
+    });
+    expect(withDocs.stats.prs.total).toBe(2);
+    expect(logs).toContainEqual(
+      expect.stringContaining(
+        'The timeline lists them by modified time; projects cover PRs and tickets only',
+      ),
+    );
+
+    type Week = {
+      weekStart: string;
+      documents: { title: string; modifiedAt: string; createdAt: string }[];
+      stats: { documentCount: number };
+    };
+    type Month = { month: string; weeks: Week[]; stats: Week['stats'] };
+    const months = withDocs.timeline.months as Month[];
+    const weeks = months.flatMap((month) => month.weeks);
+    // The Doc created in 2024 is filed under the week it was modified in
+    expect(weeks.find((w) => w.weekStart === '2025-03-10')).toMatchObject({
+      documents: [
+        {
+          title: 'Synthetic Doc 1',
+          createdAt: '2024-11-01T08:00:00Z',
+          modifiedAt: '2025-03-12T15:00:00Z',
+        },
+      ],
+      stats: { documentCount: 1 },
+    });
+    expect(weeks.find((w) => w.weekStart === '2025-12-29')).toMatchObject({
+      documents: [{ title: 'Synthetic Doc 2' }],
+    });
+    expect(months.find((m) => m.month === '2025-12')?.stats.documentCount).toBe(
+      1,
+    );
+
+    rmSync(join(workLog, 'documents'), { recursive: true });
+    const withoutDocs = await analysis();
+    expect(withoutDocs.projects).toEqual(withDocs.projects);
+    expect(withoutDocs.stats.documents.total).toBe(0);
+  });
+
+  it('MCP tools cover Docs by modified time, over the full work log and a filtered subset', async () => {
+    await run(analyzeCommand, ['--all', '--full']);
+    const full = { outputDir: workLog };
+    type Week = { documents: { title: string }[] };
+    type Period = Week | { weeks: Week[] };
+    // Weeks list their Docs; a month lists them in its weeks
+    const timelineDocs = async (
+      ctx: { outputDir: string },
+      input: Record<string, unknown>,
+    ) =>
+      (
+        parse(await tools.getTimelineTool.handler(input, ctx))
+          .periods as Period[]
+      )
+        .flatMap((period) => ('weeks' in period ? period.weeks : [period]))
+        .flatMap((week) => week.documents.map((d) => d.title));
+
+    // Modified late on the range's date-only until day: in that range
+    const december = { since: '2025-12-01', until: '2025-12-31' };
+    expect(
+      parse(await tools.getStatsTool.handler(december, full)).documents,
+    ).toEqual({ total: 1, bySource: { 'google-docs': 1 } });
+    expect(await timelineDocs(full, december)).toEqual(['Synthetic Doc 2']);
+    // Created in 2024, modified in March: in March's range
+    const march = { since: '2025-03-01', until: '2025-03-31' };
+    expect(
+      parse(await tools.getStatsTool.handler(march, full)).documents.total,
+    ).toBe(1);
+    expect(
+      await timelineDocs(full, { ...march, granularity: 'month' }),
+    ).toEqual(['Synthetic Doc 1']);
+
+    await run(filterCommand, ['--org', 'acme', '--linked-only']);
+    const subset = { outputDir: filteredDir, fullOutputDir: workLog };
+    const found = parse(await tools.searchDocumentsTool.handler({}, subset));
+    expect(found.results.map((r: { title: string }) => r.title)).toEqual([
+      'Synthetic Doc 1',
+    ]);
+    expect(
+      parse(await tools.getStatsTool.handler({}, subset)).documents.total,
+    ).toBe(1);
+    expect(await timelineDocs(subset, {})).toEqual(['Synthetic Doc 1']);
+    expect(
+      parse(
+        await tools.getLinkedWorkTool.handler({ ticketKey: 'BILL-1' }, subset),
+      ).mentionedInDocuments,
+    ).toEqual([expect.objectContaining({ title: 'Synthetic Doc 1' })]);
   });
 });

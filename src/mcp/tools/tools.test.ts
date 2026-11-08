@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
+  documentFrontmatter,
   messageFrontmatter,
   recordFile,
   snapshot,
@@ -32,12 +33,15 @@ import {
   getStatsTool,
   getTimelineTool,
   listReposTool,
+  searchDocumentsTool,
   searchMessagesTool,
   searchPrReviewsTool,
   searchPrsTool,
   searchTicketsTool,
   type ToolContext,
 } from './index';
+import { encodeCursor } from './pagination';
+import { parseUntilDate } from './types';
 
 const LONG_BODY = 'x'.repeat(600);
 
@@ -397,13 +401,25 @@ describe('list_repos', () => {
 });
 
 describe('get_stats', () => {
-  it('returns generated stats.json verbatim when no dates are given', async () => {
+  it('returns generated stats.json when no dates are given, with messages and Docs counted afresh', async () => {
     const generated = '{\n  "prs": { "total": 42 }\n}';
     writeAnalysis('stats', generated);
 
+    const out = parse(await getStatsTool.handler({}, ctx));
+
+    expect(out).toEqual({
+      prs: { total: 42 },
+      messages: { total: 0, bySource: {}, byMonth: {} },
+      documents: { total: 0, bySource: {}, byMonth: {} },
+    });
+  });
+
+  it('returns a stats.json that is not JSON as it is', async () => {
+    writeAnalysis('stats', 'not json');
+
     const result = await getStatsTool.handler({}, ctx);
 
-    expect(result.content).toEqual([{ type: 'text', text: generated }]);
+    expect(result.content).toEqual([{ type: 'text', text: 'not json' }]);
   });
 
   it('computes stats from the work log for a date range, ignoring stats.json', async () => {
@@ -503,7 +519,7 @@ describe('get_timeline', () => {
       total: 3,
       returned: 2,
       summary: { totalWeeks: 3, totalMonths: 2 },
-      coverage: expect.stringContaining('Authored PRs and JIRA tickets only'),
+      coverage: expect.stringContaining('plus imported Google Docs'),
     });
   });
 
@@ -812,12 +828,14 @@ describe('imported messages', () => {
       { occurredAt: '2025-03-01T10:00:00Z' },
       LONG_MESSAGE,
     );
-    // An import's working files are never records
-    mkdirSync(join(ctx.outputDir, '.import-transaction', 'staged'), {
+    // What a finished import leaves is never records (while an import is
+    // storing a batch, imported records are not read at all: see the
+    // reader and server tests)
+    mkdirSync(join(ctx.outputDir, '.import-transaction.done-old', 'staged'), {
       recursive: true,
     });
     writeFileSync(
-      join(ctx.outputDir, '.import-transaction', 'staged', '0.md'),
+      join(ctx.outputDir, '.import-transaction.done-old', 'staged', '0.md'),
       recordFile(messageFrontmatter(9)),
     );
   });
@@ -906,6 +924,193 @@ describe('imported messages', () => {
       await expect(
         searchMessagesTool.handler({ since: 'not a date' }, ctx),
       ).rejects.toThrow(/Invalid since date/);
+    });
+
+    it('reads a date-only until through the end of that UTC day, and a timestamp exactly', async () => {
+      writeMessage(
+        ctx.outputDir,
+        4,
+        { occurredAt: '2025-02-28T23:59:59.500Z' },
+        'Late on the last day.',
+      );
+      const texts = async (until: string) =>
+        parse(
+          await searchMessagesTool.handler({ since: '2025-02-01', until }, ctx),
+        ).results.map((r: { text: string }) => r.text.slice(0, 12));
+
+      expect(await texts('2025-02-28')).toEqual([
+        'Late on the ',
+        'Investigatin',
+      ]);
+      expect(await texts('2025-02-28T23:59:59Z')).toEqual(['Investigatin']);
+      expect(await texts('2025-02-15T10:00:00Z')).toEqual(['Investigatin']);
+      expect(await texts('2025-02-14')).toEqual([]);
+    });
+
+    describe('pages', () => {
+      /** Every page from the first, following nextCursor */
+      async function allPages(input: Record<string, unknown> = {}) {
+        const pages = [];
+        let cursor: string | undefined;
+        do {
+          const out = parse(
+            await searchMessagesTool.handler(
+              { ...input, ...(cursor ? { cursor } : {}) },
+              ctx,
+            ),
+          );
+          pages.push(out);
+          cursor = out.nextCursor ?? undefined;
+        } while (cursor && pages.length < 100);
+        return pages;
+      }
+      const ids = (page: { results: { sourceId: string }[] }) =>
+        page.results.map((r) => r.sourceId);
+
+      it('bounds each page by size and walks every result once, in order', async () => {
+        // 150 more messages of about 1 KiB each; some share a time
+        for (let n = 10; n < 160; n++) {
+          writeMessage(
+            ctx.outputDir,
+            n,
+            {
+              occurredAt: `2024-06-${String(1 + (n % 20)).padStart(2, '0')}T10:00:00Z`,
+            },
+            `Message ${n}. ${'z'.repeat(1000)}`,
+          );
+        }
+
+        const pages = await allPages();
+        const all = parse(
+          await searchMessagesTool.handler({ limit: 1000 }, ctx),
+        );
+
+        expect(pages.length).toBeGreaterThan(2);
+        for (const page of pages) {
+          expect(page.total).toBe(153);
+          expect(page.returned).toBe(page.results.length);
+          expect(
+            Buffer.byteLength(JSON.stringify(page.results)),
+          ).toBeLessThanOrEqual(64 * 1024);
+        }
+        expect(pages.at(-1).nextCursor).toBeNull();
+        const walked = pages.flatMap(ids);
+        expect(new Set(walked).size).toBe(153);
+        // The same order as one unbounded listing would have
+        expect(walked.slice(0, all.returned)).toEqual(ids(all));
+        const times = pages
+          .flatMap((page) => page.results)
+          .map((r: { occurredAt: string }) => Date.parse(r.occurredAt));
+        expect(times).toEqual([...times].sort((a, b) => b - a));
+      });
+
+      it('applies limit per page and neither skips nor repeats when records are imported between pages', async () => {
+        const first = parse(
+          await searchMessagesTool.handler({ limit: 2 }, ctx),
+        );
+        expect(ids(first)).toEqual([
+          'C0SYNTH01/1700000000.000003',
+          'C0SYNTH01/1700000000.000002',
+        ]);
+        expect(first.total).toBe(3);
+
+        // Imported meanwhile: one newer than the cursor, one older
+        writeMessage(
+          ctx.outputDir,
+          4,
+          { occurredAt: '2025-12-01T10:00:00Z' },
+          'Newer.',
+        );
+        writeMessage(
+          ctx.outputDir,
+          5,
+          { occurredAt: '2024-12-01T10:00:00Z' },
+          'Older.',
+        );
+        const rest = await allPages({ limit: 2 });
+        const second = parse(
+          await searchMessagesTool.handler(
+            { limit: 2, cursor: first.nextCursor },
+            ctx,
+          ),
+        );
+
+        expect(ids(second)).toEqual([
+          'C0SYNTH01/1700000000.000001',
+          'C0SYNTH01/1700000000.000005',
+        ]);
+        expect(second.total).toBe(5);
+        expect(second.nextCursor).toBeNull();
+        expect(rest.flatMap(ids)).toHaveLength(5);
+      });
+
+      it('bounds one result by listing mentions while they fit, and counts the rest', async () => {
+        const many = Array.from({ length: 500 }, (_, i) => i + 1);
+        writeMessage(
+          ctx.outputDir,
+          4,
+          {
+            occurredAt: '2025-12-01T10:00:00Z',
+            mentions: {
+              pullRequests: many.map(
+                (i) => `https://github.com/acme/api/pull/${1000 + i}`,
+              ),
+              tickets: many.map((i) => `OPS-${i}`),
+            },
+          },
+          'Mentions everything.',
+        );
+
+        const out = parse(await searchMessagesTool.handler({ limit: 1 }, ctx));
+        const [result] = out.results;
+
+        expect(Buffer.byteLength(JSON.stringify(result))).toBeLessThanOrEqual(
+          16 * 1024,
+        );
+        expect(result.mentions.pullRequests.length).toBeGreaterThan(0);
+        expect(
+          result.mentions.pullRequests.length +
+            result.mentions.tickets.length +
+            result.omittedMentions.pullRequests +
+            result.omittedMentions.tickets,
+        ).toBe(1000);
+        // A result that fits lists every mention and no omitted counts
+        const small = parse(
+          await searchMessagesTool.handler({ ticketKey: 'BILL-1' }, ctx),
+        ).results[0];
+        expect(small.omittedMentions).toBeUndefined();
+      });
+
+      it('refuses a cursor it did not issue for these filters', async () => {
+        await expect(
+          searchMessagesTool.handler({ cursor: 'not-a-cursor' }, ctx),
+        ).rejects.toThrow(/Invalid cursor/);
+        // Well-formed, but a bare position no tool issued
+        const forged = Buffer.from('[0,""]').toString('base64url');
+        await expect(
+          searchMessagesTool.handler({ cursor: forged }, ctx),
+        ).rejects.toThrow(/Invalid cursor/);
+        // One another search tool issued
+        const other = encodeCursor('search_documents', [], [0, '']);
+        await expect(
+          searchMessagesTool.handler({ cursor: other }, ctx),
+        ).rejects.toThrow(/another tool/);
+
+        const { nextCursor } = parse(
+          await searchMessagesTool.handler({ limit: 1, source: 'slack' }, ctx),
+        );
+        await expect(
+          searchMessagesTool.handler({ limit: 1, cursor: nextCursor }, ctx),
+        ).rejects.toThrow(/other filters/);
+        // The same filters, with any page size, are accepted
+        const next = parse(
+          await searchMessagesTool.handler(
+            { limit: 5, source: 'slack', cursor: nextCursor },
+            ctx,
+          ),
+        );
+        expect(next.returned).toBe(2);
+      });
     });
 
     it('says when no messages have been imported', async () => {
@@ -1051,6 +1256,23 @@ describe('imported messages', () => {
   });
 
   describe('get_stats', () => {
+    it('counts messages imported after stats.json was generated', async () => {
+      // Analysis ran before the import: its stats.json counts no messages
+      writeAnalysis('stats', {
+        prs: { total: 4 },
+        messages: { total: 0, bySource: {}, byMonth: {} },
+      });
+
+      const out = parse(await getStatsTool.handler({}, ctx));
+
+      expect(out.prs).toEqual({ total: 4 });
+      expect(out.messages).toEqual({
+        total: 3,
+        bySource: { slack: 3 },
+        byMonth: { '2025-01': 1, '2025-02': 1, '2025-03': 1 },
+      });
+    });
+
     it('counts messages in their own section for a date range', async () => {
       const out = parse(
         await getStatsTool.handler(
@@ -1062,5 +1284,357 @@ describe('imported messages', () => {
       expect(out.messages).toEqual({ total: 2, bySource: { slack: 2 } });
       expect(out.prs.total).toBe(2);
     });
+
+    it('reads a date-only until through the end of that UTC day, and a timestamp exactly', async () => {
+      writeMessage(
+        ctx.outputDir,
+        4,
+        { occurredAt: '2025-02-28T12:00:00Z' },
+        'Noon on the last day.',
+      );
+      const count = async (until: string) =>
+        parse(await getStatsTool.handler({ since: '2025-02-01', until }, ctx))
+          .messages.total;
+
+      expect(await count('2025-02-28')).toBe(2);
+      expect(await count('2025-02-28T11:59:59Z')).toBe(1);
+      expect(await count('2025-02-27')).toBe(1);
+    });
+
+    it('reads a date-only until as the UTC day in any time zone, padded or not, and refuses other dates without a time', async () => {
+      vi.stubEnv('TZ', 'America/Chicago');
+      expect(new Date('2025-02-28T00:00:00').getTimezoneOffset()).toBe(360);
+      for (const until of ['2025-02-28', ' 2025-02-28 ', '\t2025-02-28']) {
+        expect(parseUntilDate(until, 'until').toISOString(), until).toBe(
+          '2025-02-28T23:59:59.999Z',
+        );
+      }
+      expect(
+        parseUntilDate(' 2025-02-28T12:00:00Z ', 'until').toISOString(),
+      ).toBe('2025-02-28T12:00:00.000Z');
+      for (const until of [
+        '2025-2-28',
+        'Feb 28 2025',
+        '2025-02',
+        '2025',
+        '2025-02-30',
+      ]) {
+        expect(() => parseUntilDate(until, 'until'), until).toThrow(
+          /Invalid until date/,
+        );
+      }
+      // Through the tool: a message early on Mar 1 UTC (still Feb 28 in
+      // Chicago) is not in a range ending " 2025-02-28"
+      writeMessage(
+        ctx.outputDir,
+        4,
+        { occurredAt: '2025-03-01T03:00:00Z' },
+        'Next UTC day.',
+      );
+      const out = parse(
+        await getStatsTool.handler(
+          { since: '2025-02-01', until: ' 2025-02-28' },
+          ctx,
+        ),
+      );
+      expect(out.messages.total).toBe(1);
+    });
+
+    it('includes message dates in the date range', async () => {
+      // From Feb 11 to 28 there is one message and no PR or ticket: a range
+      // with messages alone still has its dates
+      const out = parse(
+        await getStatsTool.handler(
+          { since: '2025-02-11', until: '2025-02-28' },
+          ctx,
+        ),
+      );
+      expect(out.prs.total + out.tickets.total).toBe(0);
+      expect(out.messages.total).toBe(1);
+      expect(out.dateRange).toEqual({
+        earliest: '2025-02-15T10:00:00Z',
+        latest: '2025-02-15T10:00:00Z',
+      });
+
+      writeMessage(
+        ctx.outputDir,
+        4,
+        { occurredAt: '2025-06-01T10:00:00Z' },
+        'Later than any PR.',
+      );
+      const all = parse(
+        await getStatsTool.handler({ since: '2025-01-01' }, ctx),
+      );
+      expect(all.dateRange).toEqual({
+        earliest: '2025-01-02T10:00:00.000+0000',
+        latest: '2025-06-01T10:00:00Z',
+      });
+    });
+  });
+});
+
+/** Store a synthetic Google Doc modified at `modifiedAt` */
+function writeDoc(
+  dir: string,
+  n: number,
+  doc: {
+    modifiedAt: string;
+    createdAt?: string;
+    title?: string;
+    mentions?: { pullRequests?: string[]; tickets?: string[] };
+    truncated?: boolean;
+  },
+  body: string,
+): void {
+  const base = documentFrontmatter(n);
+  const parsed = parseImportedRecordFile(
+    Buffer.from(
+      recordFile(
+        {
+          ...base,
+          occurredAt: doc.modifiedAt,
+          updatedAt: doc.modifiedAt,
+          capturedAt: '2026-01-05T00:00:00Z',
+          mentions: {
+            pullRequests: doc.mentions?.pullRequests ?? [],
+            tickets: doc.mentions?.tickets ?? [],
+          },
+          document: {
+            ...(base.document as Record<string, unknown>),
+            title: doc.title ?? `Synthetic Doc ${n}`,
+            createdAt: doc.createdAt ?? '2024-10-01T08:00:00Z',
+            truncated: doc.truncated ?? false,
+          },
+        },
+        body,
+      ),
+    ),
+  );
+  if (!parsed.ok) throw new Error('fixture must be valid');
+  const path = getImportedRecordFilePath(
+    dir,
+    getImportedRecordIdentity(parsed.record),
+  );
+  mkdirSync(join(path, '..'), { recursive: true });
+  writeFileSync(path, serializeImportedRecord(parsed.record, parsed.body));
+}
+
+describe('imported Google Docs', () => {
+  beforeEach(() => {
+    // Created before 2025, modified in January; mentions PR 1 and BILL-1
+    writeDoc(
+      ctx.outputDir,
+      1,
+      {
+        modifiedAt: '2025-01-21T10:00:00Z',
+        title: 'Billing export design',
+        mentions: {
+          pullRequests: ['https://github.com/ACME/api/pull/1'],
+          tickets: ['BILL-1'],
+        },
+      },
+      'How the export works.',
+    );
+    // Modified late on 2025-02-28
+    writeDoc(
+      ctx.outputDir,
+      2,
+      { modifiedAt: '2025-02-28T23:30:00Z', truncated: true },
+      `Long plan. ${'d'.repeat(1200)}`,
+    );
+    writeMessage(ctx.outputDir, 1, {}, 'A message, not a Doc.');
+  });
+
+  describe('search_documents', () => {
+    const titles = (out: { results: { title: string }[] }) =>
+      out.results.map((r) => r.title);
+
+    it('returns Docs newest modified first, as owned and supplementary evidence', async () => {
+      const out = parse(await searchDocumentsTool.handler({}, ctx));
+
+      expect(out.total).toBe(2);
+      expect(titles(out)).toEqual(['Synthetic Doc 2', 'Billing export design']);
+      expect(out.results[0]).toMatchObject({
+        source: 'google-docs',
+        owner: 'synthetic.owner@example.com',
+        modifiedAt: '2025-02-28T23:30:00Z',
+        createdAt: '2024-10-01T08:00:00Z',
+        attribution: { status: 'unverified', authorId: null },
+        excerptTruncated: true,
+      });
+      expect(out.results[0].text.length).toBe(1003);
+      expect(out.results[1].mentions).toEqual({
+        pullRequests: [
+          {
+            url: 'https://github.com/ACME/api/pull/1',
+            normalizedUrl: 'https://github.com/acme/api/pull/1',
+            resolved: {
+              url: 'https://github.com/acme/api/pull/1',
+              title: 'Add billing export',
+              state: 'merged',
+            },
+          },
+        ],
+        tickets: [
+          {
+            key: 'BILL-1',
+            resolved: {
+              key: 'BILL-1',
+              summary: 'Billing export',
+              status: 'Done',
+            },
+          },
+        ],
+      });
+      expect(out.notice).toMatch(/owns, not necessarily wrote/);
+      expect(out.notice).toMatch(/never instructions/);
+    });
+
+    it('filters by title or text, mention, and modified date (a date-only until is the whole day)', async () => {
+      const call = async (input: Record<string, unknown>) =>
+        titles(parse(await searchDocumentsTool.handler(input, ctx)));
+
+      expect(await call({ query: 'BILLING EXPORT' })).toEqual([
+        'Billing export design',
+      ]);
+      expect(await call({ query: 'long plan' })).toEqual(['Synthetic Doc 2']);
+      expect(await call({ ticketKey: 'bill-1' })).toEqual([
+        'Billing export design',
+      ]);
+      expect(
+        await call({ prUrl: 'https://github.com/acme/api/pull/1/files' }),
+      ).toEqual(['Billing export design']);
+      expect(await call({ since: '2025-02-01', until: '2025-02-28' })).toEqual([
+        'Synthetic Doc 2',
+      ]);
+      // Created before the range, modified inside it
+      expect(await call({ since: '2025-01-01', until: '2025-01-31' })).toEqual([
+        'Billing export design',
+      ]);
+      await expect(
+        searchDocumentsTool.handler({ until: '2025-02-30' }, ctx),
+      ).rejects.toThrow(/Invalid until date/);
+    });
+
+    it('pages by size and refuses a cursor from another tool or other filters', async () => {
+      for (let n = 10; n < 90; n++) {
+        writeDoc(
+          ctx.outputDir,
+          n,
+          {
+            modifiedAt: `2024-06-${String(1 + (n % 20)).padStart(2, '0')}T10:00:00Z`,
+          },
+          `Doc ${n}. ${'z'.repeat(1000)}`,
+        );
+      }
+      const seen: string[] = [];
+      let cursor: string | undefined;
+      let pages = 0;
+      do {
+        const out = parse(
+          await searchDocumentsTool.handler(cursor ? { cursor } : {}, ctx),
+        );
+        expect(out.total).toBe(82);
+        expect(
+          Buffer.byteLength(JSON.stringify(out.results)),
+        ).toBeLessThanOrEqual(64 * 1024);
+        seen.push(...out.results.map((r: { sourceId: string }) => r.sourceId));
+        cursor = out.nextCursor ?? undefined;
+        pages++;
+      } while (cursor && pages < 100);
+      expect(pages).toBeGreaterThan(1);
+      expect(new Set(seen).size).toBe(82);
+
+      const messages = parse(
+        await searchMessagesTool.handler({ limit: 1 }, ctx),
+      );
+      const fromMessages = encodeCursor('search_messages', [], [0, '']);
+      await expect(
+        searchDocumentsTool.handler({ cursor: fromMessages }, ctx),
+      ).rejects.toThrow(/another tool/);
+      expect(messages.returned).toBe(1);
+
+      const { nextCursor } = parse(
+        await searchDocumentsTool.handler({ limit: 1, query: 'doc' }, ctx),
+      );
+      await expect(
+        searchDocumentsTool.handler({ limit: 1, cursor: nextCursor }, ctx),
+      ).rejects.toThrow(/other filters/);
+    });
+
+    it('says when no Docs have been imported, and returns nothing from a subset made before them', async () => {
+      const filtered = join(ctx.outputDir, 'filtered');
+      writePRs(filtered, [PRS[0]!]);
+      const subset = { outputDir: filtered, fullOutputDir: ctx.outputDir };
+      const stale = parse(await searchDocumentsTool.handler({}, subset));
+      expect(stale.total).toBe(0);
+      expect(stale.note).toContain(
+        'created before Google Docs were imported, so it has none',
+      );
+
+      rmSync(join(ctx.outputDir, 'documents'), { recursive: true });
+      const none = parse(await searchDocumentsTool.handler({}, ctx));
+      expect(none.total).toBe(0);
+      expect(none.note).toContain('No Google Docs have been imported');
+    });
+  });
+
+  it('get_stats counts Docs by modified time, including late on a date-only until day', async () => {
+    const febr = parse(
+      await getStatsTool.handler(
+        { since: '2025-02-01', until: '2025-02-28' },
+        ctx,
+      ),
+    );
+    expect(febr.documents).toEqual({
+      total: 1,
+      bySource: { 'google-docs': 1 },
+    });
+    expect(febr.dateRange.latest).toBe('2025-02-28T23:30:00Z');
+
+    // A Doc created before the range but modified inside it is counted
+    const jan = parse(
+      await getStatsTool.handler(
+        { since: '2025-01-01', until: '2025-01-31' },
+        ctx,
+      ),
+    );
+    expect(jan.documents.total).toBe(1);
+    expect(jan.prs.total).toBe(1);
+
+    // stats.json from before the Docs were imported: counted afresh
+    writeAnalysis('stats', { prs: { total: 4 } });
+    const cached = parse(await getStatsTool.handler({}, ctx));
+    expect(cached.documents).toMatchObject({ total: 2 });
+  });
+
+  it('get_linked_work lists Docs that mention a PR or ticket apart from messages', async () => {
+    const byPr = parse(
+      await getLinkedWorkTool.handler(
+        { prUrl: 'https://github.com/acme/api/pull/1' },
+        ctx,
+      ),
+    );
+    expect(byPr.mentionedInDocuments).toEqual([
+      {
+        source: 'google-docs',
+        url: null,
+        title: 'Billing export design',
+        createdAt: '2024-10-01T08:00:00Z',
+        modifiedAt: '2025-01-21T10:00:00Z',
+        attribution: 'unverified',
+        text: 'How the export works.',
+      },
+    ]);
+    expect(byPr.notice).toMatch(/owns, not necessarily wrote/);
+
+    const byTicket = parse(
+      await getLinkedWorkTool.handler({ ticketKey: 'BILL-1' }, ctx),
+    );
+    expect(byTicket.mentionedInDocuments).toHaveLength(1);
+    const none = parse(
+      await getLinkedWorkTool.handler({ ticketKey: 'WEB-7' }, ctx),
+    );
+    expect(none.mentionedInDocuments).toEqual([]);
   });
 });

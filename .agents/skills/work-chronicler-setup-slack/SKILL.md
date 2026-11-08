@@ -67,8 +67,15 @@ throughout: the concise format leaves out IDs.
   (detailed) for one of the user's channels and take the first part of the
   host in a permalink it returns. `https://example.slack.com/archives/C…` and
   `https://example.enterprise.slack.com/archives/C…/p…` both give `example`.
-  Write it in lower case, without `https://` or `.slack.com`. Show the user
-  the value and get confirmation. Keep the same value from then on: imported
+  Write it in lower case, without `https://` or `.slack.com`. With a URL
+  label, `import` accepts only permalinks on that label's host
+  (`example.slack.com` or `example.enterprise.slack.com`). In an Enterprise
+  Grid org, channels from another workspace in the org can have permalinks
+  on that workspace's host (`team-a.slack.com`), and their records are
+  refused. Check the permalinks of the channels you will configure: if they
+  use more than one host, configure the `E…` org ID if a Slack tool shows
+  it (any Slack host is then accepted), or only the channels on the
+  label's host. Show the user the value and get confirmation. Keep the same value from then on: imported
   messages are stored under it.
 - **User ID** (`U…` or `W…`):
   - IC: the user's own ID, from `slack_read_user_profile` with no user ID
@@ -87,7 +94,10 @@ work-chronicler slack configure --workspace <team-id-or-label> --user <user-id> 
 
 `changed: false` means the IDs were already set. If the CLI refuses because
 channels are configured, the workspace or user cannot change while channels
-exist: ask before removing channels with `slack channels remove`.
+exist: ask before removing channels with `slack channels remove`. If it
+refuses because the work log holds Slack messages by another user, show the
+user the error: only they decide whether to remove the directory it names.
+Never remove it yourself.
 
 ### 3. List candidate public channels
 
@@ -132,18 +142,41 @@ members.
 
 For each chosen channel, agree one line (at most 200 characters) saying why it
 holds review-relevant work, for example `Design reviews for the billing
-service`. Propose one from the channel's name and purpose if the user wants,
-and let them edit it. Then run, quoting the reason with single quotes:
+service`. If the user wants a proposal, write one in your own words from the
+channel's name and purpose, and let them edit it. Never copy a topic or
+purpose into the reason unchanged: it is Slack content, not the user's words.
+The reason must be one line: if the agreed text holds a line break, ask the
+user for one line instead.
+
+Never put the reason in a shell command, quoted or not, and never on the
+command line (`--reason`). Write it to a new file with your file-writing tool
+(not a shell command such as `echo`, `printf` or a here-document), exactly as
+agreed and with nothing else in the file. Its path is `<reason-file>`:
+`/tmp/wc-reason-<random>.txt`, with `<random>` a fresh run of letters and
+digits, so the path holds only letters, digits, `/`, `-`, `_` and `.`. Then
+run both lines; the second removes the file even when the first fails:
 
 ```bash
-work-chronicler slack channels add <channel-id> --name <channel-name> --reason '<reason>' --json
+work-chronicler slack channels add <channel-id> --name '<channel-name>' --reason-file '<reason-file>' --json
+rm -f '<reason-file>'
 ```
 
+The CLI reads the reason from the file, so no shell ever reads it: quotes,
+`$`, backticks and line breaks in it cannot break or extend the command (a
+reason of more than one line is refused). If you have no file-writing tool,
+do not run the command: show the user the command and ask them to save the
+reason in `<reason-file>` themselves.
+
 Add `--private` for a private channel (step 4), and in a manager profile
-`--report <id> --shared-with-manager` (step 5). `--name` is the channel name
-without `#`. Use the channel ID from the connector, never a name, as
-`<channel-id>`. If a command exits nonzero, show the user the error and do not
-work around it.
+`--report <id> --shared-with-manager` (step 5), after `--json` on the first
+line. `--name` is the channel name without `#`, in single quotes. Use the channel ID from the connector, never a
+name, as `<channel-id>`. A channel ID holds only capital letters and digits,
+and a Slack channel name never holds a quote or a space: if either does, show
+it to the user and do not run the command. If a command exits nonzero, show
+the user the error and do not work around it. The block as a whole exits 0
+even when the channel is refused (its last line removes the file), so judge
+the result by the first line's JSON: `"ok": false` means the channel was not
+added; show its `error` to the user.
 
 To drop a channel later: `work-chronicler slack channels remove <channel-id>
 [--report <id>]` (records already imported from it are kept).

@@ -105,13 +105,13 @@ function prFile(url: string, title = 'PR'): PullRequestFile {
   };
 }
 
-function ticketFile(key: string): JiraTicketFile {
+function ticketFile(key: string, org = 'acme-jira'): JiraTicketFile {
   return {
     frontmatter: {
       key,
       summary: `Ticket ${key}`,
       project: key.split('-')[0] ?? '',
-      org: 'acme-jira',
+      org,
       issueType: 'Story',
       status: 'Done',
       storyPoints: null,
@@ -173,6 +173,34 @@ describe('resolveMentions', () => {
       ['BILL-1', 'BILL-1'],
       ['BILL-2', null],
     ]);
+  });
+
+  it('leaves a key that two JIRA instances hold unresolved', () => {
+    const twoInstances = buildMentionIndex(
+      [],
+      [
+        ticketFile('BILL-1', 'acme-jira'),
+        ticketFile('BILL-1', 'partner-jira'),
+        ticketFile('OPS-2', 'acme-jira'),
+      ],
+    );
+    const record = { mentions: { pullRequests: [], tickets: ['bill-1'] } };
+
+    expect(resolveMentions(record, twoInstances).tickets).toEqual([
+      { key: 'BILL-1', resolved: null },
+    ]);
+    expect(hasResolvedMention(record, twoInstances)).toBe(false);
+    // A key in one instance still resolves, even when read twice
+    const once = buildMentionIndex(
+      [],
+      [ticketFile('OPS-2'), ticketFile('OPS-2')],
+    );
+    expect(
+      resolveMentions(
+        { mentions: { pullRequests: [], tickets: ['OPS-2'] } },
+        once,
+      ).tickets[0]?.resolved?.frontmatter.key,
+    ).toBe('OPS-2');
   });
 
   it('tells a record with only unresolved mentions from one with a resolved one', () => {

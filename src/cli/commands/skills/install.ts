@@ -310,6 +310,13 @@ export interface InstallDependencies {
   fs?: SkillInstallFs;
 }
 
+/**
+ * Create the `skills install` command.
+ *
+ * @param dependencies - Filesystem used to replace and recover skills
+ *   (defaults to the real one; tests inject failures)
+ * @returns The configured command
+ */
 export function createInstallSubcommand(
   dependencies: InstallDependencies = {},
 ): Command {

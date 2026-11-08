@@ -1,3 +1,5 @@
+import { stripVTControlCharacters } from 'node:util';
+
 import { CliError, toCliError } from '@cli/errors';
 import { findConfigPath, getOutputDirectory, loadConfig } from '@config/loader';
 import {
@@ -5,6 +7,7 @@ import {
   type SlackSettingsOwner,
   updateSlackSettings,
 } from '@config/slack-config';
+import type { GoogleDocsSettings } from '@wc-types/google-docs';
 import { type ImportSubject, ReportIdSchema } from '@wc-types/imported-record';
 import type { SlackSettings } from '@wc-types/slack';
 import { getActiveProfile } from '@workspace/global-config';
@@ -24,7 +27,10 @@ export interface SlackCommandOptions {
   json?: boolean;
 }
 
-/** The subject a `slack` command reads or changes, with its settings */
+/**
+ * The subject a `slack` or `google-docs` command reads or changes, with its
+ * settings
+ */
 export interface SlackSubject {
   /** Active profile, or null for a legacy config passed with --config */
   profile: string | null;
@@ -41,6 +47,8 @@ export interface SlackSubject {
   range: { since: string; until: string | null };
   /** Slack settings, or null when Slack is not set up for the subject */
   slack: SlackSettings | null;
+  /** Google Docs settings, or null when not set up for the subject */
+  googleDocs: GoogleDocsSettings | null;
 }
 
 const ERROR = chalk.red('✗');
@@ -55,6 +63,9 @@ function fail(message: string, hint?: string): never {
  * needs `--report <id>`.
  *
  * @param options - Command options
+ * With `--json`, a failure is printed as `{ ok: false, error }` first (and
+ * no hint follows it on stdout), so a JSON reader always gets a result.
+ *
  * @returns The subject and its current settings
  * @throws {CliError} When the profile, config or report cannot be resolved
  */
@@ -92,6 +103,7 @@ export async function resolveSlackSubject(
           workLog: getReportWorkLogDir(profile, reportId.data),
           range: { since: config.fetch.since, until: config.fetch.until },
           slack: report.slack ?? null,
+          googleDocs: report.googleDocs ?? null,
         };
       }
     }
@@ -112,12 +124,25 @@ export async function resolveSlackSubject(
       workLog: getOutputDirectory(config, configPath),
       range: { since: config.fetch.since, until: config.fetch.until },
       slack: config.slack ?? null,
+      googleDocs: config.googleDocs ?? null,
     };
   } catch (error) {
-    throw toCliError(
+    const failure = toCliError(
       error,
       `${ERROR} The profile or config could not be loaded:`,
     );
+    if (!options.json) throw failure;
+    // A JSON reader gets a result on stdout, and only that: the hint, which
+    // would be printed to stdout after it, is left out
+    const message = stripVTControlCharacters(failure.message).replace(
+      /^✗\s*/,
+      '',
+    );
+    console.log(JSON.stringify({ ok: false, error: message }, null, 2));
+    throw new CliError(failure.message, {
+      exitCode: failure.exitCode,
+      cause: failure.cause ?? failure,
+    });
   }
 }
 
@@ -160,6 +185,27 @@ export function channelLine(
 }
 
 /**
+ * Fail a command that changes Slack settings. With `--json`, the failure is
+ * printed as `{ ok: false, error }` first, so a JSON reader always gets a
+ * result.
+ *
+ * @param options - Command options
+ * @param message - What went wrong (unstyled)
+ * @param cause - The underlying error, kept for debugging
+ * @throws {CliError} Always
+ */
+export function failSlackChange(
+  options: SlackCommandOptions,
+  message: string,
+  cause?: unknown,
+): never {
+  if (options.json) {
+    console.log(JSON.stringify({ ok: false, error: message }, null, 2));
+  }
+  throw new CliError(`${ERROR} ${message}`, { cause });
+}
+
+/**
  * Change the subject's Slack settings and print the result.
  *
  * @param options - Command options
@@ -178,13 +224,14 @@ export async function runSlackChange(
       configPath: subject.configPath,
       owner: subject.owner,
       change,
+      workLog: subject.workLog,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (options.json) {
-      console.log(JSON.stringify({ ok: false, error: message }, null, 2));
-    }
-    throw new CliError(`${ERROR} ${message}`, { cause: error });
+    failSlackChange(
+      options,
+      error instanceof Error ? error.message : String(error),
+      error,
+    );
   }
   const after = await resolveSlackSubject(options);
   if (options.json) {
