@@ -1036,6 +1036,18 @@ Proof: Slack suites 13/13 locally; ready-PR CI re-run
 
 ---
 
+## Phase p15: Import, storage and MCP review follow-ups
+
+**Status:** pending
+
+---
+
+## Phase p16: Installer, config, CLI and skill review follow-ups
+
+**Status:** pending
+
+---
+
 ## Phase p09: Google Docs documents record and config
 
 **Status:** pending
@@ -1402,6 +1414,13 @@ Also in p03-t15: CodeRabbit 4505014153 (docs/notice wrongly said `--overwrite` f
 
 **Outcome:** passed. m02 exit carrier allowed/fresh at 6360304b9d261a54a8cdc1f46089ab7a6068a163; d02 recovery → reviewing.
 
+### PR review received: d02 (PR #26, CodeRabbit)
+
+**Date:** 2026-11-08
+**Findings:** 20 inline (3 Major, 17 Minor) and 25 in the review body (13 Minor, 5 nitpicks and the outside-diff list), reviewed at 6360304, plus an advisory docstring-coverage check (73% against an 80% threshold; not a merge condition). Disposition by root (autonomous run): none fixed in 0.6.0, so the passing exit gate and integrated review at 6360304 stay fresh. Still-valid candidates go to m03: reader/filter coordination, the lock clock check and filter cleanup order to p13; import, storage and MCP items to p15; installer, config, CLI and skill-text items (including the setup-slack reason quoting Major) to p16; each phase verifies before fixing. Post-goal: concurrent installers, parameter objects, workspace label to team ID reconciliation. Rejected: keeping self-quoted text in Slack bodies (quotes cannot be attributed reliably; dropped on purpose). Each comment has a reply naming its disposition.
+
+**Outcome:** no code change after the reviewed head; d02 evidence stays fresh.
+
 ### PR review received: d01 (PR #25, CodeRabbit)
 
 **Date:** 2026-11-08
@@ -1422,7 +1441,7 @@ Known docs follow-up: the shipped CHANGELOG 0.5.0 entry still says `fetch --revi
 
 ## Deferred Findings
 
-- m03 re-alignment disposition (2026-11-08, Astra-advised, artifact-reviewed): the `filter --clear` Medium (gate attempt 5, M1) and PR #26 complexity finding 4 (one lock for import and filter) move to p13; findings 1–3 and 6 (fixed-depth staging, one ancestor checker, shared fs seams, `stageAsTheSkillDoes`) move to p14, and the stale `transaction.ts` comment to p13; finding 5 (installer recovery) is a post-goal follow-up: non-blocking simplification of safety-sensitive code, not a known defect. The m01 post-goal list is unchanged; 4504862955 (date-only `until` is midnight UTC) is fixed only for Docs import in p09, and reading tools keep midnight until the post-goal follow-up.
+- m03 re-alignment disposition (2026-11-08, Astra-advised, artifact-reviewed): the `filter --clear` Medium (gate attempt 5, M1) and PR #26 complexity finding 4 (one lock for import and filter) move to p13; findings 1–3 and 6 (fixed-depth staging, one ancestor checker, shared fs seams, `stageAsTheSkillDoes`) move to p14, and the stale `transaction.ts` comment to p13; finding 5 (installer recovery) is a post-goal follow-up: non-blocking simplification of safety-sensitive code, not a known defect. The m01 post-goal list is unchanged; 4504862955 (date-only `until` is midnight UTC) is fixed for messages in p15 and for Docs in p09.
 
 - Non-blocking (PR #26 self-review, complexity lens, independent Claude reviewer at 9548ee3): (1) directory staging built for any depth although records only go to `messages/<source>/` — create the two known directories up front through the PathGuard; (2) ancestor checks repeated at several layers — make PathGuard the only checker; (3) `SubsetFs`/`SubsetEnv`, `LockEnv`, `errorCode`/`removeQuietly`/`codedError` duplicate `ImportFs`/`ImportEnv` helpers; (4) two lock names where one work-log lock could serialize import and filter (today `filter` can run during an `import`); (5) installer crash recovery could be simplified; (6) `stageAsTheSkillDoes` re-implements skill prose; stale header comment at `transaction.ts:34-36` (lock is now mkdir+rename). Deferred by root (autonomous run): changing code now would stale the running gate for cleanup only. Follow-up trigger: m03 re-alignment / p09 (`filter` rework for `documents`); (4) decide there whether import and filter should exclude each other.
 
