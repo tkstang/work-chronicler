@@ -7,6 +7,7 @@
  * under `pr-reviews/`, separate from authored PRs.
  */
 
+import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { CliError } from '@cli/errors';
@@ -343,7 +344,14 @@ async function fetchPRReviews(
   const { octokit, item, owner, repo, username, range, outputDir, useCache } =
     params;
   const filePath = getPRReviewFilePath(outputDir, owner, repo, item.number);
-  const existing = (await readPRReview(filePath))?.frontmatter;
+  const stored = await readPRReview(filePath);
+  if (!stored && existsSync(filePath)) {
+    // Rewriting it would keep only this range's entries and lose the rest
+    throw new Error(
+      `${filePath} is not a valid review record and was left unchanged. Fix or remove it, then fetch again.`,
+    );
+  }
+  const existing = stored?.frontmatter;
 
   if (useCache && existing && isRecordCurrent(existing, item, range)) {
     return { kind: 'unchanged' };
@@ -684,6 +692,12 @@ export async function fetchGitHubReviews(
       process.exitCode = 1;
     }
     console.log();
+  }
+
+  // A complete run that found nothing still leaves pr-reviews/, so
+  // consumers can tell "no reviews in range" from "never fetched"
+  if (results.every((result) => result.problems.length === 0)) {
+    mkdirSync(join(outputDir, DIRECTORIES.PR_REVIEWS), { recursive: true });
   }
 
   return results;

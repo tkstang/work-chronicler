@@ -1,6 +1,13 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import type { Config } from '@config/schema';
 import {
@@ -713,6 +720,27 @@ describe('fetchGitHubReviews', () => {
     expect(await storedRecord('acme', 'api', 2)).toBeDefined();
     expect(logs.some((line) => line.includes('for 1 PRs'))).toBe(true);
     expect(process.exitCode).toBe(1);
+  });
+
+  it('leaves a record it cannot read unchanged and fails that PR', async () => {
+    addPR({ number: 1, reviews: [review(1, '2025-02-01T00:00:00Z')] });
+    const path = getPRReviewFilePath(outputDir, 'acme', 'api', 1);
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, '---\ntype: pr-review\n---\nhand-edited\n');
+
+    await fetchReviews();
+
+    expect(readFileSync(path, 'utf-8')).toContain('hand-edited');
+    expect(
+      logs.some((line) => line.includes('not a valid review record')),
+    ).toBe(true);
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('records a complete fetch that finds no reviews', async () => {
+    await fetchReviews();
+
+    expect(existsSync(join(outputDir, 'pr-reviews'))).toBe(true);
   });
 
   it('updates the same record on every fetch and skips unchanged PRs with --cache', async () => {

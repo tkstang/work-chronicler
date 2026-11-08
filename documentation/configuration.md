@@ -139,7 +139,7 @@ analysis:
     ├── outputs/                 # documents written by AI skills
     └── work-log/
         ├── pull-requests/<org>/<repo>/<YYYY-MM-DD>_<number>.md
-        ├── pr-reviews/<org>/<repo>/<number>.md   # reviews you gave, from `fetch --reviews`
+        ├── pr-reviews/<org>/<repo>/<number>.md   # reviews you gave, from `fetch github --reviews`
         ├── jira/<instance>/<project>/<KEY>.md
         ├── notes/               # your own notes, read by skills
         ├── performance-reviews/ # past reviews you add, read by skills

@@ -71,8 +71,9 @@ export function getEffectiveOutputDir(outputDir: string): {
 /**
  * Whether the work log's `filtered/` subset was written before any review
  * records existed: it has PRs but no `pr-reviews/` directory, while the full
- * work log has one. `filter` always writes `filtered/pr-reviews/` (empty when
- * nothing matches), so a missing directory means the subset is out of date.
+ * work log has one. `filter` writes `filtered/pr-reviews/` (empty when
+ * nothing matches) whenever the work log has `pr-reviews/`, so a missing
+ * directory means the subset predates the first review fetch.
  *
  * @param outputDir - Base work-log output directory (not `filtered/`)
  */

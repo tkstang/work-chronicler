@@ -337,16 +337,21 @@ export const filterCommand = new Command('filter')
       const filteredReviews = allReviews.filter((record) =>
         inScope(record.frontmatter.pr.org, record.frontmatter.pr.repository),
       );
-      // Always write the directory, even empty, so a subset without it is
-      // known to predate review fetching
-      mkdirSync(join(filteredDir, DIRECTORIES.PR_REVIEWS), { recursive: true });
-      for (const record of filteredReviews) {
-        const relativePath = record.filePath.replace(outputDir, '');
-        writeMarkdownFile(
-          join(filteredDir, relativePath),
-          record.frontmatter,
-          record.body,
-        );
+      // Write the directory, even empty, whenever the work log has one. A
+      // subset made before the first review fetch then lacks it and is
+      // reported as out of date once reviews are fetched.
+      if (existsSync(join(outputDir, DIRECTORIES.PR_REVIEWS))) {
+        mkdirSync(join(filteredDir, DIRECTORIES.PR_REVIEWS), {
+          recursive: true,
+        });
+        for (const record of filteredReviews) {
+          const relativePath = record.filePath.replace(outputDir, '');
+          writeMarkdownFile(
+            join(filteredDir, relativePath),
+            record.frontmatter,
+            record.body,
+          );
+        }
       }
 
       // Generate analysis for filtered set

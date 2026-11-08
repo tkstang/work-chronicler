@@ -189,7 +189,7 @@ describe('a work log with authored PRs and review records', () => {
     rmSync(root, { recursive: true, force: true });
   });
 
-  it('gives the same authored-PR results with and without review records', async () => {
+  function writeConfig() {
     writeFileSync(
       configPath,
       [
@@ -203,6 +203,18 @@ describe('a work log with authored PRs and review records', () => {
         '',
       ].join('\n'),
     );
+  }
+
+  // Same repo as an authored PR, the same PR number in another repo, and an
+  // org with no authored work
+  function writeBaselineReviews() {
+    reviewRecord('acme', 'api', 8);
+    reviewRecord('acme', 'web', 7);
+    reviewRecord('external', 'lib', 1);
+  }
+
+  it('gives the same authored-PR results with and without review records', async () => {
+    writeConfig();
     authoredPR('acme', 'api', 7, { jiraTickets: ['BILL-1'] });
     authoredPR('acme', 'web', 3, { createdAt: '2025-04-01T09:00:00Z' });
     authoredPR('other', 'api', 4, { createdAt: '2025-05-01T09:00:00Z' });
@@ -226,12 +238,10 @@ describe('a work log with authored PRs and review records', () => {
 
     const before = await authoredResults();
     expect(before.mcp.searchPrs.total).toBe(3);
+    // A subset made before any review fetch has no pr-reviews/
+    expect(existsSync(join(filteredDir, 'pr-reviews'))).toBe(false);
 
-    // Same repo as an authored PR, the same PR number in another repo, and
-    // an org with no authored work
-    reviewRecord('acme', 'api', 8);
-    reviewRecord('acme', 'web', 7);
-    reviewRecord('external', 'lib', 1);
+    writeBaselineReviews();
 
     const after = await authoredResults();
 
@@ -271,7 +281,8 @@ describe('a work log with authored PRs and review records', () => {
   });
 
   it('does not count review records written for another GitHub user in status', async () => {
-    // Same work log as above: three records reviewed by `me`
+    writeConfig();
+    writeBaselineReviews();
     reviewRecord('acme', 'api', 50, 'alice');
     reviewRecord('acme', 'api', 51, 'ME');
 
