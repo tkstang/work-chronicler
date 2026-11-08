@@ -823,7 +823,7 @@ Proof: 3 new rule cases fail on 5d53367; full suite, lint, typecheck, format:che
 **Status:** in_progress
 **Base:** d990a404b16c80ff11fa01d7bd957b3486d5a922
 **Executor:** phase-implementer:wce-p12-impl-1
-**Head:** 80aa589f2c0c261c91798e99db6d2c6a2a6a5581
+**Head:** 3b5ac311a459321ee28fcdb184ef80dbdc30fd0c
 
 Worktree and branch as p04. Committing owner: the phase implementer (code); root owns the journal. Parallelism: no declared group; one phase implementer. Task class: consequential (replacing a user's installed skills; data loss is the failure mode).
 
@@ -856,6 +856,26 @@ Proof: skills tests 38/38; mutation check
 **Executor:** phase-implementer:wce-p12-impl-1
 Files: `CHANGELOG.md`, `documentation/{available-skills,commands}.md`
 Proof: `format:check`
+
+### Task p12-t04: (review) Never put back a replaced skill whose deletion stopped part-way
+
+**Status:** completed
+**Commit:** 63b49230bb71761d3704e4a082826eae201a418e
+**Executor:** phase-implementer:wce-p12-impl-1 (fix mode)
+**Source review:** reviews/archived/p12-review-2026-11-08T090005Z.md (M1)
+Files: `src/cli/commands/skills/{replace,install.test}.ts`
+Proof: old copy renamed to `.<skill>.wc-replaced-<id>` before deletion and never restored; a backup is restored only if it is the only one, nothing holds the name, and its SKILL.md still declares the skill; 3 tests fail on 80aa589
+
+### Task p12-t05: (review) Describe which leftovers the next install puts back
+
+**Status:** completed
+**Commit:** 3b5ac311a459321ee28fcdb184ef80dbdc30fd0c
+**Executor:** phase-implementer:wce-p12-impl-1 (fix mode)
+**Source review:** reviews/archived/p12-review-2026-11-08T090005Z.md (M1)
+Files: `documentation/available-skills.md`
+Proof: `format:check`
+
+Root re-ran typecheck, lint, format:check and tests at 3b5ac31: pass (568).
 
 ---
 
