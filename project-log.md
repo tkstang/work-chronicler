@@ -170,6 +170,19 @@ Observation: the filter lock added to fix a concurrency finding drew three more 
 
 p06 accepted: round 1 (1 M, 2 L) fixed in p06-t05..t07; round 2 clean; fix loops 1; wce-p06-outcome
 
+### 2026-11-08 · structural · oat-project-implement · p07
+
+p07 accepted: live walkthrough found 5 skill/CLI gaps (fixed p07-t05..t08) and 2 skill corrections (p07-t09); review round 1 (2 L) fixed in p07-t10..t12; round 2 (2 L) fixed inline in p07-t13; fix loops 1; wce-p07-outcome
+
+### 2026-11-08 · project · worked-well · Live walkthrough before review catches connector gaps
+
+**Category:** efficiency
+**Source:** wce-learning-p07-live
+**Origin:** oat-project-implement
+**Recorded:** 2026-11-08T08:43:09Z
+
+Observation: the synthetic acceptance test passed, but the first live read-only Slack walkthrough found five gaps (no team ID from any read tool, concise formats omit IDs, Slack markup in text, file-only messages) plus two later skill corrections. Impact: without the live pass the skills would not have worked for a real user. Recommendation: run the live walkthrough before the phase review and feed connector facts back into skill text; record field shapes only, never content.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

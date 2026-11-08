@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-11-07
-oat_current_task_id: p07
+oat_current_task_id: p12
 oat_generated: false
 ---
 
@@ -53,7 +53,7 @@ oat_generated: false
 | p10   | pending   | 1     | 0/1      |
 | p11   | pending   | 1     | 0/1      |
 
-**Total:** 6/12 phases accepted
+**Total:** 7/12 phases accepted
 
 ---
 
@@ -694,10 +694,10 @@ Root re-ran typecheck, lint, format:check and tests at 6bfcfec: pass (515). Note
 
 ## Phase p07: Slack skills and live walkthrough
 
-**Status:** in_progress
+**Status:** completed
 **Base:** 6bfcfecd44b80efa12b280a6f41f7fe4b0c4e57f
 **Executor:** phase-implementer:wce-p07-impl-1
-**Head:** 5d53367c2567b325854ef56f4f09d96c9ea6e79a
+**Head:** d990a404b16c80ff11fa01d7bd957b3486d5a922
 
 Worktree and branch as p04. Committing owner: the phase implementer (skills, acceptance test, docs); the root runs the live read-only walkthrough itself (privacy control stays with the root) and owns the journal. Parallelism: no declared group; one phase implementer. Task class: hard-reasoning (skill text that must enforce privacy rules the CLI cannot see).
 
@@ -807,6 +807,15 @@ Proof: `format:check`
 
 Root re-ran typecheck, lint, format:check and tests at 5d53367: pass (548).
 
+### Task p07-t13: (review) Catch mail, phone and date markup; allow ordinary angle text
+
+**Status:** completed
+**Commit:** d990a404b16c80ff11fa01d7bd957b3486d5a922
+**Executor:** inline:p07 root (two Low findings, review round 2)
+**Source review:** reviews/archived/p07-review-2026-11-08T084045Z.md (L1, L2)
+Files: `src/core/import/sources.ts`, `slack-rules.test.ts`, `.agents/skills/work-chronicler-import-slack/SKILL.md`
+Proof: 3 new rule cases fail on 5d53367; full suite, lint, typecheck, format:check pass
+
 ---
 
 ## Phase p12: Installer replacement safety
@@ -844,6 +853,10 @@ Root re-ran typecheck, lint, format:check and tests at 5d53367: pass (548).
 <!-- One line per dispatch request id, rendered by `oat project dispatch record --format line` and written as a list item. Update that line in place with the terminal outcome; never paste the record or event JSON. -->
 
 <!-- orchestration-runs-start -->
+
+- run/v1 · request=wce-p07-rev-2 · scope=p07 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p07 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
+
+- Root-inline phase: p07 (fix p07-t13) — two Low markup-rule findings from review round 2; root model claude-opus-5-5
 
 - run/v1 · request=wce-p07-rev-1 · scope=p07 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p07 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
