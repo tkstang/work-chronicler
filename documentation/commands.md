@@ -296,7 +296,7 @@ the fields.
 | --- | --- |
 | `slack configure --workspace <team-id> --user <user-id>` | Set up Slack: the workspace (team) ID and the subject's Slack user ID (yours, or the report's). The workspace or user cannot change while channels are configured; remove them first. |
 | `slack channels add <channel-id> --name <name> --reason <text>` | Add a channel whose messages by the subject may be imported. `--name` is the channel name (a leading `#` is dropped); `--reason` says why it holds review-relevant work. |
-| `slack channels remove <channel-id>` | Remove a channel. Records already imported from it are kept; later imports refuse it. Removing a channel that is not listed changes nothing. |
+| `slack channels remove <channel-id>` | Remove a channel. Records already imported from it are kept; later imports refuse it. An ID that is not configured is refused (exit 1) with the configured IDs listed, so a mistyped ID is never reported as removed. |
 | `slack channels list` | List the configured channels. |
 | `slack show` | Print what an import skill uses (read-only). |
 
@@ -308,7 +308,9 @@ the fields.
 | `--shared-with-manager` | Manager profiles: confirm that you and the report are both members of the channel. Required for every report channel; the CLI cannot check membership, so the setup skill checks it before passing this flag. |
 
 Direct messages (`D…` IDs) and group direct messages (`mpdm-…` names) are
-always refused. Every command takes `-c, --config <path>` and `--json`, and
+always refused. A change that leaves every setting as it was (configuring
+the same IDs again, adding a channel exactly as configured) writes nothing
+and reports `changed: false`. Every command takes `-c, --config <path>` and `--json`, and
 exits with status 1 when a change is refused.
 
 Changes keep everything else in the config, comments included: the file is

@@ -203,7 +203,7 @@ describe('updateSlackSettings: IC profile', () => {
     expect(statSync(configPath).mtimeMs).toBe(mtime);
   });
 
-  it('removes only the named channel; removing it again changes nothing', () => {
+  it('removes only the named channel and refuses an ID that is not configured', () => {
     write(IC_YAML);
     change(IC, CONFIGURE);
     change(IC, { kind: 'add-channel', channel: channel() });
@@ -215,12 +215,25 @@ describe('updateSlackSettings: IC profile', () => {
     expect(
       change(IC, { kind: 'remove-channel', id: 'C0TEST0001' }).changed,
     ).toBe(true);
-    expect(
-      change(IC, { kind: 'remove-channel', id: 'C0TEST0001' }).changed,
-    ).toBe(false);
+    const before = read();
+    expect(() =>
+      change(IC, { kind: 'remove-channel', id: 'C0TEST0001' }),
+    ).toThrow(
+      'Channel C0TEST0001 is not configured for this profile (configured channels: C0TEST0002)',
+    );
+    expect(read()).toBe(before);
     const slack = (parse(read()) as { slack: { channels: { id: string }[] } })
       .slack;
     expect(slack.channels.map((c) => c.id)).toEqual(['C0TEST0002']);
+  });
+
+  it('says so when no channels are configured and an ID is removed', () => {
+    write(IC_YAML);
+    change(IC, CONFIGURE);
+
+    expect(() =>
+      change(IC, { kind: 'remove-channel', id: 'C0TEST0001' }),
+    ).toThrow(/no channels are configured/);
   });
 
   it.each([
@@ -471,5 +484,53 @@ describe('updateSlackSettings: the file is replaced whole or not at all', () => 
     expect(result.changed).toBe(true);
     expect(result.warnings).toEqual([expect.stringContaining('power failure')]);
     expect(parse(read())).toMatchObject({ slack: { user: 'U0TEST0001' } });
+  });
+});
+
+describe('updateSlackSettings: a hand-formatted config', () => {
+  // Not in the yaml library's own layout: aligned comments, an unindented
+  // sequence and flow mappings. Re-serializing would change these bytes.
+  const HAND_YAML = `github:
+  username: synthetic-ic   # aligned
+  orgs: []
+fetch:
+  since: "2026-01-01"      # aligned
+slack:
+  workspace: T0TEST0001    # workspace (team) ID
+  user: U0TEST0001         # my user ID
+  channels:
+  - {id: C0TEST0001, name: synthetic-eng, reason: Design discussions}
+`;
+
+  it.each([
+    ['configuring the same workspace and user', CONFIGURE],
+    [
+      'adding a channel exactly as configured',
+      { kind: 'add-channel', channel: channel() } as SlackSettingsChange,
+    ],
+  ])('leaves the bytes alone for %s', (_label, noOp) => {
+    write(HAND_YAML);
+
+    expect(change(IC, noOp)).toEqual({ changed: false, warnings: [] });
+    expect(read()).toBe(HAND_YAML);
+  });
+
+  it('refuses to remove a mistyped channel ID, naming the configured one', () => {
+    write(HAND_YAML);
+
+    expect(() =>
+      change(IC, { kind: 'remove-channel', id: 'C0TEST000X' }),
+    ).toThrow(/C0TEST000X is not configured .*configured channels: C0TEST0001/);
+    expect(read()).toBe(HAND_YAML);
+  });
+
+  it('still makes a real change, keeping the comments', () => {
+    write(HAND_YAML);
+
+    expect(
+      change(IC, { kind: 'remove-channel', id: 'C0TEST0001' }).changed,
+    ).toBe(true);
+    expect(read()).toContain('# my user ID');
+    expect(parse(read())).toMatchObject({ slack: { channels: [] } });
   });
 });

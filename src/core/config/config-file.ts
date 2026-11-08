@@ -27,7 +27,8 @@ export interface ConfigUpdate {
    * Make the change in the parsed document, so comments, key order and
    * settings the CLI does not know about are kept. Receives a copy of the
    * file's current value; returns the value the whole file must hold after
-   * the change. Throw {@link ConfigUpdateError} to refuse.
+   * the change (equal to the copy when nothing changes, in which case nothing
+   * is written). Throw {@link ConfigUpdateError} to refuse.
    */
   edit: (doc: Document, current: unknown) => unknown;
   /** Check a whole config value; returns problems (empty when valid) */
@@ -150,8 +151,16 @@ export function updateConfigFile(update: ConfigUpdate): ConfigUpdateResult {
   }
 
   const expected = update.edit(doc, structuredClone(current));
+  // Decided by value: a change that leaves every setting as it was writes
+  // nothing, whatever layout the file has (re-serializing alone would
+  // normalize spacing and comments)
+  if (isDeepStrictEqual(expected, current)) {
+    return { changed: false, warnings: [] };
+  }
   const next = doc.toString();
-  if (next === text) return { changed: false, warnings: [] };
+  if (next === text) {
+    refuse(path, 'The change could not be written');
+  }
 
   const written = parseStrict(
     path,

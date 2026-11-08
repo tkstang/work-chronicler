@@ -186,6 +186,12 @@ describe('slack commands: IC profile', () => {
     expect(json('solo', ['slack', 'channels', 'list']).value.channels).toEqual(
       [],
     );
+    const again = json('solo', ['slack', 'channels', 'remove', 'C0TEST0001']);
+    expect(again.status).toBe(1);
+    expect(again.value).toEqual({
+      ok: false,
+      error: expect.stringContaining('C0TEST0001 is not configured'),
+    });
     const refused = json('solo', ['import', batch(message(2))]);
     expect(refused.status).toBe(1);
     expect(refused.value.issues).toEqual([

@@ -225,7 +225,18 @@ function applyChange(
   );
 
   if (change.kind === 'remove-channel') {
-    if (index === -1) return current;
+    if (index === -1) {
+      const ids = list.flatMap((entry) =>
+        isPlain(entry) && typeof entry.id === 'string' ? [entry.id] : [],
+      );
+      throw new ConfigUpdateError(
+        `Channel ${change.id} is not configured for ${subjectLabel(owner)} (${
+          ids.length > 0
+            ? `configured channels: ${ids.join(', ')}`
+            : 'no channels are configured'
+        }). The config was not changed.`,
+      );
+    }
     doc.deleteIn([...path, 'channels', index]);
     list.splice(index, 1);
     return current;
