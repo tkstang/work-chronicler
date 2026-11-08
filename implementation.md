@@ -38,27 +38,27 @@ oat_generated: false
 
 ## Progress Overview
 
-| Phase | Status      | Units | Accepted |
-| ----- | ----------- | ----- | -------- |
-| p01   | completed   | 1     | 1/1      |
-| p02   | completed   | 1     | 1/1      |
-| p03   | completed   | 1     | 1/1      |
-| p04   | completed   | 1     | 1/1      |
-| p05   | completed   | 1     | 1/1      |
-| p06   | completed   | 1     | 1/1      |
-| p07   | completed   | 1     | 1/1      |
-| p12   | completed   | 1     | 1/1      |
-| p08   | completed   | 1     | 1/1      |
-| p13   | completed   | 1     | 1/1      |
-| p14   | pending     | 1     | 0/1      |
-| p15   | completed   | 1     | 1/1      |
-| p16   | completed   | 1     | 1/1      |
-| p17   | pending     | 1     | 0/1      |
-| p09   | pending     | 1     | 0/1      |
-| p10   | in_progress | 1     | 0/1      |
-| p11   | pending     | 1     | 0/1      |
+| Phase | Status    | Units | Accepted |
+| ----- | --------- | ----- | -------- |
+| p01   | completed | 1     | 1/1      |
+| p02   | completed | 1     | 1/1      |
+| p03   | completed | 1     | 1/1      |
+| p04   | completed | 1     | 1/1      |
+| p05   | completed | 1     | 1/1      |
+| p06   | completed | 1     | 1/1      |
+| p07   | completed | 1     | 1/1      |
+| p12   | completed | 1     | 1/1      |
+| p08   | completed | 1     | 1/1      |
+| p13   | completed | 1     | 1/1      |
+| p14   | pending   | 1     | 0/1      |
+| p15   | completed | 1     | 1/1      |
+| p16   | completed | 1     | 1/1      |
+| p17   | pending   | 1     | 0/1      |
+| p09   | pending   | 1     | 0/1      |
+| p10   | completed | 1     | 1/1      |
+| p11   | pending   | 1     | 0/1      |
 
-**Total:** 14/16 phases accepted
+**Total:** 15/16 phases accepted
 
 ---
 
@@ -1598,7 +1598,7 @@ Proof: 747 tests; DoD batch green; pack 142 files
 
 ## Phase p10: Google Docs import skill and live walkthrough
 
-**Status:** in_progress
+**Status:** completed
 **Base:** 7feab1884270735d1e45986dac577c0e0a543a59
 **Executor:** phase-implementer:wce-p10-impl-1
 **Head:** 0ea25d70690080f5f0960b3a3eb23951c3e8ed83
@@ -1716,6 +1716,7 @@ run/v1 · request=wce-p14-rev-1 · scope=p14 · action=review · role=oat-review
   run/v1 · request=wce-p10-impl-1 · scope=p10 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p10 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
   run/v1 · request=wce-p10-rev-1 · scope=p10 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p10 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
   run/v1 · request=wce-p10-rev-2 · scope=p10 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p10 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
+  run/v1 · request=wce-p10-rev-3 · scope=p10 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p10 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 - run/v1 · request=wce-p08-rev-1 · scope=p08 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p08 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 - Root-inline phase: p08 — inline exception for a version bump and CHANGELOG move; root model claude-opus-5-5

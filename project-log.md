@@ -296,6 +296,10 @@ p16 passed (round 1: 0 C/H/M, 3 L: L2 fixed, L1 fixed before deferral, L3 deferr
 
 p09 passed (round 1: 0 C, 1 H, 1 L fixed in t08-t09, 4 speculative deferred; confirmation 0 findings); fix loops: 1. Head 7feab1884270735d1e45986dac577c0e0a543a59; wce-p09-outcome
 
+### 2026-11-08 · structural · oat-project-implement · p10
+
+p10 passed (round 1: 1 M fixed; confirmation: 1 M, 1 L fixed; final 0 findings; live walkthrough found 3 skill gaps, fixed); fix loops: 2. Head 0ea25d70690080f5f0960b3a3eb23951c3e8ed83; wce-p10-outcome
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
