@@ -43,9 +43,10 @@ flowchart LR
   MCP --> OUT
 ```
 
-Slack messages and Google Docs reach the work log differently: a skill reads
-them in your assistant and hands them to `import`, which checks and stores
-them. The CLI never contacts Slack or Google.
+Slack messages and Google Docs reach the work log differently: an import skill
+reads them (Slack through your assistant's Slack connector, Drive with `gog`)
+and hands them to `import`, which checks and stores them. The CLI never
+contacts Slack or Google.
 
 ## What you can do
 

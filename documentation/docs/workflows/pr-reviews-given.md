@@ -25,8 +25,8 @@ work-chronicler fetch github --reviews  # GitHub only
 ```
 
 Each reviewed PR gets one file at `work-log/pr-reviews/<org>/<repo>/<number>.md`.
-Fetching again updates the same file; with `--cache`, PRs that have not changed
-are skipped.
+Fetching again updates the same file. With `--cache`, PRs that have not changed
+since their file was written for the same or a wider date range are skipped.
 
 ## Check what was stored
 
