@@ -616,10 +616,53 @@ Proof: new dead-guard test fails on 5d723ff code; 436 tests, lint, typecheck, fo
 **Status:** in_progress
 **Base:** 9e70b3c7a6a3f467e96ccab3c3f72d802c8f3a4b
 **Executor:** phase-implementer:wce-p06-impl-1
+**Head:** b5b900b9d3ea4bbb0c02a227edec50ef9699e8a8
 
 Worktree and branch as p04. Committing owner: the phase implementer (code); root owns the journal. Parallelism: no declared group; fan-out rejected (config schema, `slack` commands and the import-side Slack rules share the config types); one phase implementer. Task class: consequential (privacy enforcement at the import boundary).
 
 Slack connector capability (root, 2026-11-08; from the Slack plugin tool schemas plus one read-only `slack_search_public` call limited to one of the user's own messages, recording field names only): search results are rendered text, not JSON, and give the channel ID and name, author name and user ID, time, `Message_ts`, a permalink whose query carries `thread_ts` (the parent thread) and `cid`, and the message text. They carry no reply count, no channel visibility field and no workspace (team) ID. `slack_search_public` covers public channels only; `slack_search_public_and_private` covers private channels and DMs and needs user consent; filters `from:<@U…>`, `in:<#C…>`, `is:thread`, `after:`/`before:` and cursor pagination exist; `include_context=false` keeps neighbouring messages out of results. `slack_read_channel` (detailed) includes thread info for top-level messages; `slack_read_thread` returns every reply (others' text), so skills must not use it for import. `slack_list_user_channels` lists the acting user's channels with a type filter (public, private, im, mpim) and `team_id`; `slack_list_channel_members` lists member IDs (30 per page), so manager-mode shared membership is checkable by the skill. The workspace (team) ID must come from setup (config) since search results omit it. Settles the p06 Known Unknown; exact reply-count availability is confirmed in p07's live walkthrough.
+
+Verification at Head: implementer ran the full DoD batch (505 tests in 36 files; `npm pack --dry-run` 130 files). Root re-ran typecheck, lint, format:check and tests at Head: pass (505); no dependency, lockfile or CI changes; no real Slack IDs in tracked files.
+
+Known Unknown settled (p06), config field names: IC profile top-level `slack: { workspace, user, channels: [{ id, name, reason, private }] }` (`workspace` team ID `T…`/`E…`; `user` `U…`/`W…`; channel `C…`/`G…`, `D…` and `mpdm-` names refused, `G…` requires `private: true`, `reason` required); manager report `reports[].slack` with the same shape plus per-channel `sharedWithManager` (default false). No `slack` section means Slack is off for that subject. Schema change additive; `reports update` keeps report Slack settings.
+
+Decision (p06): manager-mode shared membership is enforced in the CLI — `slack channels add --report <id>` requires `--shared-with-manager`, and `import`/`validate` refuse report records from channels without it; the p07 setup skill must check membership with `slack_list_user_channels` (manager) and `slack_list_channel_members` (report) before passing the flag.
+
+Read command contract for p07: `work-chronicler slack show --json [--report <id>]` prints `profile`, `mode`, `subject`, `subjectName`, `configured`, `range {since, until}`, `workspace`, `user`, `channels[]` (`id`, `name`, `reason`, `private`, `sharedWithManager`, `importable`), `record` (source, sourceAccount, subject, verified attribution), `importCommand` (argv with `<staging-dir>`), `workLog`. Import skill per record: `sourceId` `<channel>/<Message_ts>`; `url` null or the bare permalink (`thread_ts`/`cid` only); `attribution.authorId` = configured user after checking the result author; replies carry `thread: {parentId: thread_ts, parentUrl}` and zero reply counts; thread starters `thread: null`; body is the subject's own text only; use `slack_search_public` (private variant only for opted-in private channels), `include_context=false`, never `slack_read_thread`; `after:` is exclusive, search from the day before `range.since`.
+
+Open notes: config edits use an atomic replace through `ImportFs` (comments and unknown keys kept; a crash before rename can leave a hidden `.config.yaml.tmp-*`); `--private` is a declaration the CLI cannot verify; `import` does not enforce the fetch range; `reports add|update|remove` still rewrites the manager config in place (pre-existing).
+
+### Task p06-t01: Slack settings and a safe config rewrite
+
+**Status:** completed
+**Commit:** 0cacec6427b60492638f88fbff59a628a3bb0b52
+**Executor:** phase-implementer:wce-p06-impl-1
+Files: `src/core/types/slack.ts`, `src/core/config/{schema,config-file,slack-config,slack-config.test}.ts`, `src/core/types/manager.ts`, `src/core/import/import-fs.ts`
+Proof: `vitest src/core/config` (comments kept, concurrent change, injected write/rename failures, crash before rename, permissions, symlink refusal)
+
+### Task p06-t02: Enforce Slack opt-in and privacy rules on import
+
+**Status:** completed
+**Commit:** 0dbdbbf23bbab94c549fb83e5d60a98b27c02361
+**Executor:** phase-implementer:wce-p06-impl-1
+Files: `src/core/import/{sources,staging,index,import.test-support,slack-rules.test,validate.test,commit.test}.ts`, `src/cli/commands/import/{import.utils,import.test}.ts`
+Proof: `slack-rules.test.ts` (18 of 24 fail with `checkRecord` disabled) and CLI tests; planted secret never echoed
+
+### Task p06-t03: `slack configure`, `channels add|remove|list`, `show`
+
+**Status:** completed
+**Commit:** a2fd010c8941c293cbec1de4755303e28e627166
+**Executor:** phase-implementer:wce-p06-impl-1
+Files: `src/cli/commands/slack/*`, `src/cli/index.ts`, commands README, `slack-config.ts`
+Proof: `slack.test.ts` (real CLI) and a manual IC and manager run in a temp home
+
+### Task p06-t04: Docs and CHANGELOG
+
+**Status:** completed
+**Commit:** b5b900b9d3ea4bbb0c02a227edec50ef9699e8a8
+**Executor:** phase-implementer:wce-p06-impl-1
+Files: `documentation/{commands,configuration,manager-mode}.md`, `README.md`, `AGENTS.md`, `CHANGELOG.md`
+Proof: `format:check`; documented config and record example run through the built CLI; repeat import unchanged
 
 ---
 
@@ -664,6 +707,8 @@ Slack connector capability (root, 2026-11-08; from the Slack plugin tool schemas
 <!-- One line per dispatch request id, rendered by `oat project dispatch record --format line` and written as a list item. Update that line in place with the terminal outcome; never paste the record or event JSON. -->
 
 <!-- orchestration-runs-start -->
+
+- run/v1 · request=wce-p06-impl-1 · scope=p06 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p06 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 - run/v1 · request=wce-p05-rev-3 · scope=p05 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p05 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
