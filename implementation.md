@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-11-07
-oat_current_task_id: null
+oat_current_task_id: p03
 oat_generated: false
 ---
 
@@ -38,21 +38,21 @@ oat_generated: false
 
 ## Progress Overview
 
-| Phase | Status    | Units | Accepted |
-| ----- | --------- | ----- | -------- |
-| p01   | completed | 1     | 1/1      |
-| p02   | completed | 1     | 1/1      |
-| p03   | completed | 1     | 1/1      |
-| p04   | pending   | 1     | 0/1      |
-| p05   | pending   | 1     | 0/1      |
-| p06   | pending   | 1     | 0/1      |
-| p07   | pending   | 1     | 0/1      |
-| p08   | pending   | 1     | 0/1      |
-| p09   | pending   | 1     | 0/1      |
-| p10   | pending   | 1     | 0/1      |
-| p11   | pending   | 1     | 0/1      |
+| Phase | Status      | Units | Accepted |
+| ----- | ----------- | ----- | -------- |
+| p01   | completed   | 1     | 1/1      |
+| p02   | completed   | 1     | 1/1      |
+| p03   | in_progress | 1     | 0/1      |
+| p04   | pending     | 1     | 0/1      |
+| p05   | pending     | 1     | 0/1      |
+| p06   | pending     | 1     | 0/1      |
+| p07   | pending     | 1     | 0/1      |
+| p08   | pending     | 1     | 0/1      |
+| p09   | pending     | 1     | 0/1      |
+| p10   | pending     | 1     | 0/1      |
+| p11   | pending     | 1     | 0/1      |
 
-**Total:** 3/11 phases accepted
+**Total:** 2/11 phases accepted
 
 ---
 
@@ -192,7 +192,7 @@ Review fix. Proof: full DoD batch.
 
 ## Phase p03: 0.5.0 release preparation
 
-**Status:** completed
+**Status:** in_progress
 **Base:** 23a4f1aae63ebd37c8966dca2c2136f794f14190
 **Executor:** inline:p03-inline-exception
 **Head:** 81017148924eb180394a8b92dde7e48fa80d0590
@@ -216,6 +216,56 @@ Verification at Head: `pnpm format && pnpm lint && pnpm format:check && pnpm typ
 **Executor:** root
 
 Review `reviews/p03-review-2026-11-08T000907Z.md` (0 C/H/M, 1 Low) passed; root fixed the Low (MCP server hardcoded `0.1.0`), added a server test and a CHANGELOG Fixed entry. Proof: lint, format:check, typecheck, 223 tests, build plus a built-module import. Not independently re-reviewed; covered by the m01 integrated review.
+
+### Review Received: final (m01 exit gate, attempt 1)
+
+**Date:** 2026-11-08
+**Review artifact (local-only):** reviews/archived/final-review-2026-11-08T001944Z.md
+
+**Findings:** Critical 0 · High 2 · Medium 2 · Low 0 (gate `codex-6-sol-xhigh`, verdict blocked, run 1ff92794-0065-452b-8b7f-52d57f0b8828)
+
+- H1 (High): migration can delete the old directory a verified replacement symlink depends on → fix task p03-t03; agree, reproduced by reviewer with the built CLI.
+- H2 (High): owner-lookup rate limit becomes an empty successful review fetch → fix task p03-t05; agree, breaks the fatal rate-limit contract.
+- M1 (Medium): no-overwrite path deletes a regular-file conflict → fix task p03-t04; agree, data loss without consent.
+- M2 (Medium): stored review records reused across reviewer identities → fix task p03-t06; agree, misattribution.
+
+**Outcome:** fixes queued: p03-t03, p03-t04, p03-t05, p03-t06 (late-fix rule: reviewed phase p03 is the last phase and no later phase has a Base, so fixes land under p03 and advance its Head)
+
+### Task p03-t03: (review) Keep old skill copies a replacement depends on
+
+**Status:** pending
+**Source review:** reviews/archived/final-review-2026-11-08T001944Z.md (H1)
+
+Intent: Before removing an old entry, require that the replacement (and its SKILL.md) does not resolve into the path being removed; otherwise keep the old entry, print why, and install an independent copy only if allowed. Regression: dependent new-name symlink into the old dir + independent-symlink control.
+Files: `src/cli/commands/skills/migrate.ts`, `install.ts`, `install.test.ts`
+Proof: `pnpm lint && pnpm typecheck && pnpm test`
+
+### Task p03-t04: (review) Treat any occupant of a destination as an overwrite conflict
+
+**Status:** pending
+**Source review:** reviews/archived/final-review-2026-11-08T001944Z.md (M1)
+
+Intent: Conflicts come from occupancy of every intended destination (files, dirs, links), not only `findInstalledSkills`; replacement only on explicit overwrite or documented broken-link repair. Regression: regular file at a new name during an upgrade.
+Files: `src/cli/commands/skills/install.ts`, `install.test.ts`
+Proof: `pnpm lint && pnpm typecheck && pnpm test`
+
+### Task p03-t05: (review) Make owner-lookup rate limits fatal in review fetch
+
+**Status:** pending
+**Source review:** reviews/archived/final-review-2026-11-08T001944Z.md (H2)
+
+Intent: Propagate 429/rate-limited 403 from the owner lookup through `handleRateLimitError`; distinguish confirmed user/org classification from an unavailable lookup. Regression: rate limit on the first lookup → no search, run fails; user and org controls.
+Files: `src/cli/commands/fetch/github/github-reviews.utils.ts` (and the shared `isUser` helper in `github.utils.ts`), tests
+Proof: `pnpm lint && pnpm typecheck && pnpm test`
+
+### Task p03-t06: (review) Bind stored review records to the reviewer identity
+
+**Status:** pending
+**Source review:** reviews/archived/final-review-2026-11-08T001944Z.md (M2)
+
+Intent: Require a case-insensitive `reviewer` match before cache reuse or merge; on mismatch replace the record without inheriting the other person's entries (or refuse with guidance). Regression: cache path and different-range path.
+Files: `src/cli/commands/fetch/github/github-reviews.utils.ts`, tests
+Proof: `pnpm lint && pnpm typecheck && pnpm test`
 
 ---
 
