@@ -1,5 +1,8 @@
 import {
   chmodSync,
+  cpSync,
+  lstatSync,
+  readdirSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -703,5 +706,193 @@ describe('import: interrupted imports and the lock', () => {
 
     expect(result.issues.map((i) => i.code)).toEqual(['IMPORT_IN_PROGRESS']);
     expect(existsSync(lock)).toBe(true);
+  });
+});
+
+describe('import: containment of bookkeeping and cleanup', () => {
+  const setupFresh = scenarios[0]?.setup ?? (() => {});
+  const setupUpdate = scenarios[1]?.setup ?? (() => {});
+
+  /** Run `change` once, just before `path` is created or moved into place */
+  function beforePlacing(path: string, change: () => void): ImportEnv {
+    let done = false;
+    return env({
+      fs: hookedFs(nodeImportFs, (op, args) => {
+        const target =
+          op === 'mkdir' ? args[0] : op === 'rename' ? args[1] : undefined;
+        if (!done && target === path) {
+          done = true;
+          change();
+        }
+      }),
+    });
+  }
+
+  it('leaves an outside directory alone when a new directory is swapped for a symlink', () => {
+    // Gate H1: messages/ becomes a link to outside/ (holding slack/) just
+    // before import puts messages/ in place.
+    const w = world();
+    setupFresh(w);
+    mkdirSync(join(w.outside, 'slack'));
+    const outsideBefore = snapshot(w.outside);
+    const messages = join(w.workLog, 'messages');
+
+    const result = importInto(w, {
+      env: beforePlacing(messages, () => symlinkSync(w.outside, messages)),
+    });
+    const later = recover(w);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues[0]?.code).toBe('CHANGED_DURING_IMPORT');
+    expect(later.ok).toBe(true);
+    expect(snapshot(w.outside)).toEqual(outsideBefore);
+  });
+
+  it('refuses to act through a new directory swapped for a symlink after it is placed', () => {
+    const w = world();
+    setupFresh(w);
+    mkdirSync(join(w.outside, 'slack'));
+    const outsideBefore = snapshot(w.outside);
+    const messages = join(w.workLog, 'messages');
+    let placed = false;
+    let swapped = false;
+
+    const result = importInto(w, {
+      env: env({
+        fs: hookedFs(nodeImportFs, (op, args) => {
+          if (placed && !swapped) {
+            swapped = true;
+            renameSync(messages, join(w.base, 'moved-messages'));
+            symlinkSync(w.outside, messages);
+          }
+          if (op === 'rename' && args[1] === messages) placed = true;
+        }),
+      }),
+    });
+    const later = recover(w);
+
+    expect(swapped).toBe(true);
+    expect(result.ok).toBe(false);
+    // Recovery cannot vouch for messages/ now, so it stops rather than guess
+    expect(later.ok).toBe(false);
+    expect(later.issues.map((i) => i.code)).toEqual(['RECOVERY_CONFLICT']);
+    expect(snapshot(w.outside)).toEqual(outsideBefore);
+  });
+
+  /** Interrupt a two-record update right after the first record is replaced */
+  function interruptTwoUpdates(w: World) {
+    storeRecord(w.workLog, 1, 'Old one.');
+    storeRecord(w.workLog, 2, 'Old two.');
+    stage(w.staging, 'a.md', messageFrontmatter(1), 'New one.');
+    stage(w.staging, 'b.md', messageFrontmatter(2), 'New two.');
+    importInto(w, {
+      env: env({
+        fs: crashAfterFs(
+          nodeImportFs,
+          (op, args) =>
+            op === 'rename' &&
+            String(args[1]).includes(join('messages', 'slack')),
+        ),
+        pid: DEAD_PID,
+      }),
+    });
+  }
+
+  it.each([
+    [
+      'a symlink',
+      (backup: string, moved: string) => {
+        renameSync(backup, moved);
+        symlinkSync(moved, backup);
+      },
+    ],
+    [
+      'another directory',
+      (backup: string, moved: string) => {
+        renameSync(backup, moved);
+        cpSync(moved, backup, { recursive: true });
+      },
+    ],
+  ])(
+    'refuses to recover through a backup directory replaced by %s',
+    (_label, replace) => {
+      // Gate H2
+      const w = world();
+      interruptTwoUpdates(w);
+      const backup = join(w.workLog, '.import-transaction', 'backup');
+      const moved = join(w.outside, 'backup');
+      replace(backup, moved);
+      const outsideBefore = snapshot(w.outside);
+
+      const result = recover(w);
+
+      expect(result.ok).toBe(false);
+      expect(result.recovery).toBeNull();
+      expect(result.issues.map((i) => i.code)).toContain('RECOVERY_CONFLICT');
+      expect(snapshot(w.outside)).toEqual(outsideBefore);
+      expect(existsSync(join(w.workLog, '.import-transaction'))).toBe(true);
+    },
+  );
+
+  /** Every directory below `root`, deepest first */
+  function directories(root: string, rel = ''): string[] {
+    const found: string[] = [];
+    for (const name of readdirSync(join(root, rel))) {
+      const path = rel ? join(rel, name) : name;
+      if (lstatSync(join(root, path)).isDirectory()) {
+        found.push(...directories(root, path), path);
+      }
+    }
+    return found;
+  }
+
+  describe.each([
+    ['a fresh work log', setupFresh],
+    ['an update, a create and an unchanged record', setupUpdate],
+  ])('with %s', (_name, setup) => {
+    it(
+      'never acts through a directory swapped for a symlink before recovery',
+      EXHAUSTIVE,
+      () => {
+        const { counts } = reference(setup);
+        let probes = 0;
+        for (let crashAt = 1; crashAt <= counts.mutating; crashAt++) {
+          const probe = world();
+          setup(probe);
+          importInto(probe, {
+            env: env({ fs: crashingFs(fastFs, crashAt), pid: DEAD_PID }),
+          });
+          for (const dir of directories(probe.workLog)) {
+            // Same crash, then `dir` replaced by a link to an exact copy
+            const w = world();
+            setup(w);
+            importInto(w, {
+              env: env({ fs: crashingFs(fastFs, crashAt), pid: DEAD_PID }),
+            });
+            const real = join(w.workLog, dir);
+            if (!existsSync(real)) continue;
+            const decoy = join(w.outside, 'decoy');
+            cpSync(real, decoy, { recursive: true });
+            renameSync(real, join(w.base, 'held'));
+            symlinkSync(decoy, real);
+            const decoyBefore = snapshot(decoy);
+
+            const result = recover(w, { fs: fastFs });
+            const label = `crash at write ${crashAt}, ${dir} linked`;
+
+            expect(snapshot(decoy), label).toEqual(decoyBefore);
+            // With a journal, recovery must check its bookkeeping first, so it
+            // can never roll back or complete through a linked folder of it
+            if (dir.startsWith('.import-transaction')) {
+              expect(['completed', 'rolled-back'], label).not.toContain(
+                result.recovery?.outcome,
+              );
+            }
+            probes++;
+          }
+        }
+        expect(probes).toBeGreaterThan(0);
+      },
+    );
   });
 });
