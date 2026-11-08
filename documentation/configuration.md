@@ -187,7 +187,7 @@ analysis:
 
 `init` creates `notes/`, `performance-reviews/` and `.analysis/`; create
 `resumes/` yourself. While `import` runs, the work log also holds
-`.import-lock` and `.import-transaction/`; see
+`.import-lock/` and `.import-transaction/`; see
 [Import](commands.md#import). When `filtered/` exists, even empty, `analyze` asks whether to use it,
 and the MCP server reads it instead of the full work log. While `filter`
 replaces the subset, the work log briefly holds `.filter-lock/`, `.filter-staging-<id>/` and

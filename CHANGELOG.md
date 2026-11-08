@@ -28,7 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   through the directories it recorded; it refuses
   (`CHANGED_DURING_IMPORT`, or `RECOVERY_CONFLICT` while putting records
   back or recovering) rather than act through one that was moved, replaced
-  or made a link. Manager
+  or made a link. One import runs per work log at a time under
+  `.import-lock`, the same kind of lock `filter` uses: a lock left by an
+  exited process is taken over by one import at a time, and a running
+  import's lock is never moved. Manager
   profiles import into a report's work log with `--report <id>`. Both
   commands exit with status 1 on rejection; `--json` gives machine-readable
   issues that never repeat record content.

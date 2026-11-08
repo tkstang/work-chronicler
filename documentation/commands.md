@@ -239,10 +239,14 @@ rejected (`SCHEMA_INVALID`).
   should be, a destination that is not a regular file, or a stored file there
   that is not a valid record or has a different identity or subject. The work
   log itself must exist, and must be on a filesystem that supports hard links.
-- One import runs per work log at a time, under `.import-lock`. A lock left
-  by a process that has exited, or from before the last reboot, is taken
-  over; one held by a running process or from another machine is not
-  (`IMPORT_IN_PROGRESS`).
+- One import runs per work log at a time, under `.import-lock` (the same
+  kind of lock as `filter`'s). A lock left by a process on this machine that
+  has exited, or from before the last reboot, is taken over, by one import
+  at a time, under a short-lived `.import-lock.takeover` guard; a lock held
+  by a running process or from another machine is not, and is never moved
+  (`IMPORT_IN_PROGRESS`). If an import exits while holding the guard, later
+  imports are refused with the guard's name, to remove once no import is
+  running.
 - The batch is written to `.import-transaction/` first and checked, with a
   copy of every record it replaces. Directories the batch needs (such as
   `messages/slack/`) are made there too and moved into the work log in one
