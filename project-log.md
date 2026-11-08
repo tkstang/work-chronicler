@@ -153,6 +153,19 @@ Activated m02 (p04, p05, p06, p07, p12, p08); work-chronicler-evidence-expansion
 
 p04 accepted: review round 1 (1 H, 1 M, 1 L) fixed in p04-t06..t08; round 2 passed (0 C/H/M, 2 Low fixed inline in p04-t09); fix loops 1; wce-p04-outcome
 
+### 2026-11-08 · structural · oat-project-implement · p05
+
+p05 accepted: round 1 (3 M, 3 L) fixed in p05-t08..t13; round 2 (3 L, filter lock) fixed in p05-t14..t15; round 3 passed (0 C/H/M), 2 Low messages fixed inline in p05-t16; fix loops 2; wce-p05-outcome
+
+### 2026-11-08 · project · friction · Concurrency locks attract review rounds
+
+**Category:** gotcha
+**Source:** wce-learning-p05-lock
+**Origin:** oat-project-implement
+**Recorded:** 2026-11-08T07:33:03Z
+
+Observation: the filter lock added to fix a concurrency finding drew three more Low rounds (non-atomic release, stale takeover race, dead takeover guard). Impact: two extra review cycles in p05. Recommendation: reuse one shared, already-reviewed lock helper (import's .import-lock and the filter lock solve the same problem) instead of writing a second one; consider consolidating in a later cleanup.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
