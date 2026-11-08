@@ -27,15 +27,16 @@ import { afterAll, describe, expect, it, vi } from 'vitest';
 /** These tests run the built CLI several times; slow CI runners need more than the 5 s default */
 const CLI_RUNS = { timeout: 60_000 };
 
-// Acceptance for the Slack import skills: a batch staged exactly as
-// work-chronicler-import-slack instructs (read `slack show --json`, keep only
-// the subject's own messages in configured channels and in range, one record
-// per message in the template's layout, with Slack markup rewritten) goes
-// through the real CLI:
-// validate → import → link → the MCP server's search_messages. The CLI runs
-// in a child process with HOME and the workspace in a temporary directory.
-// Every ID, name and text is synthetic. Per-rule refusals are covered in
-// @core/import/slack-rules.test.ts and the import and slack command tests.
+// Acceptance for the Slack import contract: literal staged records in the
+// layout work-chronicler-import-slack writes go through the real CLI, as the
+// skill runs it (`slack show --json`, then its import command):
+// validate → import → link → the MCP server's search_messages. Which messages
+// the skill keeps (in range, with text) is skill prose, reviewed with the
+// skill, not re-implemented here; what the CLI itself refuses is tested at
+// its boundary. The CLI runs in a child process with HOME and the workspace
+// in a temporary directory. Every ID, name and text is synthetic. Per-rule
+// refusals are covered in @core/import/slack-rules.test.ts and the import
+// and slack command tests.
 
 const repoRoot = fileURLToPath(new URL('../../../../', import.meta.url));
 const skillPath = join(
@@ -208,109 +209,134 @@ interface SlackShow {
     private: boolean;
     importable: boolean;
   }[];
-  record: { sourceAccount: string; subject: unknown; attribution: unknown };
+  record: {
+    source: string;
+    sourceAccount: string;
+    subject: unknown;
+    attribution: unknown;
+  };
   importCommand: string[];
 }
 
-/** One Slack search result, as the connector renders it */
-interface SearchResult {
-  channelId: string;
-  authorId: string;
-  messageTs: string;
-  permalink: string;
-  text: string;
-}
-
-const DAY = 24 * 60 * 60 * 1000;
-const tsDigits = (ts: string) => ts.replace('.', '');
-const tsToIso = (ts: string) =>
-  new Date(Number(ts.split('.')[0]) * 1000).toISOString().replace('.000', '');
-
-/**
- * Steps 5 and 6 of the import skill for one searched channel: keep a result
- * only when it is in that channel, by the configured user, in range and has
- * text, then write it in the template's layout.
- */
-function stageAsTheSkillDoes(
-  show: SlackShow,
-  searched: string,
-  results: SearchResult[],
-  dir: string,
-  capturedAt: string,
-): { kept: number; skipped: number } {
-  const channel = show.channels.find((c) => c.id === searched);
-  if (!channel?.importable) throw new Error('never search this channel');
-  const since = new Date(`${show.range.since}T00:00:00Z`).getTime();
-  const until = show.range.until
-    ? new Date(`${show.range.until}T00:00:00Z`).getTime() + DAY
-    : Number.POSITIVE_INFINITY;
+/** Write staged record files */
+function stageFiles(dir: string, files: Record<string, string>): void {
   mkdirSync(dir, { recursive: true });
-  let kept = 0;
-  let skipped = 0;
-  for (const result of results) {
-    const time = Number(result.messageTs) * 1000;
-    if (
-      result.channelId !== searched ||
-      result.authorId !== show.user ||
-      time < since ||
-      time >= until ||
-      result.text.trim() === ''
-    ) {
-      skipped++;
-      continue;
-    }
-    const link = new URL(result.permalink);
-    const threadTs = link.searchParams.get('thread_ts');
-    const isReply = threadTs !== null && threadTs !== result.messageTs;
-    const url = `${link.origin}/archives/${searched}/p${tsDigits(result.messageTs)}${
-      isReply ? `?thread_ts=${threadTs}&cid=${searched}` : ''
-    }`;
-    const thread = isReply
-      ? `{ parentId: "${threadTs}", parentUrl: "${link.origin}/archives/${searched}/p${tsDigits(threadTs)}" }`
-      : 'null';
-    // Slack markup: mentions lose the name and ID, links keep only the URL
-    const body = result.text
-      .replace(/<@[UW][A-Z0-9]+(?:\|[^>]*)?>/g, '@someone')
-      .replace(/<#C[A-Z0-9]+(?:\|[^>]*)?>/g, '#channel')
-      .replace(/<!(here|channel|everyone)>/g, '@$1')
-      .replace(/<(https?:\/\/[^|>\s]+)(?:\|[^>]*)?>/g, '$1');
-    const tickets = [
-      ...new Set(body.match(/\b[A-Z][A-Z0-9_]*-[1-9]\d*\b/g) ?? []),
-    ];
-    const prs = [
-      ...new Set(
-        body.match(/https:\/\/github\.com\/[^\s/]+\/[^\s/]+\/pull\/\d+/g) ?? [],
-      ),
-    ];
-    const q = JSON.stringify;
-    const file = [
-      '---',
-      'schemaVersion: 1',
-      'type: message',
-      'source: slack',
-      `sourceAccount: ${q(show.record.sourceAccount)}`,
-      `sourceId: ${q(`${searched}/${result.messageTs}`)}`,
-      `url: ${q(url)}`,
-      `occurredAt: ${q(tsToIso(result.messageTs))}`,
-      'updatedAt: null',
-      `capturedAt: ${q(capturedAt)}`,
-      `subject: ${q(show.record.subject)}`,
-      `attribution: ${q(show.record.attribution)}`,
-      `mentions: { tickets: ${q(tickets)}, pullRequests: ${q(prs)} }`,
-      'message:',
-      `  container: { id: ${q(searched)}, name: ${q(channel.name)} }`,
-      `  thread: ${thread}`,
-      '  replyCount: 0',
-      '  replyParticipantCount: 0',
-      '---',
-      '',
-      body,
-      '',
-    ].join('\n');
-    writeFileSync(join(dir, `${++kept}.md`), file);
+  for (const [name, text] of Object.entries(files)) {
+    writeFileSync(join(dir, name), text);
   }
-  return { kept, skipped };
 }
+
+// The IC's messages (Slack timestamps: seconds since 1970 and microseconds)
+/** A thread the subject started, 2026-01-05T10:00:00Z */
+const STARTER_TS = '1767607200.000100';
+/** A thread someone else started, 2026-01-06T09:00:00Z */
+const PARENT_TS = '1767690000.000100';
+/** The subject's reply in that thread, 2026-01-06T09:30:00Z */
+const REPLY_TS = '1767691800.000200';
+/** A top-level message, 2026-02-01T12:00:00Z */
+const PLAIN_TS = '1769947200.000300';
+/** Another person's reply in the same thread, 2026-01-06T09:10:00Z */
+const OTHERS_TS = '1767690600.000600';
+/** The starter's text as search returns it, with Slack markup */
+const RAW_STARTER_TEXT = `Invoices are live: <${PR_URL}|github.com/synthetic-org/synthetic-api/pull/42> thanks <@${OTHER_USER}|${OTHER_NAME}>`;
+
+/** The IC's three messages as staged records; a rerun changes capturedAt */
+const icBatch = (capturedAt: string): Record<string, string> => ({
+  '1.md': `---
+schemaVersion: 1
+type: message
+source: slack
+sourceAccount: "${IC_WORKSPACE}"
+sourceId: "${CHANNEL}/${STARTER_TS}"
+url: "${IC_HOST}/archives/${CHANNEL}/p1767607200000100"
+occurredAt: "2026-01-05T10:00:00Z"
+updatedAt: null
+capturedAt: "${capturedAt}"
+subject: { kind: ic }
+attribution: { status: verified, authorId: "${USER}" }
+mentions: { tickets: [], pullRequests: ["${PR_URL}"] }
+message:
+  container: { id: "${CHANNEL}", name: "synthetic-eng" }
+  thread: null
+  replyCount: 0
+  replyParticipantCount: 0
+---
+
+Invoices are live: ${PR_URL} thanks @someone
+`,
+  '2.md': `---
+schemaVersion: 1
+type: message
+source: slack
+sourceAccount: "${IC_WORKSPACE}"
+sourceId: "${CHANNEL}/${REPLY_TS}"
+url: "${IC_HOST}/archives/${CHANNEL}/p1767691800000200?thread_ts=${PARENT_TS}&cid=${CHANNEL}"
+occurredAt: "2026-01-06T09:30:00Z"
+updatedAt: null
+capturedAt: "${capturedAt}"
+subject: { kind: ic }
+attribution: { status: verified, authorId: "${USER}" }
+mentions: { tickets: [SYN-7], pullRequests: [] }
+message:
+  container: { id: "${CHANNEL}", name: "synthetic-eng" }
+  thread: { parentId: "${PARENT_TS}", parentUrl: "${IC_HOST}/archives/${CHANNEL}/p1767690000000100" }
+  replyCount: 0
+  replyParticipantCount: 0
+---
+
+I will take the retry fix in SYN-7
+`,
+  '3.md': `---
+schemaVersion: 1
+type: message
+source: slack
+sourceAccount: "${IC_WORKSPACE}"
+sourceId: "${CHANNEL}/${PLAIN_TS}"
+url: "${IC_HOST}/archives/${CHANNEL}/p1769947200000300"
+occurredAt: "2026-02-01T12:00:00Z"
+updatedAt: null
+capturedAt: "${capturedAt}"
+subject: { kind: ic }
+attribution: { status: verified, authorId: "${USER}" }
+mentions: { tickets: [SYN-999], pullRequests: [] }
+message:
+  container: { id: "${CHANNEL}", name: "synthetic-eng" }
+  thread: null
+  replyCount: 0
+  replyParticipantCount: 0
+---
+
+Planning SYN-999 next
+`,
+});
+
+/** A report's message, staged for the manager's import */
+const aliceRecord = (
+  channel: string,
+  channelName: string,
+  ts: string,
+): string => `---
+schemaVersion: 1
+type: message
+source: slack
+sourceAccount: "${WORKSPACE}"
+sourceId: "${channel}/${ts}"
+url: "${HOST}/archives/${channel}/p${ts.replace('.', '')}"
+occurredAt: "2026-03-02T10:00:00Z"
+updatedAt: null
+capturedAt: "2026-03-05T09:00:00Z"
+subject: { kind: report, reportId: alice-smith }
+attribution: { status: verified, authorId: "${USER}" }
+mentions: { tickets: [], pullRequests: [] }
+message:
+  container: { id: "${channel}", name: "${channelName}" }
+  thread: null
+  replyCount: 0
+  replyParticipantCount: 0
+---
+
+Report message
+`;
 
 /** The `importCommand` argv from `slack show`, as `validate` or `import` */
 function fromImportCommand(
@@ -323,77 +349,6 @@ function fromImportCommand(
   return args.map((arg) =>
     arg === 'import' ? command : arg === '<staging-dir>' ? staging : arg,
   );
-}
-
-const ts = (iso: string, micro: string) =>
-  `${new Date(iso).getTime() / 1000}.${micro}`;
-
-/** Synthetic search results for `from:<@USER> in:<#CHANNEL>` */
-function searchResults(): SearchResult[] {
-  const starter = ts('2026-01-05T10:00:00Z', '000100');
-  const parent = ts('2026-01-06T09:00:00Z', '000100');
-  const reply = ts('2026-01-06T09:30:00Z', '000200');
-  const plain = ts('2026-02-01T12:00:00Z', '000300');
-  const before = ts('2025-12-31T12:00:00Z', '000400');
-  const after = ts('2026-07-01T12:00:00Z', '000500');
-  const others = ts('2026-01-06T09:10:00Z', '000600');
-  const at = (t: string, query = '') =>
-    `${IC_HOST}/archives/${CHANNEL}/p${tsDigits(t)}${query}`;
-  return [
-    // A thread the subject started: its permalink names itself as thread
-    {
-      channelId: CHANNEL,
-      authorId: USER,
-      messageTs: starter,
-      permalink: at(starter, `?thread_ts=${starter}&cid=${CHANNEL}`),
-      text: `Invoices are live: <${PR_URL}|${PR_URL.replace('https://', '')}> thanks <@${OTHER_USER}|${OTHER_NAME}>`,
-    },
-    // The subject's reply in a thread someone else started
-    {
-      channelId: CHANNEL,
-      authorId: USER,
-      messageTs: reply,
-      permalink: at(reply, `?thread_ts=${parent}&cid=${CHANNEL}`),
-      text: 'I will take the retry fix in SYN-7',
-    },
-    // A top-level message whose ticket is not in the work log
-    {
-      channelId: CHANNEL,
-      authorId: USER,
-      messageTs: plain,
-      permalink: at(plain),
-      text: 'Planning SYN-999 next',
-    },
-    // Skipped: outside the range, by someone else, or without text
-    {
-      channelId: CHANNEL,
-      authorId: USER,
-      messageTs: before,
-      permalink: at(before),
-      text: 'Before the range',
-    },
-    {
-      channelId: CHANNEL,
-      authorId: USER,
-      messageTs: after,
-      permalink: at(after),
-      text: 'After the range',
-    },
-    {
-      channelId: CHANNEL,
-      authorId: OTHER_USER,
-      messageTs: others,
-      permalink: at(others, `?thread_ts=${parent}&cid=${CHANNEL}`),
-      text: OTHERS_TEXT,
-    },
-    {
-      channelId: CHANNEL,
-      authorId: USER,
-      messageTs: ts('2026-01-07T09:00:00Z', '000700'),
-      permalink: at(ts('2026-01-07T09:00:00Z', '000700')),
-      text: '',
-    },
-  ];
 }
 
 function storedRecords(workLog: string): string[] {
@@ -430,30 +385,27 @@ describe('Slack import skill: IC acceptance', CLI_RUNS, () => {
       ]).status,
     ).toBe(0);
 
-    // Import, as work-chronicler-import-slack runs it
+    // Import, as work-chronicler-import-slack runs it: `slack show` prints
+    // the record fields the staged records carry, and the import command
     const show = json('solo', ['slack', 'show']).value as SlackShow;
     expect(show.configured).toBe(true);
+    expect(show.record).toEqual({
+      source: 'slack',
+      sourceAccount: IC_WORKSPACE,
+      subject: { kind: 'ic' },
+      attribution: { status: 'verified', authorId: USER },
+    });
     const staging = join(root, 'staging-ic');
-    const staged = stageAsTheSkillDoes(
-      show,
-      CHANNEL,
-      searchResults(),
-      staging,
-      '2026-07-02T08:00:00Z',
-    );
-    expect(staged).toEqual({ kept: 3, skipped: 4 });
+    const batch = icBatch('2026-07-02T08:00:00Z');
+    stageFiles(staging, batch);
 
-    // The CLI, not just the staging helper, keeps Slack markup out: the same
-    // record with its raw search-result text (a <@U…|name> mention and a
-    // <url|label> link) is refused, and the name is never echoed
+    // The CLI keeps Slack markup out: the same record with its raw search
+    // text (a <@U…|name> mention and a <url|label> link) is refused, and the
+    // name is never echoed
     const raw = join(root, 'staging-ic-raw');
-    mkdirSync(raw);
-    const starter = readFileSync(join(staging, '1.md'), 'utf-8');
+    const starter = batch['1.md'] ?? '';
     const header = starter.slice(0, starter.lastIndexOf('\n---\n') + 5);
-    writeFileSync(
-      join(raw, '1.md'),
-      `${header}\n${searchResults()[0]?.text}\n`,
-    );
+    stageFiles(raw, { '1.md': `${header}\n${RAW_STARTER_TEXT}\n` });
     const refused = json('solo', fromImportCommand(show, 'validate', raw));
     expect(refused.status).toBe(1);
     expect(refused.value.issues).toEqual([
@@ -464,6 +416,45 @@ describe('Slack import skill: IC acceptance', CLI_RUNS, () => {
       }),
     ]);
     expect(JSON.stringify(refused.value)).not.toContain(OTHER_NAME);
+
+    // The CLI keeps other people's messages out: a reply by someone else in
+    // the subject's channel is refused, and its text is never echoed
+    const others = join(root, 'staging-ic-others');
+    stageFiles(others, {
+      '1.md': `---
+schemaVersion: 1
+type: message
+source: slack
+sourceAccount: "${IC_WORKSPACE}"
+sourceId: "${CHANNEL}/${OTHERS_TS}"
+url: "${IC_HOST}/archives/${CHANNEL}/p1767690600000600?thread_ts=${PARENT_TS}&cid=${CHANNEL}"
+occurredAt: "2026-01-06T09:10:00Z"
+updatedAt: null
+capturedAt: "2026-07-02T08:00:00Z"
+subject: { kind: ic }
+attribution: { status: verified, authorId: "${OTHER_USER}" }
+mentions: { tickets: [], pullRequests: [] }
+message:
+  container: { id: "${CHANNEL}", name: "synthetic-eng" }
+  thread: { parentId: "${PARENT_TS}", parentUrl: "${IC_HOST}/archives/${CHANNEL}/p1767690000000100" }
+  replyCount: 0
+  replyParticipantCount: 0
+---
+
+${OTHERS_TEXT}
+`,
+    });
+    const notTheirs = json('solo', fromImportCommand(show, 'import', others));
+    expect(notTheirs.status).toBe(1);
+    expect(notTheirs.value.issues).toEqual([
+      expect.objectContaining({
+        code: 'SOURCE_RULE',
+        file: '1.md',
+        field: 'attribution.authorId',
+      }),
+    ]);
+    expect(JSON.stringify(notTheirs.value)).not.toContain(OTHERS_TEXT);
+    expect(storedRecords(soloWorkLog)).toEqual([]);
 
     const validate = json('solo', fromImportCommand(show, 'validate', staging));
     expect(validate.value.issues).toEqual([]);
@@ -495,13 +486,7 @@ describe('Slack import skill: IC acceptance', CLI_RUNS, () => {
 
     // A rerun of the skill (new capturedAt) updates the same records
     const rerun = join(root, 'staging-ic-rerun');
-    stageAsTheSkillDoes(
-      show,
-      CHANNEL,
-      searchResults(),
-      rerun,
-      '2026-07-03T08:00:00Z',
-    );
+    stageFiles(rerun, icBatch('2026-07-03T08:00:00Z'));
     expect(
       json('solo', fromImportCommand(show, 'import', rerun)).value.summary,
     ).toEqual({ records: 3, created: 0, updated: 3, unchanged: 0 });
@@ -583,17 +568,6 @@ describe('Slack import skill: IC acceptance', CLI_RUNS, () => {
 });
 
 describe('Slack import skill: manager acceptance', CLI_RUNS, () => {
-  const aliceResult = (channel: string, micro: string): SearchResult => {
-    const t = ts('2026-03-02T10:00:00Z', micro);
-    return {
-      channelId: channel,
-      authorId: USER,
-      messageTs: t,
-      permalink: `${HOST}/archives/${channel}/p${tsDigits(t)}`,
-      text: 'Report message',
-    };
-  };
-
   it('lists a channel not shared with the manager as not importable', () => {
     const show = json('team', ['slack', 'show', '--report', 'alice-smith'])
       .value as SlackShow;
@@ -601,31 +575,24 @@ describe('Slack import skill: manager acceptance', CLI_RUNS, () => {
       expect.objectContaining({ id: CHANNEL, importable: true }),
       expect.objectContaining({ id: UNSHARED, importable: false }),
     ]);
-    // The skill never searches it
-    expect(() =>
-      stageAsTheSkillDoes(show, UNSHARED, [], join(root, 'never'), ''),
-    ).toThrow('never search this channel');
+    expect(show.record).toEqual({
+      source: 'slack',
+      sourceAccount: WORKSPACE,
+      subject: { kind: 'report', reportId: 'alice-smith' },
+      attribution: { status: 'verified', authorId: USER },
+    });
   });
 
   it('refuses a batch holding a record from a channel the manager and report do not share', () => {
     const show = json('team', ['slack', 'show', '--report', 'alice-smith'])
       .value as SlackShow;
     const staging = join(root, 'staging-alice-unshared');
-    stageAsTheSkillDoes(
-      show,
-      CHANNEL,
-      [aliceResult(CHANNEL, '000100')],
-      staging,
-      '2026-03-05T09:00:00Z',
-    );
-    // A record from the unshared channel, written as if it had been searched
-    const shared = readFileSync(join(staging, '1.md'), 'utf-8');
-    writeFileSync(
-      join(staging, '2.md'),
-      shared
-        .replaceAll(CHANNEL, UNSHARED)
-        .replace('synthetic-eng', 'synthetic-other'),
-    );
+    // A shared channel's record, and one from the unshared channel written
+    // as if it had been searched
+    stageFiles(staging, {
+      '1.md': aliceRecord(CHANNEL, 'synthetic-eng', '1772445600.000100'),
+      '2.md': aliceRecord(UNSHARED, 'synthetic-other', '1772445600.000100'),
+    });
 
     const refused = json('team', fromImportCommand(show, 'import', staging));
 
@@ -645,13 +612,9 @@ describe('Slack import skill: manager acceptance', CLI_RUNS, () => {
       .value as SlackShow;
     expect(show.importCommand).toContain('--report');
     const staging = join(root, 'staging-alice');
-    stageAsTheSkillDoes(
-      show,
-      CHANNEL,
-      [aliceResult(CHANNEL, '000200')],
-      staging,
-      '2026-03-05T09:00:00Z',
-    );
+    stageFiles(staging, {
+      '1.md': aliceRecord(CHANNEL, 'synthetic-eng', '1772445600.000200'),
+    });
 
     const imported = json('team', fromImportCommand(show, 'import', staging));
 
