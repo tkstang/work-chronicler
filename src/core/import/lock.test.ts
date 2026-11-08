@@ -1,10 +1,13 @@
 import {
   existsSync,
   lstatSync,
+  mkdirSync,
   readdirSync,
   readFileSync,
   rmSync,
+  writeFileSync,
 } from 'node:fs';
+import { hostname } from 'node:os';
 import { join } from 'node:path';
 
 import {
@@ -266,6 +269,48 @@ describe('one work-log lock for import and filter', () => {
     await replaceFilteredSubset(w.workLog, emptyPlan());
     expect(readdirSync(w.workLog).sort()).toEqual(['filtered', 'messages']);
   });
+
+  it.each<[string, boolean, string]>([
+    ['honors a live', true, 'IMPORT_IN_PROGRESS'],
+    ['takes over a stale', false, ''],
+  ])(
+    '%s 0.6.0 filter lock (.filter-lock alone, no boot ID or command)',
+    (_, alive, code) => {
+      const w = world();
+      const lock = join(w.workLog, '.filter-lock');
+      mkdirSync(lock);
+      writeFileSync(
+        join(lock, 'owner.json'),
+        JSON.stringify({
+          version: 1,
+          pid: DEAD_PID,
+          hostname: hostname(),
+          startedAt: 1,
+          runId: 'filter-060',
+        }),
+      );
+
+      const result = importBatch(w, {
+        ...createImportEnv(),
+        isProcessAlive: (pid) => (pid === DEAD_PID ? alive : true),
+      });
+
+      if (alive) {
+        expect(result.issues.map((i) => i.code)).toEqual([code]);
+        expect(result.issues[0]?.message).toMatch(
+          /`work-chronicler filter` run .* holds the work-log lock \(\.filter-lock\)/,
+        );
+        // Its own first name was released; the 0.6.0 lock is untouched
+        expect(readdirSync(w.workLog)).toEqual(['.filter-lock']);
+        expect(
+          JSON.parse(readFileSync(join(lock, 'owner.json'), 'utf-8')).runId,
+        ).toBe('filter-060');
+      } else {
+        expect(result.ok).toBe(true);
+        expect(readdirSync(w.workLog)).toEqual(['messages']);
+      }
+    },
+  );
 
   it('lets validate run while a filter holds the lock (a filter changes no record)', async () => {
     const w = world();
