@@ -142,14 +142,19 @@ export const reportsCommand = new Command('reports')
       const prDates = prs
         .map((pr) => pr.frontmatter.mergedAt || pr.frontmatter.createdAt)
         .filter((d): d is string => Boolean(d));
-      const messageDates = importedRecords
-        .filter((record) => record.frontmatter.type === 'message')
+      const importedDates = importedRecords.map(
+        (record) => record.frontmatter.occurredAt,
+      );
+      const documentDates = importedRecords
+        .filter((record) => record.frontmatter.type === 'document')
         .map((record) => record.frontmatter.occurredAt);
 
-      // Projects and the timeline cover PRs (and tickets) only; stats.json
-      // also counts messages, so its range spans them too
+      // Projects cover PRs (and tickets) only; the timeline also lists
+      // Google Docs (by modified time), and stats.json counts messages and
+      // Docs, so their ranges span those too
       const { since, until } = rangeOf(prDates);
-      const statsRange = rangeOf([...prDates, ...messageDates]);
+      const timelineRange = rangeOf([...prDates, ...documentDates]);
+      const statsRange = rangeOf([...prDates, ...importedDates]);
 
       if (prs.length === 0) {
         console.log(
@@ -162,7 +167,7 @@ export const reportsCommand = new Command('reports')
       console.log(`${chalk.gray('Date range:')} ${since} to ${until}`);
       if (statsRange.since !== since || statsRange.until !== until) {
         console.log(
-          `${chalk.gray('Statistics, with messages:')} ${statsRange.since} to ${statsRange.until}`,
+          `${chalk.gray('Statistics, with messages and Google Docs:')} ${statsRange.since} to ${statsRange.until}`,
         );
       }
       console.log();
@@ -260,7 +265,14 @@ export const reportsCommand = new Command('reports')
       if (stats.messages.total > 0) {
         console.log(chalk.bold('Imported Messages:'));
         console.log(
-          `  Total: ${chalk.cyan(stats.messages.total)} (supplementary evidence; projects and the timeline cover PRs and tickets only)`,
+          `  Total: ${chalk.cyan(stats.messages.total)} (supplementary evidence; projects and the timeline do not include messages)`,
+        );
+        console.log();
+      }
+      if (stats.documents.total > 0) {
+        console.log(chalk.bold('Imported Google Docs:'));
+        console.log(
+          `  Total: ${chalk.cyan(stats.documents.total)} (Docs the report owns, by modified time; supplementary evidence; the timeline lists them, projects do not)`,
         );
         console.log();
       }
@@ -325,7 +337,13 @@ export const reportsCommand = new Command('reports')
       if (analyzeOpts.timeline) {
         console.log();
         spinner.start('Generating timeline...');
-        const timeline = generateTimeline(prs, tickets, since, until);
+        const timeline = generateTimeline(
+          prs,
+          tickets,
+          timelineRange.since,
+          timelineRange.until,
+          importedRecords,
+        );
         spinner.succeed(
           `Generated timeline: ${chalk.cyan(timeline.summary.totalMonths)} months, ${chalk.cyan(timeline.summary.totalWeeks)} weeks`,
         );

@@ -72,6 +72,7 @@ const CLEARED_PREFIX = '.filter-cleared-';
 const LATER_RECORD_DIRECTORIES = [
   DIRECTORIES.PR_REVIEWS,
   DIRECTORIES.MESSAGES,
+  DIRECTORIES.DOCUMENTS,
 ] as const;
 export type SubsetRecordDirectory = (typeof LATER_RECORD_DIRECTORIES)[number];
 
@@ -81,6 +82,8 @@ const RecordCountsSchema = z.object({
   tickets: CountSchema,
   prReviews: CountSchema,
   messages: CountSchema,
+  /** Imported documents (absent from markers written before 0.7.0) */
+  documents: CountSchema.default(0),
 });
 export type SubsetRecordCounts = z.infer<typeof RecordCountsSchema>;
 

@@ -163,6 +163,8 @@ export function subsetGapNote(
   const what =
     directory === DIRECTORIES.PR_REVIEWS
       ? 'PR reviews were fetched'
-      : 'messages were imported';
+      : directory === DIRECTORIES.DOCUMENTS
+        ? 'Google Docs were imported'
+        : 'messages were imported';
   return `The filtered subset was created before ${what}, so it has none and these results are empty; they are not taken from the full work log. Re-run \`work-chronicler filter\` to add them, or \`work-chronicler filter --clear\` to use the full work log.`;
 }

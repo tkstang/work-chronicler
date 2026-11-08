@@ -105,7 +105,7 @@ function describeSubset(outputDir: string, holders: LockHolders): string[] {
   if (selection) {
     const { counts } = selection;
     lines.push(
-      `Filtered subset: in use by \`analyze\` and the MCP server (${counts.pullRequests} PRs, ${counts.tickets} tickets, ${counts.prReviews} reviewed PRs, ${counts.messages} messages; filters: ${selection.filters.join('; ') || 'none'}).${clearAdvice}`,
+      `Filtered subset: in use by \`analyze\` and the MCP server (${counts.pullRequests} PRs, ${counts.tickets} tickets, ${counts.prReviews} reviewed PRs, ${counts.messages} messages, ${counts.documents} Google Docs; filters: ${selection.filters.join('; ') || 'none'}).${clearAdvice}`,
     );
   } else {
     lines.push(
@@ -122,6 +122,11 @@ function describeSubset(outputDir: string, holders: LockHolders): string[] {
   if (state.missing.includes(DIRECTORIES.MESSAGES)) {
     lines.push(
       'The filtered/ subset was created before messages were imported and does not include them. Re-run `work-chronicler filter` to add them.',
+    );
+  }
+  if (state.missing.includes(DIRECTORIES.DOCUMENTS)) {
+    lines.push(
+      'The filtered/ subset was created before Google Docs were imported and does not include them. Re-run `work-chronicler filter` to add them.',
     );
   }
   return lines;
@@ -180,6 +185,9 @@ export const statusCommand = new Command('status')
       const unverified = messages.filter(
         (m) => m.frontmatter.attribution.status === 'unverified',
       ).length;
+      const documents = (imported?.records ?? []).filter(
+        (r) => r.frontmatter.type === 'document',
+      ).length;
 
       console.log('Work Chronicler Status');
       console.log('======================\n');
@@ -200,6 +208,11 @@ export const statusCommand = new Command('status')
         imported
           ? `Messages:      ${messages.length} imported (${sources ? `${sources}; ` : ''}supplementary evidence, not counted as PRs or tickets${unverified > 0 ? `; ${unverified} with unverified attribution` : ''})`
           : 'Messages:      not counted while an import is running or needs recovery (see below)',
+      );
+      console.log(
+        imported
+          ? `Google Docs:   ${documents} imported (Docs the subject owns, not necessarily wrote; supplementary evidence, not counted as PRs or tickets)`
+          : 'Google Docs:   not counted while an import is running or needs recovery (see below)',
       );
       if (imported && imported.skipped.length > 0) {
         console.log(

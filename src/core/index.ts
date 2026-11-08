@@ -141,6 +141,8 @@ export {
   TimelineMonthSchema,
   type TimelinePR,
   TimelinePRSchema,
+  type TimelineDocument,
+  TimelineDocumentSchema,
   type TimelineTicket,
   TimelineTicketSchema,
   type TimelineWeek,

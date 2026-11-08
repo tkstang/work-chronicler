@@ -189,8 +189,21 @@ export const analyzeCommand = new Command('analyze')
         );
         if (analyzeOpts.projects || analyzeOpts.timeline) {
           console.log(
+            chalk.gray('  Projects and the timeline do not include messages.'),
+          );
+        }
+        console.log();
+      }
+
+      if (stats.documents.total > 0) {
+        console.log(chalk.bold('Imported Google Docs:'));
+        console.log(
+          `  Total: ${chalk.cyan(stats.documents.total)} (Docs the subject owns, by modified time; supplementary evidence, not counted as PRs or tickets)`,
+        );
+        if (analyzeOpts.projects || analyzeOpts.timeline) {
+          console.log(
             chalk.gray(
-              '  Projects and the timeline cover PRs and tickets only; messages are not included.',
+              '  The timeline lists them by modified time; projects cover PRs and tickets only.',
             ),
           );
         }
@@ -262,7 +275,13 @@ export const analyzeCommand = new Command('analyze')
       if (analyzeOpts.timeline) {
         console.log();
         spinner.start('Generating timeline...');
-        const timeline = generateTimeline(prs, tickets, since, until ?? '');
+        const timeline = generateTimeline(
+          prs,
+          tickets,
+          since,
+          until ?? '',
+          importedRecords,
+        );
         spinner.succeed(
           `Generated timeline: ${chalk.cyan(timeline.summary.totalMonths)} months, ${chalk.cyan(timeline.summary.totalWeeks)} weeks`,
         );

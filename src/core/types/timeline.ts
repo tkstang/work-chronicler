@@ -35,6 +35,20 @@ export const TimelineTicketSchema = z.object({
 export type TimelineTicket = z.infer<typeof TimelineTicketSchema>;
 
 /**
+ * An imported Google Doc in the timeline, dated by its modified time. The
+ * subject owns it; owning is not writing, so it is not authored work.
+ */
+export const TimelineDocumentSchema = z.object({
+  source: z.string(),
+  title: z.string(),
+  url: z.string().nullable(),
+  createdAt: z.string(),
+  modifiedAt: z.string(),
+  date: z.string(), // ISO date (YYYY-MM-DD) of the modified time
+});
+export type TimelineDocument = z.infer<typeof TimelineDocumentSchema>;
+
+/**
  * A single week in the timeline
  */
 export const TimelineWeekSchema = z.object({
@@ -44,9 +58,12 @@ export const TimelineWeekSchema = z.object({
   year: z.number(),
   prs: z.array(TimelinePRSchema),
   tickets: z.array(TimelineTicketSchema),
+  /** Imported Docs (absent from timelines written before 0.7.0) */
+  documents: z.array(TimelineDocumentSchema).default([]),
   stats: z.object({
     prCount: z.number(),
     ticketCount: z.number(),
+    documentCount: z.number().default(0),
     additions: z.number(),
     deletions: z.number(),
     byImpact: z.object({
@@ -69,6 +86,7 @@ export const TimelineMonthSchema = z.object({
   stats: z.object({
     prCount: z.number(),
     ticketCount: z.number(),
+    documentCount: z.number().default(0),
     additions: z.number(),
     deletions: z.number(),
     byImpact: z.object({

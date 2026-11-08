@@ -13,6 +13,7 @@ import { dirname, join, relative } from 'node:path';
 
 import {
   crashAfterFs,
+  documentFrontmatter,
   messageFrontmatter,
   recordFile,
   snapshot,
@@ -535,6 +536,7 @@ describe('a mixed work log with imported messages', () => {
       tickets: 0,
       prReviews: 0,
       messages: 0,
+      documents: 0,
     });
     // Read commands get the empty subset, not the full work log
     const results = parse(
@@ -569,6 +571,7 @@ describe('a mixed work log with imported messages', () => {
       tickets: 0,
       prReviews: 0,
       messages: 3,
+      documents: 0,
     });
     expect(core.getEffectiveOutputDir(workLog).isFiltered).toBe(true);
   });
@@ -680,7 +683,7 @@ describe('a mixed work log with imported messages', () => {
     await run(statusCommand, []);
     expect(logs).toContainEqual(
       expect.stringContaining(
-        'Filtered subset: in use by `analyze` and the MCP server (1 PRs, 2 tickets, 1 reviewed PRs, 3 messages; filters: Include orgs: acme)',
+        'Filtered subset: in use by `analyze` and the MCP server (1 PRs, 2 tickets, 1 reviewed PRs, 3 messages, 0 Google Docs; filters: Include orgs: acme)',
       ),
     );
 
@@ -695,7 +698,7 @@ describe('a mixed work log with imported messages', () => {
     );
   });
 
-  it('stats count messages; projects and the timeline stay PR/ticket-only and say so', async () => {
+  it('stats count messages; projects and the timeline leave them out and say so', async () => {
     const analysis = async () => {
       await run(analyzeCommand, ['--all', '--full']);
       return readAnalysis(workLog);
@@ -715,7 +718,7 @@ describe('a mixed work log with imported messages', () => {
     expect(withMessages.stats.tickets.total).toBe(2);
     expect(logs).toContainEqual(
       expect.stringContaining(
-        'Projects and the timeline cover PRs and tickets only',
+        'Projects and the timeline do not include messages',
       ),
     );
 
@@ -913,5 +916,174 @@ describe('a mixed work log with imported messages', () => {
     );
     expect(subsetLines[0]).not.toContain('is replacing');
     expect(subsetLines[0]).not.toContain('--clear');
+  });
+});
+
+/**
+ * A Google Doc the subject owns, stored where `import` would store it.
+ */
+function importedDoc(
+  n: number,
+  doc: {
+    createdAt: string;
+    modifiedAt: string;
+    tickets?: string[];
+  },
+) {
+  const base = documentFrontmatter(n);
+  const parsed = parseImportedRecordFile(
+    Buffer.from(
+      recordFile(
+        {
+          ...base,
+          occurredAt: doc.modifiedAt,
+          updatedAt: doc.modifiedAt,
+          capturedAt: '2026-01-05T00:00:00Z',
+          mentions: { tickets: doc.tickets ?? [], pullRequests: [] },
+          document: {
+            ...(base.document as Record<string, unknown>),
+            title: `Synthetic Doc ${n}`,
+            createdAt: doc.createdAt,
+          },
+        },
+        `Text of synthetic Doc ${n}.`,
+      ),
+    ),
+  );
+  if (!parsed.ok) throw new Error('fixture must be valid');
+  const path = core.getImportedRecordFilePath(
+    workLog,
+    core.getImportedRecordIdentity(parsed.record),
+  );
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, serializeImportedRecord(parsed.record, parsed.body));
+  return path;
+}
+
+describe('a mixed work log with imported Google Docs', () => {
+  let logs: string[];
+
+  beforeEach(() => {
+    rmSync(workLog, { recursive: true, force: true });
+    logs = [];
+    vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
+      logs.push(args.join(' '));
+    });
+    writeConfig();
+
+    authoredPR('acme', 'api', 7, { jiraTickets: ['BILL-1'] });
+    authoredPR('other', 'api', 4, { createdAt: '2025-05-01T09:00:00Z' });
+    ticketRecord('BILL-1', 'Done', ['https://github.com/Acme/API/pull/7']);
+    importedMessage(1, {
+      pullRequests: ['https://github.com/acme/api/pull/7'],
+    });
+    // Created before the range (2025), modified inside it; mentions BILL-1
+    importedDoc(1, {
+      createdAt: '2024-11-01T08:00:00Z',
+      modifiedAt: '2025-03-12T15:00:00Z',
+      tickets: ['BILL-1'],
+    });
+    // Modified late on the range's date-only until day
+    importedDoc(2, {
+      createdAt: '2025-06-01T08:00:00Z',
+      modifiedAt: '2025-12-31T23:30:00Z',
+    });
+  });
+
+  const docTitles = async (dir: string) =>
+    (await core.readAllImportedRecords(dir))
+      .filter(core.isDocumentFile)
+      .map((record) => record.frontmatter.document.title)
+      .sort();
+
+  it('filter copies Docs, keeps only linked ones with --linked-only, and counts them', async () => {
+    await run(filterCommand, ['--org', 'acme']);
+    expect(await docTitles(filteredDir)).toEqual([
+      'Synthetic Doc 1',
+      'Synthetic Doc 2',
+    ]);
+    expect(selection()).toMatchObject({
+      counts: { messages: 1, documents: 2 },
+      totals: { messages: 1, documents: 2 },
+    });
+
+    await run(filterCommand, ['--org', 'acme', '--linked-only']);
+    // Only the Doc whose mention resolves to a ticket in the subset
+    expect(await docTitles(filteredDir)).toEqual(['Synthetic Doc 1']);
+    expect(selection()).toMatchObject({
+      counts: { documents: 1 },
+      totals: { documents: 2 },
+    });
+    expect(readAnalysis(filteredDir).stats.documents).toMatchObject({
+      total: 1,
+      bySource: { 'google-docs': 1 },
+    });
+  });
+
+  it('status counts Docs apart from PRs and tickets and flags a subset made before them', async () => {
+    await run(statusCommand, []);
+    expect(logs).toContain(
+      'Google Docs:   2 imported (Docs the subject owns, not necessarily wrote; supplementary evidence, not counted as PRs or tickets)',
+    );
+
+    await run(filterCommand, ['--org', 'acme']);
+    rmSync(join(filteredDir, 'documents'), { recursive: true });
+    logs = [];
+    await run(statusCommand, []);
+    expect(logs).toContainEqual(
+      expect.stringContaining(
+        'created before Google Docs were imported and does not include them',
+      ),
+    );
+  });
+
+  it('stats count Docs; the timeline lists them by modified time; projects leave them out', async () => {
+    const analysis = async () => {
+      await run(analyzeCommand, ['--all', '--full']);
+      return readAnalysis(workLog);
+    };
+
+    const withDocs = await analysis();
+    expect(withDocs.stats.documents).toMatchObject({
+      total: 2,
+      bySource: { 'google-docs': 2 },
+    });
+    expect(withDocs.stats.prs.total).toBe(2);
+    expect(logs).toContainEqual(
+      expect.stringContaining(
+        'The timeline lists them by modified time; projects cover PRs and tickets only',
+      ),
+    );
+
+    type Week = {
+      weekStart: string;
+      documents: { title: string; modifiedAt: string; createdAt: string }[];
+      stats: { documentCount: number };
+    };
+    type Month = { month: string; weeks: Week[]; stats: Week['stats'] };
+    const months = withDocs.timeline.months as Month[];
+    const weeks = months.flatMap((month) => month.weeks);
+    // The Doc created in 2024 is filed under the week it was modified in
+    expect(weeks.find((w) => w.weekStart === '2025-03-10')).toMatchObject({
+      documents: [
+        {
+          title: 'Synthetic Doc 1',
+          createdAt: '2024-11-01T08:00:00Z',
+          modifiedAt: '2025-03-12T15:00:00Z',
+        },
+      ],
+      stats: { documentCount: 1 },
+    });
+    expect(weeks.find((w) => w.weekStart === '2025-12-29')).toMatchObject({
+      documents: [{ title: 'Synthetic Doc 2' }],
+    });
+    expect(months.find((m) => m.month === '2025-12')?.stats.documentCount).toBe(
+      1,
+    );
+
+    rmSync(join(workLog, 'documents'), { recursive: true });
+    const withoutDocs = await analysis();
+    expect(withoutDocs.projects).toEqual(withDocs.projects);
+    expect(withoutDocs.stats.documents.total).toBe(0);
   });
 });

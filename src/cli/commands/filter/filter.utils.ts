@@ -15,6 +15,8 @@ import {
   DIRECTORIES,
   getGitHubNameProblem,
   hasResolvedMention,
+  isDocumentFile,
+  isMessageFile,
   normalizeGitHubName,
   normalizePullRequestUrl,
   type PRImpact,
@@ -38,9 +40,9 @@ import {
  * Most filters describe authored PRs or tickets. For other evidence:
  * - review records (`pr-reviews/`) keep only the org and repo selectors,
  *   applied to the reviewed PR;
- * - imported records (`messages/`) keep only `linkedOnly`, which keeps a
- *   message when one of its mentions resolves to a PR or ticket in the
- *   subset. The other filters do not apply to them.
+ * - imported records (`messages/`, `documents/`) keep only `linkedOnly`,
+ *   which keeps a message or Google Doc when one of its mentions resolves to
+ *   a PR or ticket in the subset. The other filters do not apply to them.
  */
 export interface FilterCriteria {
   excludeImpact?: PRImpact[];
@@ -211,9 +213,8 @@ export async function writeFilteredSubset(params: {
       for (const { filePath, reason } of imported.skipped) {
         console.warn(`Warning: Skipped ${filePath}: ${reason}`);
       }
-      const allMessages = imported.records.filter(
-        (record) => record.frontmatter.type === 'message',
-      );
+      const allMessages = imported.records.filter(isMessageFile);
+      const allDocuments = imported.records.filter(isDocumentFile);
 
       const excludeImpacts = new Set<PRImpact>(criteria.excludeImpact ?? []);
       const minImpactLevel = criteria.minImpact
@@ -259,21 +260,33 @@ export async function writeFilteredSubset(params: {
         inScope(record.frontmatter.pr.org, record.frontmatter.pr.repository),
       );
 
-      // Messages are supplementary evidence: only linked-only applies, through
-      // mentions that resolve to a PR or ticket in the subset
+      // Messages and Google Docs are supplementary evidence: only linked-only
+      // applies, through mentions that resolve to a PR or ticket in the subset
       const index = buildMentionIndex(prs, tickets);
-      const messages = criteria.linkedOnly
-        ? allMessages.filter((record) =>
-            hasResolvedMention(record.frontmatter, index),
-          )
-        : allMessages;
+      const linked = <T extends (typeof imported.records)[number]>(
+        records: T[],
+      ) =>
+        criteria.linkedOnly
+          ? records.filter((record) =>
+              hasResolvedMention(record.frontmatter, index),
+            )
+          : records;
+      const messages = linked(allMessages);
+      const documents = linked(allDocuments);
+      const importedKept = [...messages, ...documents];
 
       const since = config.fetch.since;
       const until =
         config.fetch.until ?? new Date().toISOString().split('T')[0] ?? '';
-      const stats = generateStats(prs, tickets, since, until, messages);
+      const stats = generateStats(prs, tickets, since, until, importedKept);
       const projects = detectProjects(prs, tickets, since, until);
-      const timeline = generateTimeline(prs, tickets, since, until);
+      const timeline = generateTimeline(
+        prs,
+        tickets,
+        since,
+        until,
+        importedKept,
+      );
 
       const relativeTo = (filePath: string) => relative(outputDir, filePath);
       const files: SubsetFile[] = [
@@ -289,7 +302,7 @@ export async function writeFilteredSubset(params: {
           path: relativeTo(record.filePath),
           contents: serializeMarkdownFile(record.frontmatter, record.body),
         })),
-        ...messages.map((record) => ({
+        ...importedKept.map((record) => ({
           path: relativeTo(record.filePath),
           contents: serializeImportedRecord(record.frontmatter, record.body),
         })),
@@ -318,12 +331,14 @@ export async function writeFilteredSubset(params: {
         tickets: tickets.length,
         prReviews: ownReviews(reviews),
         messages: messages.length,
+        documents: documents.length,
       };
       const totals: SubsetRecordCounts = {
         pullRequests: allPRs.length,
         tickets: allTickets.length,
         prReviews: ownReviews(allReviews),
         messages: allMessages.length,
+        documents: allDocuments.length,
       };
       // What is written, for the read-back check
       const written: SubsetRecordCounts = {
@@ -341,6 +356,7 @@ export async function writeFilteredSubset(params: {
           DIRECTORIES.JIRA,
           DIRECTORIES.PR_REVIEWS,
           DIRECTORIES.MESSAGES,
+          DIRECTORIES.DOCUMENTS,
           DIRECTORIES.ANALYSIS,
         ],
         selection: {
@@ -357,7 +373,8 @@ export async function writeFilteredSubset(params: {
             pullRequests: (await readAllPRs(staging)).length,
             tickets: (await readAllTickets(staging)).length,
             prReviews: (await readAllPRReviews(staging)).length,
-            messages: imported.records.length,
+            messages: imported.records.filter(isMessageFile).length,
+            documents: imported.records.filter(isDocumentFile).length,
           };
           if (
             imported.skipped.length > 0 ||

@@ -176,7 +176,13 @@ describe('import lock', () => {
 // an import never changes records a filter is reading.
 describe('one work-log lock for import and filter', () => {
   const emptyPlan = (validate?: SubsetPlan['validate']): SubsetPlan => {
-    const none = { pullRequests: 0, tickets: 0, prReviews: 0, messages: 0 };
+    const none = {
+      pullRequests: 0,
+      tickets: 0,
+      prReviews: 0,
+      messages: 0,
+      documents: 0,
+    };
     return {
       files: [],
       directories: [],

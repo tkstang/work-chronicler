@@ -132,7 +132,13 @@ function interrupted060(
   return { dest };
 }
 
-const none = { pullRequests: 0, tickets: 0, prReviews: 0, messages: 0 };
+const none = {
+  pullRequests: 0,
+  tickets: 0,
+  prReviews: 0,
+  messages: 0,
+  documents: 0,
+};
 
 /** A subset plan built by reading the records, as `filter` does */
 function readingPlan(seen: string[][]) {

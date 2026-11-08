@@ -147,9 +147,11 @@ function week(
     year: 2025,
     prs,
     tickets: [],
+    documents: [],
     stats: {
       prCount: prs.length,
       ticketCount: 0,
+      documentCount: 0,
       additions: prs.reduce((sum, pr) => sum + pr.additions, 0),
       deletions: prs.length,
       byImpact,

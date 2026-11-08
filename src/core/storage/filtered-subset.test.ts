@@ -43,7 +43,13 @@ afterEach(() => {
   rmSync(workLog, { recursive: true, force: true });
 });
 
-const counts = { pullRequests: 0, tickets: 0, prReviews: 0, messages: 0 };
+const counts = {
+  pullRequests: 0,
+  tickets: 0,
+  prReviews: 0,
+  messages: 0,
+  documents: 0,
+};
 
 function selection(
   filters: string[] = ['Include orgs: acme'],
