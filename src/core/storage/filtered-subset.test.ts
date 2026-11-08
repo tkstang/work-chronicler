@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   clearFilteredSubset,
+  FilterInProgressError,
   type FilterSelection,
   FilteredSubsetInterruptedError,
   getEffectiveOutputDir,
@@ -153,6 +154,7 @@ describe('filtered subset selection', () => {
     expect(getFilteredSubsetState(workLog)).toEqual({
       status: 'interrupted',
       previous: ['.filter-previous-abc'],
+      locked: false,
     });
     expect(() => getEffectiveOutputDir(workLog)).toThrow(
       FilteredSubsetInterruptedError,
@@ -213,7 +215,7 @@ describe('replaceFilteredSubset', () => {
   });
 
   it.each<[string, () => SubsetFs]>([
-    ['creating the staging directory', () => failing('mkdir')],
+    ['creating the staging directory', () => failing('mkdir', inStaging)],
     ['creating a directory in staging', () => failing('mkdirp', inStaging)],
     ['writing a record', () => failing('writeFile', inStaging)],
     [
@@ -319,6 +321,11 @@ describe('replaceFilteredSubset', () => {
     const fs: SubsetFs = {
       ...nodeSubsetFs,
       rename: (from, to) => {
+        // Taking and releasing the lock are not part of the swap
+        if (from.includes('.filter-lock') || to.includes('.filter-lock')) {
+          nodeSubsetFs.rename(from, to);
+          return;
+        }
         renames += 1;
         // The previous subset moves aside; neither the new one nor the old
         // one can then be moved to filtered/
@@ -339,7 +346,7 @@ describe('replaceFilteredSubset', () => {
 
     await expect(
       replaceFilteredSubset(workLog, plan({}), {
-        fs: failing('mkdir'),
+        fs: failing('mkdir', inStaging),
       }),
     ).rejects.toThrow('injected');
     expect(snapshot(filtered)).toEqual(before);
@@ -401,5 +408,129 @@ describe('clearFilteredSubset', () => {
     expect(clearFilteredSubset(workLog).cleared).toBe(true);
     expect(getFilteredSubsetState(workLog)).toEqual({ status: 'none' });
     expect(readdirSync(workLog)).toEqual([]);
+  });
+});
+
+describe('one filter run at a time', () => {
+  /** Plan whose only file is named after the run */
+  const runPlan = (tag: string) =>
+    plan(
+      { [`pull-requests/o/r/${tag}.md`]: tag },
+      { selection: selection([tag]) },
+    );
+
+  // The interleaving that used to lose both subsets: run B starts while run
+  // A is between its two renames, or right after its swap while A cleans up
+  it.each<[string, (from: string, to: string) => boolean]>([
+    [
+      'between its two renames',
+      (from, to) => from === filtered && to.includes('.filter-previous-'),
+    ],
+    [
+      'after its swap, before its cleanup',
+      (from, to) => from.includes('.filter-staging-') && to === filtered,
+    ],
+  ])(
+    "refuses a second run started while the first is %s, and keeps the first run's subset",
+    async (_, trigger) => {
+      await replaceFilteredSubset(workLog, runPlan('S0'));
+      let second: Promise<unknown> | undefined;
+      const fs: SubsetFs = {
+        ...nodeSubsetFs,
+        rename: (from, to) => {
+          nodeSubsetFs.rename(from, to);
+          if (!second && trigger(from, to)) {
+            second = replaceFilteredSubset(workLog, runPlan('B'));
+          }
+        },
+      };
+
+      await replaceFilteredSubset(workLog, runPlan('A'), { fs });
+
+      expect(second).toBeDefined();
+      await expect(second).rejects.toThrow(FilterInProgressError);
+      await expect(second).rejects.toThrow(/subset was not changed/);
+      const state = getFilteredSubsetState(workLog);
+      expect(state.status === 'selected' && state.selection?.filters).toEqual([
+        'A',
+      ]);
+      expect(Object.keys(snapshot(filtered))).toContain(
+        'pull-requests/o/r/A.md',
+      );
+      expect(rootLeftovers()).toEqual([]);
+    },
+  );
+
+  function holdLock(owner: Record<string, unknown>) {
+    mkdirSync(join(workLog, '.filter-lock'));
+    writeFileSync(
+      join(workLog, '.filter-lock', 'owner.json'),
+      JSON.stringify({
+        version: 1,
+        pid: 4242,
+        hostname: 'this-host',
+        startedAt: 2_000,
+        runId: 'other',
+        ...owner,
+      }),
+    );
+  }
+
+  const env = (alive: boolean) => ({
+    hostname: 'this-host',
+    bootTime: () => 1_000,
+    isProcessAlive: () => alive,
+  });
+
+  it('refuses replace and clear while a live run holds the lock', async () => {
+    const before = await previousSubset();
+    holdLock({});
+
+    await expect(
+      replaceFilteredSubset(workLog, runPlan('B'), { env: env(true) }),
+    ).rejects.toThrow(FilterInProgressError);
+    expect(() => clearFilteredSubset(workLog, { env: env(true) })).toThrow(
+      FilterInProgressError,
+    );
+    expect(snapshot(filtered)).toEqual(before);
+    expect(rootLeftovers()).toEqual(['.filter-lock']);
+  });
+
+  it.each<[string, Record<string, unknown>, boolean]>([
+    ['a running process on another machine', { hostname: 'elsewhere' }, false],
+    ['an unreadable owner', { version: 'x' }, false],
+  ])('respects a lock held by %s', async (_, owner, alive) => {
+    await previousSubset();
+    holdLock(owner);
+
+    await expect(
+      replaceFilteredSubset(workLog, runPlan('B'), { env: env(alive) }),
+    ).rejects.toThrow(FilterInProgressError);
+  });
+
+  it.each<[string, Record<string, unknown>]>([
+    ['has exited', {}],
+    ['started before the last boot', { startedAt: 500 }],
+  ])('takes over a lock whose owner %s', async (_, owner) => {
+    await previousSubset();
+    holdLock(owner);
+    const alive = owner['startedAt'] === 500;
+
+    await replaceFilteredSubset(workLog, runPlan('B'), { env: env(alive) });
+
+    const state = getFilteredSubsetState(workLog);
+    expect(state.status === 'selected' && state.selection?.filters).toEqual([
+      'B',
+    ]);
+    expect(rootLeftovers()).toEqual([]);
+  });
+
+  it('tells readers a swap is in progress while the lock is held', () => {
+    mkdirSync(join(workLog, '.filter-previous-abc'));
+    holdLock({});
+
+    expect(() => getEffectiveOutputDir(workLog)).toThrow(
+      /is replacing .* \(it holds \.filter-lock\)/,
+    );
   });
 });

@@ -322,6 +322,12 @@ first fetched reviews or imported messages lacks that directory: `status`
 says so, and `search_pr_reviews` and `search_messages` return no results with
 a note, instead of reading the full work log. Re-run `filter` to add them.
 
+One `filter` (or `filter --clear`) runs per work log at a time, under
+`.filter-lock`; a second run is refused and leaves the subset as it is. A lock
+left by a process on this machine that has exited, or from before the last
+reboot, is taken over; one held by a running process or from another machine
+is not (remove it by hand if you know no filter is running).
+
 If `filter` is interrupted between moving the old subset aside and moving the
 new one into place, `analyze` and the MCP server stop with an error rather
 than read the full work log (`analyze --full` still runs); the next `filter`

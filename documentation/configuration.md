@@ -154,7 +154,7 @@ analysis:
 `.import-lock` and `.import-transaction/`; see
 [Import](commands.md#import). When `filtered/` exists, even empty, `analyze` asks whether to use it,
 and the MCP server reads it instead of the full work log. While `filter`
-replaces the subset, the work log briefly holds `.filter-staging-<id>/` and
+replaces the subset, the work log briefly holds `.filter-lock/`, `.filter-staging-<id>/` and
 `.filter-previous-<id>/`; see [Link, analyze and filter](commands.md#link-analyze-and-filter).
 
 Manager profiles use a different layout under `reports/<id>/`; see

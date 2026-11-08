@@ -10,6 +10,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
+import { hostname, uptime } from 'node:os';
 import { dirname, isAbsolute, join, normalize, sep } from 'node:path';
 
 import { IsoDateTimeSchema } from '@wc-types/pr';
@@ -33,6 +34,12 @@ import { DIRECTORIES } from './paths';
  * `filtered/` is missing while `.filter-previous-<id>` exists: readers refuse
  * to guess (`interrupted`), and the next `filter` puts the previous subset
  * back before it does anything else.
+ *
+ * One `filter` (or `filter --clear`) runs per work log at a time, under
+ * `.filter-lock`: a second run is refused rather than racing the first, so
+ * one run can never move or delete another run's subsets. A lock left by a
+ * process on this machine that has exited (or ran before the last boot) is
+ * taken over; any other lock is respected.
  */
 
 /** The selection marker, written inside the subset with its contents */
@@ -41,6 +48,11 @@ const STAGING_PREFIX = '.filter-staging-';
 const PREVIOUS_PREFIX = '.filter-previous-';
 /** A subset `filter --clear` deselected; never restored */
 const CLEARED_PREFIX = '.filter-cleared-';
+/** Held while a `filter` run changes the subset */
+export const FILTER_LOCK = '.filter-lock';
+const LOCK_CLAIM_PREFIX = `${FILTER_LOCK}.claim-`;
+const LOCK_STALE_PREFIX = `${FILTER_LOCK}.stale-`;
+const LOCK_OWNER_FILE = 'owner.json';
 
 /**
  * Record directories a subset can be missing because it was written before
@@ -91,20 +103,38 @@ export type FilteredSubsetState =
        */
       missing: SubsetRecordDirectory[];
     }
-  /** A `filter` run stopped while swapping subsets */
-  | { status: 'interrupted'; previous: string[] };
+  /**
+   * `filtered/` is missing while an earlier subset waits beside it: a
+   * `filter` run is swapping subsets right now (`locked`), or stopped while
+   * swapping them
+   */
+  | { status: 'interrupted'; previous: string[]; locked: boolean };
 
 /**
  * Raised when the subset cannot be told apart from an interrupted swap.
  */
 export class FilteredSubsetInterruptedError extends Error {
-  constructor(outputDir: string) {
+  constructor(outputDir: string, locked = false) {
     super(
-      `A \`work-chronicler filter\` run was interrupted while replacing ${join(outputDir, DIRECTORIES.FILTERED)}. ` +
-        'Run `work-chronicler filter` again to restore the previous subset and apply your filters, ' +
-        'or `work-chronicler filter --clear` to use the full work log.',
+      locked
+        ? `A \`work-chronicler filter\` run is replacing ${join(outputDir, DIRECTORIES.FILTERED)} (it holds ${FILTER_LOCK}). ` +
+            'Try again when it finishes. If no filter is running, run `work-chronicler filter` again ' +
+            'to restore the previous subset, or `work-chronicler filter --clear` to use the full work log.'
+        : `A \`work-chronicler filter\` run was interrupted while replacing ${join(outputDir, DIRECTORIES.FILTERED)}. ` +
+            'Run `work-chronicler filter` again to restore the previous subset and apply your filters, ' +
+            'or `work-chronicler filter --clear` to use the full work log.',
     );
     this.name = 'FilteredSubsetInterruptedError';
+  }
+}
+
+/**
+ * Raised when another `filter` run holds the work log's filter lock.
+ */
+export class FilterInProgressError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'FilterInProgressError';
   }
 }
 
@@ -235,7 +265,11 @@ export function getFilteredSubsetState(
   if (!subsetExists(fs, dir)) {
     const { previous } = findLeftovers(fs, outputDir);
     return previous.length > 0
-      ? { status: 'interrupted', previous }
+      ? {
+          status: 'interrupted',
+          previous,
+          locked: exists(fs, join(outputDir, FILTER_LOCK)),
+        }
       : { status: 'none' };
   }
   const missing = LATER_RECORD_DIRECTORIES.filter(
@@ -269,7 +303,7 @@ export function getEffectiveOutputDir(outputDir: string): {
 } {
   const state = getFilteredSubsetState(outputDir);
   if (state.status === 'interrupted') {
-    throw new FilteredSubsetInterruptedError(outputDir);
+    throw new FilteredSubsetInterruptedError(outputDir, state.locked);
   }
   if (state.status === 'selected') return { dir: state.dir, isFiltered: true };
   return { dir: outputDir, isFiltered: false };
@@ -294,12 +328,184 @@ export interface SubsetPlan {
   validate?: (stagingDir: string) => void | Promise<void>;
 }
 
+/**
+ * This process and machine, for the filter lock. Tests replace members.
+ */
+export interface SubsetEnv {
+  pid: number;
+  hostname: string;
+  now: () => number;
+  /** When this machine last booted, as epoch milliseconds */
+  bootTime: () => number;
+  isProcessAlive: (pid: number) => boolean;
+}
+
+/**
+ * Whether a process is running. A permission error means it exists; any
+ * other doubt also counts as running, so a live run is never taken over.
+ */
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return errorCode(error) !== 'ESRCH';
+  }
+}
+
+export const nodeSubsetEnv: SubsetEnv = {
+  pid: process.pid,
+  hostname: hostname(),
+  now: () => Date.now(),
+  bootTime: () => Date.now() - uptime() * 1000,
+  isProcessAlive,
+};
+
 export interface SubsetOptions {
   fs?: SubsetFs;
+  env?: Partial<SubsetEnv>;
   randomId?: () => string;
 }
 
 const defaultRandomId = () => randomBytes(8).toString('hex');
+
+const LockOwnerSchema = z.object({
+  version: z.literal(1),
+  pid: z.int().positive(),
+  hostname: z.string(),
+  startedAt: z.number(),
+  runId: z.string(),
+});
+type LockOwner = z.infer<typeof LockOwnerSchema>;
+
+function readLockOwner(fs: SubsetFs, lockDir: string): LockOwner | null {
+  try {
+    const parsed = LockOwnerSchema.safeParse(
+      JSON.parse(fs.readFile(join(lockDir, LOCK_OWNER_FILE)).toString('utf-8')),
+    );
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
+function sameOwner(a: LockOwner, b: LockOwner): boolean {
+  return (
+    a.pid === b.pid &&
+    a.hostname === b.hostname &&
+    a.startedAt === b.startedAt &&
+    a.runId === b.runId
+  );
+}
+
+/**
+ * Only a process on this machine that is provably gone (not running, or
+ * started before the last boot) counts as dead.
+ */
+function ownerIsAlive(owner: LockOwner, env: SubsetEnv): boolean {
+  if (owner.hostname !== env.hostname) return true;
+  if (owner.startedAt < env.bootTime()) return false;
+  return env.isProcessAlive(owner.pid);
+}
+
+const LOCK_HELD =
+  'Another `work-chronicler filter` run is changing the filtered subset of this work log (or one was started on another machine); try again when it finishes. The subset was not changed.';
+
+/**
+ * Take the work log's filter lock. The lock directory is created complete
+ * (with its owner) under a claim name and renamed into place, which fails
+ * while another lock exists, so a lock always names its owner. A lock whose
+ * owner is provably gone is taken over.
+ *
+ * @returns A function that releases the lock and returns any warnings
+ * @throws {FilterInProgressError} When another run holds the lock
+ */
+function acquireFilterLock(
+  fs: SubsetFs,
+  env: SubsetEnv,
+  outputDir: string,
+  randomId: () => string,
+): () => string[] {
+  const lockPath = join(outputDir, FILTER_LOCK);
+  const owner: LockOwner = {
+    version: 1,
+    pid: env.pid,
+    hostname: env.hostname,
+    startedAt: env.now(),
+    runId: randomId(),
+  };
+  fs.mkdirp(outputDir);
+  const claim = join(outputDir, `${LOCK_CLAIM_PREFIX}${owner.runId}`);
+  fs.mkdir(claim);
+  const giveUp = (error: Error): never => {
+    removeQuietly(fs, claim, []);
+    throw error;
+  };
+  try {
+    fs.writeFile(join(claim, LOCK_OWNER_FILE), JSON.stringify(owner));
+  } catch (error) {
+    giveUp(error as Error);
+  }
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      fs.rename(claim, lockPath);
+      const held = readLockOwner(fs, lockPath);
+      if (held && sameOwner(held, owner)) {
+        return () => {
+          const current = readLockOwner(fs, lockPath);
+          if (!current || !sameOwner(current, owner)) {
+            return [
+              `${lockPath} no longer names this run; it was left as it is.`,
+            ];
+          }
+          const warnings: string[] = [];
+          removeQuietly(fs, lockPath, warnings);
+          return warnings;
+        };
+      }
+      return giveUp(new FilterInProgressError(LOCK_HELD));
+    } catch (error) {
+      if (error instanceof FilterInProgressError) throw error;
+      if (!exists(fs, lockPath)) {
+        if (attempt === 0) continue;
+        return giveUp(error as Error);
+      }
+    }
+
+    // Someone holds the lock: take it over only if its owner is gone
+    const held = readLockOwner(fs, lockPath);
+    if (!held) {
+      return giveUp(
+        new FilterInProgressError(
+          `${lockPath} exists but could not be read; if no \`work-chronicler filter\` is running, remove it and try again. The subset was not changed.`,
+        ),
+      );
+    }
+    if (ownerIsAlive(held, env)) {
+      return giveUp(new FilterInProgressError(LOCK_HELD));
+    }
+    const stale = join(outputDir, `${LOCK_STALE_PREFIX}${randomId()}`);
+    try {
+      fs.rename(lockPath, stale);
+    } catch (error) {
+      if (errorCode(error) === 'ENOENT') continue;
+      return giveUp(error as Error);
+    }
+    const moved = readLockOwner(fs, stale);
+    if (!moved || !sameOwner(moved, held)) {
+      // A new run took the lock between our read and the rename: give it back
+      try {
+        fs.rename(stale, lockPath);
+      } catch {
+        // Its owner will report that the lock no longer names it
+      }
+      return giveUp(new FilterInProgressError(LOCK_HELD));
+    }
+    removeQuietly(fs, stale, []);
+  }
+  return giveUp(new FilterInProgressError(LOCK_HELD));
+}
 
 /** A relative path that stays inside the subset */
 function checkRelativePath(path: string): string {
@@ -365,7 +571,6 @@ export async function replaceFilteredSubset(
 ): Promise<{ dir: string; warnings: string[] }> {
   const fs = options.fs ?? nodeSubsetFs;
   const randomId = options.randomId ?? defaultRandomId;
-  const filteredDir = join(outputDir, DIRECTORIES.FILTERED);
   const warnings: string[] = [];
 
   // Validate the plan before touching anything
@@ -384,6 +589,39 @@ export async function replaceFilteredSubset(
   const selection = FilterSelectionSchema.parse(plan.selection);
   const marker = `${JSON.stringify(selection, null, 2)}\n`;
 
+  const env = { ...nodeSubsetEnv, ...options.env };
+  const release = acquireFilterLock(fs, env, outputDir, randomId);
+  try {
+    const dir = await swapInSubset(
+      fs,
+      randomId,
+      outputDir,
+      { files, directories, marker, validate: plan.validate },
+      warnings,
+    );
+    return { dir, warnings };
+  } finally {
+    warnings.push(...release());
+  }
+}
+
+/**
+ * Build, check and swap in a subset. Runs only under the filter lock.
+ */
+async function swapInSubset(
+  fs: SubsetFs,
+  randomId: () => string,
+  outputDir: string,
+  plan: {
+    files: SubsetFile[];
+    directories: string[];
+    marker: string;
+    validate: SubsetPlan['validate'];
+  },
+  warnings: string[],
+): Promise<string> {
+  const { files, directories, marker } = plan;
+  const filteredDir = join(outputDir, DIRECTORIES.FILTERED);
   restoreInterrupted(fs, outputDir, filteredDir);
   const hadSubset = subsetExists(fs, filteredDir);
 
@@ -454,7 +692,8 @@ export async function replaceFilteredSubset(
     throw error;
   }
 
-  // The new subset is in place; anything left over is unused
+  // The new subset is in place. Under the lock, no other run is using any
+  // leftover, so all of them are unused.
   if (previous) removeQuietly(fs, previous, warnings);
   const leftovers = findLeftovers(fs, outputDir);
   for (const name of [
@@ -465,7 +704,7 @@ export async function replaceFilteredSubset(
     removeQuietly(fs, join(outputDir, name), warnings);
   }
 
-  return { dir: filteredDir, warnings };
+  return filteredDir;
 }
 
 /**
@@ -484,7 +723,32 @@ export function clearFilteredSubset(
   const randomId = options.randomId ?? defaultRandomId;
   const filteredDir = join(outputDir, DIRECTORIES.FILTERED);
   const warnings: string[] = [];
+  // Nothing to clear (and no lock to take) in a work log that does not exist
+  if (!exists(fs, outputDir)) return { cleared: false, warnings };
 
+  const release = acquireFilterLock(
+    fs,
+    { ...nodeSubsetEnv, ...options.env },
+    outputDir,
+    randomId,
+  );
+  try {
+    return {
+      cleared: clearUnderLock(fs, randomId, outputDir, filteredDir, warnings),
+      warnings,
+    };
+  } finally {
+    warnings.push(...release());
+  }
+}
+
+function clearUnderLock(
+  fs: SubsetFs,
+  randomId: () => string,
+  outputDir: string,
+  filteredDir: string,
+  warnings: string[],
+): boolean {
   let cleared = false;
   if (subsetExists(fs, filteredDir)) {
     fs.rename(filteredDir, join(outputDir, `${CLEARED_PREFIX}${randomId()}`));
@@ -507,5 +771,5 @@ export function clearFilteredSubset(
   for (const name of [...remaining.staging, ...remaining.cleared]) {
     removeQuietly(fs, join(outputDir, name), warnings);
   }
-  return { cleared, warnings };
+  return cleared;
 }

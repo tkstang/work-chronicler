@@ -34,6 +34,11 @@ function describeSubset(outputDir: string): string[] {
   if (state.status === 'none') {
     return ['Filtered subset: none (read commands use the full work log)'];
   }
+  if (state.status === 'interrupted' && state.locked) {
+    return [
+      'Filtered subset: a `work-chronicler filter` run is replacing filtered/ right now (it holds .filter-lock); `analyze` (without `--full`) and the MCP server refuse to run until it finishes. If no filter is running, run `work-chronicler filter` again or `work-chronicler filter --clear`.',
+    ];
+  }
   if (state.status === 'interrupted') {
     return [
       'Filtered subset: a `work-chronicler filter` run was interrupted while replacing filtered/; `analyze` (without `--full`) and the MCP server refuse to run until you run `work-chronicler filter` again (it restores the previous subset first) or `work-chronicler filter --clear`.',

@@ -48,7 +48,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `filter` builds the whole subset beside `filtered/`, with a `.filter.json`
   record of its filters and counts, reads it back, and then swaps it in. If
-  anything fails first, the previous subset is kept as it was.
+  anything fails first, the previous subset is kept as it was. One `filter`
+  runs per work log at a time (`.filter-lock`); a second run is refused and
+  changes nothing.
 - The filtered subset is in use whenever `filtered/` exists, even when
   nothing matched or it holds only imported messages; `analyze` and the MCP
   server no longer fall back to the full work log, and `status` shows the
