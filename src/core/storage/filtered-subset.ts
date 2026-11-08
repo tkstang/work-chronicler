@@ -212,10 +212,21 @@ function subsetExists(fs: SubsetFs, filteredDir: string): boolean {
     if (errorCode(error) === 'ENOENT') return false;
     throw error;
   }
-  if (entry.isSymbolicLink()) entry = fs.stat(filteredDir);
+  if (entry.isSymbolicLink()) {
+    try {
+      entry = fs.stat(filteredDir);
+    } catch (error) {
+      if (errorCode(error) !== 'ENOENT') throw error;
+      throw new Error(
+        `${filteredDir} is a symbolic link to something that does not exist, so it is not a filtered subset. ` +
+          'Remove the link (or point it at a directory), then run `work-chronicler filter` again.',
+      );
+    }
+  }
   if (!entry.isDirectory()) {
     throw new Error(
-      `${filteredDir} exists but is not a directory; move it away, or run \`work-chronicler filter --clear\``,
+      `${filteredDir} exists but is not a directory, so it is not a filtered subset. ` +
+        'Move or remove it, then run `work-chronicler filter` again.',
     );
   }
   return true;

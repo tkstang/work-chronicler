@@ -6,6 +6,7 @@ import {
   realpathSync,
   renameSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -161,10 +162,34 @@ describe('filtered subset selection', () => {
     );
   });
 
-  it('refuses a filtered/ that is not a directory', () => {
-    writeFileSync(filtered, 'not a directory');
-    expect(() => getEffectiveOutputDir(workLog)).toThrow(/not a directory/);
-  });
+  it.each<[string, () => void, RegExp]>([
+    [
+      'a regular file',
+      () => writeFileSync(filtered, 'not a directory'),
+      /is not a directory, so it is not a filtered subset\. Move or remove it/,
+    ],
+    [
+      'a dangling symbolic link',
+      () => symlinkSync(join(workLog, 'missing'), filtered),
+      /symbolic link to something that does not exist.*Remove the link/,
+    ],
+  ])(
+    'refuses a filtered/ that is %s, with advice that works',
+    async (_, make, message) => {
+      make();
+      expect(() => getEffectiveOutputDir(workLog)).toThrow(message);
+      // The advice does not send the user to a command that fails the same way
+      expect(() => getEffectiveOutputDir(workLog)).not.toThrow(/--clear/);
+      expect(() => clearFilteredSubset(workLog)).toThrow(message);
+      await expect(replaceFilteredSubset(workLog, plan({}))).rejects.toThrow(
+        message,
+      );
+      // After following it, filter works
+      rmSync(filtered);
+      await replaceFilteredSubset(workLog, plan({}));
+      expect(getEffectiveOutputDir(workLog).isFiltered).toBe(true);
+    },
+  );
 });
 
 describe('replaceFilteredSubset', () => {
