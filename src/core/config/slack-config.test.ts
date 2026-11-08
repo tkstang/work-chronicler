@@ -18,7 +18,9 @@ import {
   crashingFs,
   fsError,
   hookedFs,
+  storeRecord,
 } from '@core/import/import.test-support';
+import { IMPORT_TRANSACTION_DIRECTORY, nodeReaderFs } from '@core/index';
 import { ManagerConfigSchema } from '@wc-types/manager';
 import { loadManagerConfig, updateReport } from '@workspace/report-manager';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -338,6 +340,77 @@ describe('updateSlackSettings: IC profile', () => {
       change(IC, { ...CONFIGURE, user: 'U0TEST0002' } as SlackSettingsChange),
     ).toThrow(/Remove them first/);
     expect(read()).toBe(before);
+  });
+
+  describe('a user change with Slack messages already imported', () => {
+    // storeRecord's messages are by U0SYNTH01
+    const workLog = () => join(root, 'work-log');
+    const configureUser = (user: string, readFs?: typeof nodeReaderFs) =>
+      updateSlackSettings({
+        configPath,
+        owner: IC,
+        change: { kind: 'configure', workspace: 'T0SYNTH01', user },
+        workLog: workLog(),
+        readFs,
+      });
+
+    it('refuses another user, naming the messages to remove', () => {
+      write(IC_YAML);
+      storeRecord(workLog(), 1);
+
+      expect(() => configureUser('U0TEST0002')).toThrow(
+        /1 Slack message\(s\) by another Slack user \(U0SYNTH01\).*remove .*messages\/slack/,
+      );
+      expect(read()).toBe(IC_YAML);
+    });
+
+    it('refuses a user change after the channels were removed', () => {
+      write(IC_YAML);
+      configureUser('U0SYNTH01');
+      change(IC, { kind: 'add-channel', channel: channel() });
+      change(IC, { kind: 'remove-channel', id: 'C0TEST0001' });
+      storeRecord(workLog(), 1);
+      const before = read();
+
+      expect(() => configureUser('U0TEST0002')).toThrow(/another Slack user/);
+      expect(read()).toBe(before);
+    });
+
+    it("accepts the messages' own user, and any user once they are removed", () => {
+      write(IC_YAML);
+      storeRecord(workLog(), 1);
+
+      expect(configureUser('U0SYNTH01').changed).toBe(true);
+      rmSync(join(workLog(), 'messages'), { recursive: true });
+      expect(configureUser('U0TEST0002').changed).toBe(true);
+      expect(parse(read())).toMatchObject({ slack: { user: 'U0TEST0002' } });
+    });
+
+    it('refuses when the messages cannot be checked', () => {
+      write(IC_YAML);
+      storeRecord(workLog(), 1);
+      mkdirSync(join(workLog(), IMPORT_TRANSACTION_DIRECTORY));
+
+      expect(() => configureUser('U0TEST0002')).toThrow(/could not be checked/);
+      expect(read()).toBe(IC_YAML);
+    });
+
+    it('refuses when a message directory cannot be read', () => {
+      write(IC_YAML);
+      storeRecord(workLog(), 1);
+      const readFs = {
+        ...nodeReaderFs,
+        readdir: (path: string) => {
+          if (path.endsWith(join('messages', 'slack'))) throw fsError('EIO');
+          return nodeReaderFs.readdir(path);
+        },
+      };
+
+      expect(() => configureUser('U0TEST0002', readFs)).toThrow(
+        /could not be checked/,
+      );
+      expect(read()).toBe(IC_YAML);
+    });
   });
 
   it('refuses a channel that is configured with other settings', () => {

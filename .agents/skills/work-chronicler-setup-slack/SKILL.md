@@ -94,7 +94,10 @@ work-chronicler slack configure --workspace <team-id-or-label> --user <user-id> 
 
 `changed: false` means the IDs were already set. If the CLI refuses because
 channels are configured, the workspace or user cannot change while channels
-exist: ask before removing channels with `slack channels remove`.
+exist: ask before removing channels with `slack channels remove`. If it
+refuses because the work log holds Slack messages by another user, show the
+user the error: only they decide whether to remove the directory it names.
+Never remove it yourself.
 
 ### 3. List candidate public channels
 

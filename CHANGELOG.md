@@ -31,6 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Once its channels were removed, `slack configure` accepted another Slack
+  user while the work log still held the previous user's messages, so a
+  later import mixed two people's messages and search and analysis
+  presented both as the subject's. `slack configure` now refuses a user
+  while the subject's work log holds Slack messages by a different user,
+  naming the directory to remove first (or when they cannot be checked).
 - A `slack` command run with `--json` printed nothing on stdout when the
   profile, config or report could not be resolved (an invalid config, or a
   manager profile without `--report`), and a hint that was not JSON in some

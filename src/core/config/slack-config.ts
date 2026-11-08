@@ -1,4 +1,7 @@
+import { dirname } from 'node:path';
+
 import type { ImportFs } from '@core/import/import-fs';
+import { type ReaderFs, scanImportedRecords } from '@core/storage/reader';
 import { ManagerConfigSchema } from '@wc-types/manager';
 import {
   ReportSlackChannelSchema,
@@ -47,7 +50,15 @@ export interface SlackSettingsUpdate {
   configPath: string;
   owner: SlackSettingsOwner;
   change: SlackSettingsChange;
+  /**
+   * The subject's work log. With it, `configure` refuses a user while the
+   * work log holds Slack messages by another user, so two people's messages
+   * are never presented together as the subject's.
+   */
+  workLog?: string;
   fs?: ImportFs;
+  /** Work-log reads (tests inject failures) */
+  readFs?: ReaderFs;
   randomId?: () => string;
 }
 
@@ -146,15 +157,72 @@ function checkChannel(
   }
 }
 
+function uncheckedAuthors(owner: SlackSettingsOwner, why: string): never {
+  throw new ConfigUpdateError(
+    `The Slack messages already imported for ${subjectLabel(owner)} could not be checked before changing the user (${why}). The config was not changed.`,
+  );
+}
+
+/**
+ * Refuse `user` while the work log holds Slack messages by anyone else:
+ * later imports would add the new user's messages next to them, and readers
+ * would present both as the subject's.
+ */
+function checkWorkLogAuthors(
+  owner: SlackSettingsOwner,
+  workLog: string,
+  user: string,
+  fs?: ReaderFs,
+): void {
+  let scanned: ReturnType<typeof scanImportedRecords>;
+  try {
+    scanned = scanImportedRecords(workLog, fs ? { fs } : {});
+  } catch (error) {
+    uncheckedAuthors(
+      owner,
+      error instanceof Error ? error.message : String(error),
+    );
+  }
+  const unreadable = scanned.skipped.filter((entry) => entry.unreadable);
+  if (unreadable.length > 0) {
+    uncheckedAuthors(
+      owner,
+      `${unreadable.map((entry) => entry.filePath).join(', ')} could not be read`,
+    );
+  }
+  const others = scanned.records.filter(
+    (record) =>
+      record.frontmatter.source === 'slack' &&
+      record.frontmatter.attribution.authorId !== user,
+  );
+  if (others.length === 0) return;
+  const authors = [
+    ...new Set(
+      others.map(
+        (record) => record.frontmatter.attribution.authorId ?? 'unknown',
+      ),
+    ),
+  ];
+  const directories = [
+    ...new Set(others.map((record) => dirname(record.filePath))),
+  ];
+  throw new ConfigUpdateError(
+    `The work log for ${subjectLabel(owner)} holds ${others.length} Slack message(s) by another Slack user (${authors.join(', ')}), which later imports for ${user} would be mixed with. To change the user, first remove ${directories.join(', ')} (then run \`work-chronicler filter\` again if you use a filtered subset), and configure again. The config was not changed.`,
+  );
+}
+
 /**
  * Apply a change to the plain value and the document alike; returns the
  * value the file must hold afterwards.
+ *
+ * @param checkUser - Refuses a user `configure` would newly set
  */
 function applyChange(
   doc: Document,
   current: unknown,
   owner: SlackSettingsOwner,
   change: SlackSettingsChange,
+  checkUser: (user: string) => void,
 ): unknown {
   const path = slackPath(owner, current);
   const slack = getAt(current, path);
@@ -175,6 +243,9 @@ function applyChange(
           `${issues(parsed.error).join('; ')}. The config was not changed.`,
         );
       }
+    }
+    if (slack === undefined || slack.user !== change.user) {
+      checkUser(change.user);
     }
     if (slack === undefined) {
       const section = {
@@ -278,7 +349,9 @@ function applyChange(
  * Rules: channels need `slack configure` first; a report channel must be
  * confirmed as shared by the manager and the report; direct and group
  * messages are never allowed; a `G…` ID needs the private opt-in; the
- * workspace or user cannot change while channels are configured.
+ * workspace or user cannot change while channels are configured; and, given
+ * the work log, a user cannot be configured while it holds Slack messages by
+ * another user.
  *
  * @param update - Config file, owner and change
  * @returns Whether the file changed, and warnings
@@ -298,6 +371,15 @@ export function updateSlackSettings(
       return parsed.success ? [] : issues(parsed.error);
     },
     edit: (doc, current) =>
-      applyChange(doc, current, update.owner, update.change),
+      applyChange(doc, current, update.owner, update.change, (user) => {
+        if (update.workLog !== undefined) {
+          checkWorkLogAuthors(
+            update.owner,
+            update.workLog,
+            user,
+            update.readFs,
+          );
+        }
+      }),
   });
 }

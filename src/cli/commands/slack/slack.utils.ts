@@ -216,6 +216,7 @@ export async function runSlackChange(
       configPath: subject.configPath,
       owner: subject.owner,
       change,
+      workLog: subject.workLog,
     });
   } catch (error) {
     failSlackChange(

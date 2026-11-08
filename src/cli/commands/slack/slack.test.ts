@@ -11,7 +11,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { messageFrontmatter, stage } from '@core/import/import.test-support';
+import {
+  messageFrontmatter,
+  stage,
+  storeRecord,
+} from '@core/import/import.test-support';
 import { afterAll, describe, expect, it } from 'vitest';
 
 /** These tests run the built CLI several times; slow CI runners need more than the 5 s default */
@@ -393,6 +397,35 @@ describe('slack commands: IC profile', CLI_RUNS, () => {
     expect(
       cli('solo', ['slack', 'show', '--report', 'alice-smith']).status,
     ).toBe(1);
+  });
+});
+
+describe('slack commands: changing the user', CLI_RUNS, () => {
+  it('refuses another user while messages by the previous one are imported', () => {
+    const dir = join(wcHome, 'profiles', 'switcher');
+    mkdirSync(join(dir, 'work-log'), { recursive: true });
+    writeFileSync(join(dir, 'config.yaml'), SOLO_YAML);
+    // A message by U0SYNTH01, as an earlier import stored it
+    storeRecord(join(dir, 'work-log'), 1);
+    const configure = (user: string) =>
+      json('switcher', [
+        'slack',
+        'configure',
+        '--workspace',
+        'T0SYNTH01',
+        '--user',
+        user,
+      ]);
+
+    const refused = configure('U0TEST0002');
+    expect(refused.status).toBe(1);
+    expect(refused.value).toEqual({
+      ok: false,
+      error: expect.stringContaining('by another Slack user (U0SYNTH01)'),
+    });
+    expect(readFileSync(join(dir, 'config.yaml'), 'utf-8')).toBe(SOLO_YAML);
+
+    expect(configure('U0SYNTH01').status).toBe(0);
   });
 });
 
