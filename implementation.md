@@ -1230,6 +1230,17 @@ Also in p03-t15: CodeRabbit 4505014153 (docs/notice wrongly said `--overwrite` f
 
 **Outcome:** H1, H2 fixed in p08-t03..t04 (9b9cb42); M1 fixed in p08-t05 (ce90018). Gate runs again (attempt 2).
 
+### Review Received: final (m02 exit gate, attempt 2)
+
+**Date:** 2026-11-08
+**Review artifact (local-only):** reviews/archived/final-review-2026-11-08T094553Z.md
+
+**Findings:** Critical 0 · High 1 · Medium 0 · Low 0 (gate `codex-6-sol-xhigh`, run ae60ddb1-c8ee-49c4-86e1-cf5e5c3f8a64, reviewed head ce900184bb444954f45978a233c4478ffac09694)
+
+- H1 (High): import preparation creates nested staged directories without re-checking the recorded intermediate parent (`src/core/import/transaction.ts:1197`); a parent swapped for a symlink lets it create an empty directory outside the work log before the batch is rejected. Introduced by the attempt-1 fix (p08-t03) → fix; agree.
+
+**Outcome:** fix dispatched. Attempt 2 reaches the configured gate budget; the gate runs again under the user's standing direction to keep running it (as in m01).
+
 ### PR review received: d01 (PR #25, CodeRabbit)
 
 **Date:** 2026-11-08
