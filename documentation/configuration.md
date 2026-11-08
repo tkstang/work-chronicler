@@ -74,7 +74,8 @@ import skill may collect and from which channels; `import` refuses any Slack
 record that does not match it. The CLI never contacts Slack and never stores
 Slack credentials. Set it with the `slack` commands (see
 [Slack](commands.md#slack)) rather than by hand; they keep the rest of the
-file intact.
+file intact. The `/work-chronicler-setup-slack` skill finds the IDs and runs
+them for you (see [AI skills](available-skills.md#importing-slack-messages)).
 
 ```yaml
 slack:

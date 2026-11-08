@@ -210,6 +210,9 @@ The project has four layers:
      - `/work-chronicler-detect-projects` - Identify major project groupings
      - `/work-chronicler-detect-themes` - Identify recurring themes across work
      - `/work-chronicler-write-peer-review` - Peer reviews; quick mode in any profile, evidence-backed mode with a manager report
+   - Slack import (IC and manager profiles; read Slack through the assistant's Slack connector, read-only):
+     - `/work-chronicler-setup-slack` - Choose the channels to import from and record them with `slack configure` / `slack channels add`
+     - `/work-chronicler-import-slack` - Stage the subject's own messages, then `validate` and `import` them
    - Manager mode (`work-chronicler-manager-*`):
      - `/work-chronicler-manager-write-review-packet` - Evidence-based review content for a direct report
      - `/work-chronicler-manager-write-quarterly-highlights` - Quarterly highlights for one report

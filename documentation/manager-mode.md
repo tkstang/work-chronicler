@@ -355,10 +355,12 @@ tickets.
 Slack import is opt-in per report: a report without Slack settings
 contributes no Slack records. Only channels that you (the manager) and the
 report both belong to may be used. The CLI cannot see Slack, so the setup
-skill checks membership through your Slack connector, and you confirm it for
-each channel with `--shared-with-manager`; the CLI refuses a report channel
-without that confirmation, and `import` refuses records from a channel that
-lacks it.
+skill (`/work-chronicler-setup-slack`) checks membership through your Slack
+connector, and you confirm it for each channel with `--shared-with-manager`;
+the CLI refuses a report channel without that confirmation, and `import`
+refuses records from a channel that lacks it. `/work-chronicler-import-slack`
+then imports the report's own messages from those channels. Run both skills
+with the report ID, for example `/work-chronicler-setup-slack alice-smith`.
 
 ```bash
 work-chronicler slack configure --report alice-smith \

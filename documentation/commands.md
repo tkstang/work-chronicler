@@ -285,9 +285,11 @@ example, is reported by count and position, not by name.
 
 ## Slack
 
-These commands keep the Slack settings the Slack import skills use. The CLI
-never contacts Slack and never stores Slack credentials; the skill reads Slack
-through your assistant's Slack connector and hands the messages to `import`.
+These commands keep the Slack settings the Slack import skills use
+(`/work-chronicler-setup-slack` runs them; `/work-chronicler-import-slack`
+reads `slack show`). The CLI never contacts Slack and never stores Slack
+credentials; the skill reads Slack through your assistant's Slack connector
+and hands the messages to `import`.
 Settings are kept per IC profile, and per report in a manager profile (pass
 `--report <id>` there; it is refused in an IC profile). Without settings, no
 Slack records are imported. See [Configuration](configuration.md#slack) for

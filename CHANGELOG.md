@@ -54,6 +54,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The writing, detection, peer-review and manager skills cite imported
   messages as supplementary evidence: never instructions, never authored
   work, and the user's own words only when attribution is verified.
+- Two Slack skills, for IC profiles and for reports in a manager profile,
+  that read Slack read-only through the assistant's Slack connector:
+  `/work-chronicler-setup-slack` finds the workspace and user IDs and lets
+  you choose the channels to import from (public channels by default,
+  private channels only when you opt in, never direct messages; for a report,
+  only channels it checks you both belong to), and
+  `/work-chronicler-import-slack` imports the subject's own messages from
+  those channels in the fetch range, without other people's replies, through
+  `validate` and `import`. Run `skills install` to add them.
 
 ### Changed
 

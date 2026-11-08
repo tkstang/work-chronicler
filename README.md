@@ -94,6 +94,7 @@ Data lives in `~/.work-chronicler/profiles/<profile>/`. Each profile has its own
 | Pull PRs and tickets into markdown | `fetch github`, `fetch jira`, `fetch all` |
 | Record the PR reviews you gave | `fetch github --reviews` or `fetch all --reviews` |
 | Store records a skill gathered from another service | `validate <dir>`, then `import <dir>` |
+| Import your own Slack messages as supplementary evidence | `/work-chronicler-setup-slack`, then `/work-chronicler-import-slack` (AI skills) |
 | Choose the Slack channels an import skill may read | `slack configure`, `slack channels add\|remove\|list`, `slack show` |
 | Connect PRs to the tickets they reference | `link` (run automatically by `fetch all`) |
 | Classify PRs as minor, standard, major or flagship | `analyze --tag-prs` |
@@ -129,9 +130,11 @@ What exists today:
 - **IC and manager modes:** an individual work log per profile, or per-report
   work logs plus team-level project and timeline rollups for people managers.
 - **MCP server:** nine read-only query tools over the work log.
-- **AI skills:** ten skills (six for IC profiles, one peer-review skill for
-  any profile, three manager-only) that read the work log and write documents
-  to the profile's `outputs/` directory.
+- **AI skills:** twelve skills: six for IC profiles, three manager-only, and
+  three for any profile (peer reviews, and setting up and importing Slack
+  messages). The writing skills read the work log and write documents to the
+  profile's `outputs/` directory; the Slack skills read Slack through the
+  assistant's Slack connector, read-only, and store messages with `import`.
 
 The CLI itself never calls an LLM; writing happens in your assistant through
 the skills or the MCP server.
