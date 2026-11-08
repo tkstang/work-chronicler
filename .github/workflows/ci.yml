@@ -69,8 +69,12 @@ jobs:
       - name: Build
         run: pnpm build
 
-      # The docs app (documentation/) installs with the root workspace; its
-      # devDependencies provide the oat CLI.
+      # The docs app (documentation/) is its own pnpm install root with its
+      # own lockfile; its devDependencies provide the oat CLI.
+      - name: Install docs dependencies
+        working-directory: documentation
+        run: pnpm install --frozen-lockfile
+
       - name: Add docs tools to PATH
         run: echo "$GITHUB_WORKSPACE/documentation/node_modules/.bin" >> "$GITHUB_PATH"
 
