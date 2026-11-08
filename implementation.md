@@ -890,7 +890,11 @@ Proof: `format:check`
 
 ## Phase p08: 0.6.0 release preparation
 
-**Status:** pending
+**Status:** in_progress
+**Base:** 76140798ed0f67bb17ab685ed76f9d364e76a4cd
+**Executor:** inline:p08-inline-exception
+
+Inline exception (recorded before editing): version bump and CHANGELOG section move only — no new surface, no unresolved design, not consequential before the tag push (which happens after merge under the Release authority), one proof command (the local DoD batch). Committing owner: root. Parallelism: single trivial phase.
 
 ---
 
@@ -917,6 +921,8 @@ Proof: `format:check`
 <!-- One line per dispatch request id, rendered by `oat project dispatch record --format line` and written as a list item. Update that line in place with the terminal outcome; never paste the record or event JSON. -->
 
 <!-- orchestration-runs-start -->
+
+- Root-inline phase: p08 — inline exception for a version bump and CHANGELOG move; root model claude-opus-5-5
 
 - run/v1 · request=wce-p12-rev-2 · scope=p12 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p12 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
