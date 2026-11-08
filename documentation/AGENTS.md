@@ -19,6 +19,8 @@ Accepted IA (approved by the repository owner when the docs app was set up; the 
   - A new skill gets a row in `tools/skills.md`; a multi-step use of it belongs in `workflows/`.
   - Manager-only steps of a workflow go in that workflow's "For a report" section, not a separate page.
   - Split along existing headings to stay under the checker's 500-line page limit.
+  - Write each `## Contents` entry as `- [Title](page.md)` with its description on an indented continuation line, not after ` - `: the theme renders Contents maps as cards, and a ` - ` would show inside the card.
+  - Brand colours live in the PALETTE block at the top of the theme section of `app/globals.css`; change them there only.
   - Every command, flag, path and MCP tool named must exist in `src/` (see the repository-root AGENTS file).
 - **Verification overlay:** none (no independent QA track). CI runs `oat docs check`, the nav sync check, the docs build and the manifest freshness check.
 

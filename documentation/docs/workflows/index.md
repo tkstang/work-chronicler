@@ -17,16 +17,23 @@ Most workflows assume you have fetched and analyzed your work; see
 
 ### Your own work
 
-- [Write resume bullets and self-reviews](resume-and-self-review.md) - Summarize your work, draft a self-review, write resume bullets and update a resume.
-- [Write peer reviews](peer-reviews.md) - A quick review from a template, or an evidence-backed one for a colleague you track.
-- [Record the PR reviews you gave](pr-reviews-given.md) - Fetch your reviews and inline comments, then query them.
+- [Write resume bullets and self-reviews](resume-and-self-review.md)
+  Summarize your work, draft a self-review, write resume bullets and update a resume.
+- [Write peer reviews](peer-reviews.md)
+  A quick review from a template, or an evidence-backed one for a colleague you track.
+- [Record the PR reviews you gave](pr-reviews-given.md)
+  Fetch your reviews and inline comments, then query them.
 
 ### Supplementary evidence
 
-- [Import Slack messages](import-slack.md) - Choose channels, then import your own messages (or a report's).
-- [Import Google Docs](import-google-docs.md) - Import an excerpt of each Google Doc you own (or a report owns).
+- [Import Slack messages](import-slack.md)
+  Choose channels, then import your own messages (or a report's).
+- [Import Google Docs](import-google-docs.md)
+  Import an excerpt of each Google Doc you own (or a report owns).
 
 ### Managers
 
-- [Manager mode](manager-mode.md) - Create a manager profile, manage reports and fetch their work.
-- [Review packets and team analysis](review-packets.md) - Analyze reports and the team, then write review packets and summaries.
+- [Manager mode](manager-mode.md)
+  Create a manager profile, manage reports and fetch their work.
+- [Review packets and team analysis](review-packets.md)
+  Analyze reports and the team, then write review packets and summaries.

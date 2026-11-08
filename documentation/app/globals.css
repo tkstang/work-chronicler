@@ -68,3 +68,232 @@
     --callout-color: #ef4444;
   }
 }
+
+/* ==========================================================================
+   Work Chronicler theme
+   --------------------------------------------------------------------------
+   Everything below is unlayered, so it outranks the Fumadocs presets (which
+   live in Tailwind's theme/base/components layers) without !important. The
+   callout block above stays as it is and picks up these tokens.
+
+   1. PALETTE: the only block to edit when the brand colours change. Light
+      values on :root, dark values on .dark (next-themes sets the class on
+      <html>; .dark must stay after :root). The values are a neutral
+      slate/blue placeholder.
+   ========================================================================== */
+:root {
+  --wc-accent: #2563eb; /* links, active nav, focus, card hover */
+  --wc-accent-hover: #1d4ed8;
+  --wc-accent-foreground: #ffffff; /* text on an accent fill */
+  --wc-accent-soft: rgb(37 99 235 / 0.08); /* tinted surfaces */
+  --wc-bg: #f8fafc;
+  --wc-surface: #ffffff; /* cards, popovers, diagrams */
+  --wc-surface-muted: #f1f5f9; /* code, table headers, hover */
+  --wc-border: #e2e8f0;
+  --wc-text: #0f172a;
+  --wc-text-muted: #475569;
+}
+
+.dark {
+  --wc-accent: #60a5fa;
+  --wc-accent-hover: #93c5fd;
+  --wc-accent-foreground: #0b1220;
+  --wc-accent-soft: rgb(96 165 250 / 0.12);
+  --wc-bg: #0b1220;
+  --wc-surface: #111a2e;
+  --wc-surface-muted: #1a2438;
+  --wc-border: #26324a;
+  --wc-text: #e2e8f0;
+  --wc-text-muted: #94a3b8;
+}
+
+/* 2. Fumadocs tokens, derived from the palette. In Fumadocs the brand hue is
+   --color-fd-primary (active sidebar item, link underline); --color-fd-accent
+   is the hover surface. Status/diff tokens keep the preset values. */
+:root,
+.dark {
+  --color-fd-background: var(--wc-bg);
+  --color-fd-foreground: var(--wc-text);
+  --color-fd-muted: var(--wc-surface-muted);
+  --color-fd-muted-foreground: var(--wc-text-muted);
+  --color-fd-popover: var(--wc-surface);
+  --color-fd-popover-foreground: var(--wc-text);
+  --color-fd-card: var(--wc-surface);
+  --color-fd-card-foreground: var(--wc-text);
+  --color-fd-border: var(--wc-border);
+  --color-fd-primary: var(--wc-accent);
+  --color-fd-primary-foreground: var(--wc-accent-foreground);
+  --color-fd-secondary: var(--wc-surface-muted);
+  --color-fd-secondary-foreground: var(--wc-text);
+  --color-fd-accent: var(--wc-accent-soft);
+  --color-fd-accent-foreground: var(--wc-text);
+  --color-fd-ring: var(--wc-accent);
+}
+
+/* 3. Typography: one system sans stack, restrained heading weights. */
+body {
+  font-family:
+    ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter,
+    Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.prose h1,
+.prose h2,
+.prose h3 {
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+
+.prose h2 {
+  padding-bottom: 0.35em;
+  border-bottom: 1px solid var(--wc-border);
+}
+
+/* Heading anchors (a[data-card]) keep the heading colour. */
+.prose :is(h1, h2, h3, h4) > a[data-card] {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* 4. Links, sidebar and table of contents. */
+.prose a:not([data-card]) {
+  color: var(--wc-accent);
+  font-weight: 500;
+  text-decoration-color: color-mix(in srgb, var(--wc-accent) 40%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.prose a:not([data-card]):hover {
+  opacity: 1;
+  color: var(--wc-accent-hover);
+  text-decoration-color: currentColor;
+}
+
+#nd-sidebar a[data-active='true'] {
+  color: var(--wc-accent);
+  font-weight: 500;
+}
+
+#toc-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* 5. Code and tables. The :where() exclusions keep inline-code styling off
+   highlighted code blocks. */
+.prose
+  code:not(:where(.not-prose, .not-prose *, pre, pre *, .shiki, .shiki *)) {
+  font-size: 0.85em;
+  background: var(--wc-surface-muted);
+  border: 1px solid var(--wc-border);
+  border-radius: 0.3rem;
+  padding: 0.1em 0.35em;
+}
+
+.prose a code,
+.prose :is(h1, h2, h3, h4) code {
+  color: inherit;
+  background: transparent;
+  border-color: transparent;
+}
+
+.prose figure.shiki {
+  border-color: var(--wc-border);
+  border-radius: 0.6rem;
+}
+
+.prose thead th {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: var(--wc-surface-muted);
+}
+
+/* 6. `## Contents` maps render as a card grid. Each entry is
+   `- [Title](page.md)` with its description on an indented continuation
+   line (no " - " separator), so the link becomes the card title and the
+   description its body. The `ul` matches stop at the next h2 that is not
+   Contents, and every link-led item in between (grouped or not) is a card.
+   The stretched ::after makes the whole card the link target. */
+.prose h2#contents ~ ul:not(h2:not(#contents) ~ ul) {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0 1.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.prose h2#contents ~ ul:not(h2:not(#contents) ~ ul) > li {
+  position: relative;
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--wc-border);
+  border-radius: 0.75rem;
+  background: var(--wc-surface);
+  color: var(--wc-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.prose h2#contents ~ ul:not(h2:not(#contents) ~ ul) > li::marker {
+  content: none;
+}
+
+.prose h2#contents ~ ul:not(h2:not(#contents) ~ ul) > li:hover,
+.prose h2#contents ~ ul:not(h2:not(#contents) ~ ul) > li:focus-within {
+  border-color: var(--wc-accent);
+  box-shadow: 0 0 0 3px var(--wc-accent-soft);
+}
+
+.prose h2#contents ~ ul:not(h2:not(#contents) ~ ul) > li > a:first-child {
+  display: block;
+  margin-bottom: 0.2rem;
+  color: var(--wc-text);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.prose
+  h2#contents
+  ~ ul:not(h2:not(#contents) ~ ul)
+  > li
+  > a:first-child::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.prose
+  h2#contents
+  ~ ul:not(h2:not(#contents) ~ ul)
+  > li
+  > a:first-child:focus-visible {
+  outline: none;
+}
+
+/* Group labels (### inside Contents) sit tight above their cards. */
+.prose h2#contents ~ h3:not(h2:not(#contents) ~ h3) {
+  margin-top: 1.5rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--wc-text-muted);
+}
+
+/* 7. Diagrams: frame the rendered Mermaid like a card. */
+.prose .mermaid {
+  padding: 0.75rem;
+  border: 1px solid var(--wc-border);
+  border-radius: 0.75rem;
+  background: var(--wc-surface);
+}

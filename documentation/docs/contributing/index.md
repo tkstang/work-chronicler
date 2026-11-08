@@ -9,5 +9,7 @@ Use the [contributor entry](../contributing.md) for the authoring contract; this
 
 ## Contents
 
-- [Authoring Contract](../contributing.md) - Human authoring conventions and supported syntax.
-- [Docs Toolchain](docs-toolchain.md) - Install, preview and validate the docs app.
+- [Authoring Contract](../contributing.md)
+  Human authoring conventions and supported syntax.
+- [Docs Toolchain](docs-toolchain.md)
+  Install, preview and validate the docs app.
