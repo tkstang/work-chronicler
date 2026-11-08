@@ -73,7 +73,39 @@ oat_milestone_gates:
       freshness: fresh
       freshness_reason: null
       decided_at: "2026-11-08T02:19:33Z"
-oat_deliveries: []
+oat_deliveries:
+  - delivery_id: d01
+    milestone: m01
+    scope: [p01, p02, p03]
+    endpoint: merged
+    kind: pr
+    status: registering
+    superseded_by: null
+    covers_scope_of: null
+    corrects_delivery_id: null
+    lookup:
+      repository: tkstang/work-chronicler
+      head_branch: oat/evidence-expansion-m01
+      head_sha_at_registration: ed8b20df93efb15f5dbdeee10733453e7cd52f0d
+    members: []
+    integrated_review:
+      artifact: reviews/archived/m01-review-2026-11-08T022438Z.md
+      scope: m01
+      bound_revisions: [ed8b20df93efb15f5dbdeee10733453e7cd52f0d]
+      disposition: passed
+    exit_gate:
+      status: allowed
+      disposition: passed
+      resolution: configured
+      config_fingerprint: null
+      reviewed_head: ed8b20df93efb15f5dbdeee10733453e7cd52f0d
+      subject:
+        kind: code
+        scope: [p01, p02, p03]
+      freshness: fresh
+      freshness_reason: null
+      decided_at: "2026-11-08T02:19:33Z"
+    endpoint_attainment: null
 # oat_skill_gate_overrides: # optional; per-project posture for configured lifecycle gates
 #   oat-project-implement: disabled # only the literal value `disabled`; absence means follow configuration
 # oat_implement_exit_gate: # optional; durable configured implementation exit-gate state

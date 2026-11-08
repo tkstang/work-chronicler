@@ -103,7 +103,7 @@ Documented that `--yes` without `--overwrite` keeps unchanged copied skills. Fou
 **Commit:** 6014af5a9a414134f70b4e87def8f5b38cd23025
 **Executor:** root
 
-Review `reviews/p01-review-2026-11-07T233956Z.md` (0 Critical/High, 5 Low) passed; root fixed all five Lows (README counts, AGENTS.md list order, replacement-check wording, old-copy edit warning, nonexistent `reports add --skip-fetch` in write-peer-review). Late-fix rule: no later phase has a Base, so Head advanced. Proof: `pnpm format && pnpm lint && pnpm typecheck && pnpm test` (187 pass). Fix commit not independently re-reviewed (Low-only); covered by the m01 integrated review.
+Review `reviews/archived/p01-review-2026-11-07T233956Z.md` (0 Critical/High, 5 Low) passed; root fixed all five Lows (README counts, AGENTS.md list order, replacement-check wording, old-copy edit warning, nonexistent `reports add --skip-fetch` in write-peer-review). Late-fix rule: no later phase has a Base, so Head advanced. Proof: `pnpm format && pnpm lint && pnpm typecheck && pnpm test` (187 pass). Fix commit not independently re-reviewed (Low-only); covered by the m01 integrated review.
 
 ---
 
@@ -154,7 +154,7 @@ New read-only MCP tool `search_pr_reviews`; `status` counts reviewed PRs; `filte
 
 Docs, CHANGELOG, AGENTS.md, and write-self-review / write-resume-bullets / summarize-work cite reviews as review work. Proof: `format:check`.
 
-Review `reviews/p02-review-2026-11-08T000100Z.md`: 0 Critical/High, 2 Medium, 4 Low; passed. The implementer fixed all six in a continuation of wce-p02-impl-1 (late-fix rule: no later phase Base, so Head advanced). Root re-ran typecheck and tests at the new Head: pass (223). Fixes not independently re-reviewed; the m01 integrated cross-provider review covers them.
+Review `reviews/archived/p02-review-2026-11-08T000100Z.md`: 0 Critical/High, 2 Medium, 4 Low; passed. The implementer fixed all six in a continuation of wce-p02-impl-1 (late-fix rule: no later phase Base, so Head advanced). Root re-ran typecheck and tests at the new Head: pass (223). Fixes not independently re-reviewed; the m01 integrated cross-provider review covers them.
 
 ### Task p02-t05: Show reviews hidden by an old filtered subset (M1)
 
@@ -215,7 +215,7 @@ Verification at Head: `pnpm format && pnpm lint && pnpm format:check && pnpm typ
 **Commit:** 81017148924eb180394a8b92dde7e48fa80d0590
 **Executor:** root
 
-Review `reviews/p03-review-2026-11-08T000907Z.md` (0 C/H/M, 1 Low) passed; root fixed the Low (MCP server hardcoded `0.1.0`), added a server test and a CHANGELOG Fixed entry. Proof: lint, format:check, typecheck, 223 tests, build plus a built-module import. Not independently re-reviewed; covered by the m01 integrated review.
+Review `reviews/archived/p03-review-2026-11-08T000907Z.md` (0 C/H/M, 1 Low) passed; root fixed the Low (MCP server hardcoded `0.1.0`), added a server test and a CHANGELOG Fixed entry. Proof: lint, format:check, typecheck, 223 tests, build plus a built-module import. Not independently re-reviewed; covered by the m01 integrated review.
 
 ### Task p03-t03: (review) Keep old skill copies a replacement depends on
 
