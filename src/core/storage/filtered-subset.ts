@@ -675,6 +675,13 @@ function acquireFilterLock(
     }
     if (!claimLockPath(fs, outputDir, guardPath, owner, '.guard')) {
       const taker = readLockOwner(fs, guardPath);
+      if (taker && !ownerIsAlive(taker, env)) {
+        // The run taking over exited mid-takeover; retrying cannot clear it
+        throw new FilterInProgressError(
+          `A \`work-chronicler filter\` run (${describeOwner(taker)}) exited while taking over ${lockPath} and left ${guardPath} behind. ` +
+            `If no filter is running, remove ${guardPath} and try again. The subset was not changed.`,
+        );
+      }
       throw new FilterInProgressError(
         `Another \`work-chronicler filter\` run${taker ? ` (${describeOwner(taker)})` : ''} is taking over ${lockPath} from a run that has exited. ` +
           `Try again in a moment. If no filter is running, remove ${guardPath} and try again. The subset was not changed.`,
@@ -693,7 +700,11 @@ function acquireFilterLock(
           } catch {
             // Left as a stale copy; reported below
           }
-          throw new FilterInProgressError(lockHeldMessage(lockPath, moved));
+          // A vanished copy means another run claimed the freed lock and
+          // cleaned up; report the lock's current holder, not the copy
+          throw new FilterInProgressError(
+            lockHeldMessage(lockPath, moved ?? readLockOwner(fs, lockPath)),
+          );
         }
         removeQuietly(fs, stale, []);
       }

@@ -714,6 +714,34 @@ describe('one filter run at a time', () => {
     },
   );
 
+  it('names a takeover guard left by a run that exited instead of asking to retry', async () => {
+    holdLock({ pid: 999 });
+    const guard = join(workLog, '.filter-lock.takeover');
+    mkdirSync(guard);
+    writeFileSync(
+      join(guard, 'owner.json'),
+      JSON.stringify({
+        version: 1,
+        pid: 998,
+        hostname: 'this-host',
+        startedAt: 2_000,
+        runId: 'r998',
+      }),
+    );
+
+    const run = replaceFilteredSubset(workLog, runPlan('A'), {
+      env: {
+        hostname: 'this-host',
+        bootTime: () => 1_000,
+        isProcessAlive: (pid) => pid !== 999 && pid !== 998,
+      },
+    });
+
+    await expect(run).rejects.toThrow(/exited while taking over/);
+    await expect(run).rejects.toThrow(guard);
+    expect(existsSync(join(workLog, 'filtered'))).toBe(false);
+  });
+
   it('removes what earlier runs left beside the lock, but not a run about to claim', async () => {
     const owner = (pid: number) =>
       JSON.stringify({

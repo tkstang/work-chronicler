@@ -329,7 +329,10 @@ reboot, is taken over, by one run at a time. A lock held by a running process,
 or recorded under another host name (for example after the machine was
 renamed), is not: the error and `status` name the lock, the process and host
 that hold it, and say to remove `.filter-lock` if you know no filter is
-running. `filter --clear` is refused while the lock is held too.
+running. `filter --clear` is refused while the lock is held too. A takeover
+runs under a short-lived `.filter-lock.takeover` guard; if a run exits while
+holding it, later runs are refused with the guard's path, to remove once no
+filter is running.
 
 If `filter` is interrupted between moving the old subset aside and moving the
 new one into place, `analyze` and the MCP server stop with an error rather
