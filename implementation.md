@@ -192,7 +192,11 @@ Review fix. Proof: full DoD batch.
 
 ## Phase p03: 0.5.0 release preparation
 
-**Status:** pending
+**Status:** in_progress
+**Base:** 23a4f1aae63ebd37c8966dca2c2136f794f14190
+**Executor:** inline:p03-inline-exception
+
+Inline exception (recorded before editing): version bump and CHANGELOG section move only — no new surface, no unresolved design, not consequential before the tag push (which happens after merge under the Release authority), one proof command (the local DoD batch). Committing owner: root. Parallelism: single trivial phase.
 
 ---
 
@@ -255,6 +259,8 @@ Review fix. Proof: full DoD batch.
 - run/v1 · request=wce-p01-rev-1 · scope=p01 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p01 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 - run/v1 · request=wce-p02-rev-1 · scope=p02 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p02 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
+
+- Root-inline phase: p03 — inline exception for a version bump and CHANGELOG move; root model claude-opus-5-5
 
 <!-- orchestration-runs-end -->
 
