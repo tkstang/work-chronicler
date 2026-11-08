@@ -41,8 +41,10 @@ Docs settings and the range, and stores each batch all or nothing.
 - **The Doc's own text, never a summary.** The record body is the Doc's text
   as `gog docs cat` prints it, cut to fit. Never write a summary, notes or
   your own words into a record.
-- **Never put Doc text in a shell command.** Doc text reaches files only
-  through `gog`'s own output and your file-writing tool.
+- **Never put Doc text in a shell command, and never retype it.** Doc text
+  reaches files only through `gog`'s own output and the file commands in
+  steps 7 and 8 (`head`, `sed`, `cp`, `cat`). You write only the
+  frontmatter yourself.
 - **Report counts only.** Never name a Doc or quote its text in your
   summary.
 
@@ -197,21 +199,46 @@ wc -c < "$READS/doc.txt"
 - **Empty** (nothing but whitespace): skip it and count it as **empty**,
   apart from the other skips. Never stage an empty Doc.
 - **At most 16384 bytes**: the whole text is the excerpt, with
-  `truncated: false`.
-- **More than 16384 bytes**: the Doc is longer than the cap. Cut it at the
-  last whole line within the cap and use that, with `truncated: true`:
+  `truncated: false`:
 
   ```bash
-  head -c 16384 "$READS/doc.txt" | sed '$d' > "$READS/excerpt.txt"
+  cp "$READS/doc.txt" "$READS/excerpt.txt"
   ```
 
-  If that leaves nothing (one very long paragraph), cut the text yourself at
-  the last space before the cap.
+- **More than 16384 bytes**: the Doc is longer than the cap. Cut it at the
+  last whole line within the cap, with `truncated: true`:
+
+  ```bash
+  head -c 16384 "$READS/doc.txt" | LC_ALL=C sed '$d' > "$READS/excerpt.txt"
+  ```
+
+  If that leaves nothing but whitespace (the first line is one very long
+  paragraph), cut at the last space within the cap instead:
+
+  ```bash
+  head -c 16384 "$READS/doc.txt" | LC_ALL=C sed '$s/[^ ]*$//' > "$READS/excerpt.txt"
+  ```
+
+  If that still leaves nothing but whitespace, skip the Doc and count it as
+  **unreadable**.
+
+Never edit `$READS/excerpt.txt` by hand: it becomes the record body byte for
+byte.
+
+Find the mentions (step 8) in the excerpt without reading it whole:
+
+```bash
+LC_ALL=C grep -owE '[A-Z][A-Z0-9_]*-[1-9][0-9]*' "$READS/excerpt.txt" | sort -u
+LC_ALL=C grep -oE 'https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/pull/[0-9]+' "$READS/excerpt.txt" | sort -u
+```
+
+Of the first list, keep only ticket keys (drop look-alikes such as `UTF-8`).
 
 ### 8. Write one record per kept Doc
 
-Write each record with your file-writing tool as `$STAGING/<n>.md`, filling
-in the template and double-quoting every string value:
+Write only the record's frontmatter with your file-writing tool, as
+`$READS/front.md`, filling in the template and double-quoting every string
+value. It must end with the closing `---` line and then one blank line:
 
 ```markdown
 ---
@@ -236,10 +263,16 @@ document:
   truncated: <true or false>
 ---
 
-<the excerpt>
 ```
 
-Field by field:
+Then put the frontmatter and the excerpt together as the record:
+
+```bash
+cat "$READS/front.md" "$READS/excerpt.txt" > "$STAGING/<n>.md"
+```
+
+The import reads the blank line as the start of the body, so the body is the
+excerpt exactly. Field by field:
 
 | Field | Value |
 | --- | --- |
@@ -255,10 +288,10 @@ Field by field:
 | `document.owners` | Each owner's `emailAddress` from `drive get`, in lower case. Never added or changed by you. |
 | `document.driveId` | `null` (a Doc in a shared drive was skipped in step 6). |
 | `document.truncated` | From step 7. |
-| Body | The excerpt from step 7, verbatim: copy it from the file, never retype, reword or shorten it further. |
+| Body | `$READS/excerpt.txt` from step 7, added by `cat`: never retype, reword or shorten it. |
 
-Write each record as you go rather than holding every Doc in the
-conversation, and count it as **staged**.
+Build each record as you go (the next Doc's `gog` output replaces
+`doc.txt`, `excerpt.txt` and `front.md`), and count it as **staged**.
 
 ### 9. Validate, then import each chunk
 
@@ -288,7 +321,10 @@ If `ok` is `false`, read each issue's `code`, `file` and `field`:
   the subject's own Google Doc, or not in the range. Delete that record file
   and count it as **refused** by its field; never edit it to pass.
 - `SOURCE_RULE` on `body`: the excerpt is longer than the cap. Cut it
-  shorter (step 7), set `truncated: true` and validate again.
+  shorter with the commands in step 7, set `truncated: true`, rebuild the
+  record with `cat` and validate again.
+- `FRONTMATTER_MISSING`: `front.md` did not end with the `---` line and a
+  newline. Rewrite the frontmatter and rebuild the record with `cat`.
 - `SOURCE_RULE` on `url`, `updatedAt` or `document.createdAt`,
   `SCHEMA_INVALID` or `YAML_INVALID`: a mistake in the file. Fix that field
   following step 8 (or set `url` to `null`) and validate again.

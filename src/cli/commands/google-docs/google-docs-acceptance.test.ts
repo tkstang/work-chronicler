@@ -493,6 +493,54 @@ ${OTHERS_TEXT}
       vi.unstubAllEnvs();
     }
   });
+
+  it('accepts a record the skill assembles with cat from its frontmatter and an excerpt at the cap', () => {
+    // Step 8: the frontmatter ends with `---` and a blank line, and `cat`
+    // appends the excerpt file byte for byte. This excerpt has multi-byte
+    // characters and no final newline, so the body is exactly the cap.
+    const show = json('solo', ['google-docs', 'show']).value as GoogleDocsShow;
+    const front = `---
+schemaVersion: 1
+type: document
+source: google-docs
+sourceAccount: "${IC_ACCOUNT}"
+sourceId: "${DOC_A}"
+url: null
+occurredAt: "2026-02-10T16:20:00.000Z"
+updatedAt: "2026-02-10T16:20:00.000Z"
+capturedAt: "2026-07-02T08:00:00Z"
+subject: { kind: ic }
+attribution: { status: unverified, authorId: null }
+mentions: { tickets: [], pullRequests: [] }
+document:
+  title: "At the cap"
+  mimeType: application/vnd.google-apps.document
+  createdAt: "2025-11-03T10:00:00.000Z"
+  owners: ["${IC_ACCOUNT}"]
+  driveId: null
+  truncated: true
+---
+
+`;
+    const line = Buffer.from('Résumé of the design, line after line.\n');
+    const lines = Math.floor(show.excerptMaxBytes / line.length);
+    const excerpt = Buffer.concat([
+      ...Array.from({ length: lines }, () => line),
+      Buffer.alloc(show.excerptMaxBytes - lines * line.length, 'x'),
+    ]);
+    expect(excerpt.length).toBe(16384);
+    const staging = join(root, 'staging-ic-cap');
+    mkdirSync(staging);
+    writeFileSync(
+      join(staging, '1.md'),
+      Buffer.concat([Buffer.from(front), excerpt]),
+    );
+
+    const run = json('solo', fromImportCommand(show, 'validate', staging));
+
+    expect(run.value.issues).toEqual([]);
+    expect(run).toMatchObject({ status: 0, value: { ok: true } });
+  });
 });
 
 describe('Google Docs import skill: manager acceptance', CLI_RUNS, () => {
