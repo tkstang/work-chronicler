@@ -25,7 +25,10 @@ export const mcpCommand = new Command('mcp')
       console.log('  - get_projects: Get detected project groupings');
       console.log('  - get_timeline: Get chronological timeline of work');
       console.log(
-        "  - search_pr_reviews: Search reviews you gave on others' PRs\n",
+        "  - search_pr_reviews: Search reviews you gave on others' PRs",
+      );
+      console.log(
+        '  - search_messages: Search imported messages (such as Slack) by text, date, mention\n',
       );
       console.log('Configuration:');
       console.log(

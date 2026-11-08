@@ -83,6 +83,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   which have no marker) could return data from both subsets without saying
   the selection changed. Each subset is now told apart by the directory put
   in place, so such a call reports that the subset changed.
+- `work-chronicler mcp --info` did not list `search_messages` among the
+  available tools.
 
 ## [0.6.0] - 2026-11-08
 
