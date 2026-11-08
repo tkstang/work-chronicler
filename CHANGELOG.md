@@ -26,6 +26,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   profiles import into a report's work log with `--report <id>`. Both
   commands exit with status 1 on rejection; `--json` gives machine-readable
   issues that never repeat record content.
+- Slack settings per IC profile, and per report in a manager profile, for
+  the Slack import skills: `slack configure` (workspace and user IDs),
+  `slack channels add|remove|list` and `slack show`, which prints the
+  subject, fetch range, channels and the fields each staged record needs.
+  Slack is opt-in: without settings, `import` accepts no Slack records.
+  `import` and `validate` accept only the subject's own verified messages
+  from its configured channels (for a report, channels the manager
+  confirmed they share with `--shared-with-manager`), never direct
+  messages, and with a parent-thread reference that is only an ID or
+  permalink. Private channels need the `--private` opt-in. Changes keep the
+  rest of the config, comments included, and replace it in one step.
 - Imported messages are read as supplementary evidence, apart from PRs and
   tickets: `status` counts them (and flags unreadable record files and an
   import that did not finish), `stats.json` and `get_stats` count them in a

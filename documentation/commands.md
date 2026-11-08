@@ -197,6 +197,31 @@ derived from the identity alone. Importing a record with the same identity again
 one (upsert); an identical record is left as it is, so repeating an import
 changes nothing. Records that are not in the batch are never removed.
 
+### Slack records
+
+`import` and `validate` read the target's Slack settings (see
+[Slack](#slack)) and refuse a Slack record (`SOURCE_RULE`) when:
+
+- Slack is not set up for the IC profile or report: without settings, no
+  Slack records are imported;
+- `sourceAccount` is not the configured workspace;
+- `attribution` is `unverified`, or `authorId` is not the configured user
+  (only the subject's own messages are imported);
+- the channel (`message.container.id`) is not in the configured channels,
+  is a direct message (`D…`), or, for a report, is not confirmed as one the
+  manager and the report both belong to;
+- `message.container.name` is not a channel name (it holds spaces);
+- `message.thread.parentId` is not a message ts, or `parentUrl` (and the
+  record's own `url`) is anything but the bare Slack permalink of that
+  message (`https://<workspace>.slack.com/archives/<channel>/p<ts>`, with at
+  most `thread_ts` and `cid` in the query);
+- a reply in a thread carries reply counts, or `replyParticipantCount`
+  exceeds `replyCount`.
+
+Reply bodies, the parent's text and lists of participants cannot be written
+at all: the format has no field for them, so a record that carries one is
+rejected (`SCHEMA_INVALID`).
+
 ### All or nothing
 
 - `import` reads and checks every record and every destination before it
@@ -256,6 +281,59 @@ example, is reported by count and position, not by name.
 | `INVALID_ENCODING`, `FRONTMATTER_MISSING`, `YAML_INVALID`, `SCHEMA_INVALID`, `SOURCE_RULE`, `SUBJECT_MISMATCH`, `DUPLICATE_IDENTITY` | A record, or two records with the same identity. |
 | `UNSAFE_DESTINATION`, `IDENTITY_CONFLICT`, `DESTINATION_COLLISION` | Where a record would be stored. |
 | `IMPORT_IN_PROGRESS`, `RECOVERY_REQUIRED`, `RECOVERY_CONFLICT`, `CHANGED_DURING_IMPORT`, `COMMIT_FAILED`, `ROLLBACK_INCOMPLETE` | The lock, the commit or recovery. |
+
+## Slack
+
+These commands keep the Slack settings the Slack import skills use. The CLI
+never contacts Slack and never stores Slack credentials; the skill reads Slack
+through your assistant's Slack connector and hands the messages to `import`.
+Settings are kept per IC profile, and per report in a manager profile (pass
+`--report <id>` there; it is refused in an IC profile). Without settings, no
+Slack records are imported. See [Configuration](configuration.md#slack) for
+the fields.
+
+| Command | Meaning |
+| --- | --- |
+| `slack configure --workspace <team-id> --user <user-id>` | Set up Slack: the workspace (team) ID and the subject's Slack user ID (yours, or the report's). The workspace or user cannot change while channels are configured; remove them first. |
+| `slack channels add <channel-id> --name <name> --reason <text>` | Add a channel whose messages by the subject may be imported. `--name` is the channel name (a leading `#` is dropped); `--reason` says why it holds review-relevant work. |
+| `slack channels remove <channel-id>` | Remove a channel. Records already imported from it are kept; later imports refuse it. Removing a channel that is not listed changes nothing. |
+| `slack channels list` | List the configured channels. |
+| `slack show` | Print what an import skill uses (read-only). |
+
+`slack channels add` flags:
+
+| Flag | Meaning |
+| --- | --- |
+| `--private` | Opt in to a private channel. Channels are public otherwise, and a `G…` ID (a private conversation) is refused without it. |
+| `--shared-with-manager` | Manager profiles: confirm that you and the report are both members of the channel. Required for every report channel; the CLI cannot check membership, so the setup skill checks it before passing this flag. |
+
+Direct messages (`D…` IDs) and group direct messages (`mpdm-…` names) are
+always refused. Every command takes `-c, --config <path>` and `--json`, and
+exits with status 1 when a change is refused.
+
+Changes keep everything else in the config, comments included: the file is
+edited in its parsed form, the result must validate and differ only in the
+Slack settings, and it is written to a new file beside the config (with the
+same permissions) that replaces the config in one rename, after checking the
+config did not change meanwhile. A config that is a symbolic link, invalid,
+or changed during the update is refused and left as it was.
+
+### `slack show --json`
+
+`slack show --json` prints one JSON object:
+
+| Field | Meaning |
+| --- | --- |
+| `profile` | The profile, or `null` with `--config`. |
+| `mode` | `ic` or `manager`. |
+| `subject`, `subjectName` | The record subject (`{ kind: ic }` or `{ kind: report, reportId }`) and the report's name. |
+| `configured` | Whether Slack is set up for the subject. When `false`, nothing can be imported. |
+| `range` | The profile's fetch range: `since`, and `until` (`null` means now). |
+| `workspace`, `user` | The configured IDs, or `null`. |
+| `channels` | Each channel's `id`, `name`, `reason`, `private`, for reports `sharedWithManager`, and `importable` (false for a report channel not confirmed as shared). |
+| `record` | The fields every staged record must carry: `source`, `sourceAccount`, `subject` and verified `attribution`; `null` when not configured. |
+| `importCommand` | The `import` command line for this subject, with `<staging-dir>` to fill in. |
+| `workLog` | Where the records will be stored. |
 
 ## Link, analyze and filter
 

@@ -62,9 +62,44 @@ example.
 | `fetch.since` | yes | Start date, `YYYY-MM-DD`. |
 | `fetch.until` | no | End date, or `null` for today. |
 | `analysis.thresholds` | no | Override the impact size thresholds (see below). |
+| `slack` | no | Slack settings for the Slack import skills (see below). Absent means no Slack records are imported. |
 
 JIRA fetches tickets in each project that are assigned to you and were created
 inside the date range.
+
+### Slack
+
+Slack import is opt-in. The `slack` section names whose messages a Slack
+import skill may collect and from which channels; `import` refuses any Slack
+record that does not match it. The CLI never contacts Slack and never stores
+Slack credentials. Set it with the `slack` commands (see
+[Slack](commands.md#slack)) rather than by hand; they keep the rest of the
+file intact.
+
+```yaml
+slack:
+  workspace: T0EXAMPLE      # workspace (team) ID
+  user: U0EXAMPLE           # your Slack user ID
+  channels:
+    - id: C0EXAMPLE
+      name: billing-launch
+      reason: Launch coordination for usage-based billing
+      private: false
+```
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `slack.workspace` | yes | Workspace (team) ID, `T…` (or `E…` for an Enterprise org). Records must come from it. |
+| `slack.user` | yes | Your Slack user ID, `U…` or `W…`. Only messages this user wrote are imported. |
+| `slack.channels[].id` | yes | Channel ID, `C…` or `G…`. Direct messages (`D…`) are never allowed. |
+| `slack.channels[].name` | yes | Channel name without `#`. Group direct messages (`mpdm-…`) are never allowed. |
+| `slack.channels[].reason` | yes | One line saying why the channel holds review-relevant work. |
+| `slack.channels[].private` | no | `true` opts in to a private channel; the default `false` means public. A `G…` ID needs `true`. |
+
+A manager profile keeps the same section under each report (`reports[].slack`),
+naming the report's Slack user, and each report channel also has
+`sharedWithManager: true`: the manager confirmed they and the report are both
+members. See [Manager mode](manager-mode.md#slack-for-a-report).
 
 ### Names
 

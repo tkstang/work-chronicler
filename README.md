@@ -94,6 +94,7 @@ Data lives in `~/.work-chronicler/profiles/<profile>/`. Each profile has its own
 | Pull PRs and tickets into markdown | `fetch github`, `fetch jira`, `fetch all` |
 | Record the PR reviews you gave | `fetch github --reviews` or `fetch all --reviews` |
 | Store records a skill gathered from another service | `validate <dir>`, then `import <dir>` |
+| Choose the Slack channels an import skill may read | `slack configure`, `slack channels add\|remove\|list`, `slack show` |
 | Connect PRs to the tickets they reference | `link` (run automatically by `fetch all`) |
 | Classify PRs as minor, standard, major or flagship | `analyze --tag-prs` |
 | Group related work into projects and a timeline | `analyze --projects --timeline` |
@@ -116,7 +117,9 @@ What exists today:
   fetched.
 - **Imported records:** `import` checks a batch of message records that a
   skill staged in a directory and stores it in the work log all or nothing.
-  The CLI never contacts the service the records came from. `status`,
+  The CLI never contacts the service the records came from. Slack records
+  are accepted only for an IC or report with Slack settings (`slack ...`),
+  and only the subject's own messages in its configured channels. `status`,
   `filter`, stats, `link`, the MCP server and the skills read them as
   supplementary evidence, apart from PRs and tickets; project detection and
   the timeline cover PRs and tickets only.

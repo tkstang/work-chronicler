@@ -55,6 +55,7 @@ work-chronicler/
 │   │   │   ├── import/         # Staged import (validate shares it)
 │   │   │   ├── profile/        # Profile management
 │   │   │   ├── skills/         # Skill management (install, uninstall, list)
+│   │   │   ├── slack/          # Slack settings (configure, channels, show)
 │   │   │   └── workspace/      # Workspace path resolution
 │   │   ├── linker/             # Cross-reference linking
 │   │   ├── analyzer/           # Impact analysis and project detection
@@ -198,6 +199,7 @@ The project has four layers:
    - `reports add|list|update|remove` - Manage reports (manager mode)
    - `workspace profile|work-log|analysis|root` - Output workspace paths
    - `skills install|uninstall|list` - Manage AI skills
+   - `slack configure`, `slack channels add|remove|list`, `slack show` - Slack settings per IC profile or report (opt-in; `import` enforces them); `show` prints what an import skill uses
 
 2. **AI Skills** (package skills in `.agents/skills/`, installed via `skills install`):
    - IC mode:

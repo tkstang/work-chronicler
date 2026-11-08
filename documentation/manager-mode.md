@@ -350,6 +350,28 @@ detection, the timeline and `analyze team` cover PRs and tickets only. The
 manager skills cite messages as supplementary evidence, never as PRs or
 tickets.
 
+### Slack for a Report
+
+Slack import is opt-in per report: a report without Slack settings
+contributes no Slack records. Only channels that you (the manager) and the
+report both belong to may be used. The CLI cannot see Slack, so the setup
+skill checks membership through your Slack connector, and you confirm it for
+each channel with `--shared-with-manager`; the CLI refuses a report channel
+without that confirmation, and `import` refuses records from a channel that
+lacks it.
+
+```bash
+work-chronicler slack configure --report alice-smith \
+  --workspace T0EXAMPLE --user U0EXAMPLE2
+work-chronicler slack channels add C0EXAMPLE --report alice-smith \
+  --name billing-launch --reason "Launch coordination" --shared-with-manager
+work-chronicler slack show --report alice-smith --json
+```
+
+The same rules as for an IC apply: only the report's own messages, public
+channels unless `--private` opts one in, never direct messages. See
+[Slack](commands.md#slack).
+
 ---
 
 ## Analysis
