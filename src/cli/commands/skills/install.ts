@@ -1,11 +1,4 @@
-import {
-  cpSync,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  rmSync,
-  symlinkSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -22,6 +15,11 @@ import {
   removeRenamedSkill,
   type RenamedSkillEntry,
 } from './migrate';
+import {
+  nodeSkillInstallFs,
+  replaceSkill,
+  type SkillInstallFs,
+} from './replace';
 import {
   AI_TOOL_KEYS,
   AI_TOOLS,
@@ -102,60 +100,73 @@ function getConflictingSkills(toolKey: AIToolKey, skills: string[]): string[] {
   });
 }
 
+interface InstallRequest {
+  fs: SkillInstallFs;
+  toolKey: AIToolKey;
+  skills: string[];
+  method: InstallMethod;
+  overwrite: boolean;
+}
+
+interface InstallResult {
+  installed: number;
+  skipped: number;
+  failed: string[];
+  warnings: string[];
+}
+
 /**
- * Install skills to a target tool. A skill that fails to install is
- * reported in `failed` and removed again, so it never looks installed.
+ * Install skills to a target tool. Each skill is staged and checked before
+ * it replaces anything, so a skill that fails to install is reported in
+ * `failed` and whatever was at its name before is kept. Leftovers that
+ * could not be removed are reported in `warnings`; neither stops the
+ * remaining skills.
  */
-function installSkills(
-  toolKey: AIToolKey,
-  skills: string[],
-  method: InstallMethod,
-  overwrite: boolean,
-): { installed: number; skipped: number; failed: string[] } {
+function installSkills(request: InstallRequest): InstallResult {
+  const { fs, toolKey, skills, method, overwrite } = request;
   const sourceDir = getSourceSkillsDir();
   const targetDir = getSkillsDir(toolKey);
-
-  let installed = 0;
-  let skipped = 0;
-  const failed: string[] = [];
+  const result: InstallResult = {
+    installed: 0,
+    skipped: 0,
+    failed: [],
+    warnings: [],
+  };
 
   try {
     mkdirSync(targetDir, { recursive: true });
   } catch (error) {
-    return {
-      installed,
-      skipped,
-      failed: skills.map((skill) => `${skill}: ${errorMessage(error)}`),
-    };
+    result.failed = skills.map((skill) => `${skill}: ${errorMessage(error)}`);
+    return result;
   }
 
   for (const skill of skills) {
-    const sourcePath = join(sourceDir, skill);
     const targetPath = join(targetDir, skill);
+    if (
+      isPathOccupied(targetPath) &&
+      !overwrite &&
+      !isDanglingSymlink(targetPath)
+    ) {
+      result.skipped++;
+      continue;
+    }
 
-    try {
-      if (isPathOccupied(targetPath)) {
-        if (overwrite || isDanglingSymlink(targetPath)) {
-          rmSync(targetPath, { recursive: true, force: true });
-        } else {
-          skipped++;
-          continue;
-        }
-      }
-
-      if (method === 'symlink') {
-        symlinkSync(sourcePath, targetPath, 'dir');
-      } else {
-        cpSync(sourcePath, targetPath, { recursive: true });
-      }
-      installed++;
-    } catch (error) {
-      failed.push(`${skill}: ${errorMessage(error)}`);
-      rmSync(targetPath, { recursive: true, force: true });
+    const outcome = replaceSkill({
+      fs,
+      sourcePath: join(sourceDir, skill),
+      skillsDir: targetDir,
+      skill,
+      method,
+    });
+    result.warnings.push(...outcome.warnings);
+    if (outcome.installed) {
+      result.installed++;
+    } else {
+      result.failed.push(`${skill}: ${outcome.error}`);
     }
   }
 
-  return { installed, skipped, failed };
+  return result;
 }
 
 function errorMessage(error: unknown): string {
@@ -293,132 +304,156 @@ async function migrateRenamedSkills(
   return failed;
 }
 
-export const installSubcommand = new Command('install')
-  .description('Install work-chronicler skills to AI tools')
-  .addOption(
-    new Option(
-      '-t, --tool <tool...>',
-      'tools to install for (skips the tool prompt)',
-    ).choices([...AI_TOOL_KEYS, 'all']),
-  )
-  .addOption(
-    new Option(
-      '-m, --method <method>',
-      'install method (skips the method prompt)',
-    ).choices(InstallMethodSchema.options),
-  )
-  .option(
-    '-y, --yes',
-    'never prompt: use detected tools, copy, keep what is already at a skill name and remove old names',
-  )
-  .option(
-    '--overwrite',
-    'replace what is already at a skill name without asking',
-  )
-  .option('--keep-old', 'keep skills installed under old names without asking')
-  .action(async (options: InstallOptions) => {
-    // Check for source skills
-    const availableSkills = getAvailableSkills();
-    if (availableSkills.length === 0) {
-      throw new CliError(
-        chalk.red('No skills found in package. Package may be corrupted.'),
-      );
-    }
+/** What `skills install` runs against; tests inject filesystem failures */
+export interface InstallDependencies {
+  fs?: SkillInstallFs;
+}
 
-    console.log(
-      chalk.cyan(`\nFound ${availableSkills.length} skills to install.\n`),
-    );
+export function createInstallSubcommand(
+  dependencies: InstallDependencies = {},
+): Command {
+  const fs = dependencies.fs ?? nodeSkillInstallFs;
+  return new Command('install')
+    .description('Install work-chronicler skills to AI tools')
+    .addOption(
+      new Option(
+        '-t, --tool <tool...>',
+        'tools to install for (skips the tool prompt)',
+      ).choices([...AI_TOOL_KEYS, 'all']),
+    )
+    .addOption(
+      new Option(
+        '-m, --method <method>',
+        'install method (skips the method prompt)',
+      ).choices(InstallMethodSchema.options),
+    )
+    .option(
+      '-y, --yes',
+      'never prompt: use detected tools, copy, keep what is already at a skill name and remove old names',
+    )
+    .option(
+      '--overwrite',
+      'replace what is already at a skill name without asking',
+    )
+    .option(
+      '--keep-old',
+      'keep skills installed under old names without asking',
+    )
+    .action(async (options: InstallOptions) => {
+      // Check for source skills
+      const availableSkills = getAvailableSkills();
+      if (availableSkills.length === 0) {
+        throw new CliError(
+          chalk.red('No skills found in package. Package may be corrupted.'),
+        );
+      }
 
-    const selectedTools = await selectTools(options);
-
-    if (selectedTools.length === 0) {
       console.log(
-        chalk.yellow(
-          options.yes
-            ? 'No AI tools detected. Pass --tool to choose one. Exiting.'
-            : 'No tools selected. Exiting.',
-        ),
+        chalk.cyan(`\nFound ${availableSkills.length} skills to install.\n`),
       );
-      return;
-    }
 
-    const method = await selectMethod(options);
+      const selectedTools = await selectTools(options);
 
-    // Check for conflicts, install, then migrate old names
-    let totalInstalled = 0;
-    const failures: string[] = [];
-
-    for (const toolKey of selectedTools) {
-      const tool = AI_TOOLS[toolKey];
-      const conflicts = getConflictingSkills(toolKey, availableSkills);
-
-      // Only an explicit decision replaces what occupies a destination
-      let overwrite = options.overwrite === true;
-      if (conflicts.length > 0 && !overwrite) {
+      if (selectedTools.length === 0) {
         console.log(
           chalk.yellow(
-            `\n${tool.name} already has something at ${conflicts.length} skill name(s):\n${conflicts.map((name) => `    ${name}`).join('\n')}`,
+            options.yes
+              ? 'No AI tools detected. Pass --tool to choose one. Exiting.'
+              : 'No tools selected. Exiting.',
           ),
         );
-        overwrite = options.yes
-          ? false
-          : await confirm({
-              message: 'Overwrite existing skills?',
-              default: false,
-            });
+        return;
       }
 
-      const result = installSkills(toolKey, availableSkills, method, overwrite);
-      totalInstalled += result.installed;
-      failures.push(...result.failed.map((text) => `${tool.name} ${text}`));
+      const method = await selectMethod(options);
 
-      if (result.installed > 0) {
-        console.log(
-          chalk.green(
-            `✓ Installed ${result.installed} skill(s) to ${tool.name}`,
-          ),
-        );
+      // Check for conflicts, install, then migrate old names
+      let totalInstalled = 0;
+      const failures: string[] = [];
+
+      for (const toolKey of selectedTools) {
+        const tool = AI_TOOLS[toolKey];
+        const conflicts = getConflictingSkills(toolKey, availableSkills);
+
+        // Only an explicit decision replaces what occupies a destination
+        let overwrite = options.overwrite === true;
+        if (conflicts.length > 0 && !overwrite) {
+          console.log(
+            chalk.yellow(
+              `\n${tool.name} already has something at ${conflicts.length} skill name(s):\n${conflicts.map((name) => `    ${name}`).join('\n')}`,
+            ),
+          );
+          overwrite = options.yes
+            ? false
+            : await confirm({
+                message: 'Overwrite existing skills?',
+                default: false,
+              });
+        }
+
+        const result = installSkills({
+          fs,
+          toolKey,
+          skills: availableSkills,
+          method,
+          overwrite,
+        });
+        totalInstalled += result.installed;
+        failures.push(...result.failed.map((text) => `${tool.name} ${text}`));
+
+        if (result.installed > 0) {
+          console.log(
+            chalk.green(
+              `✓ Installed ${result.installed} skill(s) to ${tool.name}`,
+            ),
+          );
+        }
+        if (result.skipped > 0) {
+          console.log(
+            chalk.yellow(`  Skipped ${result.skipped} existing skill(s)`),
+          );
+        }
+        for (const warning of result.warnings) {
+          console.log(chalk.yellow(`  Warning: ${tool.name} ${warning}`));
+        }
+
+        failures.push(...(await migrateRenamedSkills(toolKey, options)));
       }
-      if (result.skipped > 0) {
-        console.log(
-          chalk.yellow(`  Skipped ${result.skipped} existing skill(s)`),
-        );
+
+      // Old names on tools that were not selected are left alone.
+      for (const toolKey of AI_TOOL_KEYS) {
+        if (selectedTools.includes(toolKey)) continue;
+        const leftover = findRenamedSkills(getSkillsDir(toolKey));
+        if (leftover.length > 0) {
+          console.log(
+            chalk.yellow(
+              `\n${AI_TOOLS[toolKey].name} was not selected and still has ${leftover.length} skill(s) under old names. Run \`work-chronicler skills install --tool ${toolKey}\` to migrate it.`,
+            ),
+          );
+        }
       }
 
-      failures.push(...(await migrateRenamedSkills(toolKey, options)));
-    }
-
-    // Old names on tools that were not selected are left alone.
-    for (const toolKey of AI_TOOL_KEYS) {
-      if (selectedTools.includes(toolKey)) continue;
-      const leftover = findRenamedSkills(getSkillsDir(toolKey));
-      if (leftover.length > 0) {
-        console.log(
-          chalk.yellow(
-            `\n${AI_TOOLS[toolKey].name} was not selected and still has ${leftover.length} skill(s) under old names. Run \`work-chronicler skills install --tool ${toolKey}\` to migrate it.`,
-          ),
-        );
-      }
-    }
-
-    console.log(
-      chalk.cyan(`\nDone! Installed ${totalInstalled} skill(s) (${method}).`),
-    );
-
-    if (failures.length > 0) {
-      throw new CliError(
-        chalk.red(
-          `Some skills could not be installed or migrated; old names were kept where their replacement is missing:\n${failures.map((text) => `  ${text}`).join('\n')}`,
-        ),
-      );
-    }
-
-    if (totalInstalled > 0) {
-      console.log(chalk.dim('\nSkills are now available in your AI tools.'));
       console.log(
-        chalk.dim(
-          'Restart your AI tool if it was running, then use /work-chronicler-summarize-work (or similar).',
-        ),
+        chalk.cyan(`\nDone! Installed ${totalInstalled} skill(s) (${method}).`),
       );
-    }
-  });
+
+      if (failures.length > 0) {
+        throw new CliError(
+          chalk.red(
+            `Some skills could not be installed or migrated; old names were kept where their replacement is missing:\n${failures.map((text) => `  ${text}`).join('\n')}`,
+          ),
+        );
+      }
+
+      if (totalInstalled > 0) {
+        console.log(chalk.dim('\nSkills are now available in your AI tools.'));
+        console.log(
+          chalk.dim(
+            'Restart your AI tool if it was running, then use /work-chronicler-summarize-work (or similar).',
+          ),
+        );
+      }
+    });
+}
+
+export const installSubcommand = createInstallSubcommand();

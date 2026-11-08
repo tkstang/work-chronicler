@@ -93,12 +93,32 @@ function script(answers: Record<string, unknown[]>): void {
   }
 }
 
-async function install(args: string[]): Promise<{ error?: Error }> {
+/** Runs before every filesystem operation of a replacement; throw to fail it */
+type FsHook = (op: string, args: unknown[]) => void;
+
+/** An error shaped like Node's filesystem errors */
+const fsError = (code: string) =>
+  Object.assign(new Error(`${code}: injected`), { code });
+
+async function install(
+  args: string[],
+  hook?: FsHook,
+): Promise<{ error?: Error }> {
   const { Command } = await import('commander');
-  const { installSubcommand } = await import('./install');
+  const { createInstallSubcommand } = await import('./install');
+  const { nodeSkillInstallFs } = await import('./replace');
+  const fs = Object.fromEntries(
+    Object.entries(nodeSkillInstallFs).map(([op, fn]) => [
+      op,
+      (...opArgs: unknown[]) => {
+        hook?.(op, opArgs);
+        return (fn as (...a: unknown[]) => unknown)(...opArgs);
+      },
+    ]),
+  ) as unknown as typeof nodeSkillInstallFs;
   const program = new Command('skills')
     .exitOverride()
-    .addCommand(installSubcommand);
+    .addCommand(createInstallSubcommand({ fs }));
   try {
     await program.parseAsync(['install', ...args], { from: 'user' });
     return {};
@@ -119,28 +139,28 @@ const caseInsensitiveTmp = (() => {
   }
 })();
 
+beforeEach(() => {
+  root = mkdtempSync(join(tmpdir(), 'wc-skills-install-'));
+  home = join(root, 'home');
+  mkdirSync(home);
+  vi.stubEnv('HOME', home);
+  vi.stubEnv('USERPROFILE', home);
+  vi.resetModules();
+  script({});
+  logs = [];
+  vi.spyOn(console, 'log').mockImplementation((...parts: unknown[]) => {
+    logs.push(parts.join(' '));
+  });
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+  chmodSync(root, 0o755);
+  rmSync(root, { recursive: true, force: true });
+});
+
 describe('skills install rename migration', () => {
-  beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), 'wc-skills-install-'));
-    home = join(root, 'home');
-    mkdirSync(home);
-    vi.stubEnv('HOME', home);
-    vi.stubEnv('USERPROFILE', home);
-    vi.resetModules();
-    script({});
-    logs = [];
-    vi.spyOn(console, 'log').mockImplementation((...parts: unknown[]) => {
-      logs.push(parts.join(' '));
-    });
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-    vi.unstubAllEnvs();
-    chmodSync(root, 0o755);
-    rmSync(root, { recursive: true, force: true });
-  });
-
   it('replaces copied old names on the selected tool and leaves other tools alone', async () => {
     for (const name of Object.values(OLD_NAMES)) seedCopy('claude', name);
     const cursorOld = seedCopy('cursor', OLD_NAMES.team);
@@ -725,4 +745,253 @@ describe('skills install rename migration', () => {
     );
     expect(output()).toContain('Kept 1 old-name skill(s) in Claude Code');
   });
+});
+
+describe('skills install replacement safety', () => {
+  const BULLETS = NEW_NAMES.bullets;
+  const bulletsPath = () => join(skillsDir('claude'), BULLETS);
+
+  /** The user's edited copy of a current skill */
+  function seedEdited(tool: string, name: string): string {
+    const dir = join(skillsDir(tool), name);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'SKILL.md'), `---\nname: ${name}\n---\nmy edits\n`);
+    return dir;
+  }
+
+  const hidden = (tool: string) =>
+    readdirSync(skillsDir(tool)).filter((name) => name.startsWith('.'));
+
+  const isBulletsSide = (path: unknown, role: string) =>
+    typeof path === 'string' &&
+    basename(path).startsWith(`.${BULLETS}.wc-${role}-`);
+
+  it.each([
+    { method: 'copy', op: 'copyTree' },
+    { method: 'symlink', op: 'symlink' },
+  ])(
+    'keeps the previous skill when the $method fails during --overwrite and carries on',
+    async ({ method, op }) => {
+      seedEdited('claude', BULLETS);
+      const oldTeam = seedCopy('claude', OLD_NAMES.team);
+
+      const { error } = await install(
+        ['--tool', 'claude', '--method', method, '--yes', '--overwrite'],
+        (name, args) => {
+          if (name !== op || basename(String(args[0])) !== BULLETS) return;
+          if (op === 'copyTree') {
+            // A copy that dies part-way leaves a partial staging tree
+            mkdirSync(String(args[1]));
+            writeFileSync(join(String(args[1]), 'SKILL.md'), '---\n');
+          }
+          throw fsError('EIO');
+        },
+      );
+
+      expect(error?.message).toContain(
+        `Claude Code ${BULLETS}: EIO: injected; the previous install was kept`,
+      );
+      expect(readFileSync(join(bulletsPath(), 'SKILL.md'), 'utf8')).toContain(
+        'my edits',
+      );
+      expect(hidden('claude')).toEqual([]);
+      // The remaining skills and the old-name migration still run
+      expect(installedName('claude', NEW_NAMES.team)).toBe(NEW_NAMES.team);
+      expect(occupied(oldTeam)).toBe(false);
+      expect(output()).toContain(
+        'Removed 1 old-name skill(s) from Claude Code',
+      );
+    },
+  );
+
+  it('reports a temporary copy it cannot remove and still finishes the run', async () => {
+    seedEdited('claude', BULLETS);
+    const oldTeam = seedCopy('claude', OLD_NAMES.team);
+
+    const { error } = await install(
+      ['--tool', 'claude', '--yes', '--overwrite'],
+      (name, args) => {
+        if (name === 'copyTree' && basename(String(args[0])) === BULLETS) {
+          mkdirSync(String(args[1]));
+          throw fsError('EIO');
+        }
+        if (name === 'removeTree' && isBulletsSide(args[0], 'staging')) {
+          throw fsError('EBUSY');
+        }
+      },
+    );
+
+    expect(error?.message).toContain(`${BULLETS}: EIO: injected`);
+    expect(output()).toMatch(
+      new RegExp(
+        `Warning: Claude Code ${BULLETS}: a temporary copy could not be removed and is left at .*\\.wc-staging-.* \\(EBUSY: injected\\)`,
+      ),
+    );
+    expect(readFileSync(join(bulletsPath(), 'SKILL.md'), 'utf8')).toContain(
+      'my edits',
+    );
+    expect(installedName('claude', NEW_NAMES.team)).toBe(NEW_NAMES.team);
+    expect(occupied(oldTeam)).toBe(false);
+  });
+
+  it('puts the previous skill back when the staged one cannot be moved into place', async () => {
+    seedEdited('claude', BULLETS);
+
+    const { error } = await install(
+      ['--tool', 'claude', '--yes', '--overwrite'],
+      (name, args) => {
+        if (name === 'rename' && isBulletsSide(args[0], 'staging')) {
+          throw fsError('EXDEV');
+        }
+      },
+    );
+
+    expect(error?.message).toContain(
+      `${BULLETS}: EXDEV: injected; the previous install was kept`,
+    );
+    expect(readFileSync(join(bulletsPath(), 'SKILL.md'), 'utf8')).toContain(
+      'my edits',
+    );
+    expect(hidden('claude')).toEqual([]);
+  });
+
+  it('keeps the previous skill aside and says where when it cannot be put back', async () => {
+    seedEdited('claude', BULLETS);
+
+    const { error } = await install(
+      ['--tool', 'claude', '--yes', '--overwrite'],
+      (name, args) => {
+        if (
+          name === 'rename' &&
+          (isBulletsSide(args[0], 'staging') ||
+            isBulletsSide(args[0], 'backup'))
+        ) {
+          throw fsError('EIO');
+        }
+      },
+    );
+
+    const [backup] = hidden('claude');
+    expect(backup).toMatch(new RegExp(`^\\.${BULLETS}\\.wc-backup-`));
+    expect(error?.message).toContain(
+      `the previous install could not be put back and is kept at ${join(skillsDir('claude'), backup as string)}`,
+    );
+    expect(
+      readFileSync(
+        join(skillsDir('claude'), backup as string, 'SKILL.md'),
+        'utf8',
+      ),
+    ).toContain('my edits');
+  });
+
+  it('puts the previous skill back when the installed one does not check out in place', async () => {
+    seedEdited('claude', BULLETS);
+
+    const { error } = await install(
+      ['--tool', 'claude', '--yes', '--overwrite'],
+      (name, args) => {
+        if (
+          name === 'readFile' &&
+          args[0] === join(bulletsPath(), 'SKILL.md')
+        ) {
+          throw fsError('EIO');
+        }
+      },
+    );
+
+    expect(error?.message).toContain(
+      `the installed SKILL.md at ${bulletsPath()} does not declare ${BULLETS}; the previous install was kept`,
+    );
+    expect(readFileSync(join(bulletsPath(), 'SKILL.md'), 'utf8')).toContain(
+      'my edits',
+    );
+    expect(hidden('claude')).toEqual([]);
+  });
+
+  it('reports a replaced skill it cannot remove without failing the install', async () => {
+    seedEdited('claude', BULLETS);
+    const oldTeam = seedCopy('claude', OLD_NAMES.team);
+
+    const { error } = await install(
+      ['--tool', 'claude', '--yes', '--overwrite'],
+      (name, args) => {
+        if (name === 'removeTree' && isBulletsSide(args[0], 'backup')) {
+          throw fsError('EBUSY');
+        }
+      },
+    );
+
+    expect(error).toBeUndefined();
+    expect(installedName('claude', BULLETS)).toBe(BULLETS);
+    const [backup] = hidden('claude');
+    expect(output()).toContain(
+      `Warning: Claude Code ${BULLETS}: installed, but the replaced entry could not be removed and is left at ${join(skillsDir('claude'), backup as string)} (EBUSY: injected)`,
+    );
+    expect(installedName('claude', NEW_NAMES.team)).toBe(NEW_NAMES.team);
+    expect(occupied(oldTeam)).toBe(false);
+  });
+
+  it('replaces a symlinked skill without touching what it points to', async () => {
+    const mine = join(root, 'my-skills', BULLETS);
+    mkdirSync(mine, { recursive: true });
+    writeFileSync(join(mine, 'SKILL.md'), `---\nname: ${BULLETS}\n---\nmine\n`);
+    seedLink('claude', BULLETS, mine);
+
+    const { error } = await install([
+      '--tool',
+      'claude',
+      '--yes',
+      '--overwrite',
+    ]);
+
+    expect(error).toBeUndefined();
+    expect(lstatSync(bulletsPath()).isDirectory()).toBe(true);
+    expect(installedName('claude', BULLETS)).toBe(BULLETS);
+    expect(readFileSync(join(mine, 'SKILL.md'), 'utf8')).toContain('mine');
+  });
+
+  it('keeps a link from another tool into the replaced skill working', async () => {
+    seedEdited('claude', BULLETS);
+    const cursorLink = seedLink('cursor', BULLETS, bulletsPath());
+
+    const { error } = await install([
+      '--tool',
+      'claude',
+      '--yes',
+      '--overwrite',
+    ]);
+
+    expect(error).toBeUndefined();
+    expect(readlinkSync(cursorLink)).toBe(bulletsPath());
+    expect(installedName('cursor', BULLETS)).toBe(BULLETS);
+    expect(readFileSync(join(cursorLink, 'SKILL.md'), 'utf8')).not.toContain(
+      'my edits',
+    );
+  });
+
+  it.skipIf(!caseInsensitiveTmp)(
+    'puts a differently cased skill back under its own name',
+    async () => {
+      const upper = BULLETS.toUpperCase();
+      seedEdited('claude', upper);
+
+      const { error } = await install(
+        ['--tool', 'claude', '--yes', '--overwrite'],
+        (name, args) => {
+          if (name === 'rename' && isBulletsSide(args[0], 'staging')) {
+            throw fsError('EIO');
+          }
+        },
+      );
+
+      expect(error?.message).toContain(
+        `${BULLETS}: EIO: injected; the previous install was kept`,
+      );
+      expect(readdirSync(skillsDir('claude'))).toContain(upper);
+      expect(readdirSync(skillsDir('claude'))).not.toContain(BULLETS);
+      expect(
+        readFileSync(join(skillsDir('claude'), upper, 'SKILL.md'), 'utf8'),
+      ).toContain('my edits');
+    },
+  );
 });
