@@ -12,6 +12,11 @@ export interface ToolContext {
    * tool notice a subset that is missing data the full work log has.
    */
   fullOutputDir?: string;
+  /**
+   * The configured `github.username`. Review records written for anyone
+   * else are not this user's work and are left out.
+   */
+  githubUsername?: string;
 }
 
 /**

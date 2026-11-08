@@ -771,64 +771,84 @@ describe('fetchGitHubReviews', () => {
     expect(github.reviewListings).toEqual(['acme/api#7']);
   });
 
-  describe('a record stored for a different reviewer', () => {
+  describe('review records stored for a different reviewer', () => {
     const range = { since: '2025-01-01', until: '2025-12-01' };
 
-    function addPRReviewedByAliceAndMe(): void {
+    /** Alice's record of PR 1, fetched while github.username was alice. */
+    async function seedAliceRecord(myReviews: FakeReview[]): Promise<string> {
       addPR({
         number: 1,
         author: 'carol',
         updatedAt: '2025-05-01T00:00:00Z',
         reviews: [
           review(1, '2025-02-01T00:00:00Z', { user: 'alice' }),
-          review(2, '2025-05-01T00:00:00Z', { state: 'APPROVED' }),
+          ...myReviews,
         ],
       });
-    }
-
-    it('is replaced, not merged, when fetching a different range', async () => {
-      addPRReviewedByAliceAndMe();
       await fetchReviews({ range, username: 'alice' });
       expect((await storedRecord('acme', 'api', 1))?.reviewer).toBe('alice');
-      logs.length = 0;
-
-      await fetchReviews({
-        range: { since: '2025-04-01', until: '2025-12-01' },
-      });
-
-      const record = await storedRecord('acme', 'api', 1);
-      expect(record?.reviewer).toBe(ME);
-      expect(record?.reviews.map((r) => r.reviewId)).toEqual([2]);
-      expect(logs).toContainEqual(
-        expect.stringContaining(
-          'Replaced 1 review record(s) stored for another GitHub user (alice)',
-        ),
-      );
-    });
-
-    it('is not reused by --cache', async () => {
-      addPRReviewedByAliceAndMe();
-      await fetchReviews({ range, username: 'alice' });
+      github.lookups.length = 0;
+      github.searches.length = 0;
       github.reviewListings.length = 0;
+      return readFileSync(
+        getPRReviewFilePath(outputDir, 'acme', 'api', 1),
+        'utf-8',
+      );
+    }
 
-      await fetchReviews({ range, useCache: true });
+    it.each([
+      {
+        how: 'my review is outside the range',
+        myReviews: [review(2, '2024-06-01T00:00:00Z')],
+        useCache: false,
+      },
+      { how: 'no PR matches my search', myReviews: [], useCache: false },
+      {
+        how: 'my review is in range',
+        myReviews: [review(2, '2025-05-01T00:00:00Z')],
+        useCache: false,
+      },
+      {
+        how: 'the stored record would be reused by --cache',
+        myReviews: [review(2, '2025-05-01T00:00:00Z')],
+        useCache: true,
+      },
+    ])(
+      'refuse the fetch without any request or write when $how',
+      async ({ myReviews, useCache }) => {
+        const before = await seedAliceRecord(myReviews);
 
-      expect(github.reviewListings).toEqual(['acme/api#1']);
-      const record = await storedRecord('acme', 'api', 1);
-      expect(record?.reviewer).toBe(ME);
-      expect(record?.reviews.map((r) => r.reviewId)).toEqual([2]);
-    });
+        await expect(fetchReviews({ range, useCache })).rejects.toThrow(
+          /holds 1 review record\(s\) for another GitHub user \(alice\), but github\.username is octocat/,
+        );
 
-    it('is still reused when only the login case differs', async () => {
-      addPRReviewedByAliceAndMe();
+        expect(github.lookups).toEqual([]);
+        expect(github.searches).toEqual([]);
+        expect(github.reviewListings).toEqual([]);
+        expect(
+          readFileSync(
+            getPRReviewFilePath(outputDir, 'acme', 'api', 1),
+            'utf-8',
+          ),
+        ).toBe(before);
+        expect(await readAllPRReviews(outputDir)).toHaveLength(1);
+      },
+    );
+
+    it('are not a problem when only the login case differs', async () => {
+      addPR({
+        number: 1,
+        author: 'carol',
+        updatedAt: '2025-05-01T00:00:00Z',
+        reviews: [review(2, '2025-05-01T00:00:00Z')],
+      });
       await fetchReviews({ range, username: ME.toUpperCase() });
       github.reviewListings.length = 0;
-      logs.length = 0;
 
       await fetchReviews({ range, useCache: true });
 
       expect(github.reviewListings).toEqual([]);
-      expect(logs.some((line) => line.includes('Replaced'))).toBe(false);
+      expect((await storedRecord('acme', 'api', 1))?.reviews).toHaveLength(1);
     });
   });
 

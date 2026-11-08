@@ -22,6 +22,7 @@ import {
 } from './fetch-manager.utils';
 import { resolveCacheBehavior } from './fetch.utils';
 import {
+  assertReviewRecordsBelongTo,
   fetchGitHubReviews,
   MANAGER_REVIEWS_SKIPPED,
 } from './github/github-reviews.utils';
@@ -45,6 +46,12 @@ async function fetchAllICMode(options: FetchAllOptions): Promise<void> {
   const configPath = findConfigPath(options.config);
   const config = await loadConfig(options.config);
   const outputDir = getOutputDirectory(config, configPath ?? undefined);
+
+  // Refuse a review fetch into another user's review records before
+  // anything is fetched, so the refused run writes nothing
+  if (options.reviews && config.github.orgs.length > 0) {
+    await assertReviewRecordsBelongTo(outputDir, config.github.username);
+  }
 
   // Determine cache behavior - prompt if data exists and --cache not specified
   const useCache = await resolveCacheBehavior({

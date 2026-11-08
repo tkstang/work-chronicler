@@ -664,4 +664,56 @@ describe('search_pr_reviews', () => {
       'https://github.com/acme/web-app/pull/1',
     ]);
   });
+
+  describe('a record written for another GitHub user', () => {
+    beforeEach(() => {
+      const record = reviewRecord('lib', 9, {
+        reviewer: 'alice',
+        reviews: [
+          {
+            reviewId: 90,
+            state: 'APPROVED',
+            submittedAt: '2025-06-01T00:00:00Z',
+            url: 'https://github.com/acme/lib/pull/9#pullrequestreview-90',
+            body: "Alice's review",
+          },
+        ],
+      });
+      writeMarkdownFile(
+        getPRReviewFilePath(ctx.outputDir, 'acme', 'lib', 9),
+        record,
+        '',
+      );
+    });
+
+    it('is left out, with a note, when the configured user is known', async () => {
+      const out = parse(
+        await searchPrReviewsTool.handler({}, { ...ctx, githubUsername: 'ME' }),
+      );
+
+      expect(
+        out.results.map((r: { reviewer: string; prUrl: string }) => [
+          r.reviewer,
+          r.prUrl,
+        ]),
+      ).toEqual([
+        ['me', 'https://github.com/acme/api/pull/1'],
+        ['me', 'https://github.com/acme/web-app/pull/1'],
+      ]);
+      expect(out.total).toBe(2);
+      expect(out.note).toContain(
+        'Left out 1 review record(s) written for another GitHub user (alice), not ME',
+      );
+    });
+
+    it('is attributed to its reviewer when the configured user is unknown', async () => {
+      const out = parse(await searchPrReviewsTool.handler({}, ctx));
+
+      expect(out.results[0]).toMatchObject({
+        reviewer: 'alice',
+        prUrl: 'https://github.com/acme/lib/pull/9',
+      });
+      expect(out.total).toBe(3);
+    });
+  });
 });

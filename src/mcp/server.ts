@@ -72,7 +72,11 @@ export async function createServer(): Promise<MCPServerContext> {
   return {
     config,
     outputDir,
-    server: createToolServer({ outputDir, fullOutputDir: baseOutputDir }),
+    server: createToolServer({
+      outputDir,
+      fullOutputDir: baseOutputDir,
+      githubUsername: config.github.username || undefined,
+    }),
   };
 }
 

@@ -10,6 +10,7 @@ export {
   PRReviewRecordSchema,
   type ReviewedPullRequest,
   ReviewedPullRequestSchema,
+  splitReviewRecordsByReviewer,
 } from './pr-review';
 export {
   type PRImpact,

@@ -93,7 +93,9 @@ tools never count them, and `get_stats`, `get_projects`, `get_timeline` and
 `search_prs` cover authored PRs only. If the filtered subset was made before
 you fetched reviews (it has no `pr-reviews/`), `search_pr_reviews` reads the
 full work log instead and adds a `note` asking you to re-run `filter`. It also
-adds a `note` when no reviews have been fetched.
+adds a `note` when no reviews have been fetched. Each result names its
+`reviewer`; records written for a GitHub user other than your configured
+`github.username` are left out, with a `note` saying how many.
 
 Example prompts once connected:
 

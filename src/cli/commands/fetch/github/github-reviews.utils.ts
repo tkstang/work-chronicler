@@ -7,14 +7,20 @@
  * under `pr-reviews/`, separate from authored PRs.
  */
 
+import { join } from 'node:path';
+
+import { CliError } from '@cli/errors';
 import {
   type Config,
+  DIRECTORIES,
   type GitHubOrgConfig,
   type GivenReview,
   type GivenReviewComment,
   getPRReviewFilePath,
   type PRReviewRecord,
+  readAllPRReviews,
   readPRReview,
+  splitReviewRecordsByReviewer,
   writeMarkdownFile,
 } from '@core/index';
 import { Octokit } from '@octokit/rest';
@@ -63,13 +69,6 @@ export interface GitHubReviewFetchResult {
   recordsWritten: number;
   /** PRs skipped by `--cache` because nothing changed */
   recordsUnchanged: number;
-  /**
-   * Written records that replaced one stored for a different reviewer; the
-   * other reviewer's entries were dropped, never relabeled
-   */
-  recordsReplaced: number;
-  /** The other reviewers whose records were replaced */
-  replacedReviewers: string[];
   /** Reviews and inline comments in the written records, inside the range */
   reviews: number;
   comments: number;
@@ -331,22 +330,12 @@ interface FetchPRReviewsParams {
 type PRReviewOutcome =
   | { kind: 'unchanged' }
   | { kind: 'empty' }
-  | {
-      kind: 'written';
-      reviews: number;
-      comments: number;
-      /** The other reviewer whose stored record this one replaced */
-      replacedReviewer: string | null;
-    };
+  | { kind: 'written'; reviews: number; comments: number };
 
 /**
  * Fetch the user's reviews and inline comments on one PR and upsert its
- * review record.
- *
- * A stored record is reused (by `--cache`) or merged only when it belongs to
- * the same reviewer. A record written for someone else, e.g. before
- * `github.username` changed, is replaced by one holding only this user's
- * entries, so nobody's review work is attributed to another person.
+ * review record. Stored records all belong to this user:
+ * {@link assertReviewRecordsBelongTo} runs before any PR is fetched.
  */
 async function fetchPRReviews(
   params: FetchPRReviewsParams,
@@ -354,10 +343,7 @@ async function fetchPRReviews(
   const { octokit, item, owner, repo, username, range, outputDir, useCache } =
     params;
   const filePath = getPRReviewFilePath(outputDir, owner, repo, item.number);
-  const stored = (await readPRReview(filePath))?.frontmatter;
-  const existing =
-    stored && sameLogin(stored.reviewer, username) ? stored : undefined;
-  const replacedReviewer = stored && !existing ? stored.reviewer : null;
+  const existing = (await readPRReview(filePath))?.frontmatter;
 
   if (useCache && existing && isRecordCurrent(existing, item, range)) {
     return { kind: 'unchanged' };
@@ -468,7 +454,6 @@ async function fetchPRReviews(
     kind: 'written',
     reviews: reviews.length,
     comments: comments.length,
-    replacedReviewer,
   };
 }
 
@@ -492,8 +477,6 @@ async function fetchOrgReviews(
     org,
     recordsWritten: 0,
     recordsUnchanged: 0,
-    recordsReplaced: 0,
-    replacedReviewers: [],
     reviews: 0,
     comments: 0,
     problems: [],
@@ -572,12 +555,6 @@ async function fetchOrgReviews(
         result.recordsWritten++;
         result.reviews += outcome.reviews;
         result.comments += outcome.comments;
-        if (outcome.replacedReviewer !== null) {
-          result.recordsReplaced++;
-          if (!result.replacedReviewers.includes(outcome.replacedReviewer)) {
-            result.replacedReviewers.push(outcome.replacedReviewer);
-          }
-        }
         if (params.verbose) {
           spinner.stop();
           console.log(
@@ -604,12 +581,39 @@ async function fetchOrgReviews(
 }
 
 /**
+ * Refuse to fetch reviews into a work log whose `pr-reviews/` already holds
+ * records for a different GitHub user, e.g. after `github.username` changed.
+ * Fetching would mix two people's review work, and tools that read the work
+ * log would present the other person's reviews as this user's. Reads only.
+ *
+ * @throws CliError naming the other reviewers and how to proceed
+ */
+export async function assertReviewRecordsBelongTo(
+  outputDir: string,
+  username: string,
+): Promise<void> {
+  const { foreign, foreignReviewers } = splitReviewRecordsByReviewer(
+    await readAllPRReviews(outputDir),
+    username,
+  );
+  if (foreign.length === 0) return;
+  const reviewsDir = join(outputDir, DIRECTORIES.PR_REVIEWS);
+  throw new CliError(
+    `${reviewsDir} holds ${foreign.length} review record(s) for another GitHub user (${foreignReviewers.join(', ')}), but github.username is ${username}. ` +
+      "Fetching would mix two people's review work, so nothing was fetched. " +
+      `Use a separate profile or output directory for ${username}, or remove ${reviewsDir} if those records are no longer needed.`,
+  );
+}
+
+/**
  * Fetch the reviews and inline review comments the configured user gave
  * inside the fetch range, on any PR in the configured orgs and repos, and
  * store them as review records.
  *
- * Requests run one at a time. A rate limit stops the run; any other failure
- * is reported per org, the run continues, and the exit code is set to 1.
+ * Refuses, before any request, when the work log holds review records for a
+ * different user. Requests run one at a time. A rate limit stops the run;
+ * any other failure is reported per org, the run continues, and the exit
+ * code is set to 1.
  */
 export async function fetchGitHubReviews(
   options: FetchGitHubReviewsOptions,
@@ -621,6 +625,9 @@ export async function fetchGitHubReviews(
     return [];
   }
 
+  const username = config.github.username;
+  await assertReviewRecordsBelongTo(outputDir, username);
+
   const token = getGitHubToken(config);
   if (!token) {
     throw new Error(
@@ -629,7 +636,6 @@ export async function fetchGitHubReviews(
   }
 
   const octokit = new Octokit({ auth: token });
-  const username = config.github.username;
   const range: Range = {
     since: parseDate(config.fetch.since),
     until: config.fetch.until ? parseDate(config.fetch.until) : new Date(),
@@ -668,13 +674,6 @@ export async function fetchGitHubReviews(
     console.log(
       `  ${chalk.green(result.recordsWritten)} reviewed PRs: ${result.reviews} reviews, ${result.comments} inline comments${unchanged}`,
     );
-    if (result.recordsReplaced > 0) {
-      console.log(
-        `  ${chalk.yellow('⚠')} ${chalk.yellow(
-          `Replaced ${result.recordsReplaced} review record(s) stored for another GitHub user (${result.replacedReviewers.join(', ')}); they now hold only ${username}'s reviews.`,
-        )}`,
-      );
-    }
     if (result.problems.length > 0) {
       for (const problem of result.problems) {
         console.log(`  ${chalk.yellow('⚠')} ${chalk.yellow(problem)}`);

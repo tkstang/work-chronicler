@@ -66,10 +66,15 @@ function authoredPR(
   );
 }
 
-function reviewRecord(org: string, repo: string, prNumber: number) {
+function reviewRecord(
+  org: string,
+  repo: string,
+  prNumber: number,
+  reviewer = 'me',
+) {
   const record: import('@core/index').PRReviewRecord = {
     type: 'pr-review',
-    reviewer: 'me',
+    reviewer,
     pr: {
       url: `https://github.com/${org}/${repo}/pull/${prNumber}`,
       org,
@@ -263,5 +268,25 @@ describe('a work log with authored PRs and review records', () => {
     // filter always writes pr-reviews/, even when no review record matches
     await run(filterCommand, ['--org', 'other']);
     expect(existsSync(join(filteredDir, 'pr-reviews'))).toBe(true);
+  });
+
+  it('does not count review records written for another GitHub user in status', async () => {
+    // Same work log as above: three records reviewed by `me`
+    reviewRecord('acme', 'api', 50, 'alice');
+    reviewRecord('acme', 'api', 51, 'ME');
+
+    logs = [];
+    await run(statusCommand, []);
+
+    expect(
+      logs.some((line) =>
+        line.startsWith('PR Reviews:    4 reviewed PRs (4 reviews'),
+      ),
+    ).toBe(true);
+    expect(logs).toContainEqual(
+      expect.stringContaining(
+        '1 review record(s) in pr-reviews/ belong to another GitHub user (alice), not me, and are not counted',
+      ),
+    );
   });
 });

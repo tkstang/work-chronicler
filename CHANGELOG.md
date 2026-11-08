@@ -26,11 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   own PRs are skipped). Pending reviews and
   ordinary PR conversation comments are left out. Each reviewed PR is stored
   once at `work-log/pr-reviews/<org>/<repo>/<number>.md` and updated on later
-  fetches; it is never counted as a PR you authored. Opt-in because it costs
-  extra GitHub requests. IC profiles only: manager profiles print a notice
-  and skip it.
+  fetches; it is never counted as a PR you authored. If `pr-reviews/` already
+  holds another GitHub user's records, the fetch refuses and writes nothing.
+  Opt-in because it costs extra GitHub requests. IC profiles only: manager
+  profiles print a notice and skip it.
 - `status` shows the reviewed PRs, reviews and inline comments; the new
-  read-only MCP tool `search_pr_reviews` searches them; `filter` copies them
+  read-only MCP tool `search_pr_reviews` searches them (both leave out records
+  written for another GitHub user, and say so); `filter` copies them
   into `filtered/` using its org and repo selectors. Re-run `filter` after
   your first `fetch --reviews`; until then `status` and `search_pr_reviews`
   point out that the subset is missing them.

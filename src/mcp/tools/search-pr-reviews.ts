@@ -5,6 +5,7 @@ import {
   DIRECTORIES,
   isFilteredSubsetMissingReviews,
   readAllPRReviews,
+  splitReviewRecordsByReviewer,
 } from '@core/index';
 import { z } from 'zod';
 
@@ -41,20 +42,33 @@ export const searchPrReviewsTool = defineTool({
       .describe('End date for review and comment times (ISO format)'),
     limit: z.number().optional().describe('Maximum number of reviewed PRs'),
   },
-  handler: async (input, { outputDir, fullOutputDir }) => {
+  handler: async (input, { outputDir, fullOutputDir, githubUsername }) => {
     // A filtered subset written before reviews were fetched has no
     // pr-reviews/. Read the full work log then, and say so, rather than
     // reporting no reviews. A subset that has pr-reviews/ is always used.
     let source = outputDir;
-    let note: string | undefined;
+    const notes: string[] = [];
     const fullDir = fullOutputDir ?? outputDir;
     if (fullDir !== outputDir && isFilteredSubsetMissingReviews(fullDir)) {
       source = fullDir;
-      note =
-        'The filtered subset was created before PR reviews were fetched, so these results come from the full work log. Re-run `work-chronicler filter` to apply your filters to reviews.';
+      notes.push(
+        'The filtered subset was created before PR reviews were fetched, so these results come from the full work log. Re-run `work-chronicler filter` to apply your filters to reviews.',
+      );
     } else if (!existsSync(join(fullDir, DIRECTORIES.PR_REVIEWS))) {
-      note =
-        'No PR reviews have been fetched. Run `work-chronicler fetch github --reviews` (IC profiles only).';
+      notes.push(
+        'No PR reviews have been fetched. Run `work-chronicler fetch github --reviews` (IC profiles only).',
+      );
+    }
+
+    // Records written for another GitHub user are not this user's work
+    const { own, foreign, foreignReviewers } = splitReviewRecordsByReviewer(
+      await readAllPRReviews(source),
+      githubUsername,
+    );
+    if (foreign.length > 0) {
+      notes.push(
+        `Left out ${foreign.length} review record(s) written for another GitHub user (${foreignReviewers.join(', ')}), not ${githubUsername}. Use a separate profile or output directory for each person.`,
+      );
     }
 
     const since = input.since
@@ -69,7 +83,7 @@ export const searchPrReviewsTool = defineTool({
     };
     const queryLower = input.query?.toLowerCase();
 
-    let results = (await readAllPRReviews(source))
+    let results = own
       .map(({ frontmatter: record }) => {
         // With a state, keep the comments submitted with a review in that
         // state: they carry the review's substance (e.g. requested changes)
@@ -117,6 +131,7 @@ export const searchPrReviewsTool = defineTool({
           ...comments.map((c) => c.createdAt),
         ].sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
         return {
+          reviewer: record.reviewer,
           prUrl: record.pr.url,
           org: record.pr.org,
           repository: record.pr.repository,
@@ -166,7 +181,7 @@ export const searchPrReviewsTool = defineTool({
       total,
       returned: results.length,
       totals,
-      ...(note ? { note } : {}),
+      ...(notes.length > 0 ? { note: notes.join(' ') } : {}),
     });
   },
 });

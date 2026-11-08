@@ -71,6 +71,7 @@ export {
   type PullRequestFile,
   PullRequestSchema,
   type ReviewedPullRequest,
+  splitReviewRecordsByReviewer,
   type TimelineAnalysis,
   TimelineAnalysisSchema,
   type TimelineMonth,

@@ -58,6 +58,8 @@ vi.stubEnv('GITHUB_TOKEN', '');
 const { Command } = await import('commander');
 const { handleCliError } = await import('@cli/errors');
 const { fetchCommand } = await import('./index');
+const { getPRReviewFilePath, getWorkLogDir, writeMarkdownFile } =
+  await import('@core/index');
 
 /**
  * Run `work-chronicler <args>` with the same error wiring as src/cli/index.ts:
@@ -214,6 +216,46 @@ describe('fetch command lifecycle', () => {
         'is:pr reviewed-by:octocat -author:octocat org:acme updated:>=2025-01-01',
       ]);
     });
+
+    it.each([
+      ['fetch', 'github', '--cache', '--reviews'],
+      ['fetch', 'all', '--cache', '--no-link', '--reviews'],
+    ])(
+      "refuse `%s %s` before fetching anything when the work log holds another reviewer's records",
+      async (...args) => {
+        writeMarkdownFile(
+          getPRReviewFilePath(getWorkLogDir('default'), 'acme', 'web', 1),
+          {
+            type: 'pr-review',
+            reviewer: 'alice',
+            pr: {
+              url: 'https://github.com/acme/web/pull/1',
+              org: 'acme',
+              repository: 'web',
+              prNumber: 1,
+              title: 'Synthetic PR',
+              author: 'carol',
+              state: 'open',
+            },
+            prUpdatedAt: '2025-05-01T00:00:00Z',
+            reviews: [],
+            comments: [],
+          },
+          '',
+        );
+
+        const result = await runCli(args);
+
+        expect(result.handled).toBe(true);
+        expect(result.exitCode).not.toBe(0);
+        expect(result.exitCode).toBeDefined();
+        expect(result.stderr).toContain(
+          'review record(s) for another GitHub user (alice)',
+        );
+        expect(pullsRequested).toEqual([]);
+        expect(searches).toEqual([]);
+      },
+    );
 
     it('are skipped with a notice for manager profiles while PRs are still fetched', async () => {
       vi.stubEnv('WORK_CHRONICLER_PROFILE', 'manager');

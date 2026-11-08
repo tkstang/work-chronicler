@@ -180,6 +180,18 @@ describe('MCP server over a transport', () => {
       expect(stale.total).toBe(1);
       expect(stale.note).toContain('Re-run `work-chronicler filter`');
 
+      // Another person's record is not the configured user's work
+      writeMarkdownFile(
+        getPRReviewFilePath(workLog, 'acme', 'api', 10),
+        { ...record, reviewer: 'alice', pr: { ...record.pr, prNumber: 10 } },
+        '',
+      );
+      const mixed = await searchReviews();
+      expect(mixed.total).toBe(1);
+      expect(mixed.note).toContain(
+        'Left out 1 review record(s) written for another GitHub user (alice), not me',
+      );
+
       // A subset written after reviews existed is used as is, even empty
       mkdirSync(join(workLog, 'filtered', 'pr-reviews'));
       const current = await searchReviews();

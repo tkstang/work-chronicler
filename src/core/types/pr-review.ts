@@ -95,3 +95,29 @@ export function getReviewActivityDates(record: PRReviewRecord): string[] {
     ...record.comments.map((c) => c.createdAt),
   ].sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
 }
+
+/**
+ * Split review record files into those written for `username` and those
+ * written for someone else. Logins compare case-insensitively, as on GitHub.
+ * Without a username every record counts as the user's.
+ */
+export function splitReviewRecordsByReviewer<
+  T extends { frontmatter: PRReviewRecord },
+>(
+  files: T[],
+  username: string | undefined,
+): { own: T[]; foreign: T[]; foreignReviewers: string[] } {
+  const own: T[] = [];
+  const foreign: T[] = [];
+  const foreignReviewers: string[] = [];
+  for (const file of files) {
+    const reviewer = file.frontmatter.reviewer;
+    if (!username || reviewer.toLowerCase() === username.toLowerCase()) {
+      own.push(file);
+      continue;
+    }
+    foreign.push(file);
+    if (!foreignReviewers.includes(reviewer)) foreignReviewers.push(reviewer);
+  }
+  return { own, foreign, foreignReviewers };
+}
