@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-11-07
-oat_current_task_id: p02
+oat_current_task_id: p03
 oat_generated: false
 ---
 
@@ -52,7 +52,7 @@ oat_generated: false
 | p10   | pending   | 1     | 0/1      |
 | p11   | pending   | 1     | 0/1      |
 
-**Total:** 1/11 phases accepted
+**Total:** 2/11 phases accepted
 
 ---
 
@@ -109,10 +109,10 @@ Review `reviews/p01-review-2026-11-07T233956Z.md` (0 Critical/High, 5 Low) passe
 
 ## Phase p02: PR reviews given (IC)
 
-**Status:** in_progress
+**Status:** completed
 **Base:** 6014af5a9a414134f70b4e87def8f5b38cd23025
 **Executor:** phase-implementer:wce-p02-impl-1
-**Head:** 57a1470018120c3d0aa9a1914896db8bfbaaaf90
+**Head:** 23a4f1aae63ebd37c8966dca2c2136f794f14190
 
 Worktree and branch as p01; committing owner: the phase implementer (code); root owns the journal. Parallelism: no declared group; fan-out rejected (fetch, types, storage, consumers and docs are sequentially dependent); one phase implementer.
 
@@ -153,6 +153,40 @@ New read-only MCP tool `search_pr_reviews`; `status` counts reviewed PRs; `filte
 **Executor:** phase-implementer:wce-p02-impl-1
 
 Docs, CHANGELOG, AGENTS.md, and write-self-review / write-resume-bullets / summarize-work cite reviews as review work. Proof: `format:check`.
+
+Review `reviews/p02-review-2026-11-08T000100Z.md`: 0 Critical/High, 2 Medium, 4 Low; passed. The implementer fixed all six in a continuation of wce-p02-impl-1 (late-fix rule: no later phase Base, so Head advanced). Root re-ran typecheck and tests at the new Head: pass (223). Fixes not independently re-reviewed; the m01 integrated cross-provider review covers them.
+
+### Task p02-t05: Show reviews hidden by an old filtered subset (M1)
+
+**Status:** completed
+**Commit:** 7d04ae446e9e4bbbd1536b85b8da4d8f1ce83d5c
+**Executor:** phase-implementer:wce-p02-impl-1
+
+Review fix. Proof: full DoD batch.
+
+### Task p02-t06: State filter keeps comments of matching reviews (L4)
+
+**Status:** completed
+**Commit:** 4973862c554178f90a68a0042689ea7d61331c56
+**Executor:** phase-implementer:wce-p02-impl-1
+
+Review fix. Proof: full DoD batch.
+
+### Task p02-t07: Warn once about incomplete search; test range changes (L2, L3)
+
+**Status:** completed
+**Commit:** 86fb18c08a708e8d553b95887b8b0576a763c3a9
+**Executor:** phase-implementer:wce-p02-impl-1
+
+Review fix. Proof: full DoD batch.
+
+### Task p02-t08: update-resume cites reviews; docs say own PRs are skipped (M2, L1)
+
+**Status:** completed
+**Commit:** 23a4f1aae63ebd37c8966dca2c2136f794f14190
+**Executor:** phase-implementer:wce-p02-impl-1
+
+Review fix. Proof: full DoD batch.
 
 ---
 
@@ -220,6 +254,8 @@ Docs, CHANGELOG, AGENTS.md, and write-self-review / write-resume-bullets / summa
 
 - run/v1 · request=wce-p01-rev-1 · scope=p01 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p01 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
+- run/v1 · request=wce-p02-rev-1 · scope=p02 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p02 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
+
 <!-- orchestration-runs-end -->
 
 ## Reviews and Gates
@@ -234,9 +270,9 @@ Docs, CHANGELOG, AGENTS.md, and write-self-review / write-resume-bullets / summa
 
 Document any intentional deviations from the brief. Include accepted review findings where the shipped implementation is source of truth and the brief needs alignment.
 
-| Phase / Review | Source Artifact | Planned / Documented | Actual / Accepted | Reason | Source of Truth | Follow-up |
-| -------------- | --------------- | -------------------- | ----------------- | ------ | --------------- | --------- |
-| -              | -               | -                    | -                 | -      | -               | -         |
+| Phase / Review | Source Artifact                              | Planned / Documented                             | Actual / Accepted               | Reason                                        | Source of Truth | Follow-up                   |
+| -------------- | -------------------------------------------- | ------------------------------------------------ | ------------------------------- | --------------------------------------------- | --------------- | --------------------------- |
+| p02            | plan.md Approach > Design (PR reviews given) | Inclusion regardless of the reviewed PR's author | The user's own PRs are excluded | Comments on your own PR are not reviews given | Implementation  | None (minor; recorded here) |
 
 ## Final Summary (for PR/docs)
 
