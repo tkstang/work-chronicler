@@ -487,8 +487,9 @@ anything there. The CLI stores the settings and checks every record on import
    temporary staging directory: it runs `validate`, then `import`, and
    deletes the directory before the next batch. If a batch keeps failing,
    it stops and reports the days it did not import. A message holding a
-   password, key, token or other secret is held back and counted, never
-   stored.
+   password, key, token or other secret is held back and counted, not
+   staged in this run. An earlier import may already have stored such a
+   message: an import never removes records.
 4. Reports counts only. Running it again updates the same records and never
    duplicates them.
 

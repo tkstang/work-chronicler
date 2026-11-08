@@ -21,11 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the days not imported instead of moving on. Message bodies decode `&amp;`,
   `&lt;` and `&gt;` and rewrite nested Slack links until no markup is left,
   a thread starter's link drops its own `thread_ts`, and a message holding
-  a password, key, token or other secret is held back and counted, never
-  stored.
-- `/work-chronicler-setup-slack` can find the channels you posted in,
-  including archived ones and ones you left, by searching your own messages
-  for their channel IDs.
+  a password, key, token or other secret is held back and counted, not
+  staged (a copy an earlier import stored stays in the work log).
+- `/work-chronicler-setup-slack` can, when you ask, find the channels you
+  posted in, including archived ones and ones you left, by searching your
+  own messages for their channel IDs only.
 
 ## [0.7.0] - 2026-11-08
 
