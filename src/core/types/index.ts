@@ -1,5 +1,26 @@
 export { getGitHubNameProblem, normalizeGitHubName } from './github';
 export {
+  AttributionSchema,
+  getImportedRecordIdentity,
+  IMPORT_SCHEMA_VERSION,
+  IMPORT_SOURCES,
+  IMPORTED_RECORD_TYPES,
+  type ImportedRecord,
+  type ImportedRecordFile,
+  type ImportedRecordIdentity,
+  ImportedRecordSchema,
+  type ImportedRecordType,
+  importedRecordIdentityKey,
+  type ImportSource,
+  type ImportSubject,
+  ImportSubjectSchema,
+  MentionsSchema,
+  MessageDetailsSchema,
+  type MessageRecord,
+  MessageRecordSchema,
+  ReportIdSchema,
+} from './imported-record';
+export {
   type GivenReview,
   type GivenReviewComment,
   GivenReviewCommentSchema,
