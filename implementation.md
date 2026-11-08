@@ -697,7 +697,7 @@ Root re-ran typecheck, lint, format:check and tests at 6bfcfec: pass (515). Note
 **Status:** in_progress
 **Base:** 6bfcfecd44b80efa12b280a6f41f7fe4b0c4e57f
 **Executor:** phase-implementer:wce-p07-impl-1
-**Head:** cf5e68f2ac616aef5ef8e2448c698fa38a2a435d
+**Head:** 5d53367c2567b325854ef56f4f09d96c9ea6e79a
 
 Worktree and branch as p04. Committing owner: the phase implementer (skills, acceptance test, docs); the root runs the live read-only walkthrough itself (privacy control stays with the root) and owns the journal. Parallelism: no declared group; one phase implementer. Task class: hard-reasoning (skill text that must enforce privacy rules the CLI cannot see).
 
@@ -780,6 +780,32 @@ Proof: `format:check`
 **Executor:** inline:p07 root (two small skill-text corrections from the live walkthrough)
 Files: `.agents/skills/work-chronicler-import-slack/SKILL.md`
 Proof: Slack suites 13/13 (skill examples validate)
+
+### Task p07-t10: (review) Refuse Slack message bodies that still hold raw Slack markup
+
+**Status:** completed
+**Commit:** 3848cc7dbedc9974679d05fa74f98c367f38d62f
+**Executor:** phase-implementer:wce-p07-impl-1 (fix mode)
+**Source review:** reviews/archived/p07-review-2026-11-08T083240Z.md (L2)
+Proof: body passed additively to source rules; 8 markup forms refused with `SOURCE_RULE` on `body` (secret never echoed), 5 clean bodies accepted; tests fail without the rule
+
+### Task p07-t11: (review) Align the import-slack example and acceptance with the CLI
+
+**Status:** completed
+**Commit:** 114cb90d71deb230a09f69dea7f1593ba80fd41d
+**Executor:** phase-implementer:wce-p07-impl-1 (fix mode)
+**Source review:** reviews/archived/p07-review-2026-11-08T083240Z.md (L1, L2)
+Proof: example record 1 `replyCount: 2`; acceptance stages raw search text and `validate` refuses it
+
+### Task p07-t12: (review) Document the Slack body markup rule
+
+**Status:** completed
+**Commit:** 5d53367c2567b325854ef56f4f09d96c9ea6e79a
+**Executor:** phase-implementer:wce-p07-impl-1 (fix mode)
+**Source review:** reviews/archived/p07-review-2026-11-08T083240Z.md (L2)
+Proof: `format:check`
+
+Root re-ran typecheck, lint, format:check and tests at 5d53367: pass (548).
 
 ---
 
