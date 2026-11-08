@@ -44,6 +44,9 @@ import {
   SYNTH_SOURCES,
 } from './import.test-support';
 import { type ImportRunOptions, runImport } from './index';
+import { planImport } from './plan';
+import { readStagingBatch } from './staging';
+import { commitImportPlan } from './transaction';
 
 /** The exhaustive loops run an import per operation; give slow CI room */
 const EXHAUSTIVE = { timeout: 120_000 };
@@ -1113,4 +1116,178 @@ describe('import: every change checks its whole path', () => {
     }
     return snap;
   }
+});
+
+describe('import: recovery acts only on proof', () => {
+  /** Two stored records, both updated; interrupted after the first is replaced */
+  function interruptedTwoUpdates() {
+    const w = world();
+    storeRecord(w.workLog, 1, 'Old one.');
+    storeRecord(w.workLog, 2, 'Old two.');
+    stage(w.staging, 'a.md', messageFrontmatter(1), 'New one.');
+    stage(w.staging, 'b.md', messageFrontmatter(2), 'New two.');
+    const first = getImportedRecordFilePath(w.workLog, slackIdentity(1));
+    const second = getImportedRecordFilePath(w.workLog, slackIdentity(2));
+    importInto(w, {
+      env: env({
+        fs: crashAfterFs(
+          nodeImportFs,
+          (op, args) => op === 'rename' && args[1] === first,
+        ),
+        pid: DEAD_PID,
+      }),
+    });
+    const txn = join(w.workLog, '.import-transaction');
+    return { w, first, second, txn };
+  }
+
+  it('keeps everything when the journal is missing but records were applied', () => {
+    // Gate H1: journal gone, applying markers and backups left, batch half done
+    const { w, first, second, txn } = interruptedTwoUpdates();
+    rmSync(join(txn, 'journal.json'));
+    const kept = snapshot(txn);
+
+    const result = recover(w);
+
+    expect(result.ok).toBe(false);
+    expect(result.recovery).toBeNull();
+    expect(result.issues.map((i) => i.code)).toEqual(['RECOVERY_CONFLICT']);
+    expect(snapshot(txn)).toEqual(kept);
+    expect(readFileSync(first, 'utf-8')).toContain('New one.');
+    expect(readFileSync(second, 'utf-8')).toContain('Old two.');
+  });
+
+  it('keeps everything when the markers are gone too but a staged record was used', () => {
+    const { w, txn } = interruptedTwoUpdates();
+    rmSync(join(txn, 'journal.json'));
+    rmSync(join(txn, 'applying'), { recursive: true });
+    mkdirSync(join(txn, 'applying'));
+
+    const result = recover(w);
+
+    expect(result.issues.map((i) => i.code)).toEqual(['RECOVERY_CONFLICT']);
+    expect(existsSync(join(txn, 'backup', '0.md'))).toBe(true);
+  });
+
+  it('discards a transaction interrupted while preparing (control)', () => {
+    const w = world();
+    scenarios[1]?.setup(w);
+    const { before } = reference(scenarios[1]?.setup ?? (() => {}));
+    // Interrupted after the first backup is written, before any journal
+    importInto(w, {
+      env: env({
+        fs: crashAfterFs(
+          nodeImportFs,
+          (op, args) =>
+            op === 'writeFile' &&
+            String(args[0]).includes(join('backup', '0.md')),
+        ),
+        pid: DEAD_PID,
+      }),
+    });
+    expect(
+      existsSync(join(w.workLog, '.import-transaction', 'journal.json')),
+    ).toBe(false);
+
+    const result = recover(w);
+
+    expect(result.ok).toBe(true);
+    expect(result.recovery).toMatchObject({ outcome: 'discarded', records: 0 });
+    expect(snapshot(w.workLog)).toEqual(before);
+  });
+
+  it('keeps everything when a journal says preparing but records were applied', () => {
+    const { w, txn } = interruptedTwoUpdates();
+    const journalPath = join(txn, 'journal.json');
+    const journal = JSON.parse(readFileSync(journalPath, 'utf-8'));
+    writeFileSync(
+      journalPath,
+      JSON.stringify({ ...journal, state: 'prepared' }),
+    );
+
+    const result = recover(w);
+
+    expect(result.issues.map((i) => i.code)).toEqual(['RECOVERY_CONFLICT']);
+    expect(existsSync(join(txn, 'backup', '0.md'))).toBe(true);
+  });
+
+  it('rolls back a record whose marker is gone when its staged copy was used', () => {
+    const { w, first, second, txn } = interruptedTwoUpdates();
+    rmSync(join(txn, 'applying', '0'));
+
+    const result = recover(w);
+
+    expect(result.ok).toBe(true);
+    expect(result.recovery?.outcome).toBe('rolled-back');
+    expect(readFileSync(first, 'utf-8')).toContain('Old one.');
+    expect(readFileSync(second, 'utf-8')).toContain('Old two.');
+  });
+});
+
+describe('import: records the batch leaves unchanged', () => {
+  const setup = scenarios[1]?.setup ?? (() => {});
+  /** Run `change` once, just before the transaction directory is made */
+  function beforeTransaction(change: () => void): ImportEnv {
+    let done = false;
+    return env({
+      fs: hookedFs(nodeImportFs, (op, args) => {
+        if (
+          !done &&
+          op === 'mkdir' &&
+          String(args[0]).endsWith('.import-transaction')
+        ) {
+          done = true;
+          change();
+        }
+      }),
+    });
+  }
+
+  it.each([
+    ['deleted', (path: string) => rmSync(path)],
+    ['edited', (path: string) => writeFileSync(path, 'edited meanwhile')],
+  ])(
+    'refuses the batch when an unchanged record is %s meanwhile, keeping that change',
+    (label, change) => {
+      // Gate M1
+      const w = world();
+      setup(w);
+      const first = getImportedRecordFilePath(w.workLog, slackIdentity(1));
+      const unchanged = getImportedRecordFilePath(w.workLog, slackIdentity(3));
+      const created = getImportedRecordFilePath(w.workLog, slackIdentity(2));
+
+      const result = importInto(w, {
+        env: beforeTransaction(() => change(unchanged)),
+      });
+
+      expect(result.ok).toBe(false);
+      expect(result.issues[0]?.code).toBe('CHANGED_DURING_IMPORT');
+      // This batch's changes are undone; the outside change stays
+      expect(readFileSync(first, 'utf-8')).toContain('Old body.');
+      expect(existsSync(created)).toBe(false);
+      if (label === 'deleted') expect(existsSync(unchanged)).toBe(false);
+      else expect(readFileSync(unchanged, 'utf-8')).toBe('edited meanwhile');
+    },
+  );
+
+  it('refuses a batch with nothing to write when an unchanged record went away', () => {
+    const w = world();
+    storeRecord(w.workLog, 3, 'Same body.');
+    stage(w.staging, 'c.md', messageFrontmatter(3), 'Same body.');
+    const unchanged = getImportedRecordFilePath(w.workLog, slackIdentity(3));
+    const staged = readStagingBatch(w.staging, nodeImportFs);
+    const { plan } = planImport(
+      w.workLog,
+      staged.records,
+      { kind: 'ic' },
+      nodeImportFs,
+    );
+    if (!plan) throw new Error('fixture must plan');
+    rmSync(unchanged);
+
+    const committed = commitImportPlan(plan, env(), 'batch');
+
+    expect(committed.ok).toBe(false);
+    expect(committed.issues[0]?.code).toBe('CHANGED_DURING_IMPORT');
+  });
 });

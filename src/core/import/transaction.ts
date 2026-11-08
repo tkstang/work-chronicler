@@ -889,13 +889,114 @@ function removeCreatedDirectories(
 // ---------------------------------------------------------------------------
 // Recovery
 
-/** Whether an operation may have been applied; unsure counts as yes */
-function markerMayExist(fs: ImportFs, txn: string, index: number): boolean {
+/**
+ * Whether an operation may have been applied; unsure counts as yes. Its
+ * marker is written first; its staged copy is consumed (an update is
+ * renamed into place) or gains a second link (a create) when it is applied.
+ */
+function mayHaveApplied(
+  fs: ImportFs,
+  txn: string,
+  op: Journal['operations'][number],
+  index: number,
+): boolean {
   try {
     fs.lstat(join(txn, APPLYING_DIR, String(index)));
     return true;
   } catch (error) {
-    return errorCode(error) !== 'ENOENT';
+    if (errorCode(error) !== 'ENOENT') return true;
+  }
+  try {
+    const staged = fs.lstat(join(txn, STAGED_DIR, op.staged));
+    return staged.kind !== 'file' || staged.nlink > 1;
+  } catch {
+    return true;
+  }
+}
+
+/** Names in a transaction folder; a missing folder has none */
+function listFolder(fs: ImportFs, path: string): string[] {
+  try {
+    return fs.readdir(path);
+  } catch (error) {
+    if (errorCode(error) === 'ENOENT') return [];
+    throw error;
+  }
+}
+
+/**
+ * Evidence, in the transaction itself, that an interrupted import began
+ * changing the work log. Preparation writes only staged copies, backups,
+ * new directories (in `dirs/`) and the first journal; applying is what
+ * writes markers, moves directories and consumes or links staged copies.
+ *
+ * @returns What shows application began (or that it cannot be ruled out),
+ *   or null when the transaction is provably still in preparation
+ */
+function applicationEvidence(
+  fs: ImportFs,
+  txn: string,
+  journal: Journal | null,
+): string | null {
+  try {
+    if (listFolder(fs, join(txn, APPLYING_DIR)).length > 0) {
+      return 'it marked records as being applied';
+    }
+    // Without a journal, a temporary journal can only be the first one
+    // (state `prepared`): any later write renames over an existing journal.
+    // Beside a journal, a later state is normal (it was not renamed yet).
+    if (!journal) {
+      try {
+        const tmp = fs.readFile(join(txn, JOURNAL_TMP), JOURNAL_MAX_BYTES).data;
+        let state: unknown;
+        try {
+          state = (JSON.parse(tmp.toString('utf-8')) as { state?: unknown })
+            ?.state;
+        } catch {
+          // A half-written first journal: no state to read
+        }
+        if (state !== undefined && state !== 'prepared') {
+          return 'its journal was being moved past preparation';
+        }
+      } catch (error) {
+        if (errorCode(error) !== 'ENOENT') throw error;
+      }
+    }
+    const staged = listFolder(fs, join(txn, STAGED_DIR));
+    for (const name of staged) {
+      const entry = fs.lstat(join(txn, STAGED_DIR, name));
+      if (entry.kind !== 'file' || entry.nlink > 1) {
+        return 'a staged record was linked into place';
+      }
+    }
+    for (const name of listFolder(fs, join(txn, BACKUP_DIR))) {
+      // Preparation writes each staged copy before its backup
+      if (!staged.includes(name)) {
+        return 'a replacement record was moved into place';
+      }
+    }
+    if (journal) {
+      for (const op of journal.operations) {
+        if (!staged.includes(op.staged)) {
+          return 'a staged record was moved into place';
+        }
+      }
+      for (const dir of journal.directories) {
+        if (dir.created === null) continue;
+        const entry = fs.lstat(stagedDirectory(txn, dir.created));
+        if (entry.kind !== 'directory' || !hasId(entry, dir.id)) {
+          return 'a new directory was moved into place';
+        }
+      }
+    } else {
+      const known = new Set<string>([...FOLDERS, JOURNAL_TMP]);
+      if (fs.readdir(txn).some((name) => !known.has(name))) {
+        return 'it holds files preparation does not make';
+      }
+    }
+    return null;
+  } catch (error) {
+    return `its bookkeeping could not be checked (${describeFsError(error)})`;
   }
 }
 
@@ -959,7 +1060,14 @@ export function recoverInterruptedImport(
     );
   }
   if ('missing' in read) {
-    // Interrupted while preparing: nothing in the work log changed
+    // Only a transaction proven to be in preparation can be discarded
+    // without its journal; anything else keeps every file for inspection
+    const evidence = applicationEvidence(fs, txn, null);
+    if (evidence !== null) {
+      return conflict(
+        `the journal of an interrupted import is missing, but ${evidence}, so records may have changed; nothing was changed, and every file is kept in ${TRANSACTION_NAME}. Check the records, then remove ${TRANSACTION_NAME}`,
+      );
+    }
     try {
       discardTransaction(PathGuard.atRoot(fs, root), txn, env, warnings);
     } catch (error) {
@@ -1040,14 +1148,24 @@ export function recoverInterruptedImport(
     return { report: report('completed'), issues: [], warnings };
   }
 
-  // `prepared`: nothing in the work log changed (new directories are still
-  // in the transaction). `committing`: some records may be stored; undo them.
+  // `prepared`: nothing in the work log may have changed, which the
+  // transaction must show. `committing`: some records may be stored; undo
+  // every one that may have been applied.
+  if (journal.state === 'prepared') {
+    const evidence = applicationEvidence(fs, txn, journal);
+    if (evidence !== null) {
+      return conflict(
+        `an interrupted import's journal says it was still preparing, but ${evidence}; nothing was changed, and every file is kept in ${TRANSACTION_NAME}. Check the records, then remove ${TRANSACTION_NAME}`,
+      );
+    }
+  }
   const issues =
     journal.state === 'prepared'
       ? []
-      : rollBack(guard, txn, journal, (index) =>
-          markerMayExist(fs, txn, index),
-        );
+      : rollBack(guard, txn, journal, (index) => {
+          const op = journal.operations[index];
+          return op === undefined || mayHaveApplied(fs, txn, op, index);
+        });
   if (issues.length > 0) return { report: null, issues, warnings };
   discardTransaction(guard, txn, env, warnings, journal.transaction);
   return {
@@ -1173,7 +1291,38 @@ export function commitImportPlan(
   const { fs } = env;
   const warnings: string[] = [];
   const records = plan.records.filter((r) => r.action !== 'unchanged');
-  if (records.length === 0) return { ok: true, issues: [], warnings };
+  const unchanged = plan.records.filter((r) => r.action === 'unchanged');
+
+  // Every change below goes through the guard, which checks the recorded
+  // identity of every directory from the work log down to its target
+  const guard = new PathGuard(fs, plan.root, toId(plan.rootId));
+  for (const dir of plan.directories) {
+    if (dir.existing) {
+      guard.vouch(join(plan.root, ...dir.segments), toId(dir.existing));
+    }
+  }
+
+  /**
+   * Records the batch leaves unchanged are part of it too: each must still
+   * be the file and contents that were planned, below the recorded
+   * directories, before the batch is accepted.
+   */
+  const verifyUnchanged = () => {
+    for (const record of unchanged) {
+      guard.check(dirname(join(plan.root, ...record.segments)));
+      verifyDestination(plan, record, fs);
+    }
+  };
+
+  if (records.length === 0) {
+    try {
+      verifyRoot(plan, fs);
+      verifyUnchanged();
+    } catch (error) {
+      return { ok: false, issues: [failureIssue(error, true)], warnings };
+    }
+    return { ok: true, issues: [], warnings };
+  }
 
   const txn = join(plan.root, TRANSACTION_NAME);
   const operations: Journal['operations'] = records.map((r, i) => ({
@@ -1184,15 +1333,6 @@ export function commitImportPlan(
     oldHash: r.existing?.hash ?? null,
     newHash: r.hash,
   }));
-
-  // Every change below goes through the guard, which checks the recorded
-  // identity of every directory from the work log down to its target
-  const guard = new PathGuard(fs, plan.root, toId(plan.rootId));
-  for (const dir of plan.directories) {
-    if (dir.existing) {
-      guard.vouch(join(plan.root, ...dir.segments), toId(dir.existing));
-    }
-  }
 
   // 1. Prepare. Nothing in the work log changes: new records, backups and
   // new directories are all made inside the transaction directory, and the
@@ -1329,6 +1469,7 @@ export function commitImportPlan(
         throw new ChangedError(displayPath(record.segments));
       }
     });
+    verifyUnchanged();
   } catch (error) {
     // The journal on disk says `prepared` or `committing`: undo
     return undo(error);
