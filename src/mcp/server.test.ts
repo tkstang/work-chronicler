@@ -30,6 +30,7 @@ import {
   loadConfig,
   writeMarkdownFile,
 } from '@core/index';
+import { searchPrsTool } from '@mcp/tools/index';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -336,6 +337,75 @@ describe('one MCP server while the filtered subset changes', () => {
       );
       expect((await call('search_messages')).total).toBe(0);
     } finally {
+      await client.close();
+    }
+  });
+
+  it('returns unavailable, not the handler result, for a call during which the subset was replaced', async () => {
+    const workLog = join(root, 'work-log');
+    writePR(workLog, 1, 'PR');
+    const config = await loadConfig(join(root, 'work-chronicler.yaml'));
+    // Both subsets are made in the same instant, so only the subset
+    // directory itself tells them apart
+    const replace = () =>
+      writeFilteredSubset({
+        outputDir: workLog,
+        config,
+        criteria: { mergedOnly: true },
+        now: new Date('2026-01-01T00:00:00Z'),
+      });
+    await replace();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    // Pause the handler after it has read the first subset
+    const original = searchPrsTool.handler;
+    let entered = () => {};
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const handler = vi
+      .spyOn(searchPrsTool, 'handler')
+      .mockImplementation(async (input, context) => {
+        const result = await original(input, context);
+        entered();
+        await gate;
+        return result;
+      });
+
+    const ctx = await createServer();
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test', version: '0.0.0' });
+    await ctx.server.connect(serverTransport);
+    await client.connect(clientTransport);
+    const text = (result: Awaited<ReturnType<typeof client.callTool>>) => {
+      const [content] = result.content as { type: string; text: string }[];
+      return JSON.parse(content?.text ?? '');
+    };
+
+    try {
+      const pending = client.callTool({ name: 'search_prs', arguments: {} });
+      await started;
+      await replace();
+      release();
+      const out = text(await pending);
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(out.error).toContain('filtered subset is unavailable');
+      expect(out.note).toContain('changed while this call was reading it');
+      expect(out.results).toBeUndefined();
+      // The next call reads the new subset
+      handler.mockRestore();
+      expect(
+        text(await client.callTool({ name: 'search_prs', arguments: {} }))
+          .total,
+      ).toBe(1);
+    } finally {
+      release();
       await client.close();
     }
   });
