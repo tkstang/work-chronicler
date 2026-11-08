@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-08
+
 ### Added
 
 - Google Docs you own can be imported as supplementary evidence. A new
@@ -68,6 +70,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `/work-chronicler-setup-slack` put the agreed channel reason into the
+  `slack channels add` command in single quotes, so a reason with an
+  apostrophe broke the command, and shell syntax in it (copied from a
+  channel purpose, for example) could run as a separate command (a known
+  issue in 0.6.0). `slack channels add` now takes `--reason-file <path>`
+  (`-` reads standard input) as well as `--reason`, and the skill writes the
+  reason to a temporary file with the assistant's file-writing tool and
+  passes that file, so no shell reads the reason. The file is read up to
+  4 KiB and must be UTF-8. A missing, unreadable, oversized or invalid reason
+  is reported as JSON with `--json`, and a reason is stored without the
+  surrounding spaces and line breaks that were already ignored when it was
+  read.
 - Once its channels were removed, `slack configure` accepted another Slack
   user while the work log still held the previous user's messages, so a
   later import mixed two people's messages and search and analysis
@@ -76,8 +90,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   naming the directory to remove first (or when they cannot be checked).
 - A `slack` command run with `--json` printed nothing on stdout when the
   profile, config or report could not be resolved (an invalid config, or a
-  manager profile without `--report`), and a hint that was not JSON in some
-  cases. It now prints `{ "ok": false, "error": … }` there, and only that.
+  manager profile without `--report`), or printed a plain-text hint that
+  broke the JSON. It now prints `{ "ok": false, "error": … }` there, and only that.
 - `filter` accepted a mistyped impact level or line count and dropped that
   restriction, so `--min-impact majoor` (or `--exclude-impact minr`, or
   `--min-loc abc` next to another filter) replaced the subset with a broader
@@ -99,18 +113,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   summarized a `search_messages` result from its text alone, which stops at
   1,000 characters, so a decision stated later in a long message could be
   left out. They now read the full message from its record file first.
-- `/work-chronicler-setup-slack` put the agreed channel reason into the
-  `slack channels add` command in single quotes, so a reason with an
-  apostrophe broke the command, and shell syntax in it (copied from a
-  channel purpose, for example) could run as a separate command (a known
-  issue in 0.6.0). `slack channels add` now takes `--reason-file <path>`
-  (`-` reads standard input) as well as `--reason`, and the skill writes the
-  reason to a temporary file with the assistant's file-writing tool and
-  passes that file, so no shell reads the reason. The file is read up to
-  4 KiB and must be UTF-8. A missing, unreadable, oversized or invalid reason
-  is reported as JSON with `--json`, and a reason is stored without the
-  surrounding spaces and line breaks that were already ignored when it was
-  read.
 - A subset made by `filter`, an MCP tool result or `analyze` could include
   part of an import's batch, read while the import was storing it or after
   it was interrupted. Readers now never see part of a batch: they wait for
@@ -619,7 +621,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `analyze`, `filter`, `status`, the MCP server, and Claude Code and Cursor
   commands for summaries, resume bullets, self-reviews, projects and themes.
 
-[Unreleased]: https://github.com/tkstang/work-chronicler/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/tkstang/work-chronicler/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/tkstang/work-chronicler/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/tkstang/work-chronicler/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/tkstang/work-chronicler/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/tkstang/work-chronicler/compare/v0.3.2...v0.4.0
