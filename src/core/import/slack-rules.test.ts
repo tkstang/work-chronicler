@@ -161,13 +161,25 @@ describe('Slack records: channels', () => {
     expect(result.issues[0]?.message).toMatch(/both belong to/);
   });
 
-  it('refuses a channel name that holds text', () => {
-    const result = check(
-      message({ container: { id: 'C0SYNTH01', name: `see ${SECRET}` } }),
-    );
-    expect(problems(result)).toEqual([
-      ['SOURCE_RULE', 'message.container.name'],
-    ]);
+  it.each([
+    ['text', `see ${SECRET}`],
+    ['another label', 'Bob:the-launch-will-slip'],
+    ['the name in other case', 'Synthetic-Channel'],
+  ])(
+    'refuses a channel name that is %s, not the configured name',
+    (_l, name) => {
+      const result = check(message({ container: { id: 'C0SYNTH01', name } }));
+      expect(problems(result)).toEqual([
+        ['SOURCE_RULE', 'message.container.name'],
+      ]);
+    },
+  );
+
+  it('accepts the configured channel name or none', () => {
+    for (const name of ['synthetic-channel', null]) {
+      const result = check(message({ container: { id: 'C0SYNTH01', name } }));
+      expect(result.issues).toEqual([]);
+    }
   });
 });
 

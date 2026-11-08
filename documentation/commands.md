@@ -210,7 +210,8 @@ changes nothing. Records that are not in the batch are never removed.
 - the channel (`message.container.id`) is not in the configured channels,
   is a direct message (`D…`), or, for a report, is not confirmed as one the
   manager and the report both belong to;
-- `message.container.name` is not a channel name (it holds spaces);
+- `message.container.name` is not `null` or the channel's configured name
+  (use the `name` that `slack show` lists);
 - `message.thread.parentId` is not a message ts, or `parentUrl` (and the
   record's own `url`) is anything but the bare Slack permalink of that
   message (`https://<workspace>.slack.com/archives/<channel>/p<ts>`, with at

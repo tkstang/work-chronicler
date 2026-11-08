@@ -206,8 +206,13 @@ function checkSlackRecord(
       'channel is not confirmed as one the manager and the report both belong to',
     );
   }
-  if (container.name !== null && !/^[^\s\p{C}]{1,80}$/u.test(container.name)) {
-    problem('message.container.name', 'must be a Slack channel name');
+  // The stored label must be the configured name (or none), so no other
+  // text can ride along under the channel's name
+  if (channel && container.name !== null && container.name !== channel.name) {
+    problem(
+      'message.container.name',
+      'must be the configured channel name, or null',
+    );
   }
 
   const ts = SLACK_MESSAGE_ID.exec(record.sourceId)?.[2] ?? null;
