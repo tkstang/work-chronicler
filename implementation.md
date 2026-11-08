@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-11-07
-oat_current_task_id: p12
+oat_current_task_id: p08
 oat_generated: false
 ---
 
@@ -53,7 +53,7 @@ oat_generated: false
 | p10   | pending   | 1     | 0/1      |
 | p11   | pending   | 1     | 0/1      |
 
-**Total:** 7/12 phases accepted
+**Total:** 8/12 phases accepted
 
 ---
 
@@ -820,10 +820,10 @@ Proof: 3 new rule cases fail on 5d53367; full suite, lint, typecheck, format:che
 
 ## Phase p12: Installer replacement safety
 
-**Status:** in_progress
+**Status:** completed
 **Base:** d990a404b16c80ff11fa01d7bd957b3486d5a922
 **Executor:** phase-implementer:wce-p12-impl-1
-**Head:** 3b5ac311a459321ee28fcdb184ef80dbdc30fd0c
+**Head:** 76140798ed0f67bb17ab685ed76f9d364e76a4cd
 
 Worktree and branch as p04. Committing owner: the phase implementer (code); root owns the journal. Parallelism: no declared group; one phase implementer. Task class: consequential (replacing a user's installed skills; data loss is the failure mode).
 
@@ -877,6 +877,15 @@ Proof: `format:check`
 
 Root re-ran typecheck, lint, format:check and tests at 3b5ac31: pass (568).
 
+### Task p12-t06: (review) Describe a kept backup after a failed replace rename accurately
+
+**Status:** completed
+**Commit:** 76140798ed0f67bb17ab685ed76f9d364e76a4cd
+**Executor:** inline:p12 root (one Low docs finding, review round 2)
+**Source review:** reviews/archived/p12-review-2026-11-08T090704Z.md (L1)
+Files: `documentation/available-skills.md`
+Proof: `format:check`
+
 ---
 
 ## Phase p08: 0.6.0 release preparation
@@ -908,6 +917,10 @@ Root re-ran typecheck, lint, format:check and tests at 3b5ac31: pass (568).
 <!-- One line per dispatch request id, rendered by `oat project dispatch record --format line` and written as a list item. Update that line in place with the terminal outcome; never paste the record or event JSON. -->
 
 <!-- orchestration-runs-start -->
+
+- run/v1 · request=wce-p12-rev-2 · scope=p12 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p12 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
+
+- Root-inline phase: p12 (fix p12-t06) — one Low docs finding from review round 2; root model claude-opus-5-5
 
 - run/v1 · request=wce-p12-rev-1 · scope=p12 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p12 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 

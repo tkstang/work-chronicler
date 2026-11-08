@@ -183,6 +183,10 @@ p07 accepted: live walkthrough found 5 skill/CLI gaps (fixed p07-t05..t08) and 2
 
 Observation: the synthetic acceptance test passed, but the first live read-only Slack walkthrough found five gaps (no team ID from any read tool, concise formats omit IDs, Slack markup in text, file-only messages) plus two later skill corrections. Impact: without the live pass the skills would not have worked for a real user. Recommendation: run the live walkthrough before the phase review and feed connector facts back into skill text; record field shapes only, never content.
 
+### 2026-11-08 · structural · oat-project-implement · p12
+
+p12 accepted: review round 1 (1 M) fixed in p12-t04..t05; round 2 passed (0 C/H/M), 1 Low docs fixed inline in p12-t06; fix loops 1; wce-p12-outcome
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
