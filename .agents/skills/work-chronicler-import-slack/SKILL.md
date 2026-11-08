@@ -112,6 +112,11 @@ from:<@USER_ID> on:2026-01-01
   `page_limit_exceeded`), search that day again once per importable channel,
   adding `in:<#CHANNEL_ID>` to the query, and use those results for the day.
 
+If `on:` returns nothing for a day you expect to have messages, search that
+day again with a one-day window, `after:<the day before> before:<the day after>`,
+and use those results; the `on:` filter has returned nothing for days that
+had messages.
+
 Slack's `on:` names a day in the searching user's own time zone, while the
 range is in UTC. So search every day from the day before `range.since`
 through `range.until` (and the day after it), or through today when
