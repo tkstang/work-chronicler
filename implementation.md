@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-11-08
-oat_current_task_id: p14
+oat_current_task_id: p15
 oat_generated: false
 ---
 
@@ -58,7 +58,7 @@ oat_generated: false
 | p10   | pending   | 1     | 0/1      |
 | p11   | pending   | 1     | 0/1      |
 
-**Total:** 10/17 phases accepted
+**Total:** 11/17 phases accepted
 
 ---
 
@@ -1148,10 +1148,10 @@ Proof: 638 tests; DoD batch green
 
 ## Phase p14: Import internals simplification
 
-**Status:** in_progress
+**Status:** completed
 **Base:** 1a19d8554d802670f182ecec38952dfde9833ed6
 **Executor:** phase-implementer:wce-p14-impl-1
-**Head:** ac4d4cb864cee1dd60c7f06cdbc3b311be85157c
+**Head:** c785bc5193cb2cafea34961133b741e3e2460857
 
 Branch `oat/evidence-expansion-m03`. Committing owner: the phase implementer (code); root owns the journal. Task class: consequential (refactor of safety-sensitive filesystem code; a behavior change is the failure mode).
 
@@ -1198,6 +1198,14 @@ Proof: new test
 **Executor:** phase-implementer:wce-p14-impl-1
 Files: `slack-acceptance.test.ts`
 Proof: 5/5
+
+### Task p14-t05: (review L1) Report PathGuard destinations with / on every platform
+
+**Status:** completed
+**Commit:** c785bc5
+**Executor:** root
+Files: `src/core/import/transaction.ts`
+Proof: import suites 164/164; full suite 639; lint, typecheck, format:check
 
 ---
 
@@ -1253,6 +1261,9 @@ run/v1 · request=wce-p13-rev-2 · scope=p13 · action=review · role=oat-review
 
 run/v1 · request=wce-p14-impl-1 · scope=p14 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p14 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
+run/v1 · request=wce-p14-rev-1 · scope=p14 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p14 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
+
+- Root-inline phase: p14 review L1 (PathGuard destination separator) fixed by root (claude-opus-5-5) in p14-t05 c785bc5; one-line Low, no dispatch needed.
 - run/v1 · request=wce-p08-rev-1 · scope=p08 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p08 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 - Root-inline phase: p08 — inline exception for a version bump and CHANGELOG move; root model claude-opus-5-5
@@ -1653,6 +1664,7 @@ Document any intentional deviations from the brief. Include accepted review find
 | -------------- | -------------------------------------------- | --------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | --------------- | --------------------------- |
 | p02            | plan.md Approach > Design (PR reviews given) | Inclusion regardless of the reviewed PR's author                | The user's own PRs are excluded                           | Comments on your own PR are not reviews given                                                          | Implementation  | None (minor; recorded here) |
 | p14            | plan.md Phase p14 Intent                     | Create the fixed record directories in place at the commit step | Staged directory creation kept; rejected-batch test added | In-place creation leaves an unprovable empty directory after a crash, or needs a journal format change | Implementation  | None                        |
+| p14 review L2  | plan.md Phase p14 Exit evidence              | `rg` finds only PathGuard and the shared seam                   | `plan.ts` `checkDirectory` kept                           | It runs at planning time, before identities exist, and records the identities PathGuard enforces       | Implementation  | None                        |
 
 ## Final Summary (for PR/docs)
 
