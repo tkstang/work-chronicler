@@ -35,8 +35,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `import` and `validate` accept only the subject's own verified messages
   from its configured channels (for a report, channels the manager
   confirmed they share with `--shared-with-manager`), never direct
-  messages, and with a parent-thread reference that is only an ID or
-  permalink. Private channels need the `--private` opt-in. Changes keep the
+  messages, with a parent-thread reference that is only an ID or
+  permalink, and with message text free of raw Slack mention and link
+  markup (`<@U…|name>`, `<#C…|name>`, `<!here>`, `<url|label>`), which
+  can carry other people's names. Private channels need the `--private`
+  opt-in. Changes keep the
   rest of the config, comments included, and replace it in one step.
 - Imported messages are read as supplementary evidence, apart from PRs and
   tickets: `status` counts them (and flags unreadable record files and an

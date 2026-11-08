@@ -218,7 +218,14 @@ changes nothing. Records that are not in the batch are never removed.
   `slack.com` host such as `example.enterprise.slack.com`, with at
   most `thread_ts` and `cid` in the query);
 - a reply in a thread carries reply counts, or `replyParticipantCount`
-  exceeds `replyCount`.
+  exceeds `replyCount`;
+- the body (the message text) still holds raw Slack markup that can carry
+  another person's name or label text: a user mention (`<@U…>`, `<@W…|name>`),
+  a channel link (`<#C…|name>`), a special mention (`<!here>`,
+  `<!subteam^…|@team>`) or a link in markup (`<https://…>`,
+  `<https://…|label>`). The import skill writes these as `@someone`,
+  `#channel`, `@here` and the bare URL. A line starting with `>` is ordinary
+  text and is accepted.
 
 Reply bodies, the parent's text and lists of participants cannot be written
 at all: the format has no field for them, so a record that carries one is
