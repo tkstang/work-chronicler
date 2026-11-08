@@ -694,7 +694,11 @@ Root re-ran typecheck, lint, format:check and tests at 6bfcfec: pass (515). Note
 
 ## Phase p07: Slack skills and live walkthrough
 
-**Status:** pending
+**Status:** in_progress
+**Base:** 6bfcfecd44b80efa12b280a6f41f7fe4b0c4e57f
+**Executor:** phase-implementer:wce-p07-impl-1
+
+Worktree and branch as p04. Committing owner: the phase implementer (skills, acceptance test, docs); the root runs the live read-only walkthrough itself (privacy control stays with the root) and owns the journal. Parallelism: no declared group; one phase implementer. Task class: hard-reasoning (skill text that must enforce privacy rules the CLI cannot see).
 
 ---
 
