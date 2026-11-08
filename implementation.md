@@ -195,7 +195,7 @@ Review fix. Proof: full DoD batch.
 **Status:** completed
 **Base:** 23a4f1aae63ebd37c8966dca2c2136f794f14190
 **Executor:** inline:p03-inline-exception
-**Head:** 27f398fd461d57ec0cee3e295d5ed65c9f0e9763
+**Head:** 0e90c256429242e8dc2d7957dd7840105045b9ee
 
 Inline exception (recorded before editing): version bump and CHANGELOG section move only — no new surface, no unresolved design, not consequential before the tag push (which happens after merge under the Release authority), one proof command (the local DoD batch). Committing owner: root. Parallelism: single trivial phase.
 
@@ -316,6 +316,17 @@ Intent: An unreadable review record is left unchanged and its PR reported failed
 Files: `github-reviews.utils.ts`, `filter.ts`, `paths.ts` (doc comment), `documentation/commands.md`, `documentation/configuration.md`, two test files
 Proof: full DoD batch (format, lint, typecheck, 247 tests); the three new regression assertions fail on ed8b20d code and pass after.
 
+### Task p03-t12: (review) Keep old skill copies a nested resource link points into
+
+**Status:** completed
+**Commit:** 0e90c256429242e8dc2d7957dd7840105045b9ee
+**Executor:** inline:p03-inline-exception (root, one gate finding)
+**Source review:** reviews/archived/range-review-2026-11-08T034405Z.md (H1)
+
+Intent: The migration dependency check counts every symlink nested inside each installed entry (walking linked directories once each), so an old copy that a kept skill's `scripts/` links into is kept and named. An entry that cannot be fully read also keeps the old name.
+Files: `skills/migrate.ts`, `skills/install.test.ts`, `documentation/available-skills.md`
+Proof: full DoD batch (249 tests); the nested-link regression fails on 27f398f code and passes after; independent-resource control still removes the old copy.
+
 ---
 
 ## Phase p04: Staged import contract
@@ -381,6 +392,8 @@ Proof: full DoD batch (format, lint, typecheck, 247 tests); the three new regres
 - Root-inline phase: p03 — inline exception for a version bump and CHANGELOG move; root model claude-opus-5-5
 
 - Root-inline phase: p03 (fix p03-t10) — one small skill-text finding from exit gate attempt 4; root model claude-opus-5-5
+
+- Root-inline phase: p03 (fix p03-t12) — one High gate finding (nested resource links), small and bounded; root model claude-opus-5-5
 
 - Root-inline phase: p03 (fix p03-t11) — five small PR #25 review findings (CodeRabbit), fixed in root per the host's small-fix rule; root model claude-opus-5-5
 
@@ -481,6 +494,17 @@ Proof: full DoD batch (format, lint, typecheck, 247 tests); the three new regres
 
 **PR:** https://github.com/tkstang/work-chronicler/pull/25 (scope `m01: p01, p02, p03`, registered 2026-11-08, endpoint `merged`)
 
+### Review Received: p01-p03 (m01 recovery exit gate, attempt 6)
+
+**Date:** 2026-11-08
+**Review artifact (local-only):** reviews/archived/range-review-2026-11-08T034405Z.md
+
+**Findings:** Critical 0 · High 1 · Medium 0 · Low 0 (gate `codex-6-sol-xhigh`, run 7dd09387-1a70-4582-9b59-e49aba1b55d1, reviewed head 27f398fd461d57ec0cee3e295d5ed65c9f0e9763)
+
+- H1 (High): the migration dependency check ignores nested resource symlinks, so a kept skill's `scripts/` link into the old copy is broken by its deletion (reproduced). This was deferred from CodeRabbit 4504866395; the reproduced data loss overrides that deferral → fix task p03-t12; agree.
+
+**Outcome:** H1 fixed in p03-t12 (0e90c256429242e8dc2d7957dd7840105045b9ee). Gate runs again.
+
 ### PR review received: d01 (PR #25, CodeRabbit)
 
 **Date:** 2026-11-08
@@ -496,7 +520,7 @@ Proof: full DoD batch (format, lint, typecheck, 247 tests); the three new regres
 - Withdrawn: the earlier Low deferral about leftover other-reviewer records is superseded by gate attempt-2 M1 (fix task p03-t08).
 - Non-blocking (PR #25 self-review, complexity lens, independent Claude reviewer at ed8b20d): F1 the review-attribution rules are restated as prose in four writing skills (point them at `search_pr_reviews`/`status` instead); F2 the filtered-subset fallback (`fullOutputDir`) could be a note plus empty results; F3 the custom symlink resolver in `skills/migrate.ts` could become `realpath` containment plus one `readlink` hop; F4 `getReviewActivityDates` is an unused export; F5 `isVerifiedSkill` parses frontmatter by regex where `gray-matter` exists. Deferred by root (autonomous run): all non-blocking, and changing code after the clean exit gate and integrated review would stale both for cleanup only. Follow-up trigger: m02 re-alignment (p05 revisits these consumers); F3 needs care because it guards a data-loss path.
 
-- Non-blocking (PR #25 CodeRabbit, deferred by root, autonomous run): comment edits outside the current range are not refreshed (4504862946); a record emptied by reconciliation is not deleted (4504862950); comments lose parent review state when the review falls outside the range (4504863012, needs a schema field); multi-argument helpers should take parameter objects (4504866382); the install-failure test relies on non-root chmod (4504866386); cleanup failure in `install` aborts the run (4504866388, pre-existing); migration plans removals per tool rather than after all tools (4504866392); the dependency check ignores nested resource symlinks (4504866395). Pre-existing, for all record types: date-only `until` is midnight UTC (4504862955); `filter` keeps stale `filtered/` content without `--clear` (4504862967); the subset is ignored when no authored PR matches (4504862986); `install --overwrite` deletes before copying (4504863000). Follow-up trigger: m02 re-alignment.
+- Non-blocking (PR #25 CodeRabbit, deferred by root, autonomous run): comment edits outside the current range are not refreshed (4504862946); a record emptied by reconciliation is not deleted (4504862950); comments lose parent review state when the review falls outside the range (4504863012, needs a schema field); multi-argument helpers should take parameter objects (4504866382); the install-failure test relies on non-root chmod (4504866386); cleanup failure in `install` aborts the run (4504866388, pre-existing); migration plans removals per tool rather than after all tools (4504866392). Pre-existing, for all record types: date-only `until` is midnight UTC (4504862955); `filter` keeps stale `filtered/` content without `--clear` (4504862967); the subset is ignored when no authored PR matches (4504862986); `install --overwrite` deletes before copying (4504863000). Follow-up trigger: m02 re-alignment.
 
 ## Deviations from Plan / Design
 
