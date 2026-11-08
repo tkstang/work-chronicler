@@ -44,7 +44,7 @@ oat_dispatch_policy:
 oat_workflow_mode: goal # spec-driven | quick | import | lite | brief | goal
 oat_workflow_origin: native # native | imported
 oat_milestone: m02
-oat_milestone_status: implementing
+oat_milestone_status: reviewing
 oat_goal_status: active
 oat_goal_outcome_audit: null
 oat_goal_recovery: null
@@ -85,6 +85,18 @@ oat_milestone_gates:
         scope: [ p04, p05, p06, p07, p12, p08 ]
         ref: b142daa862caf6233013c7669deadfdb76867743
       decided_at: '2026-11-08T05:15:36Z'
+    exit:
+      status: allowed
+      disposition: passed
+      resolution: configured
+      config_fingerprint: null
+      reviewed_head: 890358f95e9adde796635336ae741de206fc0e2d
+      subject:
+        kind: code
+        scope: [ p04, p05, p06, p07, p12, p08 ]
+      freshness: fresh
+      freshness_reason: null
+      decided_at: "2026-11-08T10:09:12Z"
 oat_deliveries:
   - delivery_id: d01
     milestone: m01
@@ -190,7 +202,7 @@ oat_pr_status: merged
 oat_pr_url: https://github.com/tkstang/work-chronicler/pull/25
 oat_project_created: '2026-11-07T22:54:38.498Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-11-08T09:08:18Z"
+oat_project_state_updated: "2026-11-08T10:09:12Z"
 oat_generated: false
 ---
 

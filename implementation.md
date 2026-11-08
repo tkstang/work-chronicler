@@ -1262,6 +1262,15 @@ Also in p03-t15: CodeRabbit 4505014153 (docs/notice wrongly said `--overwrite` f
 
 **Outcome:** fix dispatched. Attempt 2 reaches the configured gate budget; the gate runs again under the user's standing direction to keep running it (as in m01).
 
+### Review Received: final (m02 exit gate, attempt 3)
+
+**Date:** 2026-11-08
+**Review artifact (local-only):** reviews/archived/final-review-2026-11-08T100413Z.md
+
+**Findings:** Critical 0 · High 0 · Medium 0 · Low 0 (gate `codex-6-sol-xhigh`, run 92eebac3-d390-4418-8432-f515e7103367, reviewed head 890358f95e9adde796635336ae741de206fc0e2d)
+
+**Outcome:** passed. m02 exit carrier allowed/fresh at 890358f95e9adde796635336ae741de206fc0e2d (2026-11-08T10:09:12Z); m02 → reviewing (integrated review next).
+
 ### PR review received: d01 (PR #25, CodeRabbit)
 
 **Date:** 2026-11-08
