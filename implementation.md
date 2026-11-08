@@ -195,7 +195,7 @@ Review fix. Proof: full DoD batch.
 **Status:** completed
 **Base:** 23a4f1aae63ebd37c8966dca2c2136f794f14190
 **Executor:** inline:p03-inline-exception
-**Head:** 0e90c256429242e8dc2d7957dd7840105045b9ee
+**Head:** aa1da62cea9621cebedd98cd18852853f7965567
 
 Inline exception (recorded before editing): version bump and CHANGELOG section move only — no new surface, no unresolved design, not consequential before the tag push (which happens after merge under the Release authority), one proof command (the local DoD batch). Committing owner: root. Parallelism: single trivial phase.
 
@@ -327,6 +327,17 @@ Intent: The migration dependency check counts every symlink nested inside each i
 Files: `skills/migrate.ts`, `skills/install.test.ts`, `documentation/available-skills.md`
 Proof: full DoD batch (249 tests); the nested-link regression fails on 27f398f code and passes after; independent-resource control still removes the old copy.
 
+### Task p03-t13: (review) Keep old skill copies when a nested link cannot be followed
+
+**Status:** completed
+**Commit:** aa1da62cea9621cebedd98cd18852853f7965567
+**Executor:** inline:p03-inline-exception (root, one gate finding)
+**Source review:** reviews/archived/range-review-2026-11-08T035400Z.md (H1)
+
+Intent: Only a link target proven missing (ENOENT, ENOTDIR) counts as having nothing below it; a permission or other resolution failure marks the entry not fully checked, which keeps the old name.
+Files: `skills/migrate.ts`, `skills/install.test.ts`
+Proof: full DoD batch (251 tests); the permission-denied regression (skipped as root) fails on 0e90c25 code and passes after; the missing-target control still removes the old copy.
+
 ---
 
 ## Phase p04: Staged import contract
@@ -392,6 +403,8 @@ Proof: full DoD batch (249 tests); the nested-link regression fails on 27f398f c
 - Root-inline phase: p03 — inline exception for a version bump and CHANGELOG move; root model claude-opus-5-5
 
 - Root-inline phase: p03 (fix p03-t10) — one small skill-text finding from exit gate attempt 4; root model claude-opus-5-5
+
+- Root-inline phase: p03 (fix p03-t13) — one High gate finding (permission errors in the nested-link walk), small and bounded; root model claude-opus-5-5
 
 - Root-inline phase: p03 (fix p03-t12) — one High gate finding (nested resource links), small and bounded; root model claude-opus-5-5
 
@@ -504,6 +517,17 @@ Proof: full DoD batch (249 tests); the nested-link regression fails on 27f398f c
 - H1 (High): the migration dependency check ignores nested resource symlinks, so a kept skill's `scripts/` link into the old copy is broken by its deletion (reproduced). This was deferred from CodeRabbit 4504866395; the reproduced data loss overrides that deferral → fix task p03-t12; agree.
 
 **Outcome:** H1 fixed in p03-t12 (0e90c256429242e8dc2d7957dd7840105045b9ee). Gate runs again.
+
+### Review Received: p01-p03 (m01 recovery exit gate, attempt 7)
+
+**Date:** 2026-11-08
+**Review artifact (local-only):** reviews/archived/range-review-2026-11-08T035400Z.md
+
+**Findings:** Critical 0 · High 1 · Medium 0 · Low 0 (gate `codex-6-sol-xhigh`, run 9e89f9e5-f84f-4d6c-a936-ebc9ab149c3f, reviewed head 0e90c256429242e8dc2d7957dd7840105045b9ee)
+
+- H1 (High): the nested-link walk treats a permission error as a dangling link, so a dependency behind an unreadable directory is missed and the old copy is deleted (reproduced) → fix task p03-t13; agree.
+
+**Outcome:** H1 fixed in p03-t13 (aa1da62cea9621cebedd98cd18852853f7965567). Gate runs again (attempt 8, beyond the configured budget under the user's standing direction to keep running the gate).
 
 ### PR review received: d01 (PR #25, CodeRabbit)
 
