@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 import type { PullRequest } from '@wc-types/pr';
+import type { PRReviewRecord } from '@wc-types/pr-review';
 import type { JiraTicket } from '@wc-types/ticket';
 import { stringify as stringifyYaml } from 'yaml';
 
@@ -11,7 +12,7 @@ import { stringify as stringifyYaml } from 'yaml';
  * Union type representing the structured data that can be written
  * as YAML frontmatter in work-log markdown files.
  */
-export type MarkdownFrontmatter = PullRequest | JiraTicket;
+export type MarkdownFrontmatter = PullRequest | JiraTicket | PRReviewRecord;
 
 /**
  * Write a markdown file with YAML frontmatter.

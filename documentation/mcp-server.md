@@ -1,6 +1,6 @@
 ---
 title: MCP server
-description: Connect Claude Desktop, Cursor or another MCP client to your work log, and the seven read-only tools it exposes.
+description: Connect Claude Desktop, Cursor or another MCP client to your work log, and the eight read-only tools it exposes.
 ---
 
 # MCP server
@@ -85,9 +85,21 @@ The server looks for a config in this order:
 | `get_stats` | Summary statistics, optionally for a date range. |
 | `get_projects` | Detected project groupings of related PRs and tickets. |
 | `get_timeline` | Work grouped by week or month. |
+| `search_pr_reviews` | Reviews and inline review comments you gave on other people's PRs, filtered by date range, org, repository, review state or keywords. |
+
+`search_pr_reviews` reads the review records written by
+`fetch github --reviews`. They are review work, not PRs you wrote: the other
+tools never count them, and `get_stats`, `get_projects`, `get_timeline` and
+`search_prs` cover authored PRs only. If the filtered subset was made before
+you fetched reviews (it has no `pr-reviews/`), `search_pr_reviews` reads the
+full work log instead and adds a `note` asking you to re-run `filter`. It also
+adds a `note` when no reviews have been fetched. Each result names its
+`reviewer`; records written for a GitHub user other than your configured
+`github.username` are left out, with a `note` saying how many.
 
 Example prompts once connected:
 
 - "Show me my flagship PRs from last quarter."
 - "Find all my work related to authentication."
 - "What was my busiest month this year?"
+- "Which PRs did I request changes on last quarter?"

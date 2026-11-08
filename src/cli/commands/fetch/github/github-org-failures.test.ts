@@ -13,17 +13,20 @@ const repoResponses = new Map<
 
 const notFound = () => Object.assign(new Error('Not Found'), { status: 404 });
 let listingError: () => Error = notFound;
+let lookupError: () => Error = notFound;
 const pullsListedFor: string[] = [];
+const reposListedFor: string[] = [];
 
 vi.mock('@octokit/rest', () => ({
   Octokit: class {
     users = {
       getByUsername: async () => {
-        throw notFound();
+        throw lookupError();
       },
     };
     repos = {
-      listForOrg: async () => {
+      listForOrg: async ({ org }: { org: string }) => {
+        reposListedFor.push(org);
         throw listingError();
       },
     };
@@ -74,7 +77,9 @@ describe('fetchGitHubPRs org failure reporting', () => {
     });
     repoResponses.clear();
     pullsListedFor.length = 0;
+    reposListedFor.length = 0;
     listingError = notFound;
+    lookupError = notFound;
     process.exitCode = undefined;
   });
 
@@ -118,6 +123,41 @@ describe('fetchGitHubPRs org failure reporting', () => {
       }),
     ).rejects.toThrow(/rate limit/);
     expect(pullsListedFor).toEqual([]);
+  });
+
+  it('aborts before listing when the owner lookup is rate limited', async () => {
+    lookupError = () =>
+      Object.assign(new Error('API rate limit exceeded'), {
+        status: 403,
+        response: { headers: { 'x-ratelimit-remaining': '0' } },
+      });
+
+    await expect(
+      fetchGitHubPRs({
+        config: configFor(['*'], [{ name: 'acme', repos: ['web'] }]),
+        outputDir,
+      }),
+    ).rejects.toThrow(/rate limit/);
+    expect(reposListedFor).toEqual([]);
+    expect(pullsListedFor).toEqual([]);
+  });
+
+  it('reports an org whose owner lookup fails instead of guessing its kind', async () => {
+    lookupError = () =>
+      Object.assign(new Error('Bad Gateway'), { status: 502 });
+    repoResponses.set('web', 'empty');
+
+    await fetchGitHubPRs({
+      config: configFor(['*'], [{ name: 'acme', repos: ['web'] }]),
+      outputDir,
+    });
+
+    const warning = logs.find((line) => line.includes('Could not list'));
+    expect(warning).toContain('Bad Gateway');
+    expect(warning).toContain('voxmedia');
+    expect(reposListedFor).toEqual([]);
+    expect(pullsListedFor).toEqual(['web']);
+    expect(process.exitCode).toBe(1);
   });
 
   it('aborts the run when a repo request is rate limited', async () => {

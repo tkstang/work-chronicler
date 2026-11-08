@@ -1,7 +1,8 @@
 /**
  * fetch github subcommand
  *
- * Fetches pull requests from GitHub for the configured user and organizations.
+ * Fetches pull requests from GitHub for the configured user and organizations,
+ * and with `--reviews` the PR reviews the user gave (IC profiles only).
  */
 
 import { existsSync } from 'node:fs';
@@ -27,6 +28,11 @@ import { isManagerMode } from '@workspace/resolver';
 import chalk from 'chalk';
 import { Command } from 'commander';
 
+import {
+  assertReviewRecordsBelongTo,
+  fetchGitHubReviews,
+  MANAGER_REVIEWS_SKIPPED,
+} from './github-reviews.utils';
 import { fetchGitHubPRs, RateLimitError } from './github.utils';
 
 interface FetchGitHubOptions {
@@ -35,6 +41,7 @@ interface FetchGitHubOptions {
   cache?: boolean;
   report?: string;
   allReports?: boolean;
+  reviews?: boolean;
 }
 
 /**
@@ -44,6 +51,12 @@ async function fetchGitHubICMode(options: FetchGitHubOptions): Promise<void> {
   const configPath = findConfigPath(options.config);
   const config = await loadConfig(options.config);
   const outputDir = getOutputDirectory(config, configPath ?? undefined);
+
+  // Refuse a review fetch into another user's review records before
+  // anything is fetched, so the refused run writes nothing
+  if (options.reviews && config.github.orgs.length > 0) {
+    await assertReviewRecordsBelongTo(outputDir, config.github.username);
+  }
 
   // Determine cache behavior - prompt if data exists and --cache not specified
   let useCache = options.cache;
@@ -63,8 +76,24 @@ async function fetchGitHubICMode(options: FetchGitHubOptions): Promise<void> {
 
   const totalWritten = results.reduce((sum, r) => sum + r.prsWritten, 0);
 
+  let reviewSummary = '';
+  if (options.reviews) {
+    console.log();
+    const reviewResults = await fetchGitHubReviews({
+      config,
+      outputDir,
+      verbose: options.verbose,
+      useCache,
+    });
+    const reviewedPRs = reviewResults.reduce(
+      (sum, r) => sum + r.recordsWritten,
+      0,
+    );
+    reviewSummary = ` and reviews on ${chalk.cyan(reviewedPRs)} PRs`;
+  }
+
   console.log(
-    `\n${process.exitCode ? chalk.yellow('⚠') : chalk.green('✓')} Fetched ${chalk.cyan(totalWritten)} PRs to ${chalk.gray(outputDir)}`,
+    `\n${process.exitCode ? chalk.yellow('⚠') : chalk.green('✓')} Fetched ${chalk.cyan(totalWritten)} PRs${reviewSummary} to ${chalk.gray(outputDir)}`,
   );
 }
 
@@ -75,6 +104,10 @@ async function fetchGitHubManagerMode(
   options: FetchGitHubOptions,
 ): Promise<void> {
   const reportIds = await resolveReportIds(options);
+
+  if (options.reviews) {
+    console.log(chalk.yellow(`\n${MANAGER_REVIEWS_SKIPPED}`));
+  }
 
   console.log(
     chalk.blue(
@@ -147,6 +180,10 @@ export const githubCommand = new Command('github')
   .option('-c, --config <path>', 'Path to config file')
   .option('-v, --verbose', 'Show detailed output')
   .option('--cache', 'Skip PRs that already exist in work log')
+  .option(
+    '--reviews',
+    'Also fetch the PR reviews you gave inside the date range (IC profiles only)',
+  )
   .option('--report <id>', 'Report ID (manager mode only)')
   .option('--all-reports', 'Fetch for all reports (manager mode only)')
   .action(async (options) => {

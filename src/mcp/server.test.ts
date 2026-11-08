@@ -1,9 +1,18 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
   getPRFilePath,
+  getPRReviewFilePath,
+  type PRReviewRecord,
   type PullRequest,
   writeMarkdownFile,
 } from '@core/index';
@@ -13,8 +22,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createServer } from './server';
 
+const packageJson = createRequire(import.meta.url)('../../package.json') as {
+  version: string;
+};
+
 // Reviewed snapshot of the tools/list result from before the tools were split
-// into modules. MCP clients depend on these names, descriptions and schemas.
+// into modules, plus search_pr_reviews (added after the split). MCP clients
+// depend on these names, descriptions and schemas.
 const goldenTools = JSON.parse(
   readFileSync(join(import.meta.dirname, 'tools-list.golden.json'), 'utf-8'),
 );
@@ -89,6 +103,7 @@ describe('MCP server over a transport', () => {
     await client.connect(clientTransport);
 
     try {
+      expect(client.getServerVersion()?.version).toBe(packageJson.version);
       const { tools } = await client.listTools();
       expect(tools).toEqual(goldenTools);
 
@@ -101,6 +116,87 @@ describe('MCP server over a transport', () => {
         (r: { title: string }) => r.title,
       );
       expect(titles).toEqual(['Filtered subset']);
+    } finally {
+      await client.close();
+    }
+  });
+
+  it('reads reviews from the full work log, with a note, when the filtered subset predates them', async () => {
+    const workLog = join(root, 'work-log');
+    writePR(join(workLog, 'filtered'), 2, 'Filtered subset');
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const ctx = await createServer();
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test', version: '0.0.0' });
+    await ctx.server.connect(serverTransport);
+    await client.connect(clientTransport);
+    const searchReviews = async () => {
+      const result = await client.callTool({
+        name: 'search_pr_reviews',
+        arguments: {},
+      });
+      const [content] = result.content as { type: string; text: string }[];
+      return JSON.parse(content?.text ?? '');
+    };
+
+    try {
+      const nothingFetched = await searchReviews();
+      expect(nothingFetched.total).toBe(0);
+      expect(nothingFetched.note).toContain('fetch github --reviews');
+
+      const record: PRReviewRecord = {
+        type: 'pr-review',
+        reviewer: 'me',
+        pr: {
+          url: 'https://github.com/acme/api/pull/9',
+          org: 'acme',
+          repository: 'api',
+          prNumber: 9,
+          title: 'Their PR',
+          author: 'alice',
+          state: 'open',
+        },
+        prUpdatedAt: '2025-02-01T00:00:00Z',
+        reviews: [
+          {
+            reviewId: 1,
+            state: 'APPROVED',
+            submittedAt: '2025-02-01T00:00:00Z',
+            url: 'https://github.com/acme/api/pull/9#pullrequestreview-1',
+            body: '',
+          },
+        ],
+        comments: [],
+      };
+      writeMarkdownFile(
+        getPRReviewFilePath(workLog, 'acme', 'api', 9),
+        record,
+        '',
+      );
+
+      const stale = await searchReviews();
+      expect(stale.total).toBe(1);
+      expect(stale.note).toContain('Re-run `work-chronicler filter`');
+
+      // Another person's record is not the configured user's work
+      writeMarkdownFile(
+        getPRReviewFilePath(workLog, 'acme', 'api', 10),
+        { ...record, reviewer: 'alice', pr: { ...record.pr, prNumber: 10 } },
+        '',
+      );
+      const mixed = await searchReviews();
+      expect(mixed.total).toBe(1);
+      expect(mixed.note).toContain(
+        'Left out 1 review record(s) written for another GitHub user (alice), not me',
+      );
+
+      // A subset written after reviews existed is used as is, even empty
+      mkdirSync(join(workLog, 'filtered', 'pr-reviews'));
+      const current = await searchReviews();
+      expect(current.total).toBe(0);
+      expect(current.note).toBeUndefined();
     } finally {
       await client.close();
     }

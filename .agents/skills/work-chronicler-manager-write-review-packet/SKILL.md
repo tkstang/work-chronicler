@@ -1,5 +1,5 @@
 ---
-name: work-chronicler-mgmt-write-review-packet
+name: work-chronicler-manager-write-review-packet
 description: Generate evidence-based performance review content for a specific direct report. Analyzes report's work history to create structured review narratives with PR/ticket citations.
 user-invocable: true
 disable-model-invocation: true
@@ -34,8 +34,8 @@ If not in manager mode, run `work-chronicler init --mode manager` first.
 - **Focus areas**: Specific themes or projects to emphasize
 
 **Example invocations:**
-- `/work-chronicler-mgmt-write-review-packet alice-smith Q4-2025`
-- `/work-chronicler-mgmt-write-review-packet bob-jones 2025-annual, here are the review questions: [paste questions]`
+- `/work-chronicler-manager-write-review-packet alice-smith Q4-2025`
+- `/work-chronicler-manager-write-review-packet bob-jones 2025-annual, here are the review questions: [paste questions]`
 
 If the user provides a specific review template or questions, prioritize answering those over the default structure below.
 

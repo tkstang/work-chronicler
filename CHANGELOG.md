@@ -7,6 +7,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-08
+
+### Added
+
+- `skills install` migrates skills installed under old names on each tool you
+  select: it installs and checks the new name first, then asks before removing
+  the old one (declining keeps both). Old symlinks, working or broken, are
+  unlinked without touching their targets; old copies are removed only after
+  the new name is in place, and are kept when the new name is held by
+  something else or fails to install, or while any installed skill in any
+  tool resolves into the old copy (such as a symlink to it). Tools you do not
+  select are left alone and named so you can migrate them separately.
+  `skills list` flags old names.
+- `fetch github --reviews` and `fetch all --reviews` record the PR reviews
+  and inline review comments you gave inside the fetch range, on other
+  people's PRs in your configured orgs and repos, however old the PR (your
+  own PRs are skipped). Pending reviews and
+  ordinary PR conversation comments are left out. Each reviewed PR is stored
+  once at `work-log/pr-reviews/<org>/<repo>/<number>.md` and updated on later
+  fetches; it is never counted as a PR you authored. If `pr-reviews/` already
+  holds another GitHub user's records, the fetch refuses and writes nothing.
+  Opt-in because it costs extra GitHub requests. IC profiles only: manager
+  profiles print a notice and skip it.
+- `status` shows the reviewed PRs, reviews and inline comments; the new
+  read-only MCP tool `search_pr_reviews` searches them (both leave out records
+  written for another GitHub user, and say so); `filter` copies them
+  into `filtered/` using its org and repo selectors. Re-run `filter` after
+  your first `fetch --reviews`; until then `status` and `search_pr_reviews`
+  point out that the subset is missing them.
+- `work-chronicler-write-self-review`, `work-chronicler-write-resume-bullets`,
+  `work-chronicler-update-resume` and `work-chronicler-summarize-work` cite PR
+  reviews you gave as review work, never as authored PRs. They cite only
+  records whose `reviewer` matches your `github.username` and say how many
+  they left out.
+- `skills install` flags for running without prompts: `--tool <tool...>`,
+  `--method <copy|symlink>`, `--yes`, `--overwrite` and `--keep-old`. Without
+  flags it prompts as before.
+
+### Changed
+
+- `skills install` asks about overwriting only when something (a skill, file
+  or working link) already occupies the name of a skill it is about to
+  install, and replaces it only if you agree or pass `--overwrite`; broken
+  links are still repaired. Skills under old names no longer trigger the
+  prompt.
+- **Breaking:** five package skills are renamed to follow one rule,
+  `work-chronicler-[manager-]<verb>-<object>`. Re-run
+  `work-chronicler skills install` after upgrading on every AI tool that has
+  the skills (it replaces the old names; add `--overwrite` to also refresh
+  skills whose names did not change), then restart the tool so it reloads
+  its skill list:
+
+  | Old name                                    | New name                                             |
+  | ------------------------------------------- | ---------------------------------------------------- |
+  | `work-chronicler-generate-resume-bullets`   | `work-chronicler-write-resume-bullets`               |
+  | `work-chronicler-mgmt-write-peer-review`    | `work-chronicler-write-peer-review`                  |
+  | `work-chronicler-mgmt-write-review-packet`  | `work-chronicler-manager-write-review-packet`        |
+  | `work-chronicler-mgmt-quarterly-highlights` | `work-chronicler-manager-write-quarterly-highlights` |
+  | `work-chronicler-mgmt-team-summary`         | `work-chronicler-manager-write-team-summary`         |
+
+  `work-chronicler-write-peer-review` drops the manager prefix because its
+  quick mode works in any profile; evidence-backed reviews still need the
+  colleague added as a report in a manager profile.
+
+### Fixed
+
+- The MCP server reports the package version to clients instead of a
+  hardcoded `0.1.0`.
+
 ## [0.4.0] - 2026-11-07
 
 ### Added
@@ -245,7 +314,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `analyze`, `filter`, `status`, the MCP server, and Claude Code and Cursor
   commands for summaries, resume bullets, self-reviews, projects and themes.
 
-[Unreleased]: https://github.com/tkstang/work-chronicler/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/tkstang/work-chronicler/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/tkstang/work-chronicler/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/tkstang/work-chronicler/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/tkstang/work-chronicler/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/tkstang/work-chronicler/compare/v0.3.0...v0.3.1

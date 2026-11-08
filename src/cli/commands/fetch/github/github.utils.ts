@@ -30,7 +30,7 @@ type RequestError = {
 /**
  * Check if an error is a GitHub rate limit error
  */
-function isRateLimitError(error: unknown): error is RequestError {
+export function isRateLimitError(error: unknown): error is RequestError {
   if (!error || typeof error !== 'object' || !('status' in error)) {
     return false;
   }
@@ -56,7 +56,7 @@ export class RateLimitError extends Error {
  * Whether a failed request points at the org name or token scope (as opposed
  * to a network, server, or local write failure)
  */
-function isAccessError(error: unknown): boolean {
+export function isAccessError(error: unknown): boolean {
   return (
     !!error &&
     typeof error === 'object' &&
@@ -68,7 +68,7 @@ function isAccessError(error: unknown): boolean {
 /**
  * Check if an error is a GitHub rate limit error and handle it
  */
-function handleRateLimitError(error: unknown): never {
+export function handleRateLimitError(error: unknown): never {
   if (isRateLimitError(error)) {
     const rateLimitReset = error.response?.headers?.['x-ratelimit-reset'];
     let message = 'GitHub API rate limit exceeded.';
@@ -85,28 +85,28 @@ function handleRateLimitError(error: unknown): never {
 /**
  * Get GitHub token from config or environment
  */
-function getGitHubToken(config: Config): string | undefined {
+export function getGitHubToken(config: Config): string | undefined {
   return config.github.token || process.env.GITHUB_TOKEN;
 }
 
 /**
  * Parse date string to Date object
  */
-function parseDate(dateStr: string): Date {
+export function parseDate(dateStr: string): Date {
   return new Date(dateStr);
 }
 
 /**
  * Format date for display (YYYY-MM-DD)
  */
-function formatDate(date: Date): string {
+export function formatDate(date: Date): string {
   return date.toISOString().split('T')[0] ?? '';
 }
 
 /**
  * Map GitHub PR state to our state
  */
-function mapPRState(
+export function mapPRState(
   state: string,
   mergedAt: string | null,
 ): 'open' | 'closed' | 'merged' {
@@ -116,15 +116,33 @@ function mapPRState(
 }
 
 /**
- * Check if the given name is a user (not an organization)
+ * Check if the given name is a user (not an organization).
+ *
+ * GitHub answers `/users/<name>` for both kinds of account; `type` tells them
+ * apart. A 404 means no account by that name is visible, so it is not a user;
+ * the org request that follows then reports the access problem. A rate limit
+ * throws {@link RateLimitError}. Any other failure is rethrown, so callers
+ * report the lookup as unavailable instead of guessing the account kind.
  */
-async function isUser(octokit: Octokit, name: string): Promise<boolean> {
+export async function isUser(octokit: Octokit, name: string): Promise<boolean> {
+  let type: string;
   try {
-    const { data } = await octokit.users.getByUsername({ username: name });
-    return data.type === 'User';
-  } catch {
-    return false;
+    ({
+      data: { type },
+    } = await octokit.users.getByUsername({ username: name }));
+  } catch (error) {
+    if (isRateLimitError(error)) handleRateLimitError(error);
+    if (
+      error &&
+      typeof error === 'object' &&
+      'status' in error &&
+      error.status === 404
+    ) {
+      return false;
+    }
+    throw error;
   }
+  return type === 'User';
 }
 
 /**
@@ -385,6 +403,7 @@ async function fetchOrgPRs(
     try {
       repos = await listOrgRepos(octokit, org, spinner);
     } catch (error) {
+      if (error instanceof RateLimitError) throw error;
       if (isRateLimitError(error)) handleRateLimitError(error);
       const message = error instanceof Error ? error.message : String(error);
       return {

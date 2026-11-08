@@ -1,3 +1,5 @@
+import { createRequire } from 'node:module';
+
 import {
   type Config,
   findConfigPath,
@@ -12,6 +14,7 @@ import {
   getTimelineTool,
   listReposTool,
   type McpTool,
+  searchPrReviewsTool,
   searchPrsTool,
   searchTicketsTool,
   type ToolContext,
@@ -69,9 +72,18 @@ export async function createServer(): Promise<MCPServerContext> {
   return {
     config,
     outputDir,
-    server: createToolServer({ outputDir }),
+    server: createToolServer({
+      outputDir,
+      fullOutputDir: baseOutputDir,
+      githubUsername: config.github.username || undefined,
+    }),
   };
 }
+
+// Report the package version to MCP clients, matching `work-chronicler --version`.
+const { version: packageVersion } = createRequire(import.meta.url)(
+  '../../package.json',
+) as { version: string };
 
 /**
  * Create an MCP server with every tool registered against a resolved
@@ -80,7 +92,7 @@ export async function createServer(): Promise<MCPServerContext> {
 export function createToolServer(context: ToolContext): McpServer {
   const server = new McpServer({
     name: 'work-chronicler',
-    version: '0.1.0',
+    version: packageVersion,
   });
 
   registerTool(server, context, searchPrsTool);
@@ -90,6 +102,7 @@ export function createToolServer(context: ToolContext): McpServer {
   registerTool(server, context, getStatsTool);
   registerTool(server, context, getProjectsTool);
   registerTool(server, context, getTimelineTool);
+  registerTool(server, context, searchPrReviewsTool);
 
   return server;
 }

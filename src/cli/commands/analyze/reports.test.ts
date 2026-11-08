@@ -113,7 +113,7 @@ describe('analyze reports --tag-prs', () => {
     expect(await tagAlicesPR()).toBe('standard');
   });
 
-  // stats.json and timeline.json are read by `analyze team` and the mgmt-*
+  // stats.json and timeline.json are read by `analyze team` and the manager-*
   // skills, so they must agree with the impact written to the PR file.
   it('writes the configured impact to the PR file, stats.json and timeline.json alike', async () => {
     writeManagerConfig([

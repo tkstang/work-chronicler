@@ -92,6 +92,7 @@ Data lives in `~/.work-chronicler/profiles/<profile>/`. Each profile has its own
 | Goal | Use |
 | --- | --- |
 | Pull PRs and tickets into markdown | `fetch github`, `fetch jira`, `fetch all` |
+| Record the PR reviews you gave | `fetch github --reviews` or `fetch all --reviews` |
 | Connect PRs to the tickets they reference | `link` (run automatically by `fetch all`) |
 | Classify PRs as minor, standard, major or flagship | `analyze --tag-prs` |
 | Group related work into projects and a timeline | `analyze --projects --timeline` |
@@ -108,16 +109,19 @@ The [command reference](documentation/commands.md) lists every command and flag.
 What exists today:
 
 - **Sources:** GitHub pull requests you authored (by org and repo, or every
-  repo in an org) and JIRA Cloud tickets assigned to you (one or more
-  instances and projects). No other sources are supported.
+  repo in an org), optionally the reviews and inline review comments you gave
+  on other people's PRs in those orgs (IC profiles), and JIRA Cloud tickets
+  assigned to you (one or more instances and projects). No other sources are
+  supported.
 - **Local enrichment:** PR-to-ticket linking, impact classification, project
   detection from shared ticket references, a week/month timeline, and filtered
   subsets. None of these call an AI model.
 - **IC and manager modes:** an individual work log per profile, or per-report
   work logs plus team-level project and timeline rollups for people managers.
-- **MCP server:** seven read-only query tools over the work log.
-- **AI skills:** ten skills (six IC, four manager) that read the work log and
-  write documents to the profile's `outputs/` directory.
+- **MCP server:** eight read-only query tools over the work log.
+- **AI skills:** ten skills (six for IC profiles, one peer-review skill for
+  any profile, three manager-only) that read the work log and write documents
+  to the profile's `outputs/` directory.
 
 The CLI itself never calls an LLM; writing happens in your assistant through
 the skills or the MCP server.

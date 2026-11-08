@@ -23,7 +23,10 @@ export const mcpCommand = new Command('mcp')
       console.log('  - list_repos: List repositories with statistics');
       console.log('  - get_stats: Get summary statistics');
       console.log('  - get_projects: Get detected project groupings');
-      console.log('  - get_timeline: Get chronological timeline of work\n');
+      console.log('  - get_timeline: Get chronological timeline of work');
+      console.log(
+        "  - search_pr_reviews: Search reviews you gave on others' PRs\n",
+      );
       console.log('Configuration:');
       console.log(
         '  Claude Desktop: Add to ~/Library/Application Support/Claude/claude_desktop_config.json',

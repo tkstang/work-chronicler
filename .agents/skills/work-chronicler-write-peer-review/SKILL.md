@@ -1,13 +1,13 @@
 ---
-name: work-chronicler-mgmt-write-peer-review
-description: Write peer reviews for colleagues. Use when writing peer feedback, 360 reviews, or colleague evaluations. Supports both evidence-based reviews (with work-log data) and narrative reviews (notes-only).
+name: work-chronicler-write-peer-review
+description: Use when writing peer feedback, 360 reviews, or colleague evaluations. Quick mode works in any profile, including IC; evidence-backed reviews with work-log data need the colleague added as a report in a manager profile.
 user-invocable: true
 disable-model-invocation: true
 ---
 
 # Write Peer Review
 
-Write peer reviews for colleagues. Adapts to available data - works with full work-log evidence or just manager/peer notes.
+Write peer reviews for colleagues from any profile. Quick mode needs no setup and works for ICs and managers alike; full mode adds work-log evidence and notes, and needs the colleague added as a report in a manager profile.
 
 ## Quick Review vs Full Mode
 
@@ -32,9 +32,9 @@ Write peer reviews for colleagues. Adapts to available data - works with full wo
 ## Workspace
 
 **Active profile:** !`work-chronicler workspace profile`
-**Manager root:** !`work-chronicler workspace root`
+**Profile root:** !`work-chronicler workspace root`
 
-> **For non-Claude tools:** Run `work-chronicler workspace root` to get your manager profile path.
+> **For non-Claude tools:** Run `work-chronicler workspace root` to get your profile path.
 
 ## User Input
 
@@ -51,11 +51,11 @@ Write peer reviews for colleagues. Adapts to available data - works with full wo
 **Example invocations:**
 
 *Full mode (with report):*
-- `/work-chronicler-mgmt-write-peer-review alice-smith`
-- `/work-chronicler-mgmt-write-peer-review bob-jones Q4-2025`
+- `/work-chronicler-write-peer-review alice-smith`
+- `/work-chronicler-write-peer-review bob-jones Q4-2025`
 
 *Quick mode (no report):*
-- `/work-chronicler-mgmt-write-peer-review` → Will ask if quick review or add report
+- `/work-chronicler-write-peer-review` → Will ask if quick review or add report
 
 **When user provides a template:**
 
@@ -125,7 +125,8 @@ If they say no, use the template as-is and ask them to provide their overall tho
    - Show them: "To add them as a report, run these commands:"
      ```bash
      work-chronicler init --mode manager  # If not already in manager mode
-     work-chronicler reports add <their-id> --skip-fetch
+     work-chronicler reports add "<Their Name>"
+     work-chronicler reports list   # shows the report ID
 
      # Then optionally add supporting data:
      # - Add notes: reports/<their-id>/notes/observations.md

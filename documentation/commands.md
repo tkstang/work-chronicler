@@ -8,9 +8,10 @@ description: Every work-chronicler CLI command, argument and flag, grouped by ta
 Run `work-chronicler <command> --help` for the same information from the CLI.
 From a source checkout, use `pnpm cli <command>`.
 
-Some commands are interactive by design: `init`, `skills install` and
-`skills uninstall` always prompt, even when you pass flags. Most other commands
-prompt only for a choice you did not give as a flag. When a `filtered/` subset
+Some commands are interactive by design: `init` and `skills uninstall` always
+prompt, even when you pass flags. `skills install` prompts unless you pass its
+flags (`--yes` runs it with no prompts). Most other commands prompt only for a
+choice you did not give as a flag. When a `filtered/` subset
 exists, `analyze` asks whether to use it unless you pass `--full`, so use
 `analyze --all --full` for an unattended analysis of the full work log.
 
@@ -29,7 +30,7 @@ exists, `analyze` asks whether to use it unless you pass `--full`, so use
 | `init` | Create a profile with the guided wizard. |
 | `init --profile <name>` | Use this profile name instead of prompting. |
 | `init --mode <ic\|manager>` | Create an IC profile (default) or a manager profile. |
-| `status [-c <path>]` | Show what has been fetched for the active profile. |
+| `status [-c <path>]` | Show what has been fetched for the active profile, including PR reviews you gave. |
 
 ## Fetch
 
@@ -40,6 +41,7 @@ All three accept:
 | `-c, --config <path>` | Use this config file instead of the profile's. |
 | `-v, --verbose` | Show detailed output. |
 | `--cache` | Skip items already in the work log. Without it, you are asked when data exists. |
+| `--reviews` | `fetch github` and `fetch all` only: also fetch the PR reviews you gave (see below). IC profiles only; manager profiles print a notice and skip it. |
 | `--report <id>` | Manager mode: fetch for one report. |
 | `--all-reports` | Manager mode: fetch for every report. |
 
@@ -51,6 +53,30 @@ All three accept:
 
 The date range comes from `fetch.since` and `fetch.until` in the config; there
 are no date flags.
+
+### PR reviews you gave
+
+`--reviews` is opt-in because it costs extra GitHub requests: an account
+lookup and a search per org (more search pages when you reviewed many PRs),
+plus at least two requests per reviewed PR.
+It stores the reviews and inline review comments you submitted inside the
+date range, on other people's PRs in your configured orgs and repos, however
+old the PR. PRs you authored are skipped. Pending (unsubmitted)
+reviews and ordinary PR conversation comments are not included. A comment
+counts by when it was written, not when it was last edited, and the stored
+text is its latest version.
+
+Each reviewed PR gets one file at
+`work-log/pr-reviews/<org>/<repo>/<number>.md` with the PR's URL, title,
+author and state, and your reviews and comments. Fetching again updates the
+same file. If `pr-reviews/` already holds records for a different GitHub
+user, for example because you changed `github.username`, `--reviews` refuses
+to run, fetches nothing and exits with an error; use a separate profile or
+output directory for each person, or remove `pr-reviews/`. `status` does not
+count such records and says so. With `--cache`, PRs that have not changed since their file was
+written for the same or a wider date range are skipped. These records are never counted as PRs you authored.
+A rate limit stops the run; other failures are reported per org and make the
+run exit with status 1.
 
 ## Link, analyze and filter
 
@@ -90,6 +116,12 @@ new links and leaves unchanged files untouched.
 | `-c, --config <path>`, `-v, --verbose` | As above. |
 
 Impact filters use the PR's stored `impact`, or classify untagged PRs on the fly.
+Review records (`pr-reviews/`) are copied into `filtered/` when they pass the
+`--org`, `--exclude-org`, `--repo` and `--exclude-repo` selectors; the other
+filters describe authored PRs and do not apply to them. Once reviews have been
+fetched, `filter` always writes `filtered/pr-reviews/`, even when empty. Re-run
+`filter` after your first `fetch github --reviews`: a subset made before that
+has no `pr-reviews/`, and `status` says so.
 
 ## Profiles
 
@@ -116,8 +148,13 @@ These commands need a manager profile. See [Manager mode](manager-mode.md).
 
 | Command | Meaning |
 | --- | --- |
-| `skills install` | Copy or symlink the packaged skills into Claude Code, Cursor, Codex or Gemini. |
-| `skills list` | Show which tools have the skills installed. |
+| `skills install` | Copy or symlink the packaged skills into Claude Code, Cursor, Codex or Gemini, and migrate skills installed under old names. Prompts for anything not given as a flag. |
+| `skills install --tool <tool...>` | Install for these tools: `claude`, `cursor`, `codex`, `gemini` or `all`. Skips the tool prompt. |
+| `skills install --method <method>` | `copy` or `symlink`. Skips the method prompt. |
+| `skills install --yes` | Never prompt: install for the detected tools (unless `--tool` is given) by copy (unless `--method` is given), keep anything already at a skill's name (a skill, file or link; broken links are repaired) and remove old-name skills once their replacement is installed. |
+| `skills install --overwrite` | Replace whatever is already at a skill's name (a skill, file or link) without asking. |
+| `skills install --keep-old` | Keep skills installed under old names without asking. |
+| `skills list` | Show which tools have the skills installed, flagging old names that `skills install` will migrate. |
 | `skills uninstall` | Remove installed skills. |
 | `workspace profile` | Print the active profile name. |
 | `workspace root` | Print the active profile directory. |

@@ -59,13 +59,56 @@ The installer auto-detects which AI assistants you have and installs to:
 - **Codex**: `~/.codex/skills/`
 - **Gemini**: `~/.gemini/skills/`
 
+For scripts and agents, flags skip the prompts:
+
+```bash
+# Copy the skills into Claude Code and Codex without any prompt
+work-chronicler skills install --tool claude codex --method copy --yes
+```
+
+See the [command reference](commands.md#ai-skills-and-paths) for every flag.
+
+### Upgrading and renamed skills
+
+Re-run `work-chronicler skills install` after every upgrade, then restart your
+AI tool so it reloads its skill list. Copied skills whose names did not change
+are refreshed only if you answer yes to "Overwrite existing skills?" or pass
+`--overwrite`; `--yes` alone keeps them as they are. When a release renames a skill (0.5.0
+renamed five; see `CHANGELOG.md`), the installer migrates it on each tool you
+select:
+
+1. It installs the new name and checks that its `SKILL.md` declares that name.
+2. It asks before removing the old name (`--yes` removes it, `--keep-old`
+   keeps it). Declining keeps both names and prints a notice. Removing an old
+   copy discards any local edits you made to it; use `--keep-old` and copy
+   your changes over first if you customized it.
+3. Old symlinks, working or broken, are unlinked; whatever they point to is not
+   touched. Old copies are deleted only after the new name is in place.
+4. If the new name is held by something else and you refuse to overwrite it, or
+   the install fails, the old name is kept.
+5. If any installed skill, in the selected tool or any other, resolves into
+   the old entry (for example a symlink you made from a new name to the old
+   copy, or a `scripts/` link inside a skill that points into it), the old
+   name is kept so that skill keeps working, and the installer names it. A
+   skill, or any tool's skills directory, that cannot be fully read also keeps
+   the old name. To make that skill independent, run
+   `skills install --tool <its tool> --overwrite` if it is a work-chronicler
+   skill; if it is your own skill, replace the link with a copy of what it
+   points to (`--overwrite` reinstalls only work-chronicler skills). Then run
+   `skills install` again for the tool that holds the old name; it is removed
+   once nothing resolves into it.
+
+Tools you do not select are left unchanged; the installer names any that still
+have old names so you can run `skills install --tool <tool>` for them.
+`skills list` flags old names too.
+
 ### Prerequisites
 
 Before using skills, you need data:
 
 ```bash
-# 1. Fetch your work history
-work-chronicler fetch all
+# 1. Fetch your work history (--reviews also records the PR reviews you gave)
+work-chronicler fetch all --reviews
 
 # 2. Generate analysis (optional but recommended)
 work-chronicler analyze --all
@@ -83,11 +126,12 @@ Skills for individual contributors tracking their own work:
 | Skill | Description | Use When |
 |-------|-------------|----------|
 | `/work-chronicler-summarize-work` | Summarize PRs and tickets for a time period | Preparing for 1:1s, reviews, or updates |
-| `/work-chronicler-generate-resume-bullets` | Create achievement-focused resume bullet points | Updating your resume with recent work |
+| `/work-chronicler-write-resume-bullets` | Create achievement-focused resume bullet points | Updating your resume with recent work |
 | `/work-chronicler-update-resume` | Update existing resume with new accomplishments | You have a resume and want to add recent work |
 | `/work-chronicler-write-self-review` | Draft self-review content for performance reviews | Performance review time, need to write self-assessment |
 | `/work-chronicler-detect-projects` | Identify major project groupings from work history | Understanding how your work clusters into initiatives |
 | `/work-chronicler-detect-themes` | Find recurring themes for career narrative | Building career story, identifying strengths |
+| `/work-chronicler-write-peer-review` | Write peer reviews for colleagues (quick mode works in any profile; evidence-backed mode needs a manager profile) | Peer review time, 360 reviews, colleague feedback |
 
 ---
 
@@ -97,10 +141,9 @@ Skills for managers tracking multiple reports:
 
 | Skill | Description | Use When |
 |-------|-------------|----------|
-| `/work-chronicler-mgmt-write-review-packet` | Generate evidence-based performance review for a direct report | Writing quarterly/annual reviews for reports |
-| `/work-chronicler-mgmt-write-peer-review` | Write peer reviews for colleagues | Peer review time, 360 reviews, colleague feedback |
-| `/work-chronicler-mgmt-quarterly-highlights` | Create concise quarterly summary for 1:1s and calibration | Preparing for 1:1s, calibration meetings, updates |
-| `/work-chronicler-mgmt-team-summary` | Generate team-level overview for leadership | Leadership updates, calibration prep, team visibility |
+| `/work-chronicler-manager-write-review-packet` | Generate evidence-based performance review for a direct report | Writing quarterly/annual reviews for reports |
+| `/work-chronicler-manager-write-quarterly-highlights` | Create concise quarterly summary for 1:1s and calibration | Preparing for 1:1s, calibration meetings, updates |
+| `/work-chronicler-manager-write-team-summary` | Generate team-level overview for leadership | Leadership updates, calibration prep, team visibility |
 
 ---
 
@@ -108,7 +151,7 @@ Skills for managers tracking multiple reports:
 
 ### Writing Peer Reviews
 
-**Skill**: `/work-chronicler-mgmt-write-peer-review`
+**Skill**: `/work-chronicler-write-peer-review`
 
 The most flexible skill - supports both quick one-off reviews and comprehensive evidence-based reviews.
 
@@ -118,7 +161,7 @@ For writing one-off peer reviews without creating a report:
 
 **Usage:**
 ```
-/work-chronicler-mgmt-write-peer-review
+/work-chronicler-write-peer-review
 ```
 
 **Interactive flow:**
@@ -138,7 +181,7 @@ For writing one-off peer reviews without creating a report:
 **Example:**
 
 ```
-You: /work-chronicler-mgmt-write-peer-review
+You: /work-chronicler-write-peer-review
 
 Skill: Is this a quick peer review, or would you like to add them as a report?
 You: Quick peer review
@@ -184,7 +227,7 @@ work-chronicler fetch github --report alice-smith
 
 **Usage:**
 ```
-/work-chronicler-mgmt-write-peer-review alice-smith
+/work-chronicler-write-peer-review alice-smith
 ```
 
 **Output:**
@@ -239,7 +282,7 @@ around after discussion.
 
 ### Writing Performance Reviews
 
-**Skill**: `/work-chronicler-mgmt-write-review-packet`
+**Skill**: `/work-chronicler-manager-write-review-packet`
 
 Generate evidence-based performance reviews for direct reports.
 
@@ -250,7 +293,7 @@ Generate evidence-based performance reviews for direct reports.
 
 **Usage:**
 ```
-/work-chronicler-mgmt-write-review-packet alice-smith Q4-2025
+/work-chronicler-manager-write-review-packet alice-smith Q4-2025
 ```
 
 **What it does:**
@@ -307,15 +350,15 @@ Summarize your work for a specific time period.
 
 ### Resume & Career Documents
 
-#### Generate Resume Bullets
+#### Write Resume Bullets
 
-**Skill**: `/work-chronicler-generate-resume-bullets`
+**Skill**: `/work-chronicler-write-resume-bullets`
 
 Create achievement-focused resume bullet points from your work.
 
 **Usage:**
 ```
-/work-chronicler-generate-resume-bullets 2025
+/work-chronicler-write-resume-bullets 2025
 ```
 
 **What it does:**
@@ -455,7 +498,7 @@ Skills provide drafts - review, refine, and personalize before submitting.
 **Quarterly review prep:**
 1. Fetch data: set `fetch.since` in the profile config, then `fetch all --all-reports`
 2. Add context: Upload past reviews, update notes
-3. Generate: `/work-chronicler-mgmt-write-review-packet {id} Q1-2026`
+3. Generate: `/work-chronicler-manager-write-review-packet {id} Q1-2026`
 4. Review and refine
 5. Save to `reports/{id}/performance-reviews/` for next cycle
 

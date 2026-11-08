@@ -205,7 +205,7 @@ export const reportsCommand = new Command('reports')
 
       // Write stats file
       // Per-report analysis lives directly in reports/<id>/analysis/, which
-      // is where `analyze team` and the mgmt-* skills read it.
+      // is where `analyze team` and the manager-* skills read it.
       const statsPath = join(analysisDir, 'stats.json');
       writeFileSync(statsPath, JSON.stringify(stats, null, 2));
       console.log(`${chalk.green('✓')} Wrote ${chalk.cyan(statsPath)}`);

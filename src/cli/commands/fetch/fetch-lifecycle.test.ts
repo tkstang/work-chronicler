@@ -16,9 +16,23 @@ import {
 // every pulls.list request is recorded as `<org>/<repo>`.
 const repoResponses = new Map<string, 'not-found' | 'empty' | 'rate-limited'>();
 const pullsRequested: string[] = [];
+const searches: string[] = [];
 
 vi.mock('@octokit/rest', () => ({
   Octokit: class {
+    users = {
+      getByUsername: async () => {
+        throw Object.assign(new Error('Not Found'), { status: 404 });
+      },
+    };
+    search = {
+      issuesAndPullRequests: async ({ q }: { q: string }) => {
+        searches.push(q);
+        return {
+          data: { total_count: 0, incomplete_results: false, items: [] },
+        };
+      },
+    };
     pulls = {
       list: async ({ owner, repo }: { owner: string; repo: string }) => {
         pullsRequested.push(`${owner}/${repo}`);
@@ -44,6 +58,8 @@ vi.stubEnv('GITHUB_TOKEN', '');
 const { Command } = await import('commander');
 const { handleCliError } = await import('@cli/errors');
 const { fetchCommand } = await import('./index');
+const { getPRReviewFilePath, getWorkLogDir, writeMarkdownFile } =
+  await import('@core/index');
 
 /**
  * Run `work-chronicler <args>` with the same error wiring as src/cli/index.ts:
@@ -77,6 +93,7 @@ describe('fetch command lifecycle', () => {
     mkdirSync(workspace, { recursive: true });
     repoResponses.clear();
     pullsRequested.length = 0;
+    searches.length = 0;
     logs = [];
     vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
       logs.push(args.join(' '));
@@ -161,6 +178,120 @@ describe('fetch command lifecycle', () => {
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain('GitHub API rate limit exceeded.');
     expect(pullsRequested).toEqual(['voxmedia/alpha']);
+  });
+
+  describe('PR reviews given', () => {
+    const icConfig = [
+      'github:',
+      '  username: octocat',
+      '  token: test-token',
+      '  orgs:',
+      '    - name: acme',
+      '      repos: [web]',
+      'fetch:',
+      '  since: "2025-01-01"',
+      '  until: "2025-06-01"',
+    ].join('\n');
+
+    beforeEach(() => {
+      vi.stubEnv('WORK_CHRONICLER_PROFILE', 'default');
+      writeProfileConfig('default', icConfig);
+      repoResponses.set('web', 'empty');
+    });
+
+    it('are fetched only when asked for with --reviews', async () => {
+      await runCli(['fetch', 'github', '--cache']);
+      expect(searches).toEqual([]);
+
+      const result = await runCli([
+        'fetch',
+        'all',
+        '--cache',
+        '--no-link',
+        '--reviews',
+      ]);
+
+      expect(result.exitCode).toBeUndefined();
+      expect(searches).toEqual([
+        'is:pr reviewed-by:octocat -author:octocat org:acme updated:>=2025-01-01',
+      ]);
+    });
+
+    it.each([
+      ['fetch', 'github', '--cache', '--reviews'],
+      ['fetch', 'all', '--cache', '--no-link', '--reviews'],
+    ])(
+      "refuse `%s %s` before fetching anything when the work log holds another reviewer's records",
+      async (...args) => {
+        writeMarkdownFile(
+          getPRReviewFilePath(getWorkLogDir('default'), 'acme', 'web', 1),
+          {
+            type: 'pr-review',
+            reviewer: 'alice',
+            pr: {
+              url: 'https://github.com/acme/web/pull/1',
+              org: 'acme',
+              repository: 'web',
+              prNumber: 1,
+              title: 'Synthetic PR',
+              author: 'carol',
+              state: 'open',
+            },
+            prUpdatedAt: '2025-05-01T00:00:00Z',
+            reviews: [],
+            comments: [],
+          },
+          '',
+        );
+
+        const result = await runCli(args);
+
+        expect(result.handled).toBe(true);
+        expect(result.exitCode).not.toBe(0);
+        expect(result.exitCode).toBeDefined();
+        expect(result.stderr).toContain(
+          'review record(s) for another GitHub user (alice)',
+        );
+        expect(pullsRequested).toEqual([]);
+        expect(searches).toEqual([]);
+      },
+    );
+
+    it('are skipped with a notice for manager profiles while PRs are still fetched', async () => {
+      vi.stubEnv('WORK_CHRONICLER_PROFILE', 'manager');
+      writeProfileConfig(
+        'manager',
+        [
+          'mode: manager',
+          'github:',
+          '  token: test-token',
+          '  org: voxmedia',
+          'fetch:',
+          '  since: "2025-01-01"',
+          'reports:',
+          '  - name: Alice Smith',
+          '    github: alice',
+          '    email: alice@example.com',
+          '    repos: [alpha]',
+        ].join('\n'),
+      );
+      repoResponses.set('alpha', 'empty');
+
+      const result = await runCli([
+        'fetch',
+        'github',
+        '--all-reports',
+        '--cache',
+        '--reviews',
+      ]);
+
+      expect(result.exitCode).toBeUndefined();
+      expect(
+        logs.some((line) => line.includes('only fetched for IC profiles')),
+      ).toBe(true);
+      expect(pullsRequested).toEqual(['voxmedia/alpha']);
+      expect(searches).toEqual([]);
+    });
   });
 
   describe('manager reports with a failed JIRA project', () => {

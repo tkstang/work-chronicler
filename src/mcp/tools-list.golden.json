@@ -192,5 +192,47 @@
     "execution": {
       "taskSupport": "forbidden"
     }
+  },
+  {
+    "name": "search_pr_reviews",
+    "description": "Search the reviews and inline review comments the user gave on other people's pull requests. This is review work, not authored PRs; search_prs never includes it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "description": "Search term for PR title, review text and comment text",
+          "type": "string"
+        },
+        "org": {
+          "description": "Filter by organization name",
+          "type": "string"
+        },
+        "repo": {
+          "description": "Filter by repository name",
+          "type": "string"
+        },
+        "state": {
+          "description": "Only reviews with this state, and the inline comments submitted with them",
+          "type": "string",
+          "enum": ["APPROVED", "CHANGES_REQUESTED", "COMMENTED", "DISMISSED"]
+        },
+        "since": {
+          "description": "Start date for review and comment times (ISO format)",
+          "type": "string"
+        },
+        "until": {
+          "description": "End date for review and comment times (ISO format)",
+          "type": "string"
+        },
+        "limit": {
+          "description": "Maximum number of reviewed PRs",
+          "type": "number"
+        }
+      },
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
   }
 ]
