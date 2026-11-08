@@ -823,8 +823,39 @@ Proof: 3 new rule cases fail on 5d53367; full suite, lint, typecheck, format:che
 **Status:** in_progress
 **Base:** d990a404b16c80ff11fa01d7bd957b3486d5a922
 **Executor:** phase-implementer:wce-p12-impl-1
+**Head:** 80aa589f2c0c261c91798e99db6d2c6a2a6a5581
 
 Worktree and branch as p04. Committing owner: the phase implementer (code); root owns the journal. Parallelism: no declared group; one phase implementer. Task class: consequential (replacing a user's installed skills; data loss is the failure mode).
+
+Verification at Head: implementer ran the full DoD batch (566 tests; `npm pack --dry-run` 133 files) and the built CLI into a temp HOME (fresh copy install, symlink `--overwrite`, copy `--overwrite`: 12 of 12 skills each, no leftovers). Root re-ran typecheck, lint, format:check and tests at Head: pass (566).
+
+Design: on `--overwrite`, each skill is staged beside its destination and verified, the existing entry is moved aside, the new one is verified in place, then the old one is deleted; any failure before that restores it. Cleanup failures are warnings and the run continues. Failures injected through a `SkillInstallFs` seam (extends `ImportFs` with `copyTree` and `symlink`); no new chmod tests. The next run removes leftover staging entries and restores a single moved-aside skill when nothing holds its name, otherwise names the leftover. `migrate.ts` decisions unchanged (behavior-preserving extraction of `declaredSkillName`).
+
+Accepted concerns (root): a link from elsewhere into a replaced skill's subfolder can still break if the packaged version lacks that file (pre-existing; links to the skill itself keep working); cleanup warnings exit 0 when every skill installed; no lock between concurrent installs (nothing lost; messages could mislead); a crash leaves hidden `.<skill>.wc-…` entries until the next run; a restored backup gets the standard lowercase name.
+
+### Task p12-t01: Stage and verify before replacing
+
+**Status:** completed
+**Commit:** 38aeb92641fed00eb76c886b09f02454f3072ce0
+**Executor:** phase-implementer:wce-p12-impl-1
+Files: `src/cli/commands/skills/{replace,install,install.test,migrate}.ts`
+Proof: skills tests 35/35; restoring delete-before-copy fails all 8 new failure tests
+
+### Task p12-t02: Recover after an interrupted install
+
+**Status:** completed
+**Commit:** 01e0491e9570c4d8d2aad5c1fee9e55f11475449
+**Executor:** phase-implementer:wce-p12-impl-1
+Files: `replace.ts`, `install.ts`, `install.test.ts`
+Proof: skills tests 38/38; mutation check
+
+### Task p12-t03: Changelog and docs
+
+**Status:** completed
+**Commit:** 80aa589f2c0c261c91798e99db6d2c6a2a6a5581
+**Executor:** phase-implementer:wce-p12-impl-1
+Files: `CHANGELOG.md`, `documentation/{available-skills,commands}.md`
+Proof: `format:check`
 
 ---
 
@@ -857,6 +888,8 @@ Worktree and branch as p04. Committing owner: the phase implementer (code); root
 <!-- One line per dispatch request id, rendered by `oat project dispatch record --format line` and written as a list item. Update that line in place with the terminal outcome; never paste the record or event JSON. -->
 
 <!-- orchestration-runs-start -->
+
+- run/v1 · request=wce-p12-impl-1 · scope=p12 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p12 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 - run/v1 · request=wce-p07-rev-2 · scope=p07 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p07 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
