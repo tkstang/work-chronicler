@@ -98,7 +98,9 @@ export function describeFilters(criteria: FilterCriteria): string[] {
 /**
  * Build the org and repo selector shared by PRs and review records.
  * Selectors normalize like the config schema, so `--org @acme` matches
- * `acme` and `--repo @acme/web` matches `acme/web`.
+ * `acme` and `--repo @acme/web` matches `acme/web`. A record's repository
+ * may be the bare name (`web`, as `fetch` stores it) or the full name
+ * (`acme/web`); both match `--repo acme/web`.
  *
  * @throws For a selector that can never match a stored org
  */
@@ -131,7 +133,13 @@ function buildScope(
 
   return (org, repository) => {
     const orgKey = toFilterKey(org);
-    const repoKey = `${orgKey}/${repository.toLowerCase()}`;
+    // `fetch` stores the bare name (`api`); a record may also hold the full
+    // name (`acme/api`), whose own owner then names the repository
+    const slash = repository.indexOf('/');
+    const repoKey =
+      slash === -1
+        ? `${orgKey}/${repository.toLowerCase()}`
+        : `${toFilterKey(repository.slice(0, slash))}/${repository.slice(slash + 1).toLowerCase()}`;
     if (includeOrgs && !includeOrgs.has(orgKey)) return false;
     if (excludeOrgs.has(orgKey)) return false;
     if (includeRepos && !includeRepos.has(repoKey)) return false;

@@ -449,7 +449,7 @@ twice under another capitalization.
 | `--merged-only` | Keep only merged PRs. |
 | `--exclude-status <statuses...>` | Drop tickets with these statuses, for example `"To Do"`. |
 | `--org <orgs...>` / `--exclude-org <orgs...>` | Keep or drop PRs from these GitHub orgs. |
-| `--repo <repos...>` / `--exclude-repo <repos...>` | Keep or drop PRs from these repos (`org/repo`). |
+| `--repo <repos...>` / `--exclude-repo <repos...>` | Keep or drop PRs from these repos (`org/repo`, ignoring case). A record whose `repository` holds the bare name (`api`) or the full name (`acme/api`) matches either way. |
 | `--clear` | Remove the subset, so read commands use the full work log. |
 | `-c, --config <path>`, `-v, --verbose` | As above. |
 

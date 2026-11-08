@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `filter --repo acme/api` left out, and `--exclude-repo acme/api` kept, a
+  PR whose `repository` holds the full name (`acme/api`) rather than the bare
+  name `fetch` stores. Both forms now match.
 - `/work-chronicler-summarize-work`, `/work-chronicler-write-self-review`,
   `/work-chronicler-write-resume-bullets` and `/work-chronicler-update-resume`
   summarized a `search_messages` result from its text alone, which stops at
