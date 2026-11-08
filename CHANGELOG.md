@@ -115,9 +115,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   left out. They now read the full message from its record file first.
 - A subset made by `filter`, an MCP tool result or `analyze` could include
   part of an import's batch, read while the import was storing it or after
-  it was interrupted. Readers now never see part of a batch: they wait for
-  the import (see Changed), and a read during which a whole batch was stored
-  is done again.
+  it was interrupted. Readers now never see part of a batch: they refuse to
+  read imported records while an import is storing a batch or was
+  interrupted (see Changed), and a read during which a whole batch was
+  stored is done again.
 - A running `import` or `filter` could have its lock taken over when the
   system clock jumped forward, because a lock's owner counted as gone when
   its recorded start time looked older than the last boot. Locks now record
