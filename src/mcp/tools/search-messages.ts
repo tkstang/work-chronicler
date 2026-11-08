@@ -5,14 +5,16 @@ import {
   buildMentionIndex,
   DIRECTORIES,
   getImportedRecordIdentity,
-  IMPORT_SOURCES,
   importedRecordIdentityKey,
+  isMessageFile,
+  MESSAGE_SOURCES,
   normalizePullRequestUrl,
   readAllImportedRecords,
   readAllPRs,
   readAllTickets,
   resolveMentions,
   type ImportedRecordFile,
+  type MessageRecord,
   type ResolvedMentions,
 } from '@core/index';
 import { z } from 'zod';
@@ -75,7 +77,7 @@ export const searchMessagesTool = defineTool({
       .optional()
       .describe('Search term for message text and channel name'),
     source: z
-      .enum(IMPORT_SOURCES)
+      .enum(MESSAGE_SOURCES)
       .optional()
       .describe('Only messages from this source'),
     since: z
@@ -162,7 +164,7 @@ export const searchMessagesTool = defineTool({
     );
 
     const matches = (await readAllImportedRecords(outputDir))
-      .filter((record) => record.frontmatter.type === 'message')
+      .filter(isMessageFile)
       .map((record) => ({
         record,
         mentions: resolveMentions(record.frontmatter, index),
@@ -248,7 +250,7 @@ function boundedResult({
   record,
   mentions,
 }: {
-  record: ImportedRecordFile;
+  record: ImportedRecordFile<MessageRecord>;
   mentions: ResolvedMentions;
 }): Record<string, unknown> {
   const fm = record.frontmatter;

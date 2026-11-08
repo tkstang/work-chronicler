@@ -11,6 +11,7 @@ export const IMPORT_ISSUE_CODES = [
   'TARGET_INVALID',
   'REPORT_NOT_FOUND',
   'WORK_LOG_NOT_FOUND',
+  'RANGE_INVALID',
   // Staging directory and files
   'STAGING_NOT_FOUND',
   'STAGING_UNREADABLE',

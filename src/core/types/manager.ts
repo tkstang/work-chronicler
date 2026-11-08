@@ -2,6 +2,7 @@ import { AnalysisConfigSchema } from '@config/schema';
 import { z } from 'zod';
 
 import { GitHubNameSchema } from './github';
+import { GoogleDocsConfigSchema } from './google-docs';
 import { ReportSlackConfigSchema } from './slack';
 import { JiraProjectKeySchema } from './ticket';
 
@@ -25,6 +26,11 @@ export const ReportConfigSchema = z.object({
   jiraProjects: z.array(JiraProjectKeySchema).default([]),
   /** Slack messages an import skill may collect for this report (opt-in) */
   slack: ReportSlackConfigSchema.optional(),
+  /**
+   * Google Docs the report owns that an import skill may collect (opt-in);
+   * the skill reads them as the manager, so only Docs shared with them
+   */
+  googleDocs: GoogleDocsConfigSchema.optional(),
 });
 export type ReportConfig = z.infer<typeof ReportConfigSchema>;
 

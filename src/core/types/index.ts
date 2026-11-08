@@ -1,6 +1,9 @@
 export { getGitHubNameProblem, normalizeGitHubName } from './github';
 export {
   AttributionSchema,
+  DocumentDetailsSchema,
+  type DocumentRecord,
+  DocumentRecordSchema,
   getImportedRecordIdentity,
   IMPORT_SCHEMA_VERSION,
   IMPORT_SOURCES,
@@ -14,7 +17,10 @@ export {
   type ImportSource,
   type ImportSubject,
   ImportSubjectSchema,
+  isDocumentFile,
+  isMessageFile,
   MentionsSchema,
+  MESSAGE_SOURCES,
   MessageDetailsSchema,
   type MessageRecord,
   MessageRecordSchema,

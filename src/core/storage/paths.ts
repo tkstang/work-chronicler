@@ -28,6 +28,8 @@ export const DIRECTORIES = {
   JIRA: 'jira',
   /** Imported messages (`work-chronicler import`), by source */
   MESSAGES: 'messages',
+  /** Imported documents (`work-chronicler import`), by source */
+  DOCUMENTS: 'documents',
   PERFORMANCE_REVIEWS: 'performance-reviews',
   ANALYSIS: '.analysis',
   FILTERED: 'filtered',
@@ -45,6 +47,7 @@ export const IMPORT_TRANSACTION_DIRECTORY = '.import-transaction';
  */
 export const IMPORTED_RECORD_DIRECTORIES: Record<ImportedRecordType, string> = {
   message: DIRECTORIES.MESSAGES,
+  document: DIRECTORIES.DOCUMENTS,
 };
 
 /**

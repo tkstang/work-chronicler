@@ -2,7 +2,14 @@ import type { ImportSubject } from '@wc-types/imported-record';
 
 import { createImportEnv, type ImportEnv } from './import-fs';
 import type { ImportIssue } from './issues';
+import { importIssue } from './issues';
 import { type PlannedAction, planImport, resolveWorkLogRoot } from './plan';
+import {
+  type AppliedRange,
+  type ImportRange,
+  type ImportRangeInput,
+  resolveImportRange,
+} from './range';
 import type { ImportSourceSettings } from './sources';
 import { checkStagedBatch, readStagingBatch } from './staging';
 import {
@@ -25,6 +32,12 @@ export {
   MAX_RECORD_BYTES,
   MAX_STORED_BYTES,
 } from './staging';
+export {
+  type AppliedRange,
+  type ImportRangeInput,
+  parseRangeBound,
+  parseUtcDay,
+} from './range';
 export { type ImportSourceSettings, NO_SOURCE_SETTINGS } from './sources';
 export { settleInterruptedImport, type RecoveryReport } from './transaction';
 
@@ -42,6 +55,12 @@ export interface ImportRunOptions {
    * channels). A source without settings imports nothing.
    */
   sources: ImportSourceSettings;
+  /**
+   * The subject's `fetch` range and any `--since` / `--until` override.
+   * Documents must have been modified inside it; messages are not checked
+   * against it. Without it, documents are refused.
+   */
+  range?: ImportRangeInput;
   /** Filesystem and process environment (defaults to the real ones) */
   env?: ImportEnv;
 }
@@ -62,6 +81,11 @@ export interface ImportRunResult {
   warnings: string[];
   /** An interrupted earlier import this run finished (import mode only) */
   recovery: RecoveryReport | null;
+  /**
+   * The range documents were checked against (applied to `document`
+   * records only); null when no range was given or it could not be read
+   */
+  range: AppliedRange | null;
 }
 
 function summarize(records: { action: PlannedAction }[]) {
@@ -93,6 +117,7 @@ export function runImport(options: ImportRunOptions): ImportRunResult {
   const { mode } = options;
   const warnings: string[] = [];
   let recovery: RecoveryReport | null = null;
+  let applied: AppliedRange | null = null;
   const rejected = (issues: ImportIssue[]): ImportRunResult => ({
     ok: false,
     mode,
@@ -101,14 +126,46 @@ export function runImport(options: ImportRunOptions): ImportRunResult {
     issues,
     warnings,
     recovery,
+    range: applied,
   });
 
   const staged = readStagingBatch(options.stagingDir, env.fs);
+  const hasDocuments = staged.records.some(
+    ({ record }) => record.type === 'document',
+  );
+  let range: ImportRange | null = null;
+  if (options.range) {
+    const resolved = resolveImportRange(options.range);
+    if ('problems' in resolved) {
+      // A malformed option is always refused; a configured range that
+      // cannot be read matters only to a batch with documents
+      const problems = resolved.problems.filter(
+        (problem) => problem.from === 'option' || hasDocuments,
+      );
+      if (problems.length > 0) {
+        return rejected(
+          problems.map((problem) =>
+            importIssue(
+              'RANGE_INVALID',
+              problem.from === 'option'
+                ? `--${problem.bound} ${problem.message}`
+                : `the configured fetch.${problem.bound} ${problem.message}; pass --${problem.bound} to give the range for this batch`,
+            ),
+          ),
+        );
+      }
+    } else {
+      range = resolved.range;
+      applied = resolved.applied;
+    }
+  }
+
   const batchIssues = [
     ...staged.issues,
     ...checkStagedBatch(staged.records, {
       target: options.target,
       settings: options.sources,
+      range,
     }),
   ];
   if (batchIssues.length > 0) return rejected(batchIssues);
@@ -137,6 +194,7 @@ export function runImport(options: ImportRunOptions): ImportRunResult {
       issues: [],
       warnings,
       recovery,
+      range: applied,
     };
   }
 
@@ -178,6 +236,7 @@ export function runImport(options: ImportRunOptions): ImportRunResult {
       issues: [],
       warnings,
       recovery,
+      range: applied,
     };
   } finally {
     warnings.push(...releaseImportLock(lock));

@@ -1,4 +1,5 @@
 import { GitHubNameSchema, OptionalGitHubNameSchema } from '@wc-types/github';
+import { GoogleDocsConfigSchema } from '@wc-types/google-docs';
 import { SlackConfigSchema } from '@wc-types/slack';
 import { JiraProjectKeySchema } from '@wc-types/ticket';
 import { z } from 'zod';
@@ -122,6 +123,8 @@ export const ConfigSchema = z.object({
   analysis: AnalysisConfigSchema.prefault({}),
   /** Slack messages an import skill may collect for this IC (opt-in) */
   slack: SlackConfigSchema.optional(),
+  /** Google Docs an import skill may collect for this IC (opt-in) */
+  googleDocs: GoogleDocsConfigSchema.optional(),
 });
 
 export type GitHubOrgConfig = z.infer<typeof GitHubOrgConfigSchema>;

@@ -2,6 +2,8 @@ import {
   buildMentionIndex,
   DIRECTORIES,
   type ImportedRecordFile,
+  isMessageFile,
+  type MessageRecord,
   normalizePullRequestUrl,
   readAllImportedRecords,
   readAllPRs,
@@ -19,7 +21,7 @@ import {
 } from './types';
 
 /** A message that mentions the looked-up PR or ticket */
-function mentionSummary(record: ImportedRecordFile) {
+function mentionSummary(record: ImportedRecordFile<MessageRecord>) {
   const fm = record.frontmatter;
   return {
     source: fm.source,
@@ -60,7 +62,7 @@ export const getLinkedWorkTool = defineTool({
     // Mentions resolve on read; they are reported apart from stored links
     const index = buildMentionIndex(allPRs, allTickets);
     const messages = (await readAllImportedRecords(outputDir))
-      .filter((record) => record.frontmatter.type === 'message')
+      .filter(isMessageFile)
       .map((record) => ({
         record,
         mentions: resolveMentions(record.frontmatter, index),
@@ -71,7 +73,7 @@ export const getLinkedWorkTool = defineTool({
       fullOutputDir ?? outputDir,
       DIRECTORIES.MESSAGES,
     );
-    const mentionFields = (matches: ImportedRecordFile[]) => ({
+    const mentionFields = (matches: ImportedRecordFile<MessageRecord>[]) => ({
       mentionedInMessages: matches.map(mentionSummary),
       ...(matches.length > 0 ? { notice: EVIDENCE_NOTICE } : {}),
       ...(gap ? { note: gap } : {}),
