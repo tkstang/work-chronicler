@@ -107,6 +107,7 @@ Channel: #billing-launch (ID: C0EXAMPLE)
 From: <name> <<email>> (ID: U0EXAMPLE)
 Time: <local time>
 Message_ts: 1767261600.000100
+Reply count: 2            (only on a message that started a thread)
 Permalink: https://example.enterprise.slack.com/archives/C0EXAMPLE/p1767261600000100?thread_ts=1767261600.000100&cid=C0EXAMPLE
 Text: <message text in Slack markup>
 ```
@@ -178,7 +179,7 @@ Field by field:
 | `mentions.pullRequests` | GitHub pull request URLs in the subject's text (`https://github.com/<owner>/<repo>/pull/<n>`), each once. From a Slack link `<URL\|label>`, take only the URL. |
 | `message.container.name` | The channel's `name` exactly as `slack show` lists it, or `null`. Never the name from search results. |
 | `message.thread` | See below. |
-| Body | The subject's own text, verbatim, with the Slack markup below rewritten. Leave out quoted or forwarded text by anyone else. Never add names, reply text or the parent's text. |
+| Body | The subject's own text, verbatim, with the Slack markup below rewritten. Leave out quoted or forwarded text by anyone else: every line that starts with `>` is a quote, so drop it. Never add names, reply text or the parent's text. |
 
 Slack markup in `Text`, rewritten in the body:
 
@@ -192,9 +193,11 @@ Slack markup in `Text`, rewritten in the body:
 Threads, from the `thread_ts` in the result's permalink:
 
 - **No `thread_ts`, or `thread_ts` equal to `Message_ts`** (a top-level
-  message or a thread the subject started): `thread: null`. The connector's
-  search results do not include reply counts, so `replyCount` and
-  `replyParticipantCount` stay `0`; never call another tool to get them.
+  message or a thread the subject started): `thread: null`. When the detailed
+  result shows a `Reply count: <n>` line (it does for a thread the subject
+  started), copy `<n>` into `replyCount`; otherwise leave it `0`. The results
+  never show how many people replied, so `replyParticipantCount` stays `0`.
+  Never call another tool to get either count.
 - **`thread_ts` different from `Message_ts`** (the subject's reply in a
   thread): `thread: { parentId: "<thread_ts>", parentUrl: "<parent permalink>" }`
   where the parent permalink is
