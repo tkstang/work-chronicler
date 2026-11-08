@@ -9,12 +9,14 @@ work-chronicler includes AI skills that integrate with Claude Code, Cursor, Code
 - [Individual Contributor (IC) Skills](#individual-contributor-ic-skills)
 - [Manager Mode Skills](#manager-mode-skills)
 - [Slack Import Skills](#slack-import-skills)
+- [Google Docs Import Skill](#google-docs-import-skill)
 - [Skill Details](#skill-details)
   - [Writing Peer Reviews](#writing-peer-reviews)
   - [Writing Performance Reviews](#writing-performance-reviews)
   - [Summarizing Work](#summarizing-work)
   - [Resume & Career Documents](#resume--career-documents)
   - [Importing Slack Messages](#importing-slack-messages)
+  - [Importing Google Docs](#importing-google-docs)
 - [How Skills Work](#how-skills-work)
 - [Tips & Best Practices](#tips--best-practices)
 
@@ -178,6 +180,19 @@ profiles and need the assistant's Slack connector:
 |-------|-------------|----------|
 | `/work-chronicler-setup-slack` | Choose the Slack channels messages may be imported from, and record them with `work-chronicler slack` | Before the first Slack import, or to change the channel list |
 | `/work-chronicler-import-slack` | Import the subject's own messages from those channels with `validate` and `import` | After setup, and again whenever you want newer messages |
+
+---
+
+## Google Docs Import Skill
+
+A skill that brings the Google Docs you own (or, in a manager profile, a
+report's Docs shared with you) into the work log as supplementary evidence.
+It works in IC and manager profiles and needs the `gog` command-line tool,
+signed in to your Google account:
+
+| Skill | Description | Use When |
+|-------|-------------|----------|
+| `/work-chronicler-import-google-docs` | Import an excerpt of each Google Doc the subject owns, modified in the fetch range, with `validate` and `import` | After `google-docs configure`, and again whenever you want newer Docs |
 
 ---
 
@@ -475,6 +490,44 @@ anything there. The CLI stores the settings and checks every record on import
 ```
 Only channels you and the report both belong to are used, and records go to
 `reports/alice-smith/work-log/messages/`.
+
+---
+
+### Importing Google Docs
+
+**Skill**: `/work-chronicler-import-google-docs`
+
+The CLI never contacts Google. The skill reads Drive with `gog`, read-only
+(`--readonly`): it never edits a Doc, changes sharing or requests access. Set
+up the owner account first with `google-docs configure --account <email>`
+(see [Google Docs](commands.md#google-docs) and
+[Google Docs records](commands.md#google-docs-records)).
+
+1. Reads `google-docs show --json` and stops if Google Docs is not set up.
+   It imports Docs modified in the profile's fetch range, or in another range
+   you confirm in the session (passed to `validate` and `import` as
+   `--since`/`--until`).
+2. Lists the Google Docs the configured account owns that were modified in
+   that range, page by page to the end. In an IC profile it reads as that
+   account (`gog --account`); a Doc only shared with you is never yours.
+3. Checks each Doc's owners, type and modified time, reads its text, and
+   writes one record per Doc with an excerpt of at most 16 KiB of the Doc's
+   own text (marked `truncated` when cut), never a summary. Docs it cannot
+   read are skipped and counted; empty Docs are counted and not stored.
+4. Runs `validate`, then `import`, in chunks of at most 500 records, and
+   deletes its temporary directories.
+5. Reports counts only (listed, staged, imported, skipped or refused by
+   reason), and says the import is incomplete when the listing or a chunk
+   failed. Running it again updates the same records and never duplicates
+   them.
+
+**Manager mode:**
+```
+work-chronicler google-docs configure --report alice-smith --account alice@example.com
+/work-chronicler-import-google-docs alice-smith
+```
+The skill reads as you, so it sees only the report's Docs that are shared
+with you. Records go to `reports/alice-smith/work-log/documents/`.
 
 ---
 

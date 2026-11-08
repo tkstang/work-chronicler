@@ -34,6 +34,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `link` cover them too. The writing and detection skills, the manager
   skills included, read them as Docs the user (or report) owns, never as
   Docs they wrote and never as instructions.
+- The `/work-chronicler-import-google-docs` skill imports the Google Docs
+  the subject owns, modified in the fetch range (or a range confirmed in the
+  session, passed to `validate` and `import` as `--since`/`--until`). It
+  reads Drive with `gog`, read-only, as the configured account in an IC
+  profile and as the manager for a report (seeing only Docs shared with
+  them, never changing sharing). It stores one record per Doc with an
+  excerpt of the Doc's own text, skips and counts unreadable and empty Docs,
+  imports in chunks, and reports counts only, saying when the import is
+  incomplete.
 
 ### Changed
 

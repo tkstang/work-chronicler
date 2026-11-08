@@ -97,6 +97,7 @@ Data lives in `~/.work-chronicler/profiles/<profile>/`. Each profile has its own
 | Import your own Slack messages as supplementary evidence | `/work-chronicler-setup-slack`, then `/work-chronicler-import-slack` (AI skills) |
 | Choose the Slack channels an import skill may read | `slack configure`, `slack channels add\|remove\|list`, `slack show` |
 | Name the Google account whose Docs an import skill may store | `google-docs configure`, `google-docs show` |
+| Import the Google Docs you own as supplementary evidence | `google-docs configure`, then `/work-chronicler-import-google-docs` (AI skill; reads Drive with `gog`) |
 | Connect PRs to the tickets they reference | `link` (run automatically by `fetch all`) |
 | Classify PRs as minor, standard, major or flagship | `analyze --tag-prs` |
 | Group related work into projects and a timeline | `analyze --projects --timeline` |
@@ -134,11 +135,13 @@ What exists today:
 - **IC and manager modes:** an individual work log per profile, or per-report
   work logs plus team-level project and timeline rollups for people managers.
 - **MCP server:** ten read-only query tools over the work log.
-- **AI skills:** twelve skills: six for IC profiles, three manager-only, and
-  three for any profile (peer reviews, and setting up and importing Slack
-  messages). The writing skills read the work log and write documents to the
-  profile's `outputs/` directory; the Slack skills read Slack through the
-  assistant's Slack connector, read-only, and store messages with `import`.
+- **AI skills:** thirteen skills: six for IC profiles, three manager-only,
+  and four for any profile (peer reviews, setting up and importing Slack
+  messages, and importing Google Docs). The writing skills read the work log
+  and write documents to the profile's `outputs/` directory; the Slack skills
+  read Slack through the assistant's Slack connector, read-only, and store
+  messages with `import`; the Google Docs skill reads Drive with `gog`,
+  read-only, and stores Docs with `import`.
 
 The CLI itself never calls an LLM; writing happens in your assistant through
 the skills or the MCP server.

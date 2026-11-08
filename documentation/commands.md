@@ -508,9 +508,9 @@ change that would make the config larger than 1 MiB.
 ## Google Docs
 
 These commands keep the Google Docs settings the Google Docs import skill
-uses. The CLI never contacts Google and never stores Google credentials;
-the skill reads Drive (for example with `gog`) and hands the Docs to
-`import`. Settings are kept per IC profile, and per report in a manager
+(`/work-chronicler-import-google-docs`) uses. The CLI never contacts Google
+and never stores Google credentials; the skill reads Drive with `gog`,
+read-only, and hands the Docs to `import`. Settings are kept per IC profile, and per report in a manager
 profile (pass `--report <id>` there; it is refused in an IC profile).
 Without settings, no Google Docs records are imported. See
 [Configuration](configuration.md#google-docs) for the field.

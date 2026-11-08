@@ -216,6 +216,8 @@ The project has four layers:
    - Slack import (IC and manager profiles; read Slack through the assistant's Slack connector, read-only):
      - `/work-chronicler-setup-slack` - Choose the channels to import from and record them with `slack configure` / `slack channels add`
      - `/work-chronicler-import-slack` - Stage the subject's own messages, then `validate` and `import` them
+   - Google Docs import (IC and manager profiles; read Drive with `gog`, read-only, after `google-docs configure`):
+     - `/work-chronicler-import-google-docs` - Stage an excerpt of each Google Doc the subject owns, modified in range, then `validate` and `import` them
    - Manager mode (`work-chronicler-manager-*`):
      - `/work-chronicler-manager-write-review-packet` - Evidence-based review content for a direct report
      - `/work-chronicler-manager-write-quarterly-highlights` - Quarterly highlights for one report

@@ -393,7 +393,8 @@ work-chronicler google-docs show --report alice-smith --json
 
 The same rules as for an IC apply: only Google Docs (not other Drive files)
 the report owns, outside shared drives, modified inside the profile's fetch
-range. See [Google Docs](commands.md#google-docs).
+range. See [Google Docs](commands.md#google-docs). Then run
+`/work-chronicler-import-google-docs alice-smith` to import them.
 
 ---
 
