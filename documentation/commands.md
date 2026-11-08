@@ -254,9 +254,9 @@ rejected (`SCHEMA_INVALID`).
   that is not a valid record or has a different identity or subject. The work
   log itself must exist, and must be on a filesystem that supports hard links.
 - `import`, `filter` and `filter --clear` share one work-log lock, so only
-  one of them runs in a work log at a time; `import` is refused while a
-  filter runs, and the other way round (`IMPORT_IN_PROGRESS`, naming the
-  command, process and host holding it). The lock is held under both names
+  one of them runs in a work log at a time: `import` is refused while a
+  filter runs (`IMPORT_IN_PROGRESS`), and `filter` while an import runs;
+  each names the command, process and host holding the lock. The lock is held under both names
   0.6.0 used, `.import-lock` and then `.filter-lock`, so a 0.6.0 `import` or
   `filter` running at the same time is refused too, and a lock either of
   them left is honored. A lock left by a process on this machine that has
