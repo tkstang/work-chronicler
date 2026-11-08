@@ -115,8 +115,15 @@ If `filtered/` has no `pr-reviews/` directory at all, the subset was made
 before reviews were fetched: read the full work log's `pr-reviews/` instead and
 tell the user to re-run `work-chronicler filter`. An empty
 `filtered/pr-reviews/` means no review matched the user's filters.
-Each file is one PR that **someone else** wrote and the user reviewed. Its
-frontmatter holds `pr` (url, org, repository, prNumber, title, author, state),
+Each file is one PR that **someone else** wrote and the reviewer named in its
+`reviewer` field reviewed. Before citing any file, confirm that reviewer is the
+user: compare `reviewer`, ignoring case, with `github.username` in `config.yaml`
+under the profile root (`work-chronicler workspace root`). Leave out every file
+whose reviewer differs, and tell the user how many you left out and whose they
+are. If you cannot read the username, do not present any review file as the
+user's work; ask the user instead. `search_pr_reviews` applies the same check
+and returns `reviewer` with each result. The rest of the frontmatter holds
+`pr` (url, org, repository, prNumber, title, author, state),
 `reviews` (reviewId, state such as `APPROVED` or `CHANGES_REQUESTED`,
 submittedAt, body) and `comments` (inline review comments: commentId, path,
 line, createdAt, body). The MCP tool `search_pr_reviews` returns the same data.

@@ -119,8 +119,9 @@ What exists today:
 - **IC and manager modes:** an individual work log per profile, or per-report
   work logs plus team-level project and timeline rollups for people managers.
 - **MCP server:** eight read-only query tools over the work log.
-- **AI skills:** ten skills (seven for any profile, three manager-only) that read the work log and
-  write documents to the profile's `outputs/` directory.
+- **AI skills:** ten skills (six for IC profiles, one peer-review skill for
+  any profile, three manager-only) that read the work log and write documents
+  to the profile's `outputs/` directory.
 
 The CLI itself never calls an LLM; writing happens in your assistant through
 the skills or the MCP server.

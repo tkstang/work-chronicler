@@ -38,7 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   point out that the subset is missing them.
 - `work-chronicler-write-self-review`, `work-chronicler-write-resume-bullets`,
   `work-chronicler-update-resume` and `work-chronicler-summarize-work` cite PR
-  reviews you gave as review work, never as authored PRs.
+  reviews you gave as review work, never as authored PRs. They cite only
+  records whose `reviewer` matches your `github.username` and say how many
+  they left out.
 - `skills install` flags for running without prompts: `--tool <tool...>`,
   `--method <copy|symlink>`, `--yes`, `--overwrite` and `--keep-old`. Without
   flags it prompts as before.
