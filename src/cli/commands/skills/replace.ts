@@ -243,3 +243,94 @@ export function replaceSkill(request: ReplaceSkillRequest): ReplaceSkillResult {
   }
   return { installed: true, warnings };
 }
+
+/** Escape a string for use inside a regular expression */
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export interface InterruptedReplacementReport {
+  /** What was put back */
+  restored: string[];
+  /** Leftovers that need the user's attention */
+  warnings: string[];
+}
+
+/**
+ * Clean up after a `skills install` that stopped part-way through
+ * replacing a skill (a crash or a kill between its steps).
+ *
+ * Temporary staged entries are removed: they only ever hold a packaged
+ * skill. A replaced entry that was moved aside is put back when nothing is
+ * at the skill's name and it is the only one; otherwise it is left where it
+ * is and named, since it may be the only copy of the user's skill.
+ */
+export function recoverInterruptedReplacements(
+  fs: SkillInstallFs,
+  skillsDir: string,
+  skills: string[],
+): InterruptedReplacementReport {
+  const report: InterruptedReplacementReport = { restored: [], warnings: [] };
+  let names: string[];
+  try {
+    names = fs.readdir(skillsDir);
+  } catch (error) {
+    if (errorCode(error) !== 'ENOENT') {
+      report.warnings.push(
+        `could not check ${skillsDir} for an interrupted install (${errorMessage(error)})`,
+      );
+    }
+    return report;
+  }
+
+  for (const skill of skills) {
+    const pattern = new RegExp(
+      `^\\.${escapeRegExp(skill)}\\.wc-(${STAGING}|${BACKUP})-[0-9a-f]{16}$`,
+    );
+    const staged: string[] = [];
+    const backups: string[] = [];
+    for (const name of names) {
+      const role = pattern.exec(name)?.[1];
+      if (role === STAGING) staged.push(join(skillsDir, name));
+      else if (role === BACKUP) backups.push(join(skillsDir, name));
+    }
+
+    for (const path of staged) {
+      try {
+        const entry = entryAt(fs, path);
+        if (entry) removeEntry(fs, path, entry.kind);
+      } catch (error) {
+        report.warnings.push(
+          `${skill}: a temporary copy from an interrupted install could not be removed and is left at ${path} (${errorMessage(error)}); remove it yourself`,
+        );
+      }
+    }
+
+    if (backups.length === 0) continue;
+    const target = join(skillsDir, skill);
+    let free = false;
+    try {
+      free = entryAt(fs, target) === null;
+    } catch {
+      // Unknown counts as occupied: never put something over it
+    }
+    const [only] = backups;
+    if (free && backups.length === 1 && only !== undefined) {
+      try {
+        fs.rename(only, target);
+        report.restored.push(skill);
+      } catch (error) {
+        report.warnings.push(
+          `${skill}: an interrupted install left the previous install at ${only} and it could not be put back (${errorMessage(error)}); move it to ${target}`,
+        );
+      }
+      continue;
+    }
+    for (const path of backups) {
+      report.warnings.push(
+        `${skill}: an interrupted install left a replaced entry at ${path}; remove it once you no longer need it`,
+      );
+    }
+  }
+  return report;
+}

@@ -17,6 +17,7 @@ import {
 } from './migrate';
 import {
   nodeSkillInstallFs,
+  recoverInterruptedReplacements,
   replaceSkill,
   type SkillInstallFs,
 } from './replace';
@@ -373,6 +374,24 @@ export function createInstallSubcommand(
 
       for (const toolKey of selectedTools) {
         const tool = AI_TOOLS[toolKey];
+
+        // Finish what an interrupted run left before deciding what to replace
+        const recovery = recoverInterruptedReplacements(
+          fs,
+          getSkillsDir(toolKey),
+          availableSkills,
+        );
+        if (recovery.restored.length > 0) {
+          console.log(
+            chalk.yellow(
+              `\n${tool.name}: put back ${recovery.restored.length} skill(s) that an interrupted install had moved aside:\n${recovery.restored.map((name) => `    ${name}`).join('\n')}`,
+            ),
+          );
+        }
+        for (const warning of recovery.warnings) {
+          console.log(chalk.yellow(`  Warning: ${tool.name} ${warning}`));
+        }
+
         const conflicts = getConflictingSkills(toolKey, availableSkills);
 
         // Only an explicit decision replaces what occupies a destination

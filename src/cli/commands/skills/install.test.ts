@@ -7,6 +7,7 @@ import {
   readdirSync,
   readFileSync,
   readlinkSync,
+  renameSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -994,4 +995,57 @@ describe('skills install replacement safety', () => {
       ).toContain('my edits');
     },
   );
+
+  describe('after an interrupted install', () => {
+    const side = (role: string, id: string) =>
+      join(skillsDir('claude'), `.${BULLETS}.wc-${role}-${id.repeat(16)}`);
+
+    it('puts a skill moved aside back and removes the staged copy', async () => {
+      const backup = seedEdited('claude', BULLETS);
+      const aside = side('backup', 'a');
+      renameSync(backup, aside);
+      mkdirSync(side('staging', 'a'));
+      writeFileSync(join(side('staging', 'a'), 'SKILL.md'), '---\n');
+
+      const { error } = await install(['--tool', 'claude', '--yes']);
+
+      expect(error).toBeUndefined();
+      expect(readFileSync(join(bulletsPath(), 'SKILL.md'), 'utf8')).toContain(
+        'my edits',
+      );
+      expect(hidden('claude')).toEqual([]);
+      expect(output()).toContain(
+        `Claude Code: put back 1 skill(s) that an interrupted install had moved aside:\n    ${BULLETS}`,
+      );
+      expect(output()).toContain('Skipped 1 existing skill(s)');
+    });
+
+    it.each([
+      { when: 'the skill is installed again', installed: true, ids: ['a'] },
+      { when: 'there is more than one', installed: false, ids: ['a', 'b'] },
+    ])(
+      'leaves a replaced entry where it is and names it when $when',
+      async ({ installed, ids }) => {
+        if (installed) seedEdited('claude', BULLETS);
+        mkdirSync(skillsDir('claude'), { recursive: true });
+        for (const id of ids) {
+          mkdirSync(side('backup', id));
+          writeFileSync(join(side('backup', id), 'SKILL.md'), `aside ${id}\n`);
+        }
+
+        const { error } = await install(['--tool', 'claude', '--yes']);
+
+        expect(error).toBeUndefined();
+        for (const id of ids) {
+          expect(
+            readFileSync(join(side('backup', id), 'SKILL.md'), 'utf8'),
+          ).toBe(`aside ${id}\n`);
+          expect(output()).toContain(
+            `Warning: Claude Code ${BULLETS}: an interrupted install left a replaced entry at ${side('backup', id)}`,
+          );
+        }
+        expect(installedName('claude', BULLETS)).toBe(BULLETS);
+      },
+    );
+  });
 });
