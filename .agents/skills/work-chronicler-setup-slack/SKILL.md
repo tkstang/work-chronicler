@@ -173,7 +173,10 @@ line. `--name` is the channel name without `#`, in single quotes. Use the channe
 name, as `<channel-id>`. A channel ID holds only capital letters and digits,
 and a Slack channel name never holds a quote or a space: if either does, show
 it to the user and do not run the command. If a command exits nonzero, show
-the user the error and do not work around it.
+the user the error and do not work around it. The block as a whole exits 0
+even when the channel is refused (its last line removes the file), so judge
+the result by the first line's JSON: `"ok": false` means the channel was not
+added; show its `error` to the user.
 
 To drop a channel later: `work-chronicler slack channels remove <channel-id>
 [--report <id>]` (records already imported from it are kept).
