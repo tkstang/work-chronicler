@@ -10,9 +10,8 @@ import {
   commitImportPlan,
   inspectImportState,
   type RecoveryReport,
-  recoverInterruptedImport,
   releaseImportLock,
-  removeLeftovers,
+  settleInterruptedImport,
 } from './transaction';
 
 export { createImportEnv, type ImportEnv, type ImportFs } from './import-fs';
@@ -27,7 +26,7 @@ export {
   MAX_STORED_BYTES,
 } from './staging';
 export { type ImportSourceSettings, NO_SOURCE_SETTINGS } from './sources';
-export type { RecoveryReport } from './transaction';
+export { settleInterruptedImport, type RecoveryReport } from './transaction';
 
 export interface ImportRunOptions {
   /** `validate` checks and plans without writing; `import` also commits */
@@ -150,8 +149,7 @@ export function runImport(options: ImportRunOptions): ImportRunResult {
   const { lock } = acquired;
 
   try {
-    warnings.push(...removeLeftovers(resolved.root, env));
-    const recovered = recoverInterruptedImport(resolved.root, env);
+    const recovered = settleInterruptedImport(resolved.root, env);
     warnings.push(...recovered.warnings);
     recovery = recovered.report;
     if (recovered.issues.length > 0) return rejected(recovered.issues);

@@ -12,9 +12,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 
 import {
+  crashAfterFs,
   messageFrontmatter,
   recordFile,
   snapshot,
+  stage,
+  SYNTH_SOURCES,
 } from '@core/import/import.test-support';
 import {
   parseImportedRecordFile,
@@ -37,6 +40,7 @@ const { analyzeCommand } = await import('./analyze');
 const { filterCommand } = await import('./filter/index');
 const { writeFilteredSubset } = await import('./filter/filter.utils');
 const { statusCommand } = await import('./status');
+const importer = await import('@core/import/index');
 
 const configPath = join(root, 'work-chronicler.yaml');
 const workLog = join(root, 'work-log');
@@ -792,6 +796,55 @@ describe('a mixed work log with imported messages', () => {
     rmSync(lockPath, { recursive: true });
     await run(filterCommand, ['--clear']);
     expect(core.getEffectiveOutputDir(workLog).isFiltered).toBe(false);
+  });
+
+  it('filter finishes an interrupted import before reading, so the subset never holds part of its batch', async () => {
+    const staging = mkdtempSync(join(root, 'staging-'));
+    // Rewrite message 1 and add message 4; stop right after message 1 is
+    // replaced, as a crash would
+    stage(
+      staging,
+      'a.md',
+      messageFrontmatter(1, {
+        occurredAt: '2025-03-01T10:00:00Z',
+        capturedAt: '2025-06-02T00:00:00Z',
+      }),
+      'Rewritten by an import that stopped.',
+    );
+    stage(staging, 'b.md', messageFrontmatter(4), 'Added by it too.');
+    const crashed = importer.runImport({
+      mode: 'import',
+      stagingDir: staging,
+      workLogRoot: workLog,
+      target: { kind: 'ic' },
+      sources: SYNTH_SOURCES,
+      env: {
+        ...importer.createImportEnv(),
+        pid: 4_000_001,
+        fs: crashAfterFs(
+          (await import('@core/import/import-fs')).nodeImportFs,
+          (op, args) =>
+            op === 'rename' && String(args[1]).includes('messages/slack/'),
+        ),
+      },
+    });
+    expect(crashed.ok).toBe(false);
+    expect(existsSync(join(workLog, '.import-transaction'))).toBe(true);
+
+    await run(filterCommand, ['--org', 'acme']);
+
+    expect((await subsetRecords()).messages).toEqual([
+      'Message 1 in my own words.',
+      'Message 2 in my own words.',
+      'Message 3 in my own words.',
+    ]);
+    expect(logs).toContainEqual(
+      expect.stringContaining(
+        'An interrupted import was rolled-back before filtering (2 records in its batch, none kept)',
+      ),
+    );
+    expect(existsSync(join(workLog, '.import-transaction'))).toBe(false);
+    rmSync(staging, { recursive: true, force: true });
   });
 
   it('filter is refused while an import holds the work-log lock, and status names the import', async () => {

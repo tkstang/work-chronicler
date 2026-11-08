@@ -27,6 +27,7 @@ import {
   type FileId,
   type ImportPlan,
   type PlannedRecord,
+  resolveWorkLogRoot,
   sha256,
 } from './plan';
 import { MAX_STORED_BYTES } from './staging';
@@ -1191,6 +1192,37 @@ export function recoverInterruptedImport(
     report: report(journal.state === 'prepared' ? 'discarded' : 'rolled-back'),
     issues: [],
     warnings,
+  };
+}
+
+/**
+ * With the work-log lock held (by `import` or `filter`): remove what
+ * finished imports left, then finish any interrupted import, so the work log
+ * holds whole batches only. Issues mean an interrupted import could not be
+ * finished (its records may hold part of a batch): the caller must not read
+ * or change records.
+ *
+ * @param workLogRoot - Work-log directory (resolved here, as `import` does)
+ * @param env - Environment
+ */
+export function settleInterruptedImport(
+  workLogRoot: string,
+  env: ImportEnv,
+): {
+  report: RecoveryReport | null;
+  issues: ImportIssue[];
+  warnings: string[];
+} {
+  const resolved = resolveWorkLogRoot(workLogRoot, env.fs);
+  if ('issue' in resolved) {
+    return { report: null, issues: [resolved.issue], warnings: [] };
+  }
+  const warnings = removeLeftovers(resolved.root, env);
+  const recovered = recoverInterruptedImport(resolved.root, env);
+  return {
+    report: recovered.report,
+    issues: recovered.issues,
+    warnings: [...warnings, ...recovered.warnings],
   };
 }
 

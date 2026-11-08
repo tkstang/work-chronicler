@@ -10,6 +10,7 @@ export {
   FilterSelectionSchema,
   getEffectiveOutputDir,
   getFilteredSubsetState,
+  InterruptedImportError,
   nodeSubsetEnv,
   nodeSubsetFs,
   readFilterLock,

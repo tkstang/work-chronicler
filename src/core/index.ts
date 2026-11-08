@@ -38,6 +38,7 @@ export {
   getAnalysisFilePath,
   getEffectiveOutputDir,
   getFilteredSubsetState,
+  InterruptedImportError,
   getImportedRecordFilePath,
   getImportedRecordSegments,
   getJiraDirectory,

@@ -13,6 +13,8 @@ import {
 import { hostname } from 'node:os';
 import { dirname, isAbsolute, join, normalize, sep } from 'node:path';
 
+import { createImportEnv, type ImportEnv } from '@core/import/import-fs';
+import { settleInterruptedImport } from '@core/import/transaction';
 import { IsoDateTimeSchema } from '@wc-types/pr';
 import { z } from 'zod';
 
@@ -154,7 +156,32 @@ export class FilteredSubsetNotRestoredError extends Error {
 }
 
 /**
- * Raised when another `filter` run holds the work log's filter lock.
+ * Raised when an interrupted `import` could not be finished before `filter`
+ * read the work log: its records may hold part of a batch, so the subset is
+ * not changed.
+ */
+export class InterruptedImportError extends Error {
+  constructor(
+    outputDir: string,
+    issues: { code: string; message: string; destination?: string }[],
+  ) {
+    const details = issues
+      .map(
+        (issue) =>
+          `${issue.code}${issue.destination ? ` (${issue.destination})` : ''}: ${issue.message}`,
+      )
+      .join('; ');
+    super(
+      `An interrupted \`work-chronicler import\` in ${outputDir} could not be finished, so its records may hold part of a batch: ${details}. ` +
+        'The subset was not changed. Run `work-chronicler import` with an empty directory to see what it needs, then filter again.',
+    );
+    this.name = 'InterruptedImportError';
+  }
+}
+
+/**
+ * Raised when another run (a `filter` or an `import`) holds the work-log
+ * lock.
  */
 export class FilterInProgressError extends Error {
   constructor(message: string) {
@@ -403,6 +430,8 @@ export interface SubsetOptions {
   fs?: SubsetFs;
   env?: Partial<SubsetEnv>;
   randomId?: () => string;
+  /** The environment for finishing an interrupted import (tests) */
+  importEnv?: ImportEnv;
 }
 
 const defaultRandomId = () => randomBytes(8).toString('hex');
@@ -580,26 +609,16 @@ function restoreInterrupted(
   fs.rename(join(outputDir, previous[0] ?? ''), filteredDir);
 }
 
-/**
- * Build a complete subset beside `filtered/`, check it, and swap it in. On any
- * failure before the swap completes, the previous subset (if any) is left as
- * it was and the error is thrown.
- *
- * @param outputDir - Base work-log directory
- * @param plan - The new subset's contents
- * @returns The subset directory and warnings about leftovers that could not
- *   be removed after the new subset was in place
- */
-export async function replaceFilteredSubset(
-  outputDir: string,
-  plan: SubsetPlan,
-  options: SubsetOptions = {},
-): Promise<{ dir: string; warnings: string[] }> {
-  const fs = options.fs ?? nodeSubsetFs;
-  const randomId = options.randomId ?? defaultRandomId;
-  const warnings: string[] = [];
+/** A plan checked and ready to write */
+interface PreparedPlan {
+  files: SubsetFile[];
+  directories: string[];
+  marker: string;
+  validate: SubsetPlan['validate'];
+}
 
-  // Validate the plan before touching anything
+/** Check a plan before anything is written for it */
+function preparePlan(plan: SubsetPlan): PreparedPlan {
   const files = plan.files.map((file) => ({
     path: checkRelativePath(file.path),
     contents: file.contents,
@@ -614,17 +633,72 @@ export async function replaceFilteredSubset(
   const directories = plan.directories.map(checkRelativePath);
   const selection = FilterSelectionSchema.parse(plan.selection);
   const marker = `${JSON.stringify(selection, null, 2)}\n`;
+  return { files, directories, marker, validate: plan.validate };
+}
+
+/**
+ * Under the work-log lock: finish any interrupted import, so records are
+ * read only when the work log holds whole batches.
+ *
+ * @throws {InterruptedImportError} When it cannot be finished
+ */
+function settleImport(
+  outputDir: string,
+  env: ImportEnv,
+  warnings: string[],
+): void {
+  const settled = settleInterruptedImport(outputDir, env);
+  warnings.push(...settled.warnings);
+  if (settled.issues.length > 0) {
+    throw new InterruptedImportError(outputDir, settled.issues);
+  }
+  if (settled.report) {
+    const { outcome, records } = settled.report;
+    warnings.push(
+      `An interrupted import was ${outcome} before filtering (${records} record${records === 1 ? '' : 's'} in its batch${outcome === 'rolled-back' ? ', none kept' : ''}).`,
+    );
+  }
+}
+
+/**
+ * Build a complete subset beside `filtered/`, check it, and swap it in. On any
+ * failure before the swap completes, the previous subset (if any) is left as
+ * it was and the error is thrown.
+ *
+ * Everything happens under the work-log lock, after any interrupted import
+ * is finished (or, when it cannot be, `filter` is refused): a plan built
+ * from the work log's records must be passed as a function, which is called
+ * then, so it never reads records an import is changing or left half done.
+ *
+ * @param outputDir - Base work-log directory
+ * @param plan - The new subset's contents, or a function that builds them
+ *   from the work log under the lock
+ * @returns The subset directory and warnings about leftovers that could not
+ *   be removed after the new subset was in place
+ * @throws {FilterInProgressError} When another run holds the work-log lock
+ * @throws {InterruptedImportError} When an interrupted import cannot be
+ *   finished
+ */
+export async function replaceFilteredSubset(
+  outputDir: string,
+  plan: SubsetPlan | (() => SubsetPlan | Promise<SubsetPlan>),
+  options: SubsetOptions = {},
+): Promise<{ dir: string; warnings: string[] }> {
+  const fs = options.fs ?? nodeSubsetFs;
+  const randomId = options.randomId ?? defaultRandomId;
+  const warnings: string[] = [];
+
+  // A plan given as is is checked before anything is touched
+  const given = typeof plan === 'function' ? null : preparePlan(plan);
 
   const env = { ...nodeSubsetEnv, ...options.env };
   const release = acquireFilterLock(fs, env, outputDir, randomId);
   try {
-    const dir = await swapInSubset(
-      fs,
-      randomId,
-      outputDir,
-      { files, directories, marker, validate: plan.validate },
-      warnings,
-    );
+    settleImport(outputDir, options.importEnv ?? createImportEnv(), warnings);
+    const prepared =
+      given ??
+      preparePlan(await (plan as () => SubsetPlan | Promise<SubsetPlan>)());
+    const dir = await swapInSubset(fs, randomId, outputDir, prepared, warnings);
     return { dir, warnings };
   } finally {
     warnings.push(...release());
@@ -638,12 +712,7 @@ async function swapInSubset(
   fs: SubsetFs,
   randomId: () => string,
   outputDir: string,
-  plan: {
-    files: SubsetFile[];
-    directories: string[];
-    marker: string;
-    validate: SubsetPlan['validate'];
-  },
+  plan: PreparedPlan,
   warnings: string[],
 ): Promise<string> {
   const { files, directories, marker } = plan;
