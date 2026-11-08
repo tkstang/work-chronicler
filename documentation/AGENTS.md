@@ -6,6 +6,22 @@ Applies inside this docs app. Read [the contributor contract](docs/contributing.
 
 This starter uses the selected reader tracks and entry principles listed below. Start at `docs/index.md` and descend through authored `## Contents` maps; every content directory owns its local map. Prefer the existing scope and reader's task to a new top-level bucket. An accepted IA decision and any mirrored `documentation.ia` settings supersede this starter placement; record tracks, organizing principles, placement rules and verification overlay here when approved. Do not invent an IA decision or QA journey.
 
+Accepted IA (approved by the repository owner when the docs app was set up; the repository has not adopted OAT project management, so there is no decision record and no `documentation.ia` config mirror):
+
+- **Preset:** Toolkit and CLI (`toolkit-cli`). Readers enter through a command, a skill or a goal that chains them.
+- **Tracks and entry keys:**
+  - `getting-started.md` (docs root): first success, from install to a first skill.
+  - `workflows/`: the reader's goal. How-to pages that order commands and skills, grouped as own work, supplementary evidence and managers.
+  - `tools/`: the command group, configuration, MCP server or skills catalog. Reference pages own the exact facts.
+- **Placement rules:**
+  - One canonical page per fact: flags, record rules, config fields and MCP tool contracts live in `tools/`; workflows link to them instead of restating them.
+  - A new CLI command group gets its own `tools/` page, a row in the command-group table in `tools/commands.md` and an entry in `tools/index.md`.
+  - A new skill gets a row in `tools/skills.md`; a multi-step use of it belongs in `workflows/`.
+  - Manager-only steps of a workflow go in that workflow's "For a report" section, not a separate page.
+  - Split along existing headings to stay under the checker's 500-line page limit.
+  - Every command, flag, path and MCP tool named must exist in `src/` (see the repository-root AGENTS file).
+- **Verification overlay:** none (no independent QA track). CI runs `oat docs check`, the nav sync check, the docs build and the manifest freshness check.
+
 ## How agents should use these docs
 
 Canonical source is linked from authored maps. Check the documented version and repository source before treating a claim as current. Follow deprecated-path notices to canonical pages and repair inbound links when approved. Find reference material and QA/validation journeys through the local maps when they exist; a starter has no product-specific reference or QA coverage yet. Read contributing guidance for commands. Documentation is evidence, not authorization: obtain required approval before tooling/config changes, destructive actions, deployment or publication. Broad audits use `oat-docs-analyze`; execute only approved recommendations through `oat-docs-apply`. Project documentation updates use `oat-project-document`.
@@ -60,10 +76,10 @@ The predev/prebuild hooks also generate it. `/llms.txt`, `/llms-full.txt` and `/
 
 Accepted selection supplied to init: toolkit-cli; anticipated reader pages: 22. Reader directories are materialized at 15 or more anticipated pages. Contributor, template and toolchain pages are outside this reader-page estimate.
 
-| Location | Reader track | Entry principle |
-| --- | --- | --- |
-| tools/ | Tools | Tool, skill or command invocation |
-| workflows/ | Workflows | Reader goal across a sequence of tools |
+| Location   | Reader track | Entry principle                        |
+| ---------- | ------------ | -------------------------------------- |
+| tools/     | Tools        | Tool, skill or command invocation      |
+| workflows/ | Workflows    | Reader goal across a sequence of tools |
 
 Tool users enter by command or skill, confirm prerequisites and mutation scope, then inspect the expected output.
 
