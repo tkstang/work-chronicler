@@ -63,6 +63,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   quick mode works in any profile; evidence-backed reviews still need the
   colleague added as a report in a manager profile.
 
+### Fixed
+
+- The MCP server reports the package version to clients instead of a
+  hardcoded `0.1.0`.
+
 ## [0.4.0] - 2026-11-07
 
 ### Added

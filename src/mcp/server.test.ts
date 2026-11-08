@@ -5,6 +5,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -20,6 +21,10 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createServer } from './server';
+
+const packageJson = createRequire(import.meta.url)('../../package.json') as {
+  version: string;
+};
 
 // Reviewed snapshot of the tools/list result from before the tools were split
 // into modules, plus search_pr_reviews (added after the split). MCP clients
@@ -98,6 +103,7 @@ describe('MCP server over a transport', () => {
     await client.connect(clientTransport);
 
     try {
+      expect(client.getServerVersion()?.version).toBe(packageJson.version);
       const { tools } = await client.listTools();
       expect(tools).toEqual(goldenTools);
 

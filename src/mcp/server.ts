@@ -1,3 +1,5 @@
+import { createRequire } from 'node:module';
+
 import {
   type Config,
   findConfigPath,
@@ -74,6 +76,11 @@ export async function createServer(): Promise<MCPServerContext> {
   };
 }
 
+// Report the package version to MCP clients, matching `work-chronicler --version`.
+const { version: packageVersion } = createRequire(import.meta.url)(
+  '../../package.json',
+) as { version: string };
+
 /**
  * Create an MCP server with every tool registered against a resolved
  * work-log directory. Connect it to any transport.
@@ -81,7 +88,7 @@ export async function createServer(): Promise<MCPServerContext> {
 export function createToolServer(context: ToolContext): McpServer {
   const server = new McpServer({
     name: 'work-chronicler',
-    version: '0.1.0',
+    version: packageVersion,
   });
 
   registerTool(server, context, searchPrsTool);
