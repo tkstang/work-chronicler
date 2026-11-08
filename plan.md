@@ -394,7 +394,7 @@ Default is `[]` (fully sequential, no worktrees).
 | p06     | code     | passed          | 2026-11-08 | reviews/archived/p06-review-2026-11-08T080639Z.md (0 C/H/M/L)                                                                | 6bfcfecd44b80efa12b280a6f41f7fe4b0c4e57f | oat-reviewer-claude-claude-opus-5-5-high | -                 |
 | p07     | code     | passed          | 2026-11-08 | reviews/archived/p07-review-2026-11-08T084045Z.md (0 C/H/M; 2 Low fixed in p07-t13)                                          | 5d53367c2567b325854ef56f4f09d96c9ea6e79a | oat-reviewer-claude-claude-opus-5-5-high | -                 |
 | p12     | code     | passed          | 2026-11-08 | reviews/archived/p12-review-2026-11-08T090704Z.md (0 C/H/M; 1 Low fixed in p12-t06)                                          | 3b5ac311a459321ee28fcdb184ef80dbdc30fd0c | oat-reviewer-claude-claude-opus-5-5-high | -                 |
-| final   | code     | received        | 2026-11-08 | reviews/final-review-2026-11-08T092006Z.md                                                                                   | a30a11836b7fce248cefc50d4ba3b4c8c593db0e | gate                                     | codex-6-sol-xhigh |
+| final   | code     | fixes_added     | 2026-11-08 | reviews/archived/final-review-2026-11-08T092006Z.md (2 H, 1 M)                                                               | a30a11836b7fce248cefc50d4ba3b4c8c593db0e | gate                                     | codex-6-sol-xhigh |
 
 Add one `code` row per phase as phases become concrete. For code-review events,
 `Reviewed Head` is the full 40-character SHA at the head of the reviewed range.

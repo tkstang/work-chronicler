@@ -1188,6 +1188,19 @@ Also in p03-t15: CodeRabbit 4505014153 (docs/notice wrongly said `--overwrite` f
 
 **Outcome:** passed. Recovery stage → delivering; d01 evidence rebound to b079cd7.
 
+### Review Received: final (m02 exit gate, attempt 1)
+
+**Date:** 2026-11-08
+**Review artifact (local-only):** reviews/archived/final-review-2026-11-08T092006Z.md
+
+**Findings:** Critical 0 · High 2 · Medium 1 · Low 0 (gate `codex-6-sol-xhigh`, run 22b09426-1d0c-4598-b66d-691b734076d6, reviewed head a30a11836b7fce248cefc50d4ba3b4c8c593db0e, scope p01–p08 per state)
+
+- H1 (High): import rollback removes planned directories without checking ancestors, so a directory swapped for a symlink mid-commit lets cleanup delete outside the work log (`src/core/import/transaction.ts:646`) → fix; agree.
+- H2 (High): recovery reads and renames backup files through a symlinked `backup/` ancestor (`transaction.ts:603`) → fix; agree.
+- M1 (Medium): a running MCP server keeps the directory captured at startup, so a subset selected later is bypassed (`src/mcp/tools/search-messages.ts:98`, `server.ts:120`) → fix; agree.
+
+**Outcome:** fixes dispatched as m02 closeout tasks under p08 (the milestone's last phase, as m01 did under p03).
+
 ### PR review received: d01 (PR #25, CodeRabbit)
 
 **Date:** 2026-11-08
