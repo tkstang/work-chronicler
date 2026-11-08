@@ -1601,7 +1601,7 @@ Proof: 747 tests; DoD batch green; pack 142 files
 **Status:** in_progress
 **Base:** 7feab1884270735d1e45986dac577c0e0a543a59
 **Executor:** phase-implementer:wce-p10-impl-1
-**Head:** c8d810d5039ad78e747174dfefdbda32ef66c8c4
+**Head:** a8ac78eaa6886bab7fa3ecb53740301dbfc7e2b9
 
 Branch `oat/evidence-expansion-m03`. Committing owner: the phase implementer (code); root owns the journal and runs the live walkthrough (the user's own Drive via `gog --readonly`, temp `WORK_CHRONICLER_HOME`, redacted counts only). Task class: consequential (privacy of the user's documents).
 
@@ -1632,6 +1632,27 @@ Proof: 5/5, 60 s timeout
 **Executor:** phase-implementer:wce-p10-impl-1
 Files: `AGENTS.md`, `CHANGELOG.md`, `README.md`, `documentation/{available-skills,commands,manager-mode}.md`
 Proof: `skills install` lists 13 skills; `npm pack --dry-run` 143 files
+
+### Task p10-t04: (walkthrough gap 1) Exact ticket-key form in step 8
+
+**Status:** completed
+**Commit:** 03124ff
+**Executor:** phase-implementer:wce-p10-impl-1
+Proof: 752 tests; DoD batch green
+
+### Task p10-t05: (walkthrough gap 2) drive get nests fields under `file`
+
+**Status:** completed
+**Commit:** 5f09308
+**Executor:** phase-implementer:wce-p10-impl-1
+Proof: 752 tests; DoD batch green
+
+### Task p10-t06: (walkthrough gap 3) No markers in plain docs cat; cap by byte length; never --wrap-untrusted
+
+**Status:** completed
+**Commit:** a8ac78e
+**Executor:** phase-implementer:wce-p10-impl-1
+Proof: 752 tests; DoD batch green
 
 ---
 
