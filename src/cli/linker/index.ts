@@ -1,8 +1,12 @@
 import {
+  buildMentionIndex,
   type Config,
   type JiraTicketFile,
+  normalizePullRequestUrl,
+  readAllImportedRecords,
   readAllPRs,
   readAllTickets,
+  resolveMentions,
   writeMarkdownFile,
 } from '@core/index';
 import chalk from 'chalk';
@@ -18,6 +22,37 @@ interface LinkResult {
   prsUpdated: number;
   ticketsUpdated: number;
   linksFound: number;
+  /**
+   * Mentions in imported records (such as messages), resolved against the
+   * PRs and tickets in the work log. They are reported, never stored as links.
+   */
+  mentions: {
+    records: number;
+    resolved: number;
+    unresolved: number;
+  };
+}
+
+/**
+ * Resolve every imported record's mentions against the work log. Records are
+ * only read: a mention is not a link, and imported records are changed only
+ * by `import`.
+ */
+async function resolveImportedMentions(
+  outputDir: string,
+  index: ReturnType<typeof buildMentionIndex>,
+): Promise<LinkResult['mentions']> {
+  const records = await readAllImportedRecords(outputDir);
+  let resolved = 0;
+  let unresolved = 0;
+  for (const record of records) {
+    const mentions = resolveMentions(record.frontmatter, index);
+    for (const mention of [...mentions.pullRequests, ...mentions.tickets]) {
+      if (mention.resolved) resolved++;
+      else unresolved++;
+    }
+  }
+  return { records: records.length, resolved, unresolved };
 }
 
 /**
@@ -127,9 +162,27 @@ export async function linkPRsToTickets(
     `Found ${chalk.cyan(prs.length)} PRs and ${chalk.cyan(tickets.length)} tickets`,
   );
 
+  const reportMentions = async (): Promise<LinkResult['mentions']> => {
+    const mentions = await resolveImportedMentions(
+      outputDir,
+      buildMentionIndex(prs, tickets),
+    );
+    if (mentions.records > 0) {
+      console.log(
+        `${chalk.green('✓')} Resolved ${chalk.cyan(mentions.resolved)} of ${mentions.resolved + mentions.unresolved} mentions in ${mentions.records} imported records to PRs and tickets in the work log (mentions are not stored as links)`,
+      );
+    }
+    return mentions;
+  };
+
   if (prs.length === 0) {
     console.log(chalk.gray('No PRs found to link'));
-    return { prsUpdated: 0, ticketsUpdated: 0, linksFound: 0 };
+    return {
+      prsUpdated: 0,
+      ticketsUpdated: 0,
+      linksFound: 0,
+      mentions: await reportMentions(),
+    };
   }
 
   const knownProjects = getKnownProjects(config);
@@ -212,8 +265,13 @@ export async function linkPRsToTickets(
       const ticket = ticketMap.get(ticketKey);
       if (!ticket) continue;
 
-      const existingUrls = new Set(ticket.frontmatter.linkedPRs);
-      const newUrls = [...prUrls].filter((url) => !existingUrls.has(url));
+      // Compare in canonical form, so a URL stored with other capitalization
+      // or a trailing tab is not linked twice
+      const canonical = (url: string) => normalizePullRequestUrl(url) ?? url;
+      const existingUrls = new Set(ticket.frontmatter.linkedPRs.map(canonical));
+      const newUrls = [...prUrls].filter(
+        (url) => !existingUrls.has(canonical(url)),
+      );
 
       if (newUrls.length > 0) {
         const updatedFrontmatter = {
@@ -239,5 +297,10 @@ export async function linkPRsToTickets(
     );
   }
 
-  return { prsUpdated, ticketsUpdated, linksFound };
+  return {
+    prsUpdated,
+    ticketsUpdated,
+    linksFound,
+    mentions: await reportMentions(),
+  };
 }

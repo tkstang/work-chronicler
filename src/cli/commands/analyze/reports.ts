@@ -14,7 +14,12 @@ import {
   generateTimeline,
 } from '@cli/analyzer';
 import { CliError, toCliError } from '@cli/errors';
-import { readAllPRs, readAllTickets, writeMarkdownFile } from '@core/index';
+import {
+  readAllImportedRecords,
+  readAllPRs,
+  readAllTickets,
+  writeMarkdownFile,
+} from '@core/index';
 import { select } from '@inquirer/prompts';
 import { getActiveProfile } from '@workspace/global-config';
 import { listReports, loadManagerConfig } from '@workspace/report-manager';
@@ -111,6 +116,8 @@ export const reportsCommand = new Command('reports')
       const prs = await readAllPRs(workLogDir);
       spinner.text = 'Loading tickets...';
       const tickets = await readAllTickets(workLogDir);
+      // Messages imported for this report (opt-in per report)
+      const importedRecords = await readAllImportedRecords(workLogDir);
       spinner.succeed(
         `Loaded ${chalk.cyan(prs.length)} PRs and ${chalk.cyan(tickets.length)} tickets`,
       );
@@ -200,7 +207,7 @@ export const reportsCommand = new Command('reports')
 
       // Generate stats
       spinner.start('Generating statistics...');
-      const stats = generateStats(prs, tickets, since, until);
+      const stats = generateStats(prs, tickets, since, until, importedRecords);
       spinner.succeed('Generated statistics');
 
       // Write stats file
@@ -237,6 +244,14 @@ export const reportsCommand = new Command('reports')
       }
       console.log(`  Linked to PRs: ${chalk.cyan(stats.links.ticketsWithPRs)}`);
       console.log();
+
+      if (stats.messages.total > 0) {
+        console.log(chalk.bold('Imported Messages:'));
+        console.log(
+          `  Total: ${chalk.cyan(stats.messages.total)} (supplementary evidence; projects and the timeline cover PRs and tickets only)`,
+        );
+        console.log();
+      }
 
       console.log(chalk.bold('Top Repos:'));
       const topRepos = Object.entries(stats.prs.byRepo)

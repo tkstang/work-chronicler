@@ -232,7 +232,7 @@ export async function writeFilteredSubset(params: {
   const since = config.fetch.since;
   const until =
     config.fetch.until ?? new Date().toISOString().split('T')[0] ?? '';
-  const stats = generateStats(prs, tickets, since, until);
+  const stats = generateStats(prs, tickets, since, until, messages);
   const projects = detectProjects(prs, tickets, since, until);
   const timeline = generateTimeline(prs, tickets, since, until);
 

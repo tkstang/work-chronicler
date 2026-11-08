@@ -5,7 +5,9 @@ import chalk from 'chalk';
 import { Command } from 'commander';
 
 export const linkCommand = new Command('link')
-  .description('Cross-reference PRs and JIRA tickets')
+  .description(
+    'Cross-reference PRs and JIRA tickets, and resolve mentions in imported records',
+  )
   .option('-c, --config <path>', 'Path to config file')
   .option('-v, --verbose', 'Show detailed output')
   .action(async (options) => {

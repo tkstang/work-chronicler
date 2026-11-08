@@ -1,13 +1,24 @@
 import {
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
   statSync,
   utimesSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
+import {
+  messageFrontmatter,
+  recordFile,
+  snapshot,
+} from '@core/import/import.test-support';
+import {
+  parseImportedRecordFile,
+  serializeImportedRecord,
+} from '@core/import/record-file';
 import {
   type Config,
   ConfigSchema,
@@ -18,6 +29,10 @@ import {
   readAllPRs,
   readAllTickets,
   writeMarkdownFile,
+} from '@core/index';
+import {
+  getImportedRecordFilePath,
+  getImportedRecordIdentity,
 } from '@core/index';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -181,7 +196,12 @@ describe('linkPRsToTickets links', () => {
       ],
       'PAY-43': ['https://github.com/acme/app/pull/1'],
     });
-    expect(result).toEqual({ prsUpdated: 2, ticketsUpdated: 2, linksFound: 3 });
+    expect(result).toEqual({
+      prsUpdated: 2,
+      ticketsUpdated: 2,
+      linksFound: 3,
+      mentions: { records: 0, resolved: 0, unresolved: 0 },
+    });
   });
 
   it('is idempotent: a second run adds nothing and rewrites no files', async () => {
@@ -203,11 +223,118 @@ describe('linkPRsToTickets links', () => {
       outputDir,
     });
 
-    expect(second).toEqual({ prsUpdated: 0, ticketsUpdated: 0, linksFound: 0 });
+    expect(second).toEqual({
+      prsUpdated: 0,
+      ticketsUpdated: 0,
+      linksFound: 0,
+      mentions: { records: 0, resolved: 0, unresolved: 0 },
+    });
     expect(paths.map((path) => readFileSync(path, 'utf-8'))).toEqual(before);
     expect(paths.map((path) => statSync(path).mtime.getTime())).toEqual(
       paths.map(() => past.getTime()),
     );
     expect(await prTickets()).toEqual({ 1: ['PAY-42'], 2: [] });
+  });
+});
+
+/** A message stored where `import` would store it */
+function writeMessage(
+  n: number,
+  mentions: { tickets?: string[]; pullRequests?: string[] },
+): void {
+  const parsed = parseImportedRecordFile(
+    Buffer.from(
+      recordFile(
+        messageFrontmatter(n, {
+          mentions: {
+            tickets: mentions.tickets ?? [],
+            pullRequests: mentions.pullRequests ?? [],
+          },
+        }),
+        `Message ${n}`,
+      ),
+    ),
+  );
+  if (!parsed.ok) throw new Error('fixture must be valid');
+  const path = getImportedRecordFilePath(
+    outputDir,
+    getImportedRecordIdentity(parsed.record),
+  );
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, serializeImportedRecord(parsed.record, parsed.body));
+}
+
+describe('linkPRsToTickets mentions in imported records', () => {
+  it('resolves PR URLs in any form and ticket keys, keeps the rest unresolved, and changes no record', async () => {
+    writePR(1, 'PAY-42: refunds', '');
+    writeTicket('PAY-42');
+    writeMessage(1, {
+      pullRequests: [
+        // GitHub capitalization, a tab and a fragment: all PR 1
+        'https://github.com/Acme/App/pull/1/files#diff-1',
+        // Not in the work log
+        'https://github.com/acme/app/pull/99',
+      ],
+      tickets: ['PAY-42', 'OPS-7'],
+    });
+    writeMessage(2, { pullRequests: ['https://example.com/acme/app/1'] });
+    const before = snapshot(join(outputDir, 'messages'));
+
+    const result = await linkPRsToTickets({
+      config: config(['PAY']),
+      outputDir,
+    });
+
+    expect(result.mentions).toEqual({
+      records: 2,
+      resolved: 2,
+      unresolved: 3,
+    });
+    expect(snapshot(join(outputDir, 'messages'))).toEqual(before);
+    // Mentions are not links
+    expect(await ticketPRs()).toEqual({
+      'PAY-42': ['https://github.com/acme/app/pull/1'],
+    });
+  });
+
+  it('resolves ticket mentions when there are no PRs', async () => {
+    writeTicket('PAY-42');
+    writeMessage(1, { tickets: ['pay-42'] });
+
+    const result = await linkPRsToTickets({
+      config: config(['PAY']),
+      outputDir,
+    });
+
+    expect(result.mentions).toEqual({
+      records: 1,
+      resolved: 1,
+      unresolved: 0,
+    });
+  });
+
+  it('does not link a PR again under another capitalization', async () => {
+    writePR(1, 'PAY-42: refunds', '');
+    const ticketPath = writeTicket('PAY-42');
+    const [ticket] = await readAllTickets(outputDir);
+    if (!ticket) throw new Error('ticket missing');
+    writeMarkdownFile(
+      ticketPath,
+      {
+        ...ticket.frontmatter,
+        linkedPRs: ['https://github.com/ACME/app/pull/1/'],
+      },
+      '',
+    );
+
+    const result = await linkPRsToTickets({
+      config: config(['PAY']),
+      outputDir,
+    });
+
+    expect(result.ticketsUpdated).toBe(0);
+    expect(await ticketPRs()).toEqual({
+      'PAY-42': ['https://github.com/ACME/app/pull/1/'],
+    });
   });
 });

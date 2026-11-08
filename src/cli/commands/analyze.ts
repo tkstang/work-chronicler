@@ -14,6 +14,7 @@ import {
   getEffectiveOutputDir,
   getOutputDirectory,
   loadConfig,
+  readAllImportedRecords,
   readAllPRs,
   readAllTickets,
   writeMarkdownFile,
@@ -93,13 +94,20 @@ export const analyzeCommand = new Command('analyze')
       const prs = await readAllPRs(outputDir);
       spinner.text = 'Loading tickets...';
       const tickets = await readAllTickets(outputDir);
+      const importedRecords = await readAllImportedRecords(outputDir);
       spinner.succeed(
         `Loaded ${chalk.cyan(prs.length)} PRs and ${chalk.cyan(tickets.length)} tickets`,
       );
 
       // Generate stats
       spinner.start('Generating statistics...');
-      const stats = generateStats(prs, tickets, since, until ?? '');
+      const stats = generateStats(
+        prs,
+        tickets,
+        since,
+        until ?? '',
+        importedRecords,
+      );
       spinner.succeed('Generated statistics');
 
       // Write stats file
@@ -174,6 +182,27 @@ export const analyzeCommand = new Command('analyze')
       }
       console.log(`  Linked to PRs: ${chalk.cyan(stats.links.ticketsWithPRs)}`);
       console.log();
+
+      if (stats.messages.total > 0) {
+        console.log(chalk.bold('Imported Messages:'));
+        console.log(
+          `  Total: ${chalk.cyan(stats.messages.total)} (${Object.entries(
+            stats.messages.bySource,
+          )
+            .map(([source, count]) => `${source} ${count}`)
+            .join(
+              ', ',
+            )}; supplementary evidence, not counted as PRs or tickets)`,
+        );
+        if (analyzeOpts.projects || analyzeOpts.timeline) {
+          console.log(
+            chalk.gray(
+              '  Projects and the timeline cover PRs and tickets only; messages are not included.',
+            ),
+          );
+        }
+        console.log();
+      }
 
       console.log(chalk.bold('Top Repos:'));
       const topRepos = Object.entries(stats.prs.byRepo)

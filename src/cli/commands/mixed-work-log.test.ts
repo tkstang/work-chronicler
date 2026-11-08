@@ -389,10 +389,15 @@ function selection() {
   return state.selection;
 }
 
-describe('filter over a mixed work log with an existing subset', () => {
+describe('a mixed work log with imported messages', () => {
+  let logs: string[];
+
   beforeEach(() => {
     rmSync(workLog, { recursive: true, force: true });
-    vi.spyOn(console, 'log').mockImplementation(() => {});
+    logs = [];
+    vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
+      logs.push(args.join(' '));
+    });
     writeConfig();
 
     authoredPR('acme', 'api', 7, { jiraTickets: ['BILL-1'] });
@@ -569,5 +574,84 @@ describe('filter over a mixed work log with an existing subset', () => {
       /Invalid org selector/,
     );
     expect(snapshot(filteredDir)).toEqual(before);
+  });
+
+  it('status counts messages apart from PRs and tickets and ignores import working files', async () => {
+    await run(statusCommand, []);
+
+    expect(logs).toContain('\nPull Requests: 2 files');
+    expect(logs).toContain(
+      'Messages:      3 imported (slack 3; supplementary evidence, not counted as PRs or tickets)',
+    );
+    expect(logs).toContainEqual(
+      expect.stringContaining('An import is running or did not finish'),
+    );
+    expect(logs).toContain(
+      'Filtered subset: none (read commands use the full work log)',
+    );
+
+    await run(filterCommand, ['--org', 'acme']);
+    logs = [];
+    await run(statusCommand, []);
+    expect(logs).toContainEqual(
+      expect.stringContaining(
+        'Filtered subset: in use by `analyze` and the MCP server (1 PRs, 2 tickets, 1 reviewed PRs, 3 messages; filters: Include orgs: acme)',
+      ),
+    );
+
+    // A subset made before messages were imported is flagged
+    rmSync(join(filteredDir, 'messages'), { recursive: true });
+    logs = [];
+    await run(statusCommand, []);
+    expect(logs).toContainEqual(
+      expect.stringContaining(
+        'created before messages were imported and does not include them',
+      ),
+    );
+  });
+
+  it('stats count messages; projects and the timeline stay PR/ticket-only and say so', async () => {
+    const analysis = async () => {
+      await run(analyzeCommand, ['--all', '--full']);
+      return readAnalysis(workLog);
+    };
+
+    const withMessages = await analysis();
+    expect(withMessages.stats.messages).toMatchObject({
+      total: 3,
+      bySource: { slack: 3 },
+    });
+    expect(
+      Object.values(
+        withMessages.stats.messages.byMonth as Record<string, number>,
+      ).reduce((a, b) => a + b, 0),
+    ).toBe(3);
+    expect(withMessages.stats.prs.total).toBe(2);
+    expect(withMessages.stats.tickets.total).toBe(2);
+    expect(logs).toContainEqual(
+      expect.stringContaining(
+        'Projects and the timeline cover PRs and tickets only',
+      ),
+    );
+
+    rmSync(join(workLog, 'messages'), { recursive: true });
+    const withoutMessages = await analysis();
+
+    expect(withoutMessages.projects).toEqual(withMessages.projects);
+    expect(withoutMessages.timeline).toEqual(withMessages.timeline);
+    expect({ ...withoutMessages.stats, messages: null }).toEqual({
+      ...withMessages.stats,
+      messages: null,
+    });
+    expect(withoutMessages.stats.messages.total).toBe(0);
+  });
+
+  it('the filtered subset counts its messages in its stats', async () => {
+    await run(filterCommand, ['--org', 'acme', '--linked-only']);
+
+    expect(readAnalysis(filteredDir).stats.messages).toMatchObject({
+      total: 1,
+      bySource: { slack: 1 },
+    });
   });
 });
