@@ -166,6 +166,10 @@ p05 accepted: round 1 (3 M, 3 L) fixed in p05-t08..t13; round 2 (3 L, filter loc
 
 Observation: the filter lock added to fix a concurrency finding drew three more Low rounds (non-atomic release, stale takeover race, dead takeover guard). Impact: two extra review cycles in p05. Recommendation: reuse one shared, already-reviewed lock helper (import's .import-lock and the filter lock solve the same problem) instead of writing a second one; consider consolidating in a later cleanup.
 
+### 2026-11-08 · structural · oat-project-implement · p06
+
+p06 accepted: round 1 (1 M, 2 L) fixed in p06-t05..t07; round 2 clean; fix loops 1; wce-p06-outcome
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

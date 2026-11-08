@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-11-07
-oat_current_task_id: p06
+oat_current_task_id: p07
 oat_generated: false
 ---
 
@@ -53,7 +53,7 @@ oat_generated: false
 | p10   | pending   | 1     | 0/1      |
 | p11   | pending   | 1     | 0/1      |
 
-**Total:** 5/12 phases accepted
+**Total:** 6/12 phases accepted
 
 ---
 
@@ -613,7 +613,7 @@ Proof: new dead-guard test fails on 5d723ff code; 436 tests, lint, typecheck, fo
 
 ## Phase p06: Slack configuration and CLI
 
-**Status:** in_progress
+**Status:** completed
 **Base:** 9e70b3c7a6a3f467e96ccab3c3f72d802c8f3a4b
 **Executor:** phase-implementer:wce-p06-impl-1
 **Head:** 6bfcfecd44b80efa12b280a6f41f7fe4b0c4e57f
@@ -733,6 +733,8 @@ Root re-ran typecheck, lint, format:check and tests at 6bfcfec: pass (515). Note
 <!-- One line per dispatch request id, rendered by `oat project dispatch record --format line` and written as a list item. Update that line in place with the terminal outcome; never paste the record or event JSON. -->
 
 <!-- orchestration-runs-start -->
+
+- run/v1 · request=wce-p06-rev-2 · scope=p06 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p06 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 - run/v1 · request=wce-p06-rev-1 · scope=p06 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p06 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
