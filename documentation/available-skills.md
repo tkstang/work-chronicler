@@ -86,10 +86,12 @@ select:
    touched. Old copies are deleted only after the new name is in place.
 4. If the new name is held by something else and you refuse to overwrite it, or
    the install fails, the old name is kept.
-5. If a skill under a new name resolves into the old entry, for example a
-   symlink you made from the new name to the old copy, the old name is kept so
-   that skill keeps working. Pass `--overwrite` to replace the link with an
-   independent copy; the old name is then removed.
+5. If any installed skill, in the selected tool or any other, resolves into
+   the old entry (for example a symlink you made from a new name to the old
+   copy), the old name is kept so that skill keeps working, and the installer
+   names it. Give that skill an independent copy with
+   `skills install --tool <its tool> --overwrite`; the old name is removed as
+   soon as nothing resolves into it.
 
 Tools you do not select are left unchanged; the installer names any that still
 have old names so you can run `skills install --tool <tool>` for them.

@@ -1,6 +1,7 @@
 import {
   existsSync,
   lstatSync,
+  readdirSync,
   readFileSync,
   readlinkSync,
   realpathSync,
@@ -9,7 +10,6 @@ import {
 } from 'node:fs';
 import { dirname, isAbsolute, join, parse, resolve, sep } from 'node:path';
 
-import { findInstalledSkills } from './installed';
 import { RENAMED_SKILLS } from './types';
 
 /**
@@ -132,33 +132,76 @@ function isAtOrUnder(path: string, location: string): boolean {
   return path === location || path.startsWith(location + sep);
 }
 
+/** An old-name entry kept because other installed entries resolve into it */
+export interface DependentRenamedSkillEntry extends RenamedSkillEntry {
+  /** Paths of the entries that resolve into the old entry */
+  usedBy: string[];
+}
+
+/**
+ * Every entry in the given skills directories, whatever its name, with the
+ * locations its resolution passes through: the entry itself and its
+ * `SKILL.md`. Directories that do not exist are skipped.
+ */
+function inventoryEntries(
+  dirs: string[],
+): { path: string; location: string; trail: string[] }[] {
+  const seen = new Set<string>();
+  const inventory: { path: string; location: string; trail: string[] }[] = [];
+  for (const dir of dirs) {
+    let names: string[];
+    try {
+      names = readdirSync(dir);
+    } catch {
+      continue;
+    }
+    for (const name of names) {
+      const location = entryLocation(dir, name);
+      // Two tools can share one directory through a symlink
+      if (seen.has(location)) continue;
+      seen.add(location);
+      const path = join(dir, name);
+      inventory.push({
+        path,
+        location,
+        trail: [
+          ...(resolutionTrail(path) ?? []),
+          ...(resolutionTrail(join(path, 'SKILL.md')) ?? []),
+        ],
+      });
+    }
+  }
+  return inventory;
+}
+
 /**
  * Split a tool's old-name skills into those safe to remove and those to keep.
  *
- * - `removable`: the replacement is installed and verified, and no other
- *   installed skill resolves into the old entry
+ * - `removable`: the replacement is installed and verified, and nothing else
+ *   in any inventoried skills directory resolves into the old entry
  * - `blocked`: the replacement is missing or not a verified install
- * - `dependent`: the replacement is verified, but a skill installed under
- *   another name (typically the replacement, symlinked to the old copy)
- *   resolves into the old entry, so removing it would break that skill
+ * - `dependent`: the replacement is verified, but another entry, in this
+ *   tool or another one (typically a new-name symlink to the old copy),
+ *   resolves into the old entry, so removing it would break that entry
+ *
+ * @param inventoryDirs - Every known tool's skills directory, selected or
+ *   not, so that removal never breaks another tool's installation
  */
-export function planRenamedSkillRemoval(skillsDir: string): {
+export function planRenamedSkillRemoval(
+  skillsDir: string,
+  inventoryDirs: string[],
+): {
   removable: RenamedSkillEntry[];
   blocked: RenamedSkillEntry[];
-  dependent: RenamedSkillEntry[];
+  dependent: DependentRenamedSkillEntry[];
 } {
   const removable: RenamedSkillEntry[] = [];
   const blocked: RenamedSkillEntry[] = [];
-  const dependent: RenamedSkillEntry[] = [];
+  const dependent: DependentRenamedSkillEntry[] = [];
   const entries = findRenamedSkills(skillsDir);
   if (entries.length === 0) return { removable, blocked, dependent };
 
-  // Every location the other installed skills rely on
-  const relied = findInstalledSkills(skillsDir)
-    .filter((skill) => !(skill.name in RENAMED_SKILLS))
-    .flatMap(
-      (skill) => resolutionTrail(join(skillsDir, skill.name, 'SKILL.md')) ?? [],
-    );
+  const inventory = inventoryEntries([skillsDir, ...inventoryDirs]);
 
   for (const entry of entries) {
     if (!isVerifiedSkill(skillsDir, entry.newName)) {
@@ -166,10 +209,18 @@ export function planRenamedSkillRemoval(skillsDir: string): {
       continue;
     }
     const location = entryLocation(skillsDir, entry.oldName);
-    (relied.some((path) => isAtOrUnder(path, location))
-      ? dependent
-      : removable
-    ).push(entry);
+    const usedBy = inventory
+      .filter(
+        (other) =>
+          other.location !== location &&
+          other.trail.some((path) => isAtOrUnder(path, location)),
+      )
+      .map((other) => other.path);
+    if (usedBy.length > 0) {
+      dependent.push({ ...entry, usedBy });
+    } else {
+      removable.push(entry);
+    }
   }
   return { removable, blocked, dependent };
 }

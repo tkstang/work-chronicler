@@ -16,9 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the old one (declining keeps both). Old symlinks, working or broken, are
   unlinked without touching their targets; old copies are removed only after
   the new name is in place, and are kept when the new name is held by
-  something else, fails to install or resolves into the old copy (such as a
-  symlink to it). Tools you do not select are left alone
-  and named so you can migrate them separately. `skills list` flags old names.
+  something else or fails to install, or while any installed skill in any
+  tool resolves into the old copy (such as a symlink to it). Tools you do not
+  select are left alone and named so you can migrate them separately.
+  `skills list` flags old names.
 - `fetch github --reviews` and `fetch all --reviews` record the PR reviews
   and inline review comments you gave inside the fetch range, on other
   people's PRs in your configured orgs and repos, however old the PR (your

@@ -4,6 +4,7 @@ import {
   lstatSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   readlinkSync,
   rmSync,
@@ -287,9 +288,42 @@ describe('skills install rename migration', () => {
         NEW_NAMES.bullets,
       );
       expect(output()).toContain(
-        'Kept 1 old-name skill(s) in Claude Code: a skill installed under a new name resolves into the old entry',
+        'Kept 1 old-name skill(s) in Claude Code: another installed skill, in this or another tool, resolves into the old entry',
       );
+      expect(output()).toContain(`(used by ${newLink})`);
       expect(output()).not.toContain('Removed');
+    });
+
+    it('keeps the old copy an unselected tool links into, leaving that tool unchanged', async () => {
+      const oldDir = seedCopy('claude', OLD_NAMES.bullets);
+      writeFileSync(
+        join(oldDir, 'SKILL.md'),
+        `---\nname: ${NEW_NAMES.bullets}\n---\nmy edits\n`,
+      );
+      const codexLink = seedLink('codex', NEW_NAMES.bullets, oldDir);
+
+      const { error } = await install([
+        '--tool',
+        'claude',
+        '--method',
+        'copy',
+        '--yes',
+      ]);
+
+      expect(error).toBeUndefined();
+      expect(readFileSync(join(oldDir, 'SKILL.md'), 'utf8')).toContain(
+        'my edits',
+      );
+      expect(readdirSync(skillsDir('codex'))).toEqual([NEW_NAMES.bullets]);
+      expect(readlinkSync(codexLink)).toBe(oldDir);
+      expect(readFileSync(join(codexLink, 'SKILL.md'), 'utf8')).toContain(
+        'my edits',
+      );
+      // The selected tool still gets its own replacement
+      expect(
+        lstatSync(join(skillsDir('claude'), NEW_NAMES.bullets)).isDirectory(),
+      ).toBe(true);
+      expect(output()).toContain(`(used by ${codexLink})`);
     });
 
     it('keeps an old symlink that the new-name link resolves through', async () => {

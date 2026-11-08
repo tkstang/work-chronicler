@@ -222,7 +222,10 @@ async function migrateRenamedSkills(
 ): Promise<string[]> {
   const tool = AI_TOOLS[toolKey];
   const skillsDir = getSkillsDir(toolKey);
-  const { removable, blocked, dependent } = planRenamedSkillRemoval(skillsDir);
+  const { removable, blocked, dependent } = planRenamedSkillRemoval(
+    skillsDir,
+    AI_TOOL_KEYS.map(getSkillsDir),
+  );
 
   if (blocked.length > 0) {
     console.log(
@@ -233,9 +236,15 @@ async function migrateRenamedSkills(
   }
 
   if (dependent.length > 0) {
+    const details = dependent
+      .map(
+        (entry) =>
+          `    ${entry.oldName} → ${entry.newName} (used by ${entry.usedBy.join(', ')})`,
+      )
+      .join('\n');
     console.log(
       chalk.yellow(
-        `  Kept ${dependent.length} old-name skill(s) in ${tool.name}: a skill installed under a new name resolves into the old entry (for example a symlink to the old copy), so removing it would break that skill.\n${formatRenames(dependent)}\n  Re-run with --overwrite to install an independent copy under the new name.`,
+        `  Kept ${dependent.length} old-name skill(s) in ${tool.name}: another installed skill, in this or another tool, resolves into the old entry (for example a symlink to the old copy), so removing it would break that skill.\n${details}\n  Give that skill an independent copy (\`work-chronicler skills install --tool <its tool> --overwrite\`); the old name is removed once nothing resolves into it.`,
       ),
     );
   }
