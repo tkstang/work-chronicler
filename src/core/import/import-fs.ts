@@ -36,6 +36,8 @@ export interface FsEntry {
   mode: number;
   /** Number of hard links to the entry */
   nlink: number;
+  /** Modification time, in milliseconds */
+  mtimeMs: number;
 }
 
 /** A file's contents and the identity of the file they were read from */
@@ -139,6 +141,7 @@ export const nodeImportFs: ImportFs = {
       size: stat.size,
       mode: Number(stat.mode & 0o7777n),
       nlink: Number(stat.nlink),
+      mtimeMs: Number(stat.mtimeMs),
     };
   },
   readdir: (path) => readdirSync(path),

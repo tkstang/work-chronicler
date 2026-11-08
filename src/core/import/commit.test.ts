@@ -77,9 +77,16 @@ function env(overrides: Partial<ImportEnv> = {}): ImportEnv {
   return { ...createImportEnv(), ...overrides };
 }
 
-/** A later run that finds the earlier process gone */
+/**
+ * A later run (two minutes on) that finds the earlier process gone. Two
+ * minutes is past the grace a lock claim gets to name its owner.
+ */
 function laterEnv(overrides: Partial<ImportEnv> = {}): ImportEnv {
-  return env({ isProcessAlive: () => false, ...overrides });
+  return env({
+    isProcessAlive: () => false,
+    now: () => Date.now() + 120_000,
+    ...overrides,
+  });
 }
 
 function importInto(
@@ -531,7 +538,19 @@ describe('import: failures and interruption at every step', () => {
           pid: DEAD_PID + 1,
         }),
       });
-      const final = recover(w);
+      let final = recover(w);
+      const guard = join(w.workLog, '.import-lock.takeover');
+      if (!final.ok && existsSync(guard)) {
+        // The recovering process died while taking over the first one's
+        // lock. Its guard is never guessed away: the refusal names it, and
+        // removing it (the documented step) lets recovery run.
+        expect(final.issues[0]?.code, `recovery crash ${crashAt}`).toBe(
+          'IMPORT_IN_PROGRESS',
+        );
+        expect(final.issues[0]?.message).toContain('.import-lock.takeover');
+        rmSync(guard, { recursive: true });
+        final = recover(w);
+      }
       expect(final.ok, `recovery crash ${crashAt}`).toBe(true);
       expect(snapshot(w.workLog), `recovery crash ${crashAt}`).toEqual(before);
       if (final.recovery?.outcome === 'rolled-back') interrupted++;
@@ -567,7 +586,7 @@ describe('import: interrupted imports and the lock', () => {
         fs: crashAfterFs(
           nodeImportFs,
           (op, args) =>
-            op === 'link' && String(args[1]).endsWith('.import-lock'),
+            op === 'rename' && String(args[1]).endsWith('.import-lock'),
         ),
         pid: DEAD_PID,
       }),
@@ -707,7 +726,9 @@ describe('import: interrupted imports and the lock', () => {
     const result = importInto(w, {
       env: laterEnv({
         fs: hookedFs(nodeImportFs, (op, args) => {
-          if (op === 'readFile' && args[0] === lock) throw fsError('EACCES');
+          if (op === 'readFile' && args[0] === join(lock, 'owner.json')) {
+            throw fsError('EACCES');
+          }
         }),
       }),
     });

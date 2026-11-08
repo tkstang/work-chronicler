@@ -1,6 +1,14 @@
 import { basename, dirname, isAbsolute, join, relative, sep } from 'node:path';
 
 import { IMPORTED_RECORD_DIRECTORIES } from '@storage/paths';
+import {
+  acquireWorkLogLock,
+  describeOwner,
+  type LockAcquisition,
+  type LockFs,
+  ownerIsAlive,
+  readLockState,
+} from '@storage/work-log-lock';
 import { IMPORT_SOURCES } from '@wc-types/imported-record';
 import { z } from 'zod';
 
@@ -52,8 +60,6 @@ import { MAX_STORED_BYTES } from './staging';
 
 export const LOCK_NAME = '.import-lock';
 export const TRANSACTION_NAME = '.import-transaction';
-const CLAIM_PREFIX = `${LOCK_NAME}.claim-`;
-const STALE_PREFIX = `${LOCK_NAME}.stale-`;
 const DONE_PREFIX = `${TRANSACTION_NAME}.done-`;
 const JOURNAL = 'journal.json';
 const JOURNAL_TMP = 'journal.json.tmp';
@@ -66,15 +72,6 @@ const DIRS_DIR = 'dirs';
 const FOLDERS = [STAGED_DIR, BACKUP_DIR, APPLYING_DIR, DIRS_DIR] as const;
 const OWNER_MAX_BYTES = 4096;
 const JOURNAL_MAX_BYTES = 32 * 1024 * 1024;
-
-const OwnerSchema = z.strictObject({
-  version: z.literal(1),
-  pid: z.int().positive(),
-  hostname: z.string(),
-  startedAt: z.number(),
-  batchId: z.string(),
-});
-type LockOwner = z.infer<typeof OwnerSchema>;
 
 const RECORD_DIRECTORIES: string[] = Object.values(IMPORTED_RECORD_DIRECTORIES);
 const SOURCES: string[] = [...IMPORT_SOURCES];
@@ -357,180 +354,121 @@ function requireAncestors(
   return true;
 }
 
-function removeQuietly(
-  guard: PathGuard,
-  path: string,
-  warnings: string[],
-): void {
-  try {
-    guard.unlink(path);
-  } catch (error) {
-    if (errorCode(error) !== 'ENOENT') {
-      warnings.push(
-        `could not remove ${basename(path)} (${describeFsError(error)})`,
-      );
-    }
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Lock
 
 /** The lock an import holds while it runs */
 export interface ImportLock {
   root: string;
-  owner: LockOwner;
-}
-
-type OwnerRead =
-  | { kind: 'owner'; owner: LockOwner }
-  | { kind: 'missing' }
-  | { kind: 'unreadable' };
-
-function readOwner(fs: ImportFs, path: string): OwnerRead {
-  try {
-    const { data } = fs.readFile(path, OWNER_MAX_BYTES);
-    const owner = OwnerSchema.safeParse(JSON.parse(data.toString('utf-8')));
-    return owner.success
-      ? { kind: 'owner', owner: owner.data }
-      : { kind: 'unreadable' };
-  } catch (error) {
-    return errorCode(error) === 'ENOENT'
-      ? { kind: 'missing' }
-      : { kind: 'unreadable' };
-  }
-}
-
-function sameOwner(a: LockOwner, b: LockOwner): boolean {
-  return (
-    a.pid === b.pid &&
-    a.hostname === b.hostname &&
-    a.startedAt === b.startedAt &&
-    a.batchId === b.batchId
-  );
-}
-
-/**
- * Whether a lock's owner may still be running. Only a process on this host
- * that is provably gone (not running, or started before the last boot)
- * counts as dead; anything else is treated as a running import.
- */
-function ownerIsAlive(owner: LockOwner, env: ImportEnv): boolean {
-  if (owner.hostname !== env.hostname) return true;
-  if (owner.startedAt < env.bootTime()) return false;
-  return env.isProcessAlive(owner.pid);
+  /** Release the lock; returns any warnings */
+  release: () => string[];
 }
 
 const LOCK_HELD =
   'another import is running in this work log (or was started on another machine); try again when it finishes';
 
 /**
- * Take the work log's import lock, taking over a lock whose owner is
- * provably gone.
+ * The shared work-log lock's filesystem for import: every change goes
+ * through the path guard, so the lock and its claims are made, moved and
+ * removed only directly below the work log it vouches for.
+ */
+function lockFsFor(guard: PathGuard): LockFs {
+  const { fs } = guard;
+  return {
+    readFile: (path) => fs.readFile(path, OWNER_MAX_BYTES).data,
+    readdir: (path) => fs.readdir(path),
+    mtimeMs: (path) => fs.lstat(path).mtimeMs,
+    exists: (path) => {
+      try {
+        fs.lstat(path);
+        return true;
+      } catch (error) {
+        if (errorCode(error) === 'ENOENT') return false;
+        throw error;
+      }
+    },
+    mkdir: (path) => {
+      try {
+        guard.mkdir(path);
+      } catch (error) {
+        // The directory may exist although its check failed; claim names
+        // are unique to this run, so it is ours to remove
+        if (errorCode(error) !== 'EEXIST') {
+          try {
+            guard.removeTree(path);
+          } catch {
+            // Left for a later run's leftover cleanup
+          }
+        }
+        throw error;
+      }
+    },
+    writeFile: (path, contents) => guard.writeFile(path, Buffer.from(contents)),
+    rename: (from, to) => guard.rename(from, to),
+    rm: (path) => guard.removeTree(path),
+  };
+}
+
+/**
+ * Take the work log's import lock (`.import-lock`, see
+ * `@storage/work-log-lock`, shared with `filter`). A lock whose owner is
+ * provably gone is taken over, one run at a time, under
+ * `.import-lock.takeover`; a live owner's lock is never moved.
  *
  * @param root - Resolved work-log directory
  * @param env - Environment
- * @param batchId - ID of the batch being imported
+ * @param batchId - ID of the batch being imported (the lock's run ID)
  */
 export function acquireImportLock(
   root: string,
   env: ImportEnv,
   batchId: string,
 ): { lock?: ImportLock; issue?: ImportIssue; warnings: string[] } {
-  const { fs } = env;
   const warnings: string[] = [];
-  const owner: LockOwner = {
-    version: 1,
-    pid: env.pid,
-    hostname: env.hostname,
-    startedAt: env.now(),
-    batchId,
-  };
-  const lockPath = join(root, LOCK_NAME);
-  const claim = join(root, `${CLAIM_PREFIX}${env.randomId()}`);
   const lockFailed = (error: unknown) =>
     importIssue(
       'COMMIT_FAILED',
       `the import lock could not be created (${describeFsError(error)}); nothing was changed`,
     );
+  const inProgress = (message: string) => ({
+    issue: importIssue('IMPORT_IN_PROGRESS', message),
+    warnings,
+  });
 
-  let guard: PathGuard;
+  let acquired: LockAcquisition;
   try {
-    guard = PathGuard.atRoot(fs, root);
+    acquired = acquireWorkLogLock({
+      fs: lockFsFor(PathGuard.atRoot(env.fs, root)),
+      env,
+      dir: root,
+      name: LOCK_NAME,
+      command: 'work-chronicler import',
+      randomId: env.randomId,
+      runId: batchId,
+    });
   } catch (error) {
     return { issue: lockFailed(error), warnings };
   }
-  try {
-    guard.writeFile(claim, Buffer.from(JSON.stringify(owner)));
-  } catch (error) {
-    removeQuietly(guard, claim, warnings);
-    return { issue: lockFailed(error), warnings };
+  if (acquired.held) {
+    return { lock: { root, release: acquired.release }, warnings };
   }
-
-  try {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        guard.link(claim, lockPath);
-        return { lock: { root, owner }, warnings };
-      } catch (error) {
-        if (errorCode(error) !== 'EEXIST') {
-          return { issue: lockFailed(error), warnings };
-        }
-      }
-
-      const held = readOwner(fs, lockPath);
-      if (held.kind === 'missing') continue;
-      if (held.kind === 'unreadable') {
-        return {
-          issue: importIssue(
-            'IMPORT_IN_PROGRESS',
-            'the import lock (.import-lock) exists but could not be read; if no import is running, remove it',
-          ),
-          warnings,
-        };
-      }
-      if (attempt > 0 || ownerIsAlive(held.owner, env)) {
-        return {
-          issue: importIssue('IMPORT_IN_PROGRESS', LOCK_HELD),
-          warnings,
-        };
-      }
-
-      // The owner is gone: move its lock aside, then make sure the lock we
-      // moved is the one we judged (another process may have taken over).
-      const stale = join(root, `${STALE_PREFIX}${env.randomId()}`);
-      try {
-        guard.rename(lockPath, stale);
-      } catch (error) {
-        if (errorCode(error) === 'ENOENT') continue;
-        return {
-          issue: importIssue(
-            'IMPORT_IN_PROGRESS',
-            `a stale import lock could not be removed (${describeFsError(error)})`,
-          ),
-          warnings,
-        };
-      }
-      const moved = readOwner(fs, stale);
-      if (moved.kind !== 'owner' || !sameOwner(moved.owner, held.owner)) {
-        try {
-          guard.link(stale, lockPath);
-        } catch (error) {
-          warnings.push(
-            `could not restore another import's lock (${describeFsError(error)})`,
-          );
-        }
-        removeQuietly(guard, stale, warnings);
-        return {
-          issue: importIssue('IMPORT_IN_PROGRESS', LOCK_HELD),
-          warnings,
-        };
-      }
-      removeQuietly(guard, stale, warnings);
-    }
-    return { issue: importIssue('IMPORT_IN_PROGRESS', LOCK_HELD), warnings };
-  } finally {
-    removeQuietly(guard, claim, warnings);
+  switch (acquired.reason) {
+    case 'held':
+      return inProgress(
+        acquired.owner
+          ? LOCK_HELD
+          : `the import lock (${LOCK_NAME}) exists but could not be read; if no import is running, remove it`,
+      );
+    case 'takeover-abandoned':
+      return inProgress(
+        `an import (${describeOwner(acquired.taker)}) exited while taking over a lock left by an earlier import, and left ${LOCK_NAME}.takeover behind; if no import is running, remove it and try again`,
+      );
+    case 'takeover-busy':
+      return inProgress(
+        'another import is taking over a lock left by an import that has exited; try again in a moment',
+      );
+    default:
+      return inProgress(LOCK_HELD);
   }
 }
 
@@ -538,29 +476,21 @@ export function acquireImportLock(
  * Release the lock if it is still this import's.
  *
  * @param lock - The held lock
- * @param env - Environment
  * @returns Warnings
  */
-export function releaseImportLock(lock: ImportLock, env: ImportEnv): string[] {
-  const lockPath = join(lock.root, LOCK_NAME);
-  const held = readOwner(env.fs, lockPath);
-  if (held.kind !== 'owner' || !sameOwner(held.owner, lock.owner)) {
-    return ['the import lock was no longer this import’s and was left alone'];
-  }
-  const warnings: string[] = [];
+export function releaseImportLock(lock: ImportLock): string[] {
   try {
-    PathGuard.atRoot(env.fs, lock.root).unlink(lockPath);
+    return lock.release();
   } catch (error) {
-    warnings.push(
+    return [
       `the import lock could not be removed (${describeFsError(error)}); the next import will take it over`,
-    );
+    ];
   }
-  return warnings;
 }
 
 /**
- * With the lock held, remove what interrupted imports left behind: lock
- * claims, moved-aside stale locks and finished transaction directories.
+ * With the lock held, remove finished transaction directories that
+ * interrupted imports left behind. (The lock removes its own leftovers.)
  *
  * @param root - Resolved work-log directory
  * @param env - Environment
@@ -578,16 +508,10 @@ export function removeLeftovers(root: string, env: ImportEnv): string[] {
     return [`could not list the work log (${describeFsError(error)})`];
   }
   for (const name of names) {
-    const lockFile =
-      name.startsWith(CLAIM_PREFIX) || name.startsWith(STALE_PREFIX);
-    const done = name.startsWith(DONE_PREFIX);
-    if (!lockFile && !done) continue;
+    if (!name.startsWith(DONE_PREFIX)) continue;
     const path = join(root, name);
     try {
-      const entry = fs.lstat(path);
-      if (done && entry.kind === 'directory') guard.removeTree(path);
-      else if (entry.kind === 'file' || entry.kind === 'symlink')
-        guard.unlink(path);
+      if (fs.lstat(path).kind === 'directory') guard.removeTree(path);
     } catch (error) {
       if (errorCode(error) !== 'ENOENT') {
         warnings.push(
@@ -610,7 +534,10 @@ export function inspectImportState(
   root: string,
   env: ImportEnv,
 ): ImportIssue | null {
-  const held = readOwner(env.fs, join(root, LOCK_NAME));
+  const held = readLockState(
+    { readFile: (path) => env.fs.readFile(path, OWNER_MAX_BYTES).data },
+    join(root, LOCK_NAME),
+  );
   if (
     held.kind === 'unreadable' ||
     (held.kind === 'owner' && ownerIsAlive(held.owner, env))

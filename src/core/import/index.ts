@@ -182,6 +182,6 @@ export function runImport(options: ImportRunOptions): ImportRunResult {
       recovery,
     };
   } finally {
-    warnings.push(...releaseImportLock(lock, env));
+    warnings.push(...releaseImportLock(lock));
   }
 }
