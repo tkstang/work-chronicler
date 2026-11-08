@@ -5,6 +5,7 @@
     "tooling": "fumadocs",
     "navOwner": "nav-sync",
     "index": "documentation/index.md",
-    "nonReaderPaths": ["contributing/templates/**"]
+    "nonReaderPaths": ["contributing/templates/**"],
+    "requireForProjectCompletion": true
   }
 }
