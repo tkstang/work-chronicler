@@ -348,8 +348,9 @@ stored all or nothing. `analyze reports <id>` counts a report's imported
 messages and imported Google Docs in separate `messages` and `documents`
 sections of its `stats.json`; its timeline lists the Docs apart by modified
 time, and project detection and `analyze team` cover PRs and tickets only. The
-manager skills cite messages as supplementary evidence, never as PRs or
-tickets.
+manager skills cite messages and imported Google Docs as supplementary
+evidence, never as PRs or tickets, and describe a Doc as one the report owns,
+never as one they wrote.
 
 ### Slack for a Report
 

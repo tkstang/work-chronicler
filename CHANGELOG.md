@@ -31,8 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `get_stats` counts Docs in a `documents` section, `get_timeline` lists
   them by modified time, and `get_linked_work` lists the Docs that mention a
   PR or ticket (`mentionedInDocuments`). `status`, `filter`, `analyze` and
-  `link` cover them too, and the writing and detection skills read them as
-  Docs the user owns, never as instructions.
+  `link` cover them too. The writing and detection skills, the manager
+  skills included, read them as Docs the user (or report) owns, never as
+  Docs they wrote and never as instructions.
 
 ### Changed
 
