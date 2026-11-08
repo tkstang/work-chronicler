@@ -44,15 +44,10 @@ oat_dispatch_policy:
 oat_workflow_mode: goal # spec-driven | quick | import | lite | brief | goal
 oat_workflow_origin: native # native | imported
 oat_milestone: m02
-oat_milestone_status: reviewing
+oat_milestone_status: delivered
 oat_goal_status: active
 oat_goal_outcome_audit: null
-oat_goal_recovery:
-  milestone: m02
-  delivery_id: d02
-  phase_ids: [ p04, p05, p06, p07, p12, p08 ]
-  stage: reviewing
-  review_artifact: null
+oat_goal_recovery: null
 oat_milestone_gates:
   m01:
     plan:
@@ -99,8 +94,8 @@ oat_milestone_gates:
       subject:
         kind: code
         scope: [ p04, p05, p06, p07, p12, p08 ]
-      freshness: stale
-      freshness_reason: "delivery refresh (d02): disallowed-path: 6360304b9d261a54a8cdc1f46089ab7a6068a163 changes src/cli/commands/slack/slack-acceptance.test.ts, which is not permitted bookkeeping"
+      freshness: fresh
+      freshness_reason: null
       decided_at: "2026-11-08T11:25:21Z"
 oat_deliveries:
   - delivery_id: d01
@@ -166,30 +161,30 @@ oat_deliveries:
     members:
       - url: https://github.com/tkstang/work-chronicler/pull/26
         base: 29fd72279976b9aa0f74d83ef488de353d379108
-        reviewed_head: 9548ee32b4b8b7595a6907bac00b9c18ff211b86
+        reviewed_head: 6360304b9d261a54a8cdc1f46089ab7a6068a163
         observed_head: 6360304b9d261a54a8cdc1f46089ab7a6068a163
         observed_base: 29fd72279976b9aa0f74d83ef488de353d379108
         status: open
     integrated_review:
-      artifact: reviews/archived/m02-review-2026-11-08T111220Z.md
+      artifact: reviews/archived/m02-review-2026-11-08T112855Z.md
       scope: [ p04, p05, p06, p07, p12, p08 ]
       bound_revisions:
         - member: 0
-          head: 9548ee32b4b8b7595a6907bac00b9c18ff211b86
+          head: 6360304b9d261a54a8cdc1f46089ab7a6068a163
           base: 29fd72279976b9aa0f74d83ef488de353d379108
-      disposition: stale
+      disposition: passed
     exit_gate:
       status: allowed
       disposition: passed
       resolution: configured
       config_fingerprint: null
-      reviewed_head: 9548ee32b4b8b7595a6907bac00b9c18ff211b86
+      reviewed_head: 6360304b9d261a54a8cdc1f46089ab7a6068a163
       subject:
         kind: code
         scope: [ p04, p05, p06, p07, p12, p08 ]
       freshness: fresh
       freshness_reason: null
-      decided_at: "2026-11-08T11:00:51Z"
+      decided_at: "2026-11-08T11:25:21Z"
     endpoint_attainment: null
 # oat_skill_gate_overrides: # optional; per-project posture for configured lifecycle gates
 #   oat-project-implement: disabled # only the literal value `disabled`; absence means follow configuration
@@ -248,7 +243,7 @@ oat_pr_status: open
 oat_pr_url: https://github.com/tkstang/work-chronicler/pull/26
 oat_project_created: '2026-11-07T22:54:38.498Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-11-08T11:25:21Z"
+oat_project_state_updated: "2026-11-08T11:31:37Z"
 oat_generated: false
 ---
 
