@@ -354,6 +354,31 @@ see [Import Slack messages](import-slack.md#for-a-report) and
 
 ## Directory Structure
 
+How the commands fill a manager profile (the default profile name is
+`manager`):
+
+```mermaid
+flowchart TD
+  accTitle: Manager profile layout
+  accDescr: A manager profile holds its config, tokens, team analysis and one directory per report. fetch and import write each report's work log, analyze reports writes its analysis, analyze team merges those into team analysis, and the manager skills write to the report's outputs.
+  P["profiles/manager/: config.yaml (org, reports), .env (tokens)"]
+  P --> R["reports/report-id/"]
+  P --> TA["analysis/: team-projects.json, contributor-matrix.json, team-timeline.json"]
+  R --> RW["work-log/: pull-requests/, jira/, messages/, documents/"]
+  R --> RA["analysis/: stats.json, projects.json, timeline.json"]
+  R --> RO["outputs/"]
+  R --> RN["notes/, performance-reviews/, peer-reviews/ (yours to fill)"]
+  F["fetch --report or --all-reports"] --> RW
+  I["import --report"] --> RW
+  RW -->|"analyze reports id"| RA
+  RA -->|"analyze team"| TA
+  RW --> SK["Manager skills"]
+  RA --> SK
+  TA --> SK
+  RN --> SK
+  SK --> RO
+```
+
 Manager mode uses a specialized directory structure:
 
 ```
@@ -401,37 +426,8 @@ Manager mode uses a specialized directory structure:
             └── team-timeline.json
 ```
 
-### Optional Directories
-
-Each report can have optional user-added directories:
-
-**`performance-reviews/`**
-
-- Upload past performance reviews for each report
-- AI skills read these for context and consistency
-- Helps maintain consistent language and themes
-
-**`peer-reviews/`**
-
-- Upload peer feedback and reviews for each report
-- Provides collaboration context and external perspectives
-- Helps understand how report is perceived by colleagues
-- Useful for identifying collaboration strengths and areas for growth
-
-**`notes/`**
-
-- Add manager notes about the report
-- Document goals, focus areas, feedback themes
-- Provide context for AI-generated review packets
-
-**Example notes structure:**
-
-```
-reports/alice-smith/notes/
-├── 2026-q1-goals.md       # Quarterly goals
-├── 1-1-notes.md           # Ongoing 1:1 notes
-└── focus-areas.md         # Development focus areas
-```
+Each report can also hold your own context in `notes/`, `performance-reviews/`
+and `peer-reviews/`; see [Add context](review-packets.md#add-context).
 
 ## Troubleshooting
 

@@ -12,6 +12,28 @@ assistant's Slack connector, read-only: they never post, react or change
 anything there. The CLI stores the settings and checks every record on import
 (see [Slack commands](../tools/slack.md) and [Slack records](../tools/import-records.md#slack-records)).
 
+```mermaid
+flowchart TD
+  accTitle: Slack import workflow
+  accDescr: The setup skill records the workspace, the subject's user ID and the chosen channels with the slack commands. The import skill reads slack show, searches those channels for the subject's own messages, stages one record per message, then runs validate and import and deletes the staging directory.
+  subgraph SETUP["setup-slack skill: once per IC profile or report"]
+    A1["Read slack show --json; find the workspace and the subject's Slack user ID"] --> A2["slack configure"]
+    A2 --> A3["List public channels; private ones only on opt-in; never DMs"]
+    A3 --> A4["Manager profile: confirm the report is a member"]
+    A4 --> A5["slack channels add, with a one-line reason per channel"]
+  end
+  subgraph IMPORT["import-slack skill: whenever you want newer messages"]
+    B1["Read slack show --json"] --> B2["Search each importable channel (private ones only with consent) for the subject's messages in the fetch range"]
+    B2 --> B3["Write one record per kept message to a temporary staging directory"]
+    B3 --> B4["validate"]
+    B4 --> B5["import"]
+    B5 --> B6["Delete the staging directory; report counts only"]
+  end
+  A5 --> B1
+  SL[("Slack, read through the assistant's connector")] -.-> A3
+  SL -.-> B2
+```
+
 **Setup** (`/work-chronicler-setup-slack`, once per IC profile or report):
 
 1. Finds the workspace (its team ID if a Slack tool shows one, otherwise its

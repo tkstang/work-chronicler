@@ -13,6 +13,22 @@ up the owner account first with `google-docs configure --account <email>`
 (see [Google Docs commands](../tools/google-docs.md) and
 [Google Docs records](../tools/import-records.md#google-docs-records)).
 
+```mermaid
+flowchart TD
+  accTitle: Google Docs import workflow
+  accDescr: google-docs configure names the owning account. The import skill reads google-docs show, lists the Docs that account owns modified in range with gog, checks each Doc, stages an excerpt of its text, then validates and imports in chunks of at most 500 records.
+  C0["google-docs configure --account (once per IC profile or report)"] --> G1["Read google-docs show --json"]
+  G1 --> G2["Settle the range: the fetch range, or one you confirm (--since, --until)"]
+  G2 --> G2b["Read Drive as the configured account (IC) or as you (manager)"]
+  G2b --> G3["List the Docs the account owns that were modified in the range, every page"]
+  G3 --> G4["Check each Doc's owners, type and modified time"]
+  G4 --> G5["Read its text; write one record with an excerpt of at most 16 KiB"]
+  G5 --> G6["validate, then import, in chunks of at most 500 records"]
+  G6 --> G7["Delete the temporary directories; report counts"]
+  GD[("Google Drive, read with gog --readonly")] -.-> G3
+  GD -.-> G5
+```
+
 1. Reads `google-docs show --json` and stops if Google Docs is not set up.
    It imports Docs modified in the profile's fetch range, or in another range
    you confirm in the session (passed to `validate` and `import` as

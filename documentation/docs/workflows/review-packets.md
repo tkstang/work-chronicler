@@ -122,6 +122,38 @@ Shows work grouped by ISO week and month:
 - Busiest weeks/months
 - Impact distribution over time
 
+## Add context
+
+Each report can have optional user-added directories:
+
+**`performance-reviews/`**
+
+- Upload past performance reviews for each report
+- AI skills read these for context and consistency
+- Helps maintain consistent language and themes
+
+**`peer-reviews/`**
+
+- Upload peer feedback and reviews for each report
+- Provides collaboration context and external perspectives
+- Helps understand how report is perceived by colleagues
+- Useful for identifying collaboration strengths and areas for growth
+
+**`notes/`**
+
+- Add manager notes about the report
+- Document goals, focus areas, feedback themes
+- Provide context for AI-generated review packets
+
+**Example notes structure:**
+
+```
+reports/alice-smith/notes/
+├── 2026-q1-goals.md       # Quarterly goals
+├── 1-1-notes.md           # Ongoing 1:1 notes
+└── focus-areas.md         # Development focus areas
+```
+
 ## Write a review packet
 
 **Skill**: `/work-chronicler-manager-write-review-packet`

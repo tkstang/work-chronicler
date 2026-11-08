@@ -69,6 +69,34 @@ timestamps (whole seconds) can miss a batch stored within the same second.
 
 The batch layout, record fields and source rules are on [Import record format](import-records.md). For a skill that stages a batch, see [Import Slack messages](../workflows/import-slack.md) and [Import Google Docs](../workflows/import-google-docs.md).
 
+## How a batch is stored
+
+`validate` and `import` run the same checks; only `import` takes the lock
+and writes.
+
+```mermaid
+flowchart TD
+  accTitle: The staged import pipeline
+  accDescr: A skill stages record files. validate and import both read and check the whole batch. validate then plans destinations without a lock or writes. import takes the work-log lock, finishes any interrupted import, stores the batch through .import-transaction and either records it as stored or puts every record back.
+  S["A skill writes record files to a staging directory"] --> R["Read and check the batch: files, YAML, schema, subject, source rules, range"]
+  R -->|"any issue"| X["Batch rejected: nothing written"]
+  R -->|"validate"| V["Check for a pending import and plan destinations. No lock, no writes"]
+  R -->|"import"| L["Take the work-log lock: .import-lock, then .filter-lock"]
+  L -->|"held by another run"| X
+  L --> RC["Finish an interrupted import first: roll it back or complete it"]
+  RC -->|"cannot finish"| X
+  RC --> P["Plan and check every destination"]
+  P -->|"unsafe destination"| X
+  P --> T["Write the batch and backups to .import-transaction/"]
+  T --> C["Put each record in place, checking again"]
+  C -->|"failure or outside change"| RB["Put every record back: no records changed"]
+  C --> D["Batch recorded as stored, then cleanup"]
+  RB -->|"cannot put back"| K["ROLLBACK_INCOMPLETE: .import-transaction/ kept for the next import"]
+  D --> U["Release the lock"]
+  RB --> U
+  K --> U
+```
+
 ## Mentions
 
 A record's `mentions` are what it says it refers to; they are not links.
