@@ -562,6 +562,15 @@ Proof: full DoD batch (252 tests); the unreadable-tool-directory regression (ski
 
 **Outcome:** H1 fixed in p03-t14 (b7a300e0259cfc2a3df8d48de8dd1bbb50c641d8). Exit carrier stale again; recovery stage → exit_gate (gate attempt 9), then a fresh integrated review.
 
+### Review Received: p01-p03 (m01 recovery exit gate, attempt 9)
+
+**Date:** 2026-11-08
+**Review artifact (local-only):** reviews/archived/range-review-2026-11-08T041806Z.md
+
+**Findings:** Critical 0 · High 0 · Medium 0 · Low 0 (gate `codex-6-sol-xhigh`, run 17e244e5-ecea-4a24-b8b5-d6a4096e38d4, reviewed head b7a300e0259cfc2a3df8d48de8dd1bbb50c641d8)
+
+**Outcome:** passed. Exit carrier allowed/fresh at b7a300e0259cfc2a3df8d48de8dd1bbb50c641d8 (2026-11-08T04:19:51Z); recovery stage → reviewing.
+
 ### PR review received: d01 (PR #25, CodeRabbit)
 
 **Date:** 2026-11-08

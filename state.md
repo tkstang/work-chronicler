@@ -51,7 +51,7 @@ oat_goal_recovery:
   milestone: m01
   delivery_id: d01
   phase_ids: [p01, p02, p03]
-  stage: exit_gate
+  stage: reviewing
   review_artifact: null
 oat_milestone_gates:
   m01:
@@ -71,13 +71,13 @@ oat_milestone_gates:
       disposition: passed
       resolution: configured
       config_fingerprint: null
-      reviewed_head: aa1da62cea9621cebedd98cd18852853f7965567
+      reviewed_head: b7a300e0259cfc2a3df8d48de8dd1bbb50c641d8
       subject:
         kind: code
         scope: [ p01, p02, p03 ]
       freshness: fresh
       freshness_reason: null
-      decided_at: "2026-11-08T04:04:35Z"
+      decided_at: "2026-11-08T04:19:51Z"
 oat_deliveries:
   - delivery_id: d01
     milestone: m01
@@ -174,7 +174,7 @@ oat_pr_status: open
 oat_pr_url: https://github.com/tkstang/work-chronicler/pull/25
 oat_project_created: '2026-11-07T22:54:38.498Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-11-08T04:12:31Z"
+oat_project_state_updated: "2026-11-08T04:19:51Z"
 oat_generated: false
 ---
 
