@@ -120,8 +120,9 @@ from:<@USER_ID> on:2026-01-01
   neighbouring messages by other people are left out), sort by timestamp,
   and page through every result with the cursor to the last page.
 - If one day still reaches the cap (400 results, or the next page fails with
-  `page_limit_exceeded`), search that day again once per importable channel,
-  adding `in:<#CHANNEL_ID>` to the query, and use those results for the day.
+  `page_limit_exceeded`), search that day again once per importable channel you may
+  search (public channels, and only the private channels the user agreed
+  to), adding `in:<#CHANNEL_ID>` to the query, and use those results for the day.
   If a channel search reaches the cap too, keep its results and count that
   channel-day as possibly incomplete.
 - If `on:` returns nothing for a day, always search that day again with a
