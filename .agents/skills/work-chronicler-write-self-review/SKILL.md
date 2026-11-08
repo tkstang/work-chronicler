@@ -89,10 +89,12 @@ tell the user to re-run `work-chronicler filter`. An empty
 `filtered/pr-reviews/` means no review matched the user's filters.
 Each file is one PR that **someone else** wrote and the reviewer named in its
 `reviewer` field reviewed. Before citing any file, confirm that reviewer is the
-user: compare `reviewer`, ignoring case, with `github.username` in `config.yaml`
-under the profile root (`work-chronicler workspace root`). Leave out every file
-whose reviewer differs, and tell the user how many you left out and whose they
-are. If you cannot read the username, do not present any review file as the
+user: read `github.username` from `config.yaml` under the profile root
+(`work-chronicler workspace root`) and normalize it the way the CLI does (trim
+whitespace, drop one leading `@`, trim again), then compare it with `reviewer`,
+ignoring case. A result that is empty or still contains `@` counts as an
+unreadable username. Leave out every file whose reviewer differs, and tell the
+user how many you left out and whose they are. If you cannot read the username, do not present any review file as the
 user's work; ask the user instead. `search_pr_reviews` applies the same check
 and returns `reviewer` with each result. The rest of the frontmatter holds
 `pr` (url, org, repository, prNumber, title, author, state),
