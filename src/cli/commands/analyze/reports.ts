@@ -128,29 +128,30 @@ export const reportsCommand = new Command('reports')
         throw new Error('Failed to generate current date');
       }
 
-      let since: string = today;
-      let until: string = today;
-
-      if (prs.length > 0) {
-        const dates = prs
-          .map((pr) => pr.frontmatter.mergedAt || pr.frontmatter.createdAt)
-          .filter((d): d is string => Boolean(d))
-          .map((d) => {
-            const datePart = d.split('T')[0];
-            return datePart;
-          })
+      /** The first and last day (YYYY-MM-DD) of some dates, or today */
+      const rangeOf = (dates: string[]) => {
+        const days = dates
+          .map((d) => d.split('T')[0])
           .filter((d): d is string => Boolean(d))
           .sort();
+        return {
+          since: days[0] ?? today,
+          until: days[days.length - 1] ?? today,
+        };
+      };
+      const prDates = prs
+        .map((pr) => pr.frontmatter.mergedAt || pr.frontmatter.createdAt)
+        .filter((d): d is string => Boolean(d));
+      const messageDates = importedRecords
+        .filter((record) => record.frontmatter.type === 'message')
+        .map((record) => record.frontmatter.occurredAt);
 
-        if (dates.length > 0) {
-          const firstDate = dates[0];
-          const lastDate = dates[dates.length - 1];
-          if (firstDate && lastDate) {
-            since = firstDate;
-            until = lastDate;
-          }
-        }
-      } else {
+      // Projects and the timeline cover PRs (and tickets) only; stats.json
+      // also counts messages, so its range spans them too
+      const { since, until } = rangeOf(prDates);
+      const statsRange = rangeOf([...prDates, ...messageDates]);
+
+      if (prs.length === 0) {
         console.log(
           chalk.yellow(
             'Warning: No date range found in data, using current date',
@@ -159,6 +160,11 @@ export const reportsCommand = new Command('reports')
       }
 
       console.log(`${chalk.gray('Date range:')} ${since} to ${until}`);
+      if (statsRange.since !== since || statsRange.until !== until) {
+        console.log(
+          `${chalk.gray('Statistics, with messages:')} ${statsRange.since} to ${statsRange.until}`,
+        );
+      }
       console.log();
 
       // Classify once, before any output, so the PR files, stats.json and
@@ -207,7 +213,13 @@ export const reportsCommand = new Command('reports')
 
       // Generate stats
       spinner.start('Generating statistics...');
-      const stats = generateStats(prs, tickets, since, until, importedRecords);
+      const stats = generateStats(
+        prs,
+        tickets,
+        statsRange.since,
+        statsRange.until,
+        importedRecords,
+      );
       spinner.succeed('Generated statistics');
 
       // Write stats file

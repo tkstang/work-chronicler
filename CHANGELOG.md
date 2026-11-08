@@ -92,6 +92,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `get_stats` for a date range left message dates out of `dateRange`, so a
   range holding only messages reported positive counts with no dates. The
   range now spans the messages counted too.
+- `analyze reports` labeled a report's `stats.json` with a date range taken
+  from its PRs alone (or today, with no PRs), although the statistics count
+  its messages too. The stats range now spans the messages as well; projects
+  and the timeline keep the PR range.
 
 ## [0.6.0] - 2026-11-08
 
