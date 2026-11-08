@@ -1,6 +1,9 @@
 import { basename, dirname, isAbsolute, join, relative, sep } from 'node:path';
 
-import { IMPORTED_RECORD_DIRECTORIES } from '@storage/paths';
+import {
+  IMPORT_TRANSACTION_DIRECTORY,
+  IMPORTED_RECORD_DIRECTORIES,
+} from '@storage/paths';
 import {
   acquireWorkLogLock,
   describeOwner,
@@ -65,7 +68,7 @@ import { MAX_STORED_BYTES } from './staging';
 
 /** The work-log lock name every import holds (it takes `.filter-lock` too) */
 export const LOCK_NAME = IMPORT_LOCK;
-export const TRANSACTION_NAME = '.import-transaction';
+export const TRANSACTION_NAME = IMPORT_TRANSACTION_DIRECTORY;
 const DONE_PREFIX = `${TRANSACTION_NAME}.done-`;
 const JOURNAL = 'journal.json';
 const JOURNAL_TMP = 'journal.json.tmp';

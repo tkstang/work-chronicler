@@ -235,6 +235,28 @@ describe('linkPRsToTickets links', () => {
     );
     expect(await prTickets()).toEqual({ 1: ['PAY-42'], 2: [] });
   });
+
+  it('links PRs and tickets but does not read mentions while an import is storing a batch', async () => {
+    writePR(1, 'PAY-42: refunds', '');
+    writeTicket('PAY-42');
+    mkdirSync(join(outputDir, '.import-transaction'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const result = await linkPRsToTickets({
+      config: config(['PAY']),
+      outputDir,
+    });
+
+    expect(result).toMatchObject({
+      linksFound: 1,
+      mentions: { records: 0, resolved: 0, unresolved: 0 },
+    });
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /Mentions in imported records were not checked\. An import is running/,
+      ),
+    );
+  });
 });
 
 /** A message stored where `import` would store it */

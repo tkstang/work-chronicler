@@ -268,6 +268,19 @@ describe('one MCP server while the filtered subset changes', () => {
       expect((await call('search_prs')).total).toBe(1);
       expect((await call('get_stats')).messages.total).toBe(1);
 
+      // While an import stores a batch (or after one was interrupted),
+      // imported records are not read; PR tools still answer
+      mkdirSync(join(workLog, '.import-transaction'));
+      const importing = await call('search_messages');
+      expect(importing.error).toContain(
+        'Imported records are unavailable while an import is storing a batch or needs recovery',
+      );
+      expect(importing.note).toContain('work-chronicler import');
+      expect(importing.results).toBeUndefined();
+      expect((await call('search_prs')).total).toBe(1);
+      rmSync(join(workLog, '.import-transaction'), { recursive: true });
+      expect((await call('search_messages')).total).toBe(1);
+
       // A subset selected after startup: linked-only keeps nothing here
       await writeFilteredSubset({
         outputDir: workLog,

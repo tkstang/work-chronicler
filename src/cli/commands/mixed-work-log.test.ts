@@ -865,9 +865,17 @@ describe('a mixed work log with imported messages', () => {
       writeFileSync(join(workLog, name, 'owner.json'), owner);
     }
     const paths = names.map((name) => join(workLog, name));
+    // ...and is storing its batch
+    mkdirSync(join(workLog, '.import-transaction'));
 
     logs = [];
     await run(statusCommand, []);
+    expect(logs).toContain(
+      'Messages:      not counted while an import is running or needs recovery (see below)',
+    );
+    expect(logs).toContainEqual(
+      expect.stringContaining('An import is running or did not finish'),
+    );
     expect(logs).toContainEqual(
       expect.stringContaining(
         `Work-log lock: ${paths[0]} and ${paths[1]} are held by \`work-chronicler import\` (process ${process.pid} on this-host-is-elsewhere, started 1970-01-01T00:00:00.001Z).`,
@@ -883,5 +891,9 @@ describe('a mixed work log with imported messages', () => {
       );
     }
     expect(snapshot(filteredDir)).toEqual(before);
+    // Reading the full work log's imported records waits for the import
+    await expect(run(analyzeCommand, ['--all', '--full'])).rejects.toThrow(
+      /An import is running in .*, or was interrupted/,
+    );
   });
 });

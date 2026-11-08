@@ -22,6 +22,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getPRFilePath, getPRReviewFilePath, getTicketFilePath } from './paths';
 import {
+  ImportInProgressError,
   nodeReaderFs,
   readAllImportedRecords,
   readAllPRReviews,
@@ -292,13 +293,18 @@ describe('review record storage', () => {
 describe('imported record storage', () => {
   it('reads records where import stored them and ignores the import working files', async () => {
     const stored = storeRecord(outputDir, 1, 'My own words.');
-    // An import in progress keeps a lock and staged copies in the root
-    writeFileSync(join(outputDir, '.import-lock'), 'owner');
-    mkdirSync(join(outputDir, '.import-transaction', 'staged'), {
+    // Finished imports can leave a released lock and a finished transaction
+    // with staged copies in the root (an import in progress: see below)
+    mkdirSync(join(outputDir, '.import-lock.released-old'));
+    writeFileSync(
+      join(outputDir, '.import-lock.released-old', 'owner.json'),
+      '',
+    );
+    mkdirSync(join(outputDir, '.import-transaction.done-old', 'staged'), {
       recursive: true,
     });
     writeFileSync(
-      join(outputDir, '.import-transaction', 'staged', '0.md'),
+      join(outputDir, '.import-transaction.done-old', 'staged', '0.md'),
       recordFile(messageFrontmatter(2)),
     );
     writeFileSync(join(outputDir, 'messages', 'slack', 'notes.txt'), 'x');
@@ -443,5 +449,106 @@ describe('read failures', () => {
       }),
     ).rejects.toThrow('EACCES');
     warn.mockRestore();
+  });
+});
+
+// Readers never observe part of an import's batch: while an import is
+// running or was interrupted (`.import-transaction/` exists) imported records
+// are not read, and a scan during which an import changed the record
+// directories is read again (or refused if they keep changing).
+describe('imported records and import transactions', () => {
+  const transaction = () => join(outputDir, '.import-transaction');
+
+  it('refuses while an import is running or was interrupted, without reading', async () => {
+    storeRecord(outputDir, 1, 'My own words.');
+    mkdirSync(transaction());
+    const reads: string[] = [];
+    const fs: ReaderFs = {
+      ...nodeReaderFs,
+      readFile: (path) => {
+        reads.push(path);
+        return nodeReaderFs.readFile(path);
+      },
+    };
+
+    expect(() => scanImportedRecords(outputDir, { fs })).toThrow(
+      ImportInProgressError,
+    );
+    await expect(readAllImportedRecords(outputDir)).rejects.toThrow(
+      /An import is running in .*, or was interrupted.*work-chronicler import/,
+    );
+    expect(reads).toEqual([]);
+
+    rmSync(transaction(), { recursive: true });
+    expect(scanImportedRecords(outputDir).records).toHaveLength(1);
+  });
+
+  it('refuses a scan during which an import began', () => {
+    storeRecord(outputDir, 1);
+    storeRecord(outputDir, 2);
+    let started = false;
+    const fs: ReaderFs = {
+      ...nodeReaderFs,
+      readFile: (path) => {
+        if (!started) {
+          started = true;
+          mkdirSync(transaction());
+        }
+        return nodeReaderFs.readFile(path);
+      },
+    };
+
+    expect(() => scanImportedRecords(outputDir, { fs })).toThrow(
+      ImportInProgressError,
+    );
+  });
+
+  it('reads again when a whole batch was stored during the scan', () => {
+    storeRecord(outputDir, 1, 'Before the batch.');
+    let scans = 0;
+    let stored = false;
+    const fs: ReaderFs = {
+      ...nodeReaderFs,
+      readdir: (path) => {
+        if (path.endsWith(join('messages', 'slack'))) scans++;
+        return nodeReaderFs.readdir(path);
+      },
+      readFile: (path) => {
+        const data = nodeReaderFs.readFile(path);
+        if (!stored) {
+          // A whole import (update and create) lands while the first scan
+          // reads: the scan may hold a mix of before and after
+          stored = true;
+          storeRecord(outputDir, 1, 'After the batch.');
+          storeRecord(outputDir, 2, 'Added by the batch.');
+        }
+        return data;
+      },
+    };
+
+    const { records } = scanImportedRecords(outputDir, { fs });
+
+    expect(scans).toBe(2);
+    expect(records.map((r) => r.body).sort()).toEqual([
+      'Added by the batch.',
+      'After the batch.',
+    ]);
+  });
+
+  it('refuses when the record directories keep changing', () => {
+    storeRecord(outputDir, 1);
+    let n = 10;
+    const fs: ReaderFs = {
+      ...nodeReaderFs,
+      readFile: (path) => {
+        const data = nodeReaderFs.readFile(path);
+        storeRecord(outputDir, n++);
+        return data;
+      },
+    };
+
+    expect(() => scanImportedRecords(outputDir, { fs })).toThrow(
+      /changed while they were being read/,
+    );
   });
 });

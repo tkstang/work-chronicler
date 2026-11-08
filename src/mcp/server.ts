@@ -7,6 +7,7 @@ import {
   findConfigPath,
   getFilteredSubsetState,
   getOutputDirectory,
+  ImportInProgressError,
   loadConfig,
 } from '@core/index';
 import {
@@ -169,6 +170,21 @@ function subsetUnavailable(note: string): CallToolResult {
   };
 }
 
+function importUnavailable(note: string): CallToolResult {
+  return {
+    content: [
+      {
+        type: 'text',
+        text: JSON.stringify({
+          error:
+            'Imported records are unavailable while an import is storing a batch or needs recovery, so no results are returned (a partly stored batch is never read).',
+          note,
+        }),
+      },
+    ],
+  };
+}
+
 // Report the package version to MCP clients, matching `work-chronicler --version`.
 const { version: packageVersion } = createRequire(import.meta.url)(
   '../../package.json',
@@ -208,7 +224,17 @@ function registerTool<Shape extends z.ZodRawShape>(
   ): Promise<CallToolResult> => {
     const resolved = resolveToolContext(root);
     if ('unavailable' in resolved) return resolved.unavailable;
-    const result = await tool.handler(input, resolved.context);
+    let result: CallToolResult;
+    try {
+      result = await tool.handler(input, resolved.context);
+    } catch (error) {
+      // Tools that read imported records refuse rather than read part of a
+      // batch; the others are not affected
+      if (error instanceof ImportInProgressError) {
+        return importUnavailable(error.message);
+      }
+      throw error;
+    }
     // A `filter` run that changed the selection during the call may have
     // left the handler reading a moving directory: report it, don't guess
     const after = resolveToolContext(root);

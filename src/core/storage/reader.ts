@@ -26,6 +26,7 @@ import matter from 'gray-matter';
 import {
   DIRECTORIES,
   getImportedRecordSegments,
+  IMPORT_TRANSACTION_DIRECTORY,
   IMPORTED_RECORD_DIRECTORIES,
 } from './paths';
 
@@ -348,18 +349,86 @@ function isMissing(error: unknown): boolean {
 }
 
 /**
+ * Raised instead of reading imported records while an import is storing a
+ * batch or was interrupted, or when the records kept changing while they
+ * were read: what could be read might be part of a batch.
+ */
+export class ImportInProgressError extends Error {
+  constructor(outputDir: string, changing = false) {
+    super(
+      changing
+        ? `The imported records in ${outputDir} changed while they were being read (an import stored a batch meanwhile). Try again.`
+        : `An import is running in ${outputDir}, or was interrupted (${IMPORT_TRANSACTION_DIRECTORY}/ exists), so imported records are not read until it finishes. ` +
+            'If no import is running, run `work-chronicler import` again (an empty directory will do) to finish it.',
+    );
+    this.name = 'ImportInProgressError';
+  }
+}
+
+/** Scans to try while an import keeps storing batches */
+const MAX_SCAN_ATTEMPTS = 3;
+
+/** Whether an import is storing a batch or was interrupted here */
+function importPending(fs: ReaderFs, outputDir: string): boolean {
+  try {
+    fs.lstat(join(outputDir, IMPORT_TRANSACTION_DIRECTORY));
+    return true;
+  } catch (error) {
+    // No work log here (or not a directory): no import either
+    const code = (error as NodeJS.ErrnoException | undefined)?.code;
+    if (code === 'ENOENT' || code === 'ENOTDIR') return false;
+    throw error;
+  }
+}
+
+/**
+ * The state of every directory an import changes when it stores a batch:
+ * creating, replacing or removing a record (or a directory) changes its
+ * directory's identity or times. Equal marks before and after a scan mean
+ * no batch was stored meanwhile (on filesystems whose timestamps are fine
+ * enough to tell; see the residual note in the commands documentation).
+ */
+function recordDirectoryMarks(fs: ReaderFs, outputDir: string): string {
+  const marks: string[] = [];
+  for (const typeDir of new Set(Object.values(IMPORTED_RECORD_DIRECTORIES))) {
+    for (const path of [
+      join(outputDir, typeDir),
+      ...IMPORT_SOURCES.map((source) => join(outputDir, typeDir, source)),
+    ]) {
+      try {
+        const stat = fs.lstat(path);
+        marks.push(`${path}:${stat.ino}:${stat.mtimeMs}:${stat.ctimeMs}`);
+      } catch (error) {
+        marks.push(
+          `${path}:${(error as NodeJS.ErrnoException | undefined)?.code ?? 'error'}`,
+        );
+      }
+    }
+  }
+  return marks.join('\n');
+}
+
+/**
  * Read every imported record in a work log, and report the files that could
  * not be read.
  *
  * Only the layout `import` writes is read:
  * `<type directory>/<source>/<hash>.md`, regular files only, for known types
- * and sources. Everything else in the work log root, such as `.import-lock`
- * and `.import-transaction/`, is never looked at. A file is skipped when it is
- * not a valid record or is not stored where its identity puts it (a copied or
- * renamed file), so each identity is read at most once.
+ * and sources. Everything else in the work log root, such as the work-log
+ * lock (`.import-lock`, `.filter-lock`) and what finished imports and
+ * filters left (`.import-*`, `.filter-*`), is never looked at. A file is
+ * skipped when it is not a valid record or is not stored where its identity
+ * puts it (a copied or renamed file), so each identity is read at most once.
+ *
+ * Records are never read while `.import-transaction/` exists (an import is
+ * storing a batch, or was interrupted and needs recovery), and a scan
+ * during which an import stored a batch is read again, so the result never
+ * holds part of a batch.
  *
  * @param outputDir - Base work-log directory (an IC work log, a report's, or
  *   a `filtered/` subset)
+ * @throws {ImportInProgressError} While an import is storing a batch or was
+ *   interrupted, or when batches kept being stored during every scan
  */
 export function scanImportedRecords(
   outputDir: string,
@@ -369,6 +438,29 @@ export function scanImportedRecords(
   skipped: SkippedImportedRecord[];
 } {
   const fs = options.fs ?? nodeReaderFs;
+  for (let attempt = 1; ; attempt++) {
+    if (importPending(fs, outputDir)) {
+      throw new ImportInProgressError(outputDir);
+    }
+    const before = recordDirectoryMarks(fs, outputDir);
+    const scanned = scanOnce(fs, outputDir);
+    if (importPending(fs, outputDir)) {
+      throw new ImportInProgressError(outputDir);
+    }
+    if (recordDirectoryMarks(fs, outputDir) === before) return scanned;
+    if (attempt >= MAX_SCAN_ATTEMPTS) {
+      throw new ImportInProgressError(outputDir, true);
+    }
+  }
+}
+
+function scanOnce(
+  fs: ReaderFs,
+  outputDir: string,
+): {
+  records: ImportedRecordFile[];
+  skipped: SkippedImportedRecord[];
+} {
   const records: ImportedRecordFile[] = [];
   const skipped: SkippedImportedRecord[] = [];
 

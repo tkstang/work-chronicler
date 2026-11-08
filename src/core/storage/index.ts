@@ -35,10 +35,12 @@ export {
   getPRFilePath,
   getPRReviewFilePath,
   getTicketFilePath,
+  IMPORT_TRANSACTION_DIRECTORY,
   IMPORTED_RECORD_DIRECTORIES,
 } from './paths';
 
 export {
+  ImportInProgressError,
   nodeReaderFs,
   readAllImportedRecords,
   readAllPRReviews,

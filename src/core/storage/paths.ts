@@ -34,6 +34,13 @@ export const DIRECTORIES = {
 } as const;
 
 /**
+ * Where `import` keeps a batch while it stores it (in the work-log root). It
+ * exists exactly while an import is storing a batch or was interrupted, so
+ * readers do not read imported records while it is there.
+ */
+export const IMPORT_TRANSACTION_DIRECTORY = '.import-transaction';
+
+/**
  * The work-log directory for each imported record type.
  */
 export const IMPORTED_RECORD_DIRECTORIES: Record<ImportedRecordType, string> = {

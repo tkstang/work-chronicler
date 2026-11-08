@@ -9,6 +9,7 @@ import {
   findConfigPath,
   getFilteredSubsetState,
   getOutputDirectory,
+  ImportInProgressError,
   loadConfig,
   readAllPRReviews,
   readAllPRs,
@@ -142,8 +143,16 @@ export const statusCommand = new Command('status')
         (sum, r) => sum + r.frontmatter.comments.length,
         0,
       );
-      const imported = scanImportedRecords(outputDir);
-      const messages = imported.records.filter(
+      // Not read while an import is storing a batch or needs recovery: the
+      // counts could hold part of a batch (said below)
+      let imported: ReturnType<typeof scanImportedRecords> | null;
+      try {
+        imported = scanImportedRecords(outputDir);
+      } catch (error) {
+        if (!(error instanceof ImportInProgressError)) throw error;
+        imported = null;
+      }
+      const messages = (imported?.records ?? []).filter(
         (r) => r.frontmatter.type === 'message',
       );
       const bySource = new Map<string, number>();
@@ -171,9 +180,11 @@ export const statusCommand = new Command('status')
         .map(([source, count]) => `${source} ${count}`)
         .join(', ');
       console.log(
-        `Messages:      ${messages.length} imported (${sources ? `${sources}; ` : ''}supplementary evidence, not counted as PRs or tickets${unverified > 0 ? `; ${unverified} with unverified attribution` : ''})`,
+        imported
+          ? `Messages:      ${messages.length} imported (${sources ? `${sources}; ` : ''}supplementary evidence, not counted as PRs or tickets${unverified > 0 ? `; ${unverified} with unverified attribution` : ''})`
+          : 'Messages:      not counted while an import is running or needs recovery (see below)',
       );
-      if (imported.skipped.length > 0) {
+      if (imported && imported.skipped.length > 0) {
         console.log(
           `\n${imported.skipped.length} imported record file(s) could not be read and are ignored:`,
         );

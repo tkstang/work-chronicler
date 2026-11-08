@@ -812,12 +812,14 @@ describe('imported messages', () => {
       { occurredAt: '2025-03-01T10:00:00Z' },
       LONG_MESSAGE,
     );
-    // An import's working files are never records
-    mkdirSync(join(ctx.outputDir, '.import-transaction', 'staged'), {
+    // What a finished import leaves is never records (while an import is
+    // storing a batch, imported records are not read at all: see the
+    // reader and server tests)
+    mkdirSync(join(ctx.outputDir, '.import-transaction.done-old', 'staged'), {
       recursive: true,
     });
     writeFileSync(
-      join(ctx.outputDir, '.import-transaction', 'staged', '0.md'),
+      join(ctx.outputDir, '.import-transaction.done-old', 'staged', '0.md'),
       recordFile(messageFrontmatter(9)),
     );
   });
