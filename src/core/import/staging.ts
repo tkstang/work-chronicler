@@ -25,6 +25,13 @@ export const MAX_RECORD_BYTES = 1024 * 1024;
  * can be somewhat longer than the staged file.
  */
 export const MAX_STORED_BYTES = 4 * MAX_RECORD_BYTES;
+/**
+ * Most a batch may hold in memory while it is read: every record's stored
+ * form and body text together. Thousands of near-1 MiB records would
+ * otherwise exhaust memory before any result is reported; skills split
+ * larger imports.
+ */
+export const MAX_BATCH_BYTES = 64 * 1024 * 1024;
 
 /**
  * A staged record that parsed and passed the schema. `content` is the stored
@@ -98,6 +105,7 @@ export function readStagingBatch(
 
   const records: StagedRecord[] = [];
   const issues: ImportIssue[] = [];
+  let retained = 0;
   for (const file of names) {
     if (file.startsWith('.') || !file.endsWith('.md')) {
       issues.push(
@@ -184,6 +192,19 @@ export function readStagingBatch(
         ),
       );
       continue;
+    }
+    retained += content.length + Buffer.byteLength(parsed.body);
+    if (retained > MAX_BATCH_BYTES) {
+      // Stop reading: nothing more is kept, and the batch is refused
+      return {
+        records: [],
+        issues: [
+          importIssue(
+            'BATCH_TOO_LARGE',
+            `a batch's records hold at most ${MAX_BATCH_BYTES / (1024 * 1024)} MiB in total; split it into smaller batches`,
+          ),
+        ],
+      };
     }
     records.push({ file, record: parsed.record, body: parsed.body, content });
   }

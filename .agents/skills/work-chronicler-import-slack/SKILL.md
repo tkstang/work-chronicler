@@ -75,7 +75,8 @@ STAGING=$(mktemp -d "${TMPDIR:-/tmp}/wc-slack-import.XXXXXX")
 
 It must be outside the work log, and hold only record files named `1.md`,
 `2.md`, …: no other files, hidden files or subdirectories. At most 10,000
-records per batch (start a second batch if there are more).
+records, and about 32 MiB of record files, per batch (start a second batch
+if there are more; `BATCH_TOO_LARGE` means split it).
 
 ### 4. Search each channel
 

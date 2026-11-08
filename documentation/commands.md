@@ -149,7 +149,9 @@ from two JIRA instances share, since it cannot tell them apart.
 
 - The directory holds only record files named `*.md`: no subdirectories,
   symlinks, hidden files or other files. A batch holds at most 10,000
-  records, each file at most 1 MiB.
+  records, each file at most 1 MiB, and its records at most 64 MiB in
+  total (each record counted as its stored form plus its text); a larger
+  batch is refused (`BATCH_TOO_LARGE`): split it.
 - Each file is one record: a `---` line, YAML frontmatter, a closing `---`
   line, then the body (for a message, its text). The YAML is read strictly:
   one document, no duplicate keys, aliases or tags, and no keys the format

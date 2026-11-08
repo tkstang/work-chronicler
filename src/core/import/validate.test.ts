@@ -20,6 +20,7 @@ import {
   hookedFs,
   makeWorld,
   messageFrontmatter,
+  recordFile,
   SECRET,
   slackIdentity,
   snapshot,
@@ -220,6 +221,47 @@ describe('validate: staging directory threats', () => {
     });
 
     expect(codes(result)).toEqual(['BATCH_TOO_LARGE']);
+  });
+
+  it('rejects a batch over the total size limit, and stops reading at the limit', () => {
+    // 100 near-1 MiB records (about 2 MiB each in memory, as the stored form
+    // plus the body), served without writing them to disk
+    const w = world();
+    const names = Array.from({ length: 100 }, (_, i) => `${i}.md`);
+    const body = 'x'.repeat(1024 * 1024 - 2048);
+    const file = (name: string) =>
+      Buffer.from(
+        recordFile(messageFrontmatter(Number.parseInt(name, 10) + 1), body),
+      );
+    let reads = 0;
+    const env = createImportEnv();
+    const real = env.fs;
+    const inStaging = (path: string) => dirname(path) === w.staging;
+    env.fs = {
+      ...real,
+      readdir: (path) => (path === w.staging ? names : real.readdir(path)),
+      lstat: (path) =>
+        inStaging(path)
+          ? { ...real.lstat(w.staging), kind: 'file', size: 1024n * 1024n }
+          : real.lstat(path),
+      readFile: (path, max) => {
+        if (!inStaging(path)) return real.readFile(path, max);
+        reads++;
+        const { dev, ino } = real.lstat(w.staging);
+        return { data: file(basename(path)), dev, ino };
+      },
+    };
+
+    const result = validate({
+      stagingDir: w.staging,
+      workLogRoot: w.workLog,
+      env,
+    });
+
+    expect(codes(result)).toEqual(['BATCH_TOO_LARGE']);
+    expect(result.issues[0]?.message).toContain('split it');
+    expect(result.records).toEqual([]);
+    expect(reads).toBeLessThan(40);
   });
 
   it('rejects a staging file replaced between listing and reading', () => {

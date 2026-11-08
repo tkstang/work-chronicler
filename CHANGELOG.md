@@ -73,6 +73,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - If `messages/` or `messages/<source>/` in a work log was a symlink (for
   example to another work log), readers read the records behind it as this
   work log's evidence. Such a directory is now skipped with a warning.
+- A staged batch of thousands of near-1 MiB records could exhaust memory
+  while `validate` or `import` read it, ending the run before any result.
+  A batch's records may now hold at most 64 MiB in total; a larger batch is
+  refused (`BATCH_TOO_LARGE`) with an instruction to split it, before the
+  rest of it is read.
 
 ## [0.6.0] - 2026-11-08
 
