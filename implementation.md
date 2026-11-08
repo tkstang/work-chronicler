@@ -368,7 +368,7 @@ Proof: full DoD batch (254 tests); both new regressions fail on b7a300e code and
 **Status:** in_progress
 **Base:** 378f881d38602cc7882aa9faf0fdd999541f1c22
 **Executor:** phase-implementer:wce-p04-impl-1
-**Head:** 773e5722a12b7c94a796a555d9594ed9e187c353
+**Head:** bf256dd4d3f60d4f3fc686ef6c040d9d18a7c0ad
 
 Worktree: this T3 worktree, branch `oat/evidence-expansion-m02` (m01 head b079cd7 with origin/main merged). Committing owner: the phase implementer (code); root owns the journal. Parallelism: no declared group; fan-out rejected (envelope schema, storage paths, `import` and `validate` share types and the commit contract and are sequentially dependent); one phase implementer. Task class: consequential (atomic writes over existing user records; fail-closed data safety per the m01 learning).
 
@@ -419,6 +419,34 @@ Proof: `pnpm vitest run src/cli/commands/import`, `pnpm build`, built CLI run in
 **Executor:** phase-implementer:wce-p04-impl-1
 Files: `documentation/{commands,configuration,manager-mode}.md`, `README.md`, `AGENTS.md`, `CHANGELOG.md`
 Proof: `pnpm format:check`; documented example record validated with the CLI
+
+### Task p04-t06: (review) Let the on-disk journal decide after a batch is recorded
+
+**Status:** completed
+**Commit:** 08cba00db1b36711b6fdc0c0ccb08f3526b999d0
+**Executor:** phase-implementer:wce-p04-impl-1 (fix mode)
+**Source review:** reviews/archived/p04-review-2026-11-08T060424Z.md (H1)
+Once the `committed` rename lands, later failures are warnings and nothing rolls back; a failed `committed` write reads the journal back to decide; recovery reports `completed` only if every record holds its new version, otherwise `RECOVERY_CONFLICT` with backups kept.
+Files: `src/core/import/transaction.ts`, `commit.test.ts`, `import.test-support.ts`
+Proof: both reviewer reproductions as regression tests plus a generic two-failure loop; new tests fail on 773e572 code
+
+### Task p04-t07: (review) Report unknown frontmatter keys without their text
+
+**Status:** completed
+**Commit:** aa8807123c029028a99c3a095a7ff13fcfb1e4e8
+**Executor:** phase-implementer:wce-p04-impl-1 (fix mode)
+**Source review:** reviews/archived/p04-review-2026-11-08T060424Z.md (M1)
+Files: `src/core/import/record-file.ts`, `record-file.test.ts`
+Proof: plain-name secret key never echoed; tests fail on 773e572 code
+
+### Task p04-t08: (review) Describe failed and incomplete rollbacks accurately
+
+**Status:** completed
+**Commit:** bf256dd4d3f60d4f3fc686ef6c040d9d18a7c0ad
+**Executor:** phase-implementer:wce-p04-impl-1 (fix mode)
+**Source review:** reviews/archived/p04-review-2026-11-08T060424Z.md (L1)
+Files: `documentation/commands.md`, `CHANGELOG.md`
+Proof: `pnpm format:check`; root re-ran typecheck, lint, format:check, 343 tests at bf256dd: pass
 
 ---
 
