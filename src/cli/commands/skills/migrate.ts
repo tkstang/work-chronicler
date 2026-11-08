@@ -6,6 +6,7 @@ import {
   readlinkSync,
   realpathSync,
   rmSync,
+  statSync,
   unlinkSync,
 } from 'node:fs';
 import { dirname, isAbsolute, join, parse, resolve, sep } from 'node:path';
@@ -132,22 +133,81 @@ function isAtOrUnder(path: string, location: string): boolean {
   return path === location || path.startsWith(location + sep);
 }
 
+/** Upper bound on files and directories visited inside one entry */
+const MAX_NESTED_ENTRIES = 10_000;
+
+/**
+ * The resolution trails of every symlink nested anywhere inside `path` (a
+ * skill's `scripts/` or `references/` linked elsewhere, for example).
+ * Linked directories are walked too, each real directory once. Returns null
+ * when part of the tree cannot be read or it is too large to check.
+ */
+function nestedLinkTrails(path: string): string[] | null {
+  const trails: string[] = [];
+  const visited = new Set<string>();
+  let budget = MAX_NESTED_ENTRIES;
+
+  const walk = (dir: string): boolean => {
+    let real: string;
+    try {
+      real = realpathSync(dir);
+    } catch {
+      return true; // a dangling link has nothing below it
+    }
+    if (visited.has(real)) return true;
+    visited.add(real);
+    let names: string[];
+    try {
+      if (!statSync(real).isDirectory()) return true;
+      names = readdirSync(real);
+    } catch {
+      return false;
+    }
+    for (const name of names) {
+      if (--budget < 0) return false;
+      const child = join(dir, name);
+      let isSymlink: boolean;
+      let isDirectory: boolean;
+      try {
+        const stat = lstatSync(child);
+        isSymlink = stat.isSymbolicLink();
+        isDirectory = stat.isDirectory();
+      } catch {
+        return false;
+      }
+      if (isSymlink) trails.push(...(resolutionTrail(child) ?? []));
+      if ((isSymlink || isDirectory) && !walk(child)) return false;
+    }
+    return true;
+  };
+
+  return walk(path) ? trails : null;
+}
+
 /** An old-name entry kept because other installed entries resolve into it */
 export interface DependentRenamedSkillEntry extends RenamedSkillEntry {
   /** Paths of the entries that resolve into the old entry */
   usedBy: string[];
 }
 
+interface InventoryEntry {
+  path: string;
+  location: string;
+  /** Every location the entry's resolution passes through */
+  trail: string[];
+  /** Part of the entry could not be read, so its links are not all known */
+  unchecked: boolean;
+}
+
 /**
  * Every entry in the given skills directories, whatever its name, with the
- * locations its resolution passes through: the entry itself and its
- * `SKILL.md`. Directories that do not exist are skipped.
+ * locations its resolution passes through: the entry itself, its
+ * `SKILL.md`, and every symlink nested inside it. Directories that do not
+ * exist are skipped.
  */
-function inventoryEntries(
-  dirs: string[],
-): { path: string; location: string; trail: string[] }[] {
+function inventoryEntries(dirs: string[]): InventoryEntry[] {
   const seen = new Set<string>();
-  const inventory: { path: string; location: string; trail: string[] }[] = [];
+  const inventory: InventoryEntry[] = [];
   for (const dir of dirs) {
     let names: string[];
     try {
@@ -161,13 +221,16 @@ function inventoryEntries(
       if (seen.has(location)) continue;
       seen.add(location);
       const path = join(dir, name);
+      const nested = nestedLinkTrails(path);
       inventory.push({
         path,
         location,
         trail: [
           ...(resolutionTrail(path) ?? []),
           ...(resolutionTrail(join(path, 'SKILL.md')) ?? []),
+          ...(nested ?? []),
         ],
+        unchecked: nested === null,
       });
     }
   }
@@ -181,8 +244,9 @@ function inventoryEntries(
  *   in any inventoried skills directory resolves into the old entry
  * - `blocked`: the replacement is missing or not a verified install
  * - `dependent`: the replacement is verified, but another entry, in this
- *   tool or another one (typically a new-name symlink to the old copy),
- *   resolves into the old entry, so removing it would break that entry
+ *   tool or another one (typically a new-name symlink to the old copy, or a
+ *   link nested inside a skill), resolves into the old entry, so removing it
+ *   would break that entry. An entry that cannot be fully read counts too.
  *
  * @param inventoryDirs - Every known tool's skills directory, selected or
  *   not, so that removal never breaks another tool's installation
@@ -209,13 +273,19 @@ export function planRenamedSkillRemoval(
       continue;
     }
     const location = entryLocation(skillsDir, entry.oldName);
+    // An entry that could not be fully checked might depend on the old one
     const usedBy = inventory
       .filter(
         (other) =>
           other.location !== location &&
-          other.trail.some((path) => isAtOrUnder(path, location)),
+          (other.unchecked ||
+            other.trail.some((path) => isAtOrUnder(path, location))),
       )
-      .map((other) => other.path);
+      .map((other) =>
+        other.unchecked
+          ? `${other.path} (could not be fully checked)`
+          : other.path,
+      );
     if (usedBy.length > 0) {
       dependent.push({ ...entry, usedBy });
     } else {

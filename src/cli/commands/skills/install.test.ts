@@ -372,6 +372,59 @@ describe('skills install rename migration', () => {
       );
     });
 
+    it('keeps the old copy a kept skill links into from a nested folder', async () => {
+      const oldDir = seedCopy('claude', OLD_NAMES.bullets);
+      mkdirSync(join(oldDir, 'scripts'));
+      writeFileSync(join(oldDir, 'scripts', 'helper.sh'), 'echo helper\n');
+      // The user's own copy under the new name, reusing the old helpers
+      const newDir = join(skillsDir('claude'), NEW_NAMES.bullets);
+      mkdirSync(newDir);
+      writeFileSync(
+        join(newDir, 'SKILL.md'),
+        `---\nname: ${NEW_NAMES.bullets}\n---\nmy edits\n`,
+      );
+      symlinkSync(join(oldDir, 'scripts'), join(newDir, 'scripts'), 'dir');
+
+      const { error } = await install([
+        '--tool',
+        'claude',
+        '--method',
+        'copy',
+        '--yes',
+      ]);
+
+      expect(error).toBeUndefined();
+      expect(readFileSync(join(newDir, 'scripts', 'helper.sh'), 'utf8')).toBe(
+        'echo helper\n',
+      );
+      expect(output()).toContain(`(used by ${newDir})`);
+    });
+
+    it('still removes the old copy when a nested link points elsewhere', async () => {
+      const oldDir = seedCopy('claude', OLD_NAMES.bullets);
+      const helpers = join(root, 'my-helpers');
+      mkdirSync(helpers);
+      const newDir = join(skillsDir('claude'), NEW_NAMES.bullets);
+      mkdirSync(newDir);
+      writeFileSync(
+        join(newDir, 'SKILL.md'),
+        `---\nname: ${NEW_NAMES.bullets}\n---\nmy edits\n`,
+      );
+      symlinkSync(helpers, join(newDir, 'scripts'), 'dir');
+
+      const { error } = await install([
+        '--tool',
+        'claude',
+        '--method',
+        'copy',
+        '--yes',
+      ]);
+
+      expect(error).toBeUndefined();
+      expect(occupied(oldDir)).toBe(false);
+      expect(readlinkSync(join(newDir, 'scripts'))).toBe(helpers);
+    });
+
     it('still removes the old copy when the new-name link points elsewhere', async () => {
       const oldDir = seedCopy('claude', OLD_NAMES.bullets);
       const elsewhere = join(root, 'my-skills', NEW_NAMES.bullets);

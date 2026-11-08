@@ -88,8 +88,9 @@ select:
    the install fails, the old name is kept.
 5. If any installed skill, in the selected tool or any other, resolves into
    the old entry (for example a symlink you made from a new name to the old
-   copy), the old name is kept so that skill keeps working, and the installer
-   names it. Give that skill an independent copy with
+   copy, or a `scripts/` link inside a skill that points into it), the old
+   name is kept so that skill keeps working, and the installer names it. A
+   skill whose files cannot all be read also keeps the old name. Give that skill an independent copy with
    `skills install --tool <its tool> --overwrite`; the old name is removed as
    soon as nothing resolves into it.
 
