@@ -388,7 +388,9 @@ Direct messages (`D…` IDs) and group direct messages (`mpdm-…` names) are
 always refused. A change that leaves every setting as it was (configuring
 the same IDs again, adding a channel exactly as configured) writes nothing
 and reports `changed: false`. Every command takes `-c, --config <path>` and `--json`, and
-exits with status 1 when a change is refused.
+exits with status 1 when a change is refused. With `--json`, a failure (a refused change, or a
+profile, config or report that cannot be resolved) prints `{ "ok": false, "error": "…" }` on
+stdout and nothing else there.
 
 Changes keep everything else in the config, comments included: the file is
 edited in its parsed form, the result must validate and differ only in the

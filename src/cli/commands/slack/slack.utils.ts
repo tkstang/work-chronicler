@@ -1,3 +1,5 @@
+import { stripVTControlCharacters } from 'node:util';
+
 import { CliError, toCliError } from '@cli/errors';
 import { findConfigPath, getOutputDirectory, loadConfig } from '@config/loader';
 import {
@@ -55,6 +57,9 @@ function fail(message: string, hint?: string): never {
  * needs `--report <id>`.
  *
  * @param options - Command options
+ * With `--json`, a failure is printed as `{ ok: false, error }` first (and
+ * no hint follows it on stdout), so a JSON reader always gets a result.
+ *
  * @returns The subject and its current settings
  * @throws {CliError} When the profile, config or report cannot be resolved
  */
@@ -114,10 +119,22 @@ export async function resolveSlackSubject(
       slack: config.slack ?? null,
     };
   } catch (error) {
-    throw toCliError(
+    const failure = toCliError(
       error,
       `${ERROR} The profile or config could not be loaded:`,
     );
+    if (!options.json) throw failure;
+    // A JSON reader gets a result on stdout, and only that: the hint, which
+    // would be printed to stdout after it, is left out
+    const message = stripVTControlCharacters(failure.message).replace(
+      /^✗\s*/,
+      '',
+    );
+    console.log(JSON.stringify({ ok: false, error: message }, null, 2));
+    throw new CliError(failure.message, {
+      exitCode: failure.exitCode,
+      cause: failure.cause ?? failure,
+    });
   }
 }
 

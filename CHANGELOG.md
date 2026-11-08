@@ -31,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A `slack` command run with `--json` printed nothing on stdout when the
+  profile, config or report could not be resolved (an invalid config, or a
+  manager profile without `--report`), and a hint that was not JSON in some
+  cases. It now prints `{ "ok": false, "error": … }` there, and only that.
 - `filter` accepted a mistyped impact level or line count and dropped that
   restriction, so `--min-impact majoor` (or `--exclude-impact minr`, or
   `--min-loc abc` next to another filter) replaced the subset with a broader

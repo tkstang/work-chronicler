@@ -366,6 +366,29 @@ describe('slack commands: IC profile', CLI_RUNS, () => {
     },
   );
 
+  it('reports a config it cannot load as JSON', () => {
+    const invalid = join(root, 'invalid.yaml');
+    writeFileSync(invalid, 'github: [unclosed\n');
+
+    const run = cli('solo', [
+      'slack',
+      'configure',
+      '--workspace',
+      'T0TEST0001',
+      '--user',
+      'U0TEST0001',
+      '--config',
+      invalid,
+      '--json',
+    ]);
+
+    expect(run.status).toBe(1);
+    expect(JSON.parse(run.stdout)).toEqual({
+      ok: false,
+      error: expect.stringContaining('could not be loaded'),
+    });
+  });
+
   it('refuses --report in an IC profile', () => {
     expect(
       cli('solo', ['slack', 'show', '--report', 'alice-smith']).status,
@@ -378,6 +401,28 @@ describe('slack commands: manager reports', CLI_RUNS, () => {
     const run = cli('team', ['slack', 'show']);
     expect(run.status).toBe(1);
     expect(run.stderr).toContain('pass --report <id>');
+  });
+
+  it.each([
+    [
+      'configure',
+      ['configure', '--workspace', 'T0TEST0001', '--user', 'U0TEST0001'],
+    ],
+    [
+      'channels add',
+      ['channels', 'add', 'C0TEST0001', '--name', 'x', '--reason', 'x'],
+    ],
+    ['show', ['show']],
+  ])('reports a subject it cannot resolve as JSON (%s)', (_label, args) => {
+    const run = cli('team', ['slack', ...args, '--json']);
+
+    expect(run.status).toBe(1);
+    // stdout is the JSON result alone: the hint is left out
+    expect(JSON.parse(run.stdout)).toEqual({
+      ok: false,
+      error: expect.stringContaining('pass --report <id>'),
+    });
+    expect(readFileSync(teamConfig, 'utf-8')).toBe(TEAM_YAML);
   });
 
   it('shows an unconfigured report as off and refuses its channels', () => {
