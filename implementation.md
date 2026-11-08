@@ -2118,6 +2118,15 @@ Also in p03-t15: CodeRabbit 4505014153 (docs/notice wrongly said `--overwrite` f
 
 **PR:** https://github.com/tkstang/work-chronicler/pull/27 (scope `m03: p13, p14, p15, p16, p09, p10, p11`, registered 2026-11-08, endpoint `merged`)
 
+### Release: m03 → 0.7.0
+
+**Merged:** https://github.com/tkstang/work-chronicler/pull/27 as 24507dcc40d9952c4726df8ff72f3e458ca615b0 (squash, head 806f36cc245745a520a730c77012d7cd8ae8e495 matched), 2026-11-08
+**Tag:** v0.7.0 on 24507dc
+**Release run:** https://github.com/tkstang/work-chronicler/actions/runs/42501666080 (Publish to npm: success; Create GitHub Release: success; provenance signed)
+**npm:** `npm view work-chronicler@0.7.0 version --prefer-online` → `0.7.0`; dist-tag latest → 0.7.0 (the registry lagged about three minutes)
+**GitHub Release:** https://github.com/tkstang/work-chronicler/releases/tag/v0.7.0 (notes written with /release-notes)
+**Delivery:** d03 at_endpoint (merged), endpoint attainment recorded by `oat project delivery refresh`.
+
 ### PR review received: d01 (PR #25, CodeRabbit)
 
 **Date:** 2026-11-08
