@@ -1601,7 +1601,7 @@ Proof: 747 tests; DoD batch green; pack 142 files
 **Status:** in_progress
 **Base:** 7feab1884270735d1e45986dac577c0e0a543a59
 **Executor:** phase-implementer:wce-p10-impl-1
-**Head:** 7e2d8f90b91f152083c76c1450fb9e6f5388dcab
+**Head:** 0ea25d70690080f5f0960b3a3eb23951c3e8ed83
 
 Branch `oat/evidence-expansion-m03`. Committing owner: the phase implementer (code); root owns the journal and runs the live walkthrough (the user's own Drive via `gog --readonly`, temp `WORK_CHRONICLER_HOME`, redacted counts only). Task class: consequential (privacy of the user's documents).
 
@@ -1661,6 +1661,20 @@ Proof: 752 tests; DoD batch green
 **Executor:** phase-implementer:wce-p10-impl-1
 Proof: 753 tests; new acceptance case at exactly the 16,384-byte cap
 
+### Task p10-t08: (confirmation M1) One frontmatter and excerpt file per record until its chunk is imported
+
+**Status:** completed
+**Commit:** 4184308
+**Executor:** phase-implementer:wce-p10-impl-1
+Proof: 753 tests; DoD batch green
+
+### Task p10-t09: (confirmation L1) Two-step grep for ticket keys (macOS grep near-miss)
+
+**Status:** completed
+**Commit:** 0ea25d7
+**Executor:** phase-implementer:wce-p10-impl-1
+Proof: 753 tests; DoD batch green
+
 ---
 
 ## Phase p11: 0.7.0 release preparation
@@ -1701,6 +1715,7 @@ run/v1 · request=wce-p14-rev-1 · scope=p14 · action=review · role=oat-review
   run/v1 · request=wce-p09-rev-2 · scope=p09 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p09 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
   run/v1 · request=wce-p10-impl-1 · scope=p10 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p10 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
   run/v1 · request=wce-p10-rev-1 · scope=p10 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p10 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
+  run/v1 · request=wce-p10-rev-2 · scope=p10 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p10 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 - run/v1 · request=wce-p08-rev-1 · scope=p08 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p08 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 - Root-inline phase: p08 — inline exception for a version bump and CHANGELOG move; root model claude-opus-5-5
