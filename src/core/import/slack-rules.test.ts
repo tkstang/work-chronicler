@@ -1,15 +1,15 @@
 import { rmSync } from 'node:fs';
 
-import type { ImportSubject } from '@wc-types/imported-record';
-import { afterAll, describe, expect, it } from 'vitest';
-
 import {
   makeWorld,
   messageFrontmatter,
   SECRET,
   stage,
   SYNTH_SOURCES,
-} from './import.test-support';
+} from '@core/import/import.test-support';
+import type { ImportSubject } from '@wc-types/imported-record';
+import { afterAll, describe, expect, it } from 'vitest';
+
 import { type ImportSourceSettings, runImport } from './index';
 
 // Slack privacy and opt-in rules, enforced on every record `validate` and

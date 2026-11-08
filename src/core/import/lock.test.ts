@@ -11,6 +11,19 @@ import { hostname } from 'node:os';
 import { join } from 'node:path';
 
 import {
+  createImportEnv,
+  type ImportEnv,
+  type ImportFs,
+  nodeImportFs,
+} from '@core/import/import-fs';
+import {
+  hookedFs,
+  makeWorld,
+  messageFrontmatter,
+  stage,
+  SYNTH_SOURCES,
+} from '@core/import/import.test-support';
+import {
   clearFilteredSubset,
   FilterInProgressError,
   replaceFilteredSubset,
@@ -18,19 +31,6 @@ import {
 } from '@storage/filtered-subset';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import {
-  createImportEnv,
-  type ImportEnv,
-  type ImportFs,
-  nodeImportFs,
-} from './import-fs';
-import {
-  hookedFs,
-  makeWorld,
-  messageFrontmatter,
-  stage,
-  SYNTH_SOURCES,
-} from './import.test-support';
 import { runImport } from './index';
 import { acquireImportLock, releaseImportLock } from './transaction';
 

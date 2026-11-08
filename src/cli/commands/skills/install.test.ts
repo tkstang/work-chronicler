@@ -107,7 +107,7 @@ async function install(
 ): Promise<{ error?: Error }> {
   const { Command } = await import('commander');
   const { createInstallSubcommand } = await import('./install');
-  const { nodeSkillInstallFs } = await import('./replace');
+  const { nodeSkillInstallFs } = await import('@commands/skills/replace');
   const fs = Object.fromEntries(
     Object.entries(nodeSkillInstallFs).map(([op, fn]) => [
       op,

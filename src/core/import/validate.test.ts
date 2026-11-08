@@ -9,11 +9,7 @@ import {
 } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 
-import { getImportedRecordFilePath } from '@storage/paths';
-import { scanImportedRecords } from '@storage/reader';
-import { afterEach, describe, expect, it } from 'vitest';
-
-import { createImportEnv } from './import-fs';
+import { createImportEnv } from '@core/import/import-fs';
 import {
   caseInsensitiveTmp,
   fsError,
@@ -27,7 +23,11 @@ import {
   stage,
   storeRecord,
   SYNTH_SOURCES,
-} from './import.test-support';
+} from '@core/import/import.test-support';
+import { getImportedRecordFilePath } from '@storage/paths';
+import { scanImportedRecords } from '@storage/reader';
+import { afterEach, describe, expect, it } from 'vitest';
+
 import { type ImportRunOptions, runImport } from './index';
 
 // Threat-matrix coverage for the read-only half of import: staging reads,

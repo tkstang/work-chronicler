@@ -14,15 +14,12 @@ import {
 import { dirname, join, relative, sep } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 
-import { getImportedRecordFilePath } from '@storage/paths';
-import { afterEach, describe, expect, it } from 'vitest';
-
 import {
   createImportEnv,
   type ImportEnv,
   type ImportFs,
   nodeImportFs,
-} from './import-fs';
+} from '@core/import/import-fs';
 import {
   afterMutationsFs,
   countingFs,
@@ -42,10 +39,13 @@ import {
   stage,
   storeRecord,
   SYNTH_SOURCES,
-} from './import.test-support';
+} from '@core/import/import.test-support';
+import { planImport } from '@core/import/plan';
+import { readStagingBatch } from '@core/import/staging';
+import { getImportedRecordFilePath } from '@storage/paths';
+import { afterEach, describe, expect, it } from 'vitest';
+
 import { type ImportRunOptions, runImport } from './index';
-import { planImport } from './plan';
-import { readStagingBatch } from './staging';
 import { commitImportPlan } from './transaction';
 
 /** The exhaustive loops run an import per operation; give slow CI room */

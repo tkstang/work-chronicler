@@ -13,6 +13,8 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { ConfigUpdateError, MAX_CONFIG_BYTES } from '@config/config-file';
+import { ConfigSchema } from '@config/schema';
 import { nodeImportFs } from '@core/import/import-fs';
 import {
   crashingFs,
@@ -26,8 +28,6 @@ import { loadManagerConfig, updateReport } from '@workspace/report-manager';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parse } from 'yaml';
 
-import { ConfigUpdateError, MAX_CONFIG_BYTES } from './config-file';
-import { ConfigSchema } from './schema';
 import {
   type SlackChannelInput,
   type SlackSettingsChange,

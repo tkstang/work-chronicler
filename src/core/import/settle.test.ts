@@ -10,16 +10,7 @@ import {
 } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 
-import {
-  getFilteredSubsetState,
-  InterruptedImportError,
-  replaceFilteredSubset,
-  type SubsetPlan,
-} from '@storage/filtered-subset';
-import { scanImportedRecords } from '@storage/reader';
-import { afterEach, describe, expect, it } from 'vitest';
-
-import { createImportEnv, nodeImportFs } from './import-fs';
+import { createImportEnv, nodeImportFs } from '@core/import/import-fs';
 import {
   crashAfterFs,
   makeWorld,
@@ -29,12 +20,21 @@ import {
   stage,
   storeRecord,
   SYNTH_SOURCES,
-} from './import.test-support';
-import { runImport } from './index';
+} from '@core/import/import.test-support';
 import {
   parseImportedRecordFile,
   serializeImportedRecord,
-} from './record-file';
+} from '@core/import/record-file';
+import {
+  getFilteredSubsetState,
+  InterruptedImportError,
+  replaceFilteredSubset,
+  type SubsetPlan,
+} from '@storage/filtered-subset';
+import { scanImportedRecords } from '@storage/reader';
+import { afterEach, describe, expect, it } from 'vitest';
+
+import { runImport } from './index';
 
 // `filter` reads records only under the work-log lock, after finishing any
 // interrupted import, so a subset never holds part of a batch; when the
