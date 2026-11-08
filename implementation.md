@@ -1390,8 +1390,105 @@ Proof: 660 tests; DoD batch green
 **Status:** in_progress
 **Base:** 49b6dc355dec62fec1ad89419c01a9631859faa2
 **Executor:** phase-implementer:wce-p16-impl-1
+**Head:** d9f924251e2774df7b4d7b5990c7408dad00a022
 
 Branch `oat/evidence-expansion-m03`. Committing owner: the phase implementer (code); root owns the journal. Task class: consequential (shell-safety in skill text; config rewrites).
+
+Restart note: the first dispatch was interrupted by the user mid-run; it left uncommitted edits for t01 (`--reason-file`), which the restarted implementer reviewed, kept and committed. No duplicate work.
+
+Verification at Head: implementer ran the full DoD batch (686 tests, 42 files; build). Root re-ran typecheck, lint, format:check and tests at Head: pass (686).
+
+Decisions (implementer): reason passing: `slack channels add --reason-file <path>` (`-` = stdin), exactly one of `--reason`/`--reason-file`; the skill uses a quoted here-document `<<'WC_REASON'`; a test runs the skill's command block through `/bin/sh`. User change: `slack configure` refuses a different user while the subject's work log holds Slack messages by another author (or cannot be checked), naming `messages/slack` to remove; the skill never removes it. JSON: every `slack` subcommand prints only `{ok:false,error}` on stdout under `--json`.
+
+Deviations: t02 fixed in all four writing skills sharing the paragraph; t07 also validates `--exclude-impact` and refuses `10abc`/`-5` for `--min-loc`; t05 adds an exact-mode `ImportFs.writeFile` option used only by the config rewrite (keeps umask behavior if chmod is unsupported). Accepted concerns: CHANGELOG wording for t08 is awkward and entry order is newest first (fold at p11); editing `slack.user` by hand bypasses the guard.
+
+### Task p16-t01: Pass the channel reason on stdin (`--reason-file -`), never through the shell
+
+**Status:** completed
+**Commit:** e978c98
+**Executor:** phase-implementer:wce-p16-impl-1
+CodeRabbit: 4506074725 (Major)
+Proof: test fails without the fix (docs/skill-only items: reviewed against the CLI)
+
+### Task p16-t02: Read the full record when a search_messages result is cut (four writing skills)
+
+**Status:** completed
+**Commit:** 43b590d
+**Executor:** phase-implementer:wce-p16-impl-1
+CodeRabbit: 4506074731
+Proof: test fails without the fix (docs/skill-only items: reviewed against the CLI)
+
+### Task p16-t03: commands.md: destination follows the record identity
+
+**Status:** completed
+**Commit:** 86908f8
+**Executor:** phase-implementer:wce-p16-impl-1
+CodeRabbit: 4506074734
+Proof: test fails without the fix (docs/skill-only items: reviewed against the CLI)
+
+### Task p16-t04: filter matches bare and org/repo repository names
+
+**Status:** completed
+**Commit:** 46422c8
+**Executor:** phase-implementer:wce-p16-impl-1
+CodeRabbit: 4506074746
+Proof: test fails without the fix (docs/skill-only items: reviewed against the CLI)
+
+### Task p16-t05: Config rewrite keeps the original file mode
+
+**Status:** completed
+**Commit:** 90d3e03
+**Executor:** phase-implementer:wce-p16-impl-1
+CodeRabbit: 4506074787
+Proof: test fails without the fix (docs/skill-only items: reviewed against the CLI)
+
+### Task p16-t06: Refuse a config over MAX_CONFIG_BYTES before writing
+
+**Status:** completed
+**Commit:** 1609035
+**Executor:** phase-implementer:wce-p16-impl-1
+CodeRabbit: 4506078292
+Proof: test fails without the fix (docs/skill-only items: reviewed against the CLI)
+
+### Task p16-t07: filter refuses invalid --min-impact/--exclude-impact/--min-loc
+
+**Status:** completed
+**Commit:** 97b2d00
+**Executor:** phase-implementer:wce-p16-impl-1
+CodeRabbit: 4506078288
+Proof: test fails without the fix (docs/skill-only items: reviewed against the CLI)
+
+### Task p16-t08: slack --json reports subject-resolution and config-load failures as JSON
+
+**Status:** completed
+**Commit:** 3f7dd45
+**Executor:** phase-implementer:wce-p16-impl-1
+CodeRabbit: review body slack.utils.ts 174-176
+Proof: test fails without the fix (docs/skill-only items: reviewed against the CLI)
+
+### Task p16-t09: slack configure refuses another user while the previous user's messages are imported
+
+**Status:** completed
+**Commit:** 2b4206a
+**Executor:** phase-implementer:wce-p16-impl-1
+CodeRabbit: review body slack-config.ts 188-205
+Proof: test fails without the fix (docs/skill-only items: reviewed against the CLI)
+
+### Task p16-t10: JSDoc on createInstallSubcommand
+
+**Status:** completed
+**Commit:** ba89d6b
+**Executor:** phase-implementer:wce-p16-impl-1
+CodeRabbit: review body install.ts 313-315
+Proof: test fails without the fix (docs/skill-only items: reviewed against the CLI)
+
+### Task p16-t11: Tests import supporting modules through aliases
+
+**Status:** completed
+**Commit:** d9f9242
+**Executor:** phase-implementer:wce-p16-impl-1
+CodeRabbit: review body nitpicks
+Proof: test fails without the fix (docs/skill-only items: reviewed against the CLI)
 
 ---
 
@@ -1441,6 +1538,7 @@ run/v1 · request=wce-p14-rev-1 · scope=p14 · action=review · role=oat-review
   run/v1 · request=wce-p15-impl-1 · scope=p15 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p15 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
   run/v1 · request=wce-p15-rev-1 · scope=p15 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p15 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
   run/v1 · request=wce-p15-rev-2 · scope=p15 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p15 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
+  run/v1 · request=wce-p16-impl-1 · scope=p16 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p16 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 - run/v1 · request=wce-p08-rev-1 · scope=p08 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p08 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 - Root-inline phase: p08 — inline exception for a version bump and CHANGELOG move; root model claude-opus-5-5
