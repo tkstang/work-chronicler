@@ -42,8 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `skills install` asks about overwriting only when a skill it is about to
-  install already exists; skills under old names no longer trigger the
+- `skills install` asks about overwriting only when something (a skill, file
+  or working link) already occupies the name of a skill it is about to
+  install, and replaces it only if you agree or pass `--overwrite`; broken
+  links are still repaired. Skills under old names no longer trigger the
   prompt.
 - **Breaking:** five package skills are renamed to follow one rule,
   `work-chronicler-[manager-]<verb>-<object>`. Re-run

@@ -147,8 +147,8 @@ These commands need a manager profile. See [Manager mode](manager-mode.md).
 | `skills install` | Copy or symlink the packaged skills into Claude Code, Cursor, Codex or Gemini, and migrate skills installed under old names. Prompts for anything not given as a flag. |
 | `skills install --tool <tool...>` | Install for these tools: `claude`, `cursor`, `codex`, `gemini` or `all`. Skips the tool prompt. |
 | `skills install --method <method>` | `copy` or `symlink`. Skips the method prompt. |
-| `skills install --yes` | Never prompt: install for the detected tools (unless `--tool` is given) by copy (unless `--method` is given), keep existing skills with the same name and remove old-name skills once their replacement is installed. |
-| `skills install --overwrite` | Replace existing skills with the same name without asking. |
+| `skills install --yes` | Never prompt: install for the detected tools (unless `--tool` is given) by copy (unless `--method` is given), keep anything already at a skill's name (a skill, file or link; broken links are repaired) and remove old-name skills once their replacement is installed. |
+| `skills install --overwrite` | Replace whatever is already at a skill's name (a skill, file or link) without asking. |
 | `skills install --keep-old` | Keep skills installed under old names without asking. |
 | `skills list` | Show which tools have the skills installed, flagging old names that `skills install` will migrate. |
 | `skills uninstall` | Remove installed skills. |

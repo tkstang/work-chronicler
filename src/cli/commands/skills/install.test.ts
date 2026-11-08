@@ -206,6 +206,39 @@ describe('skills install rename migration', () => {
     expect(installedName('claude', NEW_NAMES.peer)).toBe(NEW_NAMES.peer);
   });
 
+  it('keeps a regular file at a new name and the old name when overwrite is not chosen', async () => {
+    const oldBullets = seedCopy('claude', OLD_NAMES.bullets);
+    const file = join(skillsDir('claude'), NEW_NAMES.bullets);
+    writeFileSync(file, 'USER CONTENT\n');
+
+    const { error } = await install(['--tool', 'claude', '--yes']);
+
+    expect(error).toBeUndefined();
+    expect(lstatSync(file).isFile()).toBe(true);
+    expect(readFileSync(file, 'utf8')).toBe('USER CONTENT\n');
+    expect(existsSync(join(oldBullets, 'SKILL.md'))).toBe(true);
+    expect(output()).toContain(
+      `Claude Code already has something at 1 skill name(s):\n    ${NEW_NAMES.bullets}`,
+    );
+    expect(output()).toContain('Skipped 1 existing skill(s)');
+    expect(output()).toContain('Kept 1 old-name skill(s) in Claude Code');
+  });
+
+  it('repairs a broken symlink at a new name without an overwrite decision', async () => {
+    const broken = seedLink(
+      'claude',
+      NEW_NAMES.bullets,
+      join(root, 'removed-package', NEW_NAMES.bullets),
+    );
+
+    const { error } = await install(['--tool', 'claude', '--yes']);
+
+    expect(error).toBeUndefined();
+    expect(lstatSync(broken).isDirectory()).toBe(true);
+    expect(installedName('claude', NEW_NAMES.bullets)).toBe(NEW_NAMES.bullets);
+    expect(output()).not.toContain('already has something');
+  });
+
   it('replaces what holds the new name and then removes the old name with --overwrite', async () => {
     const oldTeam = seedCopy('claude', OLD_NAMES.team);
     mkdirSync(join(skillsDir('claude'), NEW_NAMES.team));

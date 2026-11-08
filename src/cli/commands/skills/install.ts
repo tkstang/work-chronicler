@@ -15,7 +15,7 @@ import { checkbox, confirm, select } from '@inquirer/prompts';
 import chalk from 'chalk';
 import { Command, Option } from 'commander';
 
-import { findInstalledSkills, isPathOccupied } from './installed';
+import { isPathOccupied } from './installed';
 import {
   findRenamedSkills,
   planRenamedSkillRemoval,
@@ -82,17 +82,24 @@ function isToolDetected(toolKey: AIToolKey): boolean {
   return existsSync(join(homedir(), AI_TOOLS[toolKey].configDir));
 }
 
+/** A symlink whose target is gone. `existsSync` follows the link. */
+function isDanglingSymlink(path: string): boolean {
+  return isPathOccupied(path) && !existsSync(path);
+}
+
 /**
- * Skills about to be installed that already exist at the target. Broken
- * symlinks are excluded: they are always replaced, so they never need an
- * overwrite prompt. Old-name skills are not conflicts; the rename migration
- * handles them.
+ * Skills about to be installed whose destination is already occupied by
+ * anything: a directory, a regular file or a working symlink. Replacing one
+ * needs an explicit overwrite decision. Broken symlinks are not conflicts:
+ * they are always replaced, so they never need an overwrite prompt. Old-name
+ * skills are not destinations; the rename migration handles them.
  */
 function getConflictingSkills(toolKey: AIToolKey, skills: string[]): string[] {
-  const wanted = new Set(skills);
-  return findInstalledSkills(getSkillsDir(toolKey))
-    .filter((skill) => !skill.isBroken && wanted.has(skill.name))
-    .map((skill) => skill.name);
+  const skillsDir = getSkillsDir(toolKey);
+  return skills.filter((skill) => {
+    const path = join(skillsDir, skill);
+    return isPathOccupied(path) && !isDanglingSymlink(path);
+  });
 }
 
 /**
@@ -122,19 +129,13 @@ function installSkills(
     };
   }
 
-  const broken = new Set(
-    findInstalledSkills(targetDir)
-      .filter((skill) => skill.isBroken)
-      .map((skill) => skill.name),
-  );
-
   for (const skill of skills) {
     const sourcePath = join(sourceDir, skill);
     const targetPath = join(targetDir, skill);
 
     try {
       if (isPathOccupied(targetPath)) {
-        if (overwrite || broken.has(skill)) {
+        if (overwrite || isDanglingSymlink(targetPath)) {
           rmSync(targetPath, { recursive: true, force: true });
         } else {
           skipped++;
@@ -299,11 +300,11 @@ export const installSubcommand = new Command('install')
   )
   .option(
     '-y, --yes',
-    'never prompt: use detected tools, copy, keep existing skills and remove old names',
+    'never prompt: use detected tools, copy, keep what is already at a skill name and remove old names',
   )
   .option(
     '--overwrite',
-    'replace existing skills with the same name without asking',
+    'replace what is already at a skill name without asking',
   )
   .option('--keep-old', 'keep skills installed under old names without asking')
   .action(async (options: InstallOptions) => {
@@ -342,11 +343,12 @@ export const installSubcommand = new Command('install')
       const tool = AI_TOOLS[toolKey];
       const conflicts = getConflictingSkills(toolKey, availableSkills);
 
-      let overwrite = conflicts.length === 0 || options.overwrite === true;
-      if (!overwrite) {
+      // Only an explicit decision replaces what occupies a destination
+      let overwrite = options.overwrite === true;
+      if (conflicts.length > 0 && !overwrite) {
         console.log(
           chalk.yellow(
-            `\n${tool.name} already has ${conflicts.length} work-chronicler skill(s).`,
+            `\n${tool.name} already has something at ${conflicts.length} skill name(s):\n${conflicts.map((name) => `    ${name}`).join('\n')}`,
           ),
         );
         overwrite = options.yes
