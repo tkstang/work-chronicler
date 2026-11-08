@@ -149,6 +149,10 @@ m02 amendment: p04-p08 made concrete; p12 (installer replacement safety) added b
 
 Activated m02 (p04, p05, p06, p07, p12, p08); work-chronicler-evidence-expansion-activate-m02
 
+### 2026-11-08 · structural · oat-project-implement · p04
+
+p04 accepted: review round 1 (1 H, 1 M, 1 L) fixed in p04-t06..t08; round 2 passed (0 C/H/M, 2 Low fixed inline in p04-t09); fix loops 1; wce-p04-outcome
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-11-07
-oat_current_task_id: p04
+oat_current_task_id: p05
 oat_generated: false
 ---
 
@@ -53,7 +53,7 @@ oat_generated: false
 | p10   | pending   | 1     | 0/1      |
 | p11   | pending   | 1     | 0/1      |
 
-**Total:** 3/12 phases accepted
+**Total:** 4/12 phases accepted
 
 ---
 
@@ -365,10 +365,10 @@ Proof: full DoD batch (254 tests); both new regressions fail on b7a300e code and
 
 ## Phase p04: Staged import contract
 
-**Status:** in_progress
+**Status:** completed
 **Base:** 378f881d38602cc7882aa9faf0fdd999541f1c22
 **Executor:** phase-implementer:wce-p04-impl-1
-**Head:** bf256dd4d3f60d4f3fc686ef6c040d9d18a7c0ad
+**Head:** 81584c399c38f482b747f178e06114fedb37b2f1
 
 Worktree: this T3 worktree, branch `oat/evidence-expansion-m02` (m01 head b079cd7 with origin/main merged). Committing owner: the phase implementer (code); root owns the journal. Parallelism: no declared group; fan-out rejected (envelope schema, storage paths, `import` and `validate` share types and the commit contract and are sequentially dependent); one phase implementer. Task class: consequential (atomic writes over existing user records; fail-closed data safety per the m01 learning).
 
@@ -448,6 +448,15 @@ Proof: plain-name secret key never echoed; tests fail on 773e572 code
 Files: `documentation/commands.md`, `CHANGELOG.md`
 Proof: `pnpm format:check`; root re-ran typecheck, lint, format:check, 343 tests at bf256dd: pass
 
+### Task p04-t09: (review) Describe recovery after a stored batch accurately
+
+**Status:** completed
+**Commit:** 81584c399c38f482b747f178e06114fedb37b2f1
+**Executor:** inline:p04 root (two Low wording findings, review round 2)
+**Source review:** reviews/archived/p04-review-2026-11-08T061551Z.md (L1, L2)
+Files: `src/core/import/transaction.ts` (message text), `documentation/commands.md`
+Proof: 343 tests, lint, typecheck, format:check pass
+
 ---
 
 ## Phase p05: Consumers and linking for imported evidence
@@ -503,6 +512,10 @@ Proof: `pnpm format:check`; root re-ran typecheck, lint, format:check, 343 tests
 <!-- One line per dispatch request id, rendered by `oat project dispatch record --format line` and written as a list item. Update that line in place with the terminal outcome; never paste the record or event JSON. -->
 
 <!-- orchestration-runs-start -->
+
+- run/v1 · request=wce-p04-rev-2 · scope=p04 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p04 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
+
+- Root-inline phase: p04 (fix p04-t09) — two Low wording findings from review round 2; root model claude-opus-5-5
 
 - run/v1 · request=wce-p04-rev-1 · scope=p04 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p04 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
