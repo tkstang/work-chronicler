@@ -75,6 +75,10 @@ m01 exit gate attempt 5 passed clean at ed8b20d; exit carrier allowed/fresh; m01
 
 m01 integrated re-review passed clean at ed8b20d; m01 -> delivering; wce-m01-integrated-review-2
 
+### 2026-11-08 · structural · oat-project-pr-progress · d01
+
+Registered d01 for m01 (p01, p02, p03) at https://github.com/tkstang/work-chronicler/pull/25; work-chronicler-evidence-expansion-register-d01
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
