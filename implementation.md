@@ -1034,7 +1034,7 @@ Proof: Slack suites 13/13 locally; ready-PR CI re-run
 **Status:** in_progress
 **Base:** 1bdd3d8737dde4aa3305a3ac5a1b06f81e04a2bc
 **Executor:** phase-implementer:wce-p13-impl-1
-**Head:** 3805888bd85c9395db12e36ef24da3cfeea97add
+**Head:** 1a19d8554d802670f182ecec38952dfde9833ed6
 
 Branch `oat/evidence-expansion-m03` (from m02 head 6360304 with origin/main b17cb23 merged at 1bdd3d8). Committing owner: the phase implementer (code); root owns the journal. Task class: consequential (concurrent writers to the work log; data loss and stale evidence are the failure modes).
 
@@ -1104,6 +1104,46 @@ Proof: format:check
 Files: `src/core/import/lock.test.ts`
 Proof: 8 lock tests
 
+### Task p13-t08: (review M1) status names an interrupted subset correctly while an import holds the lock
+
+**Status:** completed
+**Commit:** 6a40166
+**Executor:** phase-implementer:wce-p13-impl-1
+Files: `status.ts`, `mixed-work-log.test.ts`
+Proof: 638 tests; DoD batch green
+
+### Task p13-t09: (review L4) settle warning in prose
+
+**Status:** completed
+**Commit:** 37ffd65
+**Executor:** phase-implementer:wce-p13-impl-1
+Files: `filtered-subset.ts`, `mixed-work-log.test.ts`, `settle.test.ts`
+Proof: 638 tests; DoD batch green
+
+### Task p13-t10: (review L1) correct the inspectImportState comment
+
+**Status:** completed
+**Commit:** a2fa9bd
+**Executor:** phase-implementer:wce-p13-impl-1
+Files: `transaction.ts`
+Proof: 638 tests; DoD batch green
+
+### Task p13-t11: (review L3) IMPORT_IN_PROGRESS belongs to import only
+
+**Status:** completed
+**Commit:** a5b1df2
+**Executor:** phase-implementer:wce-p13-impl-1
+Files: `documentation/commands.md`
+Proof: 638 tests; DoD batch green
+
+### Task p13-t12: (review L2) reboot takeover needs a boot ID (Linux, macOS)
+
+**Status:** completed
+**Commit:** 1a19d85
+**Executor:** phase-implementer:wce-p13-impl-1
+Files: `documentation/commands.md`, `CHANGELOG.md`
+Proof: 638 tests; DoD batch green
+
 ---
 
 ## Phase p14: Import internals simplification
@@ -1157,6 +1197,8 @@ Proof: 8 lock tests
 - Root-inline phase: p08 (fix p08-t13) — test-only timeout for two CLI-running suites after a CI timeout; root model claude-opus-5-5
 
 run/v1 · request=wce-p13-impl-1 · scope=p13 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p13 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
+
+run/v1 · request=wce-p13-rev-1 · scope=p13 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p13 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 - run/v1 · request=wce-p08-rev-1 · scope=p08 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p08 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
