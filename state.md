@@ -61,6 +61,18 @@ oat_milestone_gates:
         scope: [p01, p02, p03]
         ref: 623465e4f00261e22326b09af5f7844357a385fa
       decided_at: '2026-11-07T23:19:59Z'
+    exit:
+      status: blocked
+      disposition: null
+      resolution: configured
+      config_fingerprint: null
+      reviewed_head: 966fbd2dbeb1bc3761ac9052978791db5d906247
+      subject:
+        kind: code
+        scope: [p01, p02, p03]
+      freshness: fresh
+      freshness_reason: null
+      decided_at: "2026-11-08T00:41:28Z"
 oat_deliveries: []
 # oat_skill_gate_overrides: # optional; per-project posture for configured lifecycle gates
 #   oat-project-implement: disabled # only the literal value `disabled`; absence means follow configuration

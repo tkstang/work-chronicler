@@ -217,20 +217,6 @@ Verification at Head: `pnpm format && pnpm lint && pnpm format:check && pnpm typ
 
 Review `reviews/p03-review-2026-11-08T000907Z.md` (0 C/H/M, 1 Low) passed; root fixed the Low (MCP server hardcoded `0.1.0`), added a server test and a CHANGELOG Fixed entry. Proof: lint, format:check, typecheck, 223 tests, build plus a built-module import. Not independently re-reviewed; covered by the m01 integrated review.
 
-### Review Received: final (m01 exit gate, attempt 1)
-
-**Date:** 2026-11-08
-**Review artifact (local-only):** reviews/archived/final-review-2026-11-08T001944Z.md
-
-**Findings:** Critical 0 · High 2 · Medium 2 · Low 0 (gate `codex-6-sol-xhigh`, verdict blocked, run 1ff92794-0065-452b-8b7f-52d57f0b8828)
-
-- H1 (High): migration can delete the old directory a verified replacement symlink depends on → fix task p03-t03; agree, reproduced by reviewer with the built CLI.
-- H2 (High): owner-lookup rate limit becomes an empty successful review fetch → fix task p03-t05; agree, breaks the fatal rate-limit contract.
-- M1 (Medium): no-overwrite path deletes a regular-file conflict → fix task p03-t04; agree, data loss without consent.
-- M2 (Medium): stored review records reused across reviewer identities → fix task p03-t06; agree, misattribution.
-
-**Outcome:** fixes queued: p03-t03, p03-t04, p03-t05, p03-t06 (late-fix rule: reviewed phase p03 is the last phase and no later phase has a Base, so fixes land under p03 and advance its Head)
-
 ### Task p03-t03: (review) Keep old skill copies a replacement depends on
 
 **Status:** completed
@@ -273,6 +259,24 @@ Proof: `pnpm lint && pnpm typecheck && pnpm test`
 
 Intent: Require a case-insensitive `reviewer` match before cache reuse or merge; on mismatch replace the record without inheriting the other person's entries (or refuse with guidance). Regression: cache path and different-range path.
 Files: `src/cli/commands/fetch/github/github-reviews.utils.ts`, tests
+Proof: `pnpm lint && pnpm typecheck && pnpm test`
+
+### Task p03-t07: (review) Keep old skill entries any installed tool depends on
+
+**Status:** pending
+**Source review:** reviews/archived/final-review-2026-11-08T003901Z.md (H1)
+
+Intent: Inventory dependencies across every known tool skills dir (selected or not) by resolving each entry's SKILL.md path; keep an old entry when any other installation resolves into it. Regression: Codex new-name link into Claude old copy with `--tool claude`.
+Files: `src/cli/commands/skills/migrate.ts`, `install.ts`, tests, docs
+Proof: `pnpm lint && pnpm typecheck && pnpm test`
+
+### Task p03-t08: (review) Refuse to mix review records from different reviewers
+
+**Status:** pending
+**Source review:** reviews/archived/final-review-2026-11-08T003901Z.md (M1)
+
+Intent: Before candidate iteration, scan stored `pr-reviews/` for records whose reviewer differs (case-insensitive) from the configured user and refuse with actionable guidance, including no-result fetches; ensure consumers never present foreign records as the user's work. Regressions: no-in-range and no-candidate cases plus valid controls.
+Files: `src/cli/commands/fetch/github/github-reviews.utils.ts`, consumers if needed, tests, docs
 Proof: `pnpm lint && pnpm typecheck && pnpm test`
 
 ---
@@ -349,11 +353,39 @@ Proof: `pnpm lint && pnpm typecheck && pnpm test`
 
 <!-- Receipts for final, milestone and multi-phase reviews (a phase review receipt may stay in its phase) and one terminal line per gate run. state.md owns gate transitions; this slot keeps the outcome, waivers and operator choices. -->
 
+### Review Received: final (m01 exit gate, attempt 1)
+
+**Date:** 2026-11-08
+**Review artifact (local-only):** reviews/archived/final-review-2026-11-08T001944Z.md
+
+**Findings:** Critical 0 · High 2 · Medium 2 · Low 0 (gate `codex-6-sol-xhigh`, verdict blocked, run 1ff92794-0065-452b-8b7f-52d57f0b8828)
+
+- H1 (High): migration can delete the old directory a verified replacement symlink depends on → fix task p03-t03; agree, reproduced by reviewer with the built CLI.
+- H2 (High): owner-lookup rate limit becomes an empty successful review fetch → fix task p03-t05; agree, breaks the fatal rate-limit contract.
+- M1 (Medium): no-overwrite path deletes a regular-file conflict → fix task p03-t04; agree, data loss without consent.
+- M2 (Medium): stored review records reused across reviewer identities → fix task p03-t06; agree, misattribution.
+
+**Outcome:** fixes queued: p03-t03, p03-t04, p03-t05, p03-t06 (late-fix rule: reviewed phase p03 is the last phase and no later phase has a Base, so fixes land under p03 and advance its Head)
+
+### Review Received: final (m01 exit gate, attempt 2)
+
+**Date:** 2026-11-08
+**Review artifact (local-only):** reviews/archived/final-review-2026-11-08T003901Z.md
+
+**Findings:** Critical 0 · High 1 · Medium 2 · Low 0 (gate `codex-6-sol-xhigh`, verdict blocked, run 635ed2b4-afb9-4199-8199-2d42911836f5, reviewed head 966fbd2dbeb1bc3761ac9052978791db5d906247)
+
+- H1 (High): migration still deletes an old copy that an unselected tool's new-name link depends on → fix task p03-t07; agree.
+- M1 (Medium): empty or no-candidate review fetches leave another reviewer's records visible as the user's work → fix task p03-t08; agree (supersedes the Low deferral recorded earlier, which is withdrawn).
+- M2 (Medium, bookkeeping): the attempt-1 receipt sat under p03 → fixed at receive: moved to this section unchanged.
+
+**Outcome:** fixes queued: p03-t07, p03-t08. Gate attempts exhausted (2 of 2, onFailure block): milestone exit carrier recorded `blocked`; a further gate run needs operator direction.
+
 ## Deferred Findings
 
 <!-- One line per approved deferral (finding, rationale, approval, follow-up trigger), plus excluded parallel phases and unmerged worktrees. -->
 
 - Low (from p03 fix report, M2 follow-on): review records left from a different reviewer in a reused output directory are still counted by `status`, `filter` and `search_pr_reviews` when the current user has no in-range entries to replace them. Deferred by root (autonomous run): edge case requiring a changed `github.username` with a reused work log; follow-up trigger: p05 consumer work, which revisits these consumers.
+- Withdrawn: the earlier Low deferral about leftover other-reviewer records is superseded by gate attempt-2 M1 (fix task p03-t08).
 
 ## Deviations from Plan / Design
 
