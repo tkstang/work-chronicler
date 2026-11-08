@@ -613,7 +613,13 @@ Proof: new dead-guard test fails on 5d723ff code; 436 tests, lint, typecheck, fo
 
 ## Phase p06: Slack configuration and CLI
 
-**Status:** pending
+**Status:** in_progress
+**Base:** 9e70b3c7a6a3f467e96ccab3c3f72d802c8f3a4b
+**Executor:** phase-implementer:wce-p06-impl-1
+
+Worktree and branch as p04. Committing owner: the phase implementer (code); root owns the journal. Parallelism: no declared group; fan-out rejected (config schema, `slack` commands and the import-side Slack rules share the config types); one phase implementer. Task class: consequential (privacy enforcement at the import boundary).
+
+Slack connector capability (root, 2026-11-08; from the Slack plugin tool schemas plus one read-only `slack_search_public` call limited to one of the user's own messages, recording field names only): search results are rendered text, not JSON, and give the channel ID and name, author name and user ID, time, `Message_ts`, a permalink whose query carries `thread_ts` (the parent thread) and `cid`, and the message text. They carry no reply count, no channel visibility field and no workspace (team) ID. `slack_search_public` covers public channels only; `slack_search_public_and_private` covers private channels and DMs and needs user consent; filters `from:<@U…>`, `in:<#C…>`, `is:thread`, `after:`/`before:` and cursor pagination exist; `include_context=false` keeps neighbouring messages out of results. `slack_read_channel` (detailed) includes thread info for top-level messages; `slack_read_thread` returns every reply (others' text), so skills must not use it for import. `slack_list_user_channels` lists the acting user's channels with a type filter (public, private, im, mpim) and `team_id`; `slack_list_channel_members` lists member IDs (30 per page), so manager-mode shared membership is checkable by the skill. The workspace (team) ID must come from setup (config) since search results omit it. Settles the p06 Known Unknown; exact reply-count availability is confirmed in p07's live walkthrough.
 
 ---
 
