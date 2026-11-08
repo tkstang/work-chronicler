@@ -79,9 +79,12 @@ function matchesSearch(pr: FakePR, q: string): boolean {
   const [from, to] = updated.startsWith('>=')
     ? [updated.slice(2), '9999-12-31']
     : updated.split('..');
+  // Logins match case-insensitively, as in GitHub search
+  const same = (a: string, b: string | undefined) =>
+    a.toLowerCase() === b?.toLowerCase();
   return (
-    pr.reviews.some((r) => r.user === reviewer && r.state !== 'PENDING') &&
-    pr.author !== notAuthor &&
+    pr.reviews.some((r) => same(r.user, reviewer) && r.state !== 'PENDING') &&
+    !same(pr.author, notAuthor) &&
     pr.owner === owner &&
     day >= (from ?? '') &&
     day <= (to ?? '')
@@ -222,9 +225,10 @@ function review(
 function config(
   orgs: Config['github']['orgs'] = [{ name: 'acme', repos: ['*'] }],
   range: Config['fetch'] = { since: '2025-01-01', until: '2025-06-01' },
+  username = ME,
 ): Config {
   return {
-    github: { username: ME, token: 'test-token', orgs },
+    github: { username, token: 'test-token', orgs },
     output: { directory: './work-log' },
     fetch: range,
     analysis: { thresholds: { minor: {}, major: {}, flagship: {} } },
@@ -239,10 +243,11 @@ async function fetchReviews(
     orgs?: Config['github']['orgs'];
     useCache?: boolean;
     range?: Config['fetch'];
+    username?: string;
   } = {},
 ) {
   return fetchGitHubReviews({
-    config: config(options.orgs, options.range),
+    config: config(options.orgs, options.range, options.username),
     outputDir,
     useCache: options.useCache,
   });
@@ -764,6 +769,67 @@ describe('fetchGitHubReviews', () => {
     expect(await reviewIds()).toEqual([1, 2]);
     await fetchReviews({ range: wide, useCache: true });
     expect(github.reviewListings).toEqual(['acme/api#7']);
+  });
+
+  describe('a record stored for a different reviewer', () => {
+    const range = { since: '2025-01-01', until: '2025-12-01' };
+
+    function addPRReviewedByAliceAndMe(): void {
+      addPR({
+        number: 1,
+        author: 'carol',
+        updatedAt: '2025-05-01T00:00:00Z',
+        reviews: [
+          review(1, '2025-02-01T00:00:00Z', { user: 'alice' }),
+          review(2, '2025-05-01T00:00:00Z', { state: 'APPROVED' }),
+        ],
+      });
+    }
+
+    it('is replaced, not merged, when fetching a different range', async () => {
+      addPRReviewedByAliceAndMe();
+      await fetchReviews({ range, username: 'alice' });
+      expect((await storedRecord('acme', 'api', 1))?.reviewer).toBe('alice');
+      logs.length = 0;
+
+      await fetchReviews({
+        range: { since: '2025-04-01', until: '2025-12-01' },
+      });
+
+      const record = await storedRecord('acme', 'api', 1);
+      expect(record?.reviewer).toBe(ME);
+      expect(record?.reviews.map((r) => r.reviewId)).toEqual([2]);
+      expect(logs).toContainEqual(
+        expect.stringContaining(
+          'Replaced 1 review record(s) stored for another GitHub user (alice)',
+        ),
+      );
+    });
+
+    it('is not reused by --cache', async () => {
+      addPRReviewedByAliceAndMe();
+      await fetchReviews({ range, username: 'alice' });
+      github.reviewListings.length = 0;
+
+      await fetchReviews({ range, useCache: true });
+
+      expect(github.reviewListings).toEqual(['acme/api#1']);
+      const record = await storedRecord('acme', 'api', 1);
+      expect(record?.reviewer).toBe(ME);
+      expect(record?.reviews.map((r) => r.reviewId)).toEqual([2]);
+    });
+
+    it('is still reused when only the login case differs', async () => {
+      addPRReviewedByAliceAndMe();
+      await fetchReviews({ range, username: ME.toUpperCase() });
+      github.reviewListings.length = 0;
+      logs.length = 0;
+
+      await fetchReviews({ range, useCache: true });
+
+      expect(github.reviewListings).toEqual([]);
+      expect(logs.some((line) => line.includes('Replaced'))).toBe(false);
+    });
   });
 
   it('warns about incomplete search results once per org, not once per page', async () => {

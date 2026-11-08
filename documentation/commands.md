@@ -69,7 +69,9 @@ text is its latest version.
 Each reviewed PR gets one file at
 `work-log/pr-reviews/<org>/<repo>/<number>.md` with the PR's URL, title,
 author and state, and your reviews and comments. Fetching again updates the
-same file. With `--cache`, PRs that have not changed since their file was
+same file. A file written for a different GitHub user, for example before
+you changed `github.username`, is replaced with only your reviews and the
+fetch says so. With `--cache`, PRs that have not changed since their file was
 written for the same or a wider date range are skipped. These records are never counted as PRs you authored.
 A rate limit stops the run; other failures are reported per org and make the
 run exit with status 1.

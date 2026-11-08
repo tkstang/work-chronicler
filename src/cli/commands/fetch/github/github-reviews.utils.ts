@@ -63,6 +63,13 @@ export interface GitHubReviewFetchResult {
   recordsWritten: number;
   /** PRs skipped by `--cache` because nothing changed */
   recordsUnchanged: number;
+  /**
+   * Written records that replaced one stored for a different reviewer; the
+   * other reviewer's entries were dropped, never relabeled
+   */
+  recordsReplaced: number;
+  /** The other reviewers whose records were replaced */
+  replacedReviewers: string[];
   /** Reviews and inline comments in the written records, inside the range */
   reviews: number;
   comments: number;
@@ -324,11 +331,22 @@ interface FetchPRReviewsParams {
 type PRReviewOutcome =
   | { kind: 'unchanged' }
   | { kind: 'empty' }
-  | { kind: 'written'; reviews: number; comments: number };
+  | {
+      kind: 'written';
+      reviews: number;
+      comments: number;
+      /** The other reviewer whose stored record this one replaced */
+      replacedReviewer: string | null;
+    };
 
 /**
  * Fetch the user's reviews and inline comments on one PR and upsert its
  * review record.
+ *
+ * A stored record is reused (by `--cache`) or merged only when it belongs to
+ * the same reviewer. A record written for someone else, e.g. before
+ * `github.username` changed, is replaced by one holding only this user's
+ * entries, so nobody's review work is attributed to another person.
  */
 async function fetchPRReviews(
   params: FetchPRReviewsParams,
@@ -336,7 +354,10 @@ async function fetchPRReviews(
   const { octokit, item, owner, repo, username, range, outputDir, useCache } =
     params;
   const filePath = getPRReviewFilePath(outputDir, owner, repo, item.number);
-  const existing = (await readPRReview(filePath))?.frontmatter;
+  const stored = (await readPRReview(filePath))?.frontmatter;
+  const existing =
+    stored && sameLogin(stored.reviewer, username) ? stored : undefined;
+  const replacedReviewer = stored && !existing ? stored.reviewer : null;
 
   if (useCache && existing && isRecordCurrent(existing, item, range)) {
     return { kind: 'unchanged' };
@@ -447,6 +468,7 @@ async function fetchPRReviews(
     kind: 'written',
     reviews: reviews.length,
     comments: comments.length,
+    replacedReviewer,
   };
 }
 
@@ -470,6 +492,8 @@ async function fetchOrgReviews(
     org,
     recordsWritten: 0,
     recordsUnchanged: 0,
+    recordsReplaced: 0,
+    replacedReviewers: [],
     reviews: 0,
     comments: 0,
     problems: [],
@@ -548,6 +572,12 @@ async function fetchOrgReviews(
         result.recordsWritten++;
         result.reviews += outcome.reviews;
         result.comments += outcome.comments;
+        if (outcome.replacedReviewer !== null) {
+          result.recordsReplaced++;
+          if (!result.replacedReviewers.includes(outcome.replacedReviewer)) {
+            result.replacedReviewers.push(outcome.replacedReviewer);
+          }
+        }
         if (params.verbose) {
           spinner.stop();
           console.log(
@@ -638,6 +668,13 @@ export async function fetchGitHubReviews(
     console.log(
       `  ${chalk.green(result.recordsWritten)} reviewed PRs: ${result.reviews} reviews, ${result.comments} inline comments${unchanged}`,
     );
+    if (result.recordsReplaced > 0) {
+      console.log(
+        `  ${chalk.yellow('⚠')} ${chalk.yellow(
+          `Replaced ${result.recordsReplaced} review record(s) stored for another GitHub user (${result.replacedReviewers.join(', ')}); they now hold only ${username}'s reviews.`,
+        )}`,
+      );
+    }
     if (result.problems.length > 0) {
       for (const problem of result.problems) {
         console.log(`  ${chalk.yellow('⚠')} ${chalk.yellow(problem)}`);
