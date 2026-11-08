@@ -1998,6 +1998,8 @@ Known docs follow-up: the shipped CHANGELOG 0.5.0 entry still says `fetch --revi
 
 ## Deferred Findings
 
+- Speculative under the AGENTS.md rule (p09 review, deferred by root; the user may pull any in): the Google Docs account-change guard ignores schema-invalid stored Docs; Docs-only weeks add zero-count weeks to `team-timeline.json`; `search_documents`/`search_messages` read a zoneless `since` timestamp in local time; `get_linked_work` Doc summaries omit `owner` and `sourceId`.
+
 - Speculative under the AGENTS.md rule (p16 confirmation review, deferred by root; the user may pull either in): the temporary reason file in a shared `/tmp` could be pre-created or symlinked by another user on a multi-user host (a few lines of skill text and a test-helper change); a reason saved padded by 0.6.0 makes re-adding the same channel fail as "configured with other settings" (a trimmed comparison and one test).
 
 - User decision (2026-11-08): all of p17 deferred post-goal (CodeRabbit 4506074753 verify the moved-aside entry before deleting it; 4506074768 never restore a committed replacement's backup after a failed rename; 4506074774 recover a case-differing backup), together with p16 L3 (and L1, already fixed in p16-t12). Note for L3 (implementer): locking `slack configure` alone would not close the race; `import` would also need to re-check the batch against the settings under its lock.
