@@ -41,7 +41,7 @@ oat_generated: false
 | Phase | Status    | Units | Accepted |
 | ----- | --------- | ----- | -------- |
 | p01   | completed | 1     | 1/1      |
-| p02   | pending   | 1     | 0/1      |
+| p02   | completed | 1     | 1/1      |
 | p03   | completed | 1     | 1/1      |
 | p04   | pending   | 1     | 0/1      |
 | p05   | pending   | 1     | 0/1      |
