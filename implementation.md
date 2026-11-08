@@ -365,7 +365,11 @@ Proof: full DoD batch (254 tests); both new regressions fail on b7a300e code and
 
 ## Phase p04: Staged import contract
 
-**Status:** pending
+**Status:** in_progress
+**Base:** 378f881d38602cc7882aa9faf0fdd999541f1c22
+**Executor:** phase-implementer:wce-p04-impl-1
+
+Worktree: this T3 worktree, branch `oat/evidence-expansion-m02` (m01 head b079cd7 with origin/main merged). Committing owner: the phase implementer (code); root owns the journal. Parallelism: no declared group; fan-out rejected (envelope schema, storage paths, `import` and `validate` share types and the commit contract and are sequentially dependent); one phase implementer. Task class: consequential (atomic writes over existing user records; fail-closed data safety per the m01 learning).
 
 ---
 
