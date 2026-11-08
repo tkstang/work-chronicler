@@ -1343,6 +1343,17 @@ Also in p03-t15: CodeRabbit 4505014153 (docs/notice wrongly said `--overwrite` f
 
 **Outcome:** fixes dispatched.
 
+### Review Received: p04-p08 (m02 recovery exit gate, attempt 5)
+
+**Date:** 2026-11-08
+**Review artifact (local-only):** reviews/archived/range-review-2026-11-08T105734Z.md
+
+**Findings:** Critical 0 · High 0 · Medium 1 · Low 0 (gate `codex-6-sol-xhigh`, run dfe7f68b-82b1-4566-9880-65c7ab37ef4b, reviewed head 9548ee32b4b8b7595a6907bac00b9c18ff211b86)
+
+- M1 (Medium): `filter --clear` reports success after a post-deselection listing failure even when a retained `.filter-previous-*` from an earlier warned replacement makes readers see an interrupted subset (`src/core/storage/filtered-subset.ts:778`); needs two injected faults. → explicit deferral (root, autonomous run): fixing now would stale the passed gate for a two-fault edge; follow-up trigger p09, which extends `filter` for `documents` (inventory restorable previous subsets under the lock before deselecting, refuse if the inventory fails).
+
+**Outcome:** gate passed. m02 exit carrier allowed/fresh at 9548ee32b4b8b7595a6907bac00b9c18ff211b86 (2026-11-08T11:00:51Z); recovery stage → reviewing (fresh integrated review).
+
 ### PR review received: d01 (PR #25, CodeRabbit)
 
 **Date:** 2026-11-08
@@ -1362,6 +1373,8 @@ Also in p03-t15: CodeRabbit 4505014153 (docs/notice wrongly said `--overwrite` f
 Known docs follow-up: the shipped CHANGELOG 0.5.0 entry still says `fetch --reviews` in one place (the CLI form is `fetch github --reviews`); correct it under Unreleased in m02.
 
 ## Deferred Findings
+
+- Medium (m02 exit gate attempt 5, M1): `filter --clear` can report success while a retained `.filter-previous-*` leaves readers blocked after a post-deselection listing failure (two injected faults). Deferred by root (autonomous run) to p09, which reworks `filter` for `documents`; fix by inventorying restorable previous subsets under the lock before deselecting and refusing if that fails.
 
 - m02 re-alignment disposition (2026-11-08, Astra-advised): pulled into m02 — filter stale-subset replacement and empty-result marker (CodeRabbit 4504862967, 4504862986) and skills pointing at `search_pr_reviews`/`status` (complexity F1, F2) into p05; CHANGELOG `fetch --reviews` wording into p05; installer delete-before-copy and cleanup-failure handling (4504863000, 4504866388) into new p12, with 4504866386 (failure injection that does not rely on non-root chmod); p05 keeps the m01 attribution regression tests green (the reused-output-directory Low was superseded by p03-t08). All other m01 deferrals below are post-goal follow-ups (trigger: after m03): F3, F4, F5, 4504862946, 4504862950, 4504863012, 4504866382, 4504866392, 4504862955.
 
