@@ -380,7 +380,7 @@ the fields.
 
 | Flag | Meaning |
 | --- | --- |
-| `--reason-file <path>` | Read the reason from a file instead of `--reason` (exactly one of the two is required); `-` reads standard input. The text is used as it is, without shell quoting, and one trailing line break is dropped. The setup skill passes the reason this way, in a quoted here-document, so quotes, `$` or backticks in it cannot break or extend the command. |
+| `--reason-file <path>` | Read the reason from a file instead of `--reason` (exactly one of the two is required); `-` reads standard input. The text is used as it is, without shell quoting, and one trailing line break is dropped. The setup skill writes the reason to a temporary file with the assistant's file-writing tool and passes that file, so no shell reads the reason and quotes, `$`, backticks or line breaks in it cannot break or extend the command. |
 | `--private` | Opt in to a private channel. Channels are public otherwise, and a `G…` ID (a private conversation) is refused without it. |
 | `--shared-with-manager` | Manager profiles: confirm that you and the report are both members of the channel. Required for every report channel; the CLI cannot check membership, so the setup skill checks it before passing this flag. |
 

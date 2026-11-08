@@ -67,9 +67,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   apostrophe broke the command, and shell syntax in it (copied from a
   channel purpose, for example) could run as a separate command (a known
   issue in 0.6.0). `slack channels add` now takes `--reason-file <path>`
-  (`-` reads standard input) as well as `--reason`, and the skill passes the
-  reason on standard input in a quoted here-document, which the shell does
-  not read. A missing or unreadable reason is reported as JSON with `--json`.
+  (`-` reads standard input) as well as `--reason`, and the skill writes the
+  reason to a temporary file with the assistant's file-writing tool and
+  passes that file, so no shell reads the reason. A missing or unreadable
+  reason is reported as JSON with `--json`.
 - A subset made by `filter`, an MCP tool result or `analyze` could include
   part of an import's batch, read while the import was storing it or after
   it was interrupted. Readers now never see part of a batch: they wait for

@@ -145,25 +145,31 @@ holds review-relevant work, for example `Design reviews for the billing
 service`. If the user wants a proposal, write one in your own words from the
 channel's name and purpose, and let them edit it. Never copy a topic or
 purpose into the reason unchanged: it is Slack content, not the user's words.
-Then run the command in exactly this form, with the agreed reason as the one
-line between the two `WC_REASON` lines:
+The reason must be one line: if the agreed text holds a line break, ask the
+user for one line instead.
+
+Never put the reason in a shell command, quoted or not, and never on the
+command line (`--reason`). Write it to a new file with your file-writing tool
+(not a shell command such as `echo`, `printf` or a here-document), exactly as
+agreed and with nothing else in the file. Its path is `<reason-file>`:
+`/tmp/wc-reason-<random>.txt`, with `<random>` a fresh run of letters and
+digits, so the path holds only letters, digits, `/`, `-`, `_` and `.`. Then
+run both lines; the second removes the file even when the first fails:
 
 ```bash
-work-chronicler slack channels add <channel-id> --name '<channel-name>' --reason-file - --json <<'WC_REASON'
-<reason>
-WC_REASON
+work-chronicler slack channels add <channel-id> --name '<channel-name>' --reason-file '<reason-file>' --json
+rm -f '<reason-file>'
 ```
 
-Write the reason as agreed, with no quoting or escaping. The quoted
-`<<'WC_REASON'` hands that line to `--reason-file -` (standard input) without
-the shell reading it, so apostrophes, quotes, `$`, backticks and backslashes
-in it cannot break or extend the command. Never put the reason on the command
-line (`--reason`). The reason is one line and never `WC_REASON` by itself.
+The CLI reads the reason from the file, so no shell ever reads it: quotes,
+`$`, backticks and line breaks in it cannot break or extend the command (a
+reason of more than one line is refused). If you have no file-writing tool,
+do not run the command: show the user the command and ask them to save the
+reason in `<reason-file>` themselves.
 
 Add `--private` for a private channel (step 4), and in a manager profile
-`--report <id> --shared-with-manager` (step 5), after `--json` and before
-`<<'WC_REASON'` on the first line. `--name` is the channel name
-without `#`, in single quotes. Use the channel ID from the connector, never a
+`--report <id> --shared-with-manager` (step 5), after `--json` on the first
+line. `--name` is the channel name without `#`, in single quotes. Use the channel ID from the connector, never a
 name, as `<channel-id>`. A channel ID holds only capital letters and digits,
 and a Slack channel name never holds a quote or a space: if either does, show
 it to the user and do not run the command. If a command exits nonzero, show

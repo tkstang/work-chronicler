@@ -89,9 +89,12 @@ function cli(profile: string, args: string[], input?: string) {
   };
 }
 
+let reasonFiles = 0;
+
 /**
- * Run the `slack channels add` command exactly as the setup-slack skill tells
- * the assistant to write it, through a shell, with its placeholders filled.
+ * Add a channel exactly as the setup-slack skill tells the assistant to: the
+ * reason written to a file (as its file-writing tool would), then the skill's
+ * command lines run through a shell with their placeholders filled.
  */
 function skillChannelAdd(
   profile: string,
@@ -106,10 +109,12 @@ function skillChannelAdd(
     skill,
   )?.[1];
   if (!block) throw new Error('the skill has no `slack channels add` block');
+  const reasonFile = join(root, `wc-reason-${++reasonFiles}.txt`);
+  writeFileSync(reasonFile, values.reason);
   const script = block
     .replace('<channel-id>', () => values.id)
     .replace('<channel-name>', () => values.name)
-    .replace('<reason>', () => values.reason)
+    .replaceAll('<reason-file>', () => reasonFile)
     .replace(
       /^work-chronicler /,
       () => '"$WC_NODE" --import tsx src/cli/index.ts ',
@@ -119,7 +124,12 @@ function skillChannelAdd(
     encoding: 'utf-8',
     env: { ...env(profile), WC_NODE: process.execPath, WC_MARKER: marker },
   });
-  return { status: result.status, value: JSON.parse(result.stdout) };
+  return {
+    /** The CLI's JSON result (the last line, `rm`, prints nothing) */
+    value: JSON.parse(result.stdout),
+    stderr: result.stderr,
+    reasonFileLeft: existsSync(reasonFile),
+  };
 }
 
 function json(profile: string, args: string[]) {
@@ -297,11 +307,34 @@ describe('slack commands: IC profile', CLI_RUNS, () => {
       marker,
     );
 
-    expect(run.status).toBe(0);
+    expect(run.value).toMatchObject({ ok: true });
     expect(run.value.channels).toContainEqual(
       expect.objectContaining({ id: 'C0TEST0003', reason }),
     );
     expect(existsSync(marker)).toBe(false);
+    expect(run.reasonFileLeft).toBe(false);
+  });
+
+  it('refuses a multi-line reason, run as the setup skill writes it, and runs none of it', () => {
+    const marker = join(root, 'multi-line-ran');
+    // A line that would end a fixed here-document delimiter, then a command
+    const reason = 'ok\nWC_REASON\ntouch "$WC_MARKER"\n';
+    const before = readFileSync(soloConfig, 'utf-8');
+
+    const run = skillChannelAdd(
+      'solo',
+      { id: 'C0TEST0006', name: 'synthetic-multi', reason },
+      marker,
+    );
+
+    expect(run.value).toEqual({
+      ok: false,
+      error: expect.stringContaining('one line'),
+    });
+    expect(readFileSync(soloConfig, 'utf-8')).toBe(before);
+    expect(existsSync(marker)).toBe(false);
+    expect(run.stderr).not.toContain('not found');
+    expect(run.reasonFileLeft).toBe(false);
   });
 
   it('reads the reason from a file with --reason-file', () => {
