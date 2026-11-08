@@ -29,13 +29,18 @@ const SKIPPED_SHOWN = 3;
  * held, `import`, `filter` and `filter --clear` are refused, so the subset
  * lines do not recommend them.
  */
-function describeLock(outputDir: string): string[] {
-  let holders: ReturnType<typeof readWorkLogLockHolders>;
+type LockHolders = ReturnType<typeof readWorkLogLockHolders>;
+
+/** Who holds the work-log lock; none when it cannot be read */
+function lockHolders(outputDir: string): LockHolders {
   try {
-    holders = readWorkLogLockHolders(outputDir);
+    return readWorkLogLockHolders(outputDir);
   } catch {
     return [];
   }
+}
+
+function describeLock(holders: LockHolders): string[] {
   // A run holds every name of the lock with one owner: name it once
   const byRun = new Map<string, typeof holders>();
   for (const holder of holders) {
@@ -56,7 +61,12 @@ function describeLock(outputDir: string): string[] {
   });
 }
 
-function describeSubset(outputDir: string, locked: boolean): string[] {
+/**
+ * The subset's state. `holders` (the work-log lock) hides advice to run
+ * `filter --clear`, which is refused while any run holds the lock.
+ */
+function describeSubset(outputDir: string, holders: LockHolders): string[] {
+  const locked = holders.length > 0;
   let state: FilteredSubsetState;
   try {
     state = getFilteredSubsetState(outputDir);
@@ -69,9 +79,16 @@ function describeSubset(outputDir: string, locked: boolean): string[] {
   if (state.status === 'none') {
     return ['Filtered subset: none (read commands use the full work log)'];
   }
-  if (state.status === 'interrupted' && locked) {
+  // Only a filter holding the lock is replacing the subset (`state.locked`)
+  if (state.status === 'interrupted' && state.locked) {
     return [
       'Filtered subset: a `work-chronicler filter` run is replacing filtered/ (see the work-log lock below); `analyze` (without `--full`) refuses to run and MCP tools return no results until it finishes or the lock is removed.',
+    ];
+  }
+  if (state.status === 'interrupted' && locked) {
+    const command = holders[0]?.command ?? 'import';
+    return [
+      `Filtered subset: an earlier \`work-chronicler filter\` run was interrupted while replacing filtered/; \`analyze\` (without \`--full\`) refuses to run and MCP tools return no results until \`work-chronicler filter\` restores it once the \`work-chronicler ${command}\` holding the work-log lock (see below) finishes.`,
     ];
   }
   if (state.status === 'interrupted') {
@@ -217,11 +234,11 @@ export const statusCommand = new Command('status')
       }
 
       console.log();
-      const lock = describeLock(outputDir);
-      for (const line of describeSubset(outputDir, lock.length > 0)) {
+      const holders = lockHolders(outputDir);
+      for (const line of describeSubset(outputDir, holders)) {
         console.log(line);
       }
-      for (const line of lock) console.log(line);
+      for (const line of describeLock(holders)) console.log(line);
 
       if (prs.length > 0 || tickets.length > 0) {
         console.log(

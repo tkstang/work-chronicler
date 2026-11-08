@@ -895,5 +895,26 @@ describe('a mixed work log with imported messages', () => {
     await expect(run(analyzeCommand, ['--all', '--full'])).rejects.toThrow(
       /An import is running in .*, or was interrupted/,
     );
+
+    // An earlier filter was interrupted mid-swap: no filter is running, so
+    // status must not say one is replacing the subset, and points at filter
+    // once the import holding the lock finishes (no --clear advice while
+    // the lock is held)
+    renameSync(filteredDir, join(workLog, '.filter-previous-old'));
+    logs = [];
+    await run(statusCommand, []);
+    const subsetLines = logs.filter((line) =>
+      line.startsWith('Filtered subset:'),
+    );
+    expect(subsetLines).toEqual([
+      expect.stringContaining(
+        'an earlier `work-chronicler filter` run was interrupted while replacing filtered/',
+      ),
+    ]);
+    expect(subsetLines[0]).toContain(
+      '`work-chronicler filter` restores it once the `work-chronicler import` holding the work-log lock (see below) finishes',
+    );
+    expect(subsetLines[0]).not.toContain('is replacing');
+    expect(subsetLines[0]).not.toContain('--clear');
   });
 });
