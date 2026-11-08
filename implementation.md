@@ -461,7 +461,11 @@ Proof: 343 tests, lint, typecheck, format:check pass
 
 ## Phase p05: Consumers and linking for imported evidence
 
-**Status:** pending
+**Status:** in_progress
+**Base:** 81584c399c38f482b747f178e06114fedb37b2f1
+**Executor:** phase-implementer:wce-p05-impl-1
+
+Worktree and branch as p04. Committing owner: the phase implementer (code); root owns the journal. Parallelism: no declared group; fan-out rejected (consumers share the record readers, the filter subset contract and the linking model); one phase implementer. Task class: hard-reasoning (many consumers; filter subset replacement must keep the previous subset on failure).
 
 ---
 
