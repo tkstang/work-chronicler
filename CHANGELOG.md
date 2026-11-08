@@ -101,6 +101,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   everything later on it, such as a message posted at noon. A date alone
   now includes that whole UTC day; a timestamp keeps its precision. Other
   tools are unchanged.
+- `search_messages` returned every matching message in one response, so an
+  empty search after a large import could send megabytes of text and
+  mentions. Results now come in pages of at most 64 KiB (each result at most
+  16 KiB, with `omittedMentions` counting mentions left out), newest first:
+  pass `nextCursor` as `cursor` for the next page. Pages never skip or
+  repeat a result, and `total` still counts every match. See
+  [Pages](documentation/mcp-server.md#pages).
 
 ## [0.6.0] - 2026-11-08
 

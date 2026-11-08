@@ -133,6 +133,33 @@ no results and a `note` when the filtered subset was made before messages
 were imported (`get_stats` and `get_linked_work` add the same `note`), and a
 `note` when nothing has been imported.
 
+### Pages
+
+`search_messages` returns its results in pages, so a large import never
+produces one huge response. Search tools added later use the same contract:
+
+- **Order.** Results are newest first (`occurredAt`), and results posted at
+  the same time are ordered by record identity, so the order is complete
+  and the same on every call.
+- **Size.** A page holds at most 64 KiB of serialized results, counting the
+  text and the mentions, and at most `limit` results when `limit` is given.
+  It always holds at least one result while any remain. One result is
+  bounded too: its `text` stops at 1,000 characters, and its mentions are
+  listed while the result stays within 16 KiB; any left out are counted in
+  `omittedMentions` (`pullRequests`, `tickets`), which is absent when every
+  mention is listed.
+- **Cursor.** `nextCursor` is an opaque string naming the position just
+  after the page's last result (its time and identity), not an offset. Pass
+  it as `cursor`, with the same filters, to get the next page; it is `null`
+  on the last page. Because the cursor is a position, following it never
+  skips or repeats a result, even when records are imported between calls;
+  a record imported meanwhile that sorts before the cursor appears only when
+  you start again without a cursor. A cursor that did not come from
+  `nextCursor` is refused.
+- **Counts.** `total` is the number of messages matching the filters across
+  all pages (the same on every page of an unchanged work log); `returned` is
+  the number on this page.
+
 Example prompts once connected:
 
 - "Show me my flagship PRs from last quarter."

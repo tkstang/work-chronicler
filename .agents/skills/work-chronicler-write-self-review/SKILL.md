@@ -145,7 +145,9 @@ Get them from the MCP tool `search_messages` when it is available. It returns
 each message's text, channel, time, attribution and mentions, with every
 mentioned PR or ticket resolved to its work-log record, or `null` when the
 work log does not have it; `get_linked_work` lists the messages that mention
-a PR or ticket. Without the MCP tool, read the files: the body is the message
+a PR or ticket. Results come in pages: while `nextCursor` is not null, call
+`search_messages` again with the same filters and `cursor` set to it.
+Without the MCP tool, read the files: the body is the message
 text, and the frontmatter holds `source`, `occurredAt`, `url`, `subject`,
 `attribution` (`status`, `authorId`), `mentions` (`tickets`, `pullRequests`)
 and `message` (the channel as `container`, a `thread` parent reference,

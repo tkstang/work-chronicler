@@ -942,6 +942,147 @@ describe('imported messages', () => {
       expect(await texts('2025-02-14')).toEqual([]);
     });
 
+    describe('pages', () => {
+      /** Every page from the first, following nextCursor */
+      async function allPages(input: Record<string, unknown> = {}) {
+        const pages = [];
+        let cursor: string | undefined;
+        do {
+          const out = parse(
+            await searchMessagesTool.handler(
+              { ...input, ...(cursor ? { cursor } : {}) },
+              ctx,
+            ),
+          );
+          pages.push(out);
+          cursor = out.nextCursor ?? undefined;
+        } while (cursor && pages.length < 100);
+        return pages;
+      }
+      const ids = (page: { results: { sourceId: string }[] }) =>
+        page.results.map((r) => r.sourceId);
+
+      it('bounds each page by size and walks every result once, in order', async () => {
+        // 150 more messages of about 1 KiB each; some share a time
+        for (let n = 10; n < 160; n++) {
+          writeMessage(
+            ctx.outputDir,
+            n,
+            {
+              occurredAt: `2024-06-${String(1 + (n % 20)).padStart(2, '0')}T10:00:00Z`,
+            },
+            `Message ${n}. ${'z'.repeat(1000)}`,
+          );
+        }
+
+        const pages = await allPages();
+        const all = parse(
+          await searchMessagesTool.handler({ limit: 1000 }, ctx),
+        );
+
+        expect(pages.length).toBeGreaterThan(2);
+        for (const page of pages) {
+          expect(page.total).toBe(153);
+          expect(page.returned).toBe(page.results.length);
+          expect(
+            Buffer.byteLength(JSON.stringify(page.results)),
+          ).toBeLessThanOrEqual(64 * 1024);
+        }
+        expect(pages.at(-1).nextCursor).toBeNull();
+        const walked = pages.flatMap(ids);
+        expect(new Set(walked).size).toBe(153);
+        // The same order as one unbounded listing would have
+        expect(walked.slice(0, all.returned)).toEqual(ids(all));
+        const times = pages
+          .flatMap((page) => page.results)
+          .map((r: { occurredAt: string }) => Date.parse(r.occurredAt));
+        expect(times).toEqual([...times].sort((a, b) => b - a));
+      });
+
+      it('applies limit per page and neither skips nor repeats when records are imported between pages', async () => {
+        const first = parse(
+          await searchMessagesTool.handler({ limit: 2 }, ctx),
+        );
+        expect(ids(first)).toEqual([
+          'C0SYNTH01/1700000000.000003',
+          'C0SYNTH01/1700000000.000002',
+        ]);
+        expect(first.total).toBe(3);
+
+        // Imported meanwhile: one newer than the cursor, one older
+        writeMessage(
+          ctx.outputDir,
+          4,
+          { occurredAt: '2025-12-01T10:00:00Z' },
+          'Newer.',
+        );
+        writeMessage(
+          ctx.outputDir,
+          5,
+          { occurredAt: '2024-12-01T10:00:00Z' },
+          'Older.',
+        );
+        const rest = await allPages({ limit: 2 });
+        const second = parse(
+          await searchMessagesTool.handler(
+            { limit: 2, cursor: first.nextCursor },
+            ctx,
+          ),
+        );
+
+        expect(ids(second)).toEqual([
+          'C0SYNTH01/1700000000.000001',
+          'C0SYNTH01/1700000000.000005',
+        ]);
+        expect(second.total).toBe(5);
+        expect(second.nextCursor).toBeNull();
+        expect(rest.flatMap(ids)).toHaveLength(5);
+      });
+
+      it('bounds one result by listing mentions while they fit, and counts the rest', async () => {
+        const many = Array.from({ length: 500 }, (_, i) => i + 1);
+        writeMessage(
+          ctx.outputDir,
+          4,
+          {
+            occurredAt: '2025-12-01T10:00:00Z',
+            mentions: {
+              pullRequests: many.map(
+                (i) => `https://github.com/acme/api/pull/${1000 + i}`,
+              ),
+              tickets: many.map((i) => `OPS-${i}`),
+            },
+          },
+          'Mentions everything.',
+        );
+
+        const out = parse(await searchMessagesTool.handler({ limit: 1 }, ctx));
+        const [result] = out.results;
+
+        expect(Buffer.byteLength(JSON.stringify(result))).toBeLessThanOrEqual(
+          16 * 1024,
+        );
+        expect(result.mentions.pullRequests.length).toBeGreaterThan(0);
+        expect(
+          result.mentions.pullRequests.length +
+            result.mentions.tickets.length +
+            result.omittedMentions.pullRequests +
+            result.omittedMentions.tickets,
+        ).toBe(1000);
+        // A result that fits lists every mention and no omitted counts
+        const small = parse(
+          await searchMessagesTool.handler({ ticketKey: 'BILL-1' }, ctx),
+        ).results[0];
+        expect(small.omittedMentions).toBeUndefined();
+      });
+
+      it('rejects a cursor it did not make', async () => {
+        await expect(
+          searchMessagesTool.handler({ cursor: 'not-a-cursor' }, ctx),
+        ).rejects.toThrow(/Invalid cursor/);
+      });
+    });
+
     it('says when no messages have been imported', async () => {
       rmSync(join(ctx.outputDir, 'messages'), { recursive: true });
 
