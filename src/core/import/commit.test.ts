@@ -30,6 +30,7 @@ import {
   snapshot,
   stage,
   storeRecord,
+  SYNTH_SOURCES,
 } from './import.test-support';
 import { type ImportRunOptions, runImport } from './index';
 
@@ -79,6 +80,7 @@ function importInto(
     stagingDir: w.staging,
     workLogRoot: w.workLog,
     target: { kind: 'ic' },
+    sources: SYNTH_SOURCES,
     ...options,
   });
 }
@@ -642,6 +644,7 @@ describe('import: interrupted imports and the lock', () => {
       stagingDir: w.empty,
       workLogRoot: w.workLog,
       target: { kind: 'ic' },
+      sources: SYNTH_SOURCES,
       env: laterEnv(),
     });
 
@@ -667,6 +670,7 @@ describe('import: interrupted imports and the lock', () => {
       stagingDir: w.staging,
       workLogRoot: w.workLog,
       target: { kind: 'ic' },
+      sources: SYNTH_SOURCES,
       env: laterEnv(),
     });
     const alive = runImport({
@@ -674,6 +678,7 @@ describe('import: interrupted imports and the lock', () => {
       stagingDir: w.staging,
       workLogRoot: w.workLog,
       target: { kind: 'ic' },
+      sources: SYNTH_SOURCES,
       env: env({ isProcessAlive: () => true }),
     });
 

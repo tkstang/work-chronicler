@@ -24,6 +24,7 @@ import {
   snapshot,
   stage,
   storeRecord,
+  SYNTH_SOURCES,
 } from './import.test-support';
 import { type ImportRunOptions, runImport } from './index';
 
@@ -50,7 +51,12 @@ function validate(
     workLogRoot: string;
   },
 ) {
-  return runImport({ mode: 'validate', target: { kind: 'ic' }, ...options });
+  return runImport({
+    mode: 'validate',
+    target: { kind: 'ic' },
+    sources: SYNTH_SOURCES,
+    ...options,
+  });
 }
 
 function codes(result: { issues: { code: string }[] }) {

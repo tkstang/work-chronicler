@@ -19,7 +19,7 @@ import {
   parseImportedRecordFile,
   serializeImportedRecord,
 } from './record-file';
-import { checkSourceRules } from './sources';
+import { checkSourceRules, type SourceRuleContext } from './sources';
 
 /** Most records one batch may hold; skills split larger imports */
 export const MAX_BATCH_RECORDS = 10_000;
@@ -206,18 +206,20 @@ function sameSubject(a: ImportSubject, b: ImportSubject): boolean {
  * destination (compared case-insensitively, as some volumes do).
  *
  * @param records - Parsed records
- * @param target - The IC or report being imported for
+ * @param context - The IC or report being imported for, and its source
+ *   settings
  * @returns Problems; empty when the batch is acceptable
  */
 export function checkStagedBatch(
   records: StagedRecord[],
-  target: ImportSubject,
+  context: SourceRuleContext,
 ): ImportIssue[] {
+  const { target } = context;
   const issues: ImportIssue[] = [];
   const identities = new Set<string>();
   const destinations = new Set<string>();
   for (const { file, record } of records) {
-    for (const problem of checkSourceRules(record, { target })) {
+    for (const problem of checkSourceRules(record, context)) {
       issues.push(
         importIssue('SOURCE_RULE', problem.message, {
           file,

@@ -5,6 +5,7 @@ import { findConfigPath, getOutputDirectory, loadConfig } from '@config/loader';
 import {
   type ImportIssue,
   type ImportRunResult,
+  type ImportSourceSettings,
   runImport,
 } from '@core/import/index';
 import { importIssue } from '@core/import/issues';
@@ -25,10 +26,12 @@ export interface ImportCommandOptions {
   json?: boolean;
 }
 
-/** Where a batch goes and who it must be about */
+/** Where a batch goes, who it must be about and that subject's settings */
 export interface ImportDestination {
   target: ImportSubject;
   workLogRoot: string;
+  /** Per-source settings (Slack) from the IC's or the report's config */
+  sources: ImportSourceSettings;
 }
 
 /** The machine-readable result printed by `--json` */
@@ -56,6 +59,9 @@ function message(error: unknown): string {
  * - A manager profile requires `--report <id>` naming a report in the
  *   profile, and imports into `reports/<id>/work-log/`; every record must be
  *   about that report.
+ *
+ * Source settings come from the same config: the IC's `slack:` section, or
+ * the report's. A source with no settings imports nothing.
  *
  * @param options - Command options
  * @returns The destination, or the issue that rejects the import
@@ -86,6 +92,7 @@ export async function resolveImportDestination(
         return {
           target: { kind: 'report', reportId: reportId.data },
           workLogRoot: getReportWorkLogDir(profile, reportId.data),
+          sources: { slack: report.slack ?? null },
         };
       }
     }
@@ -101,6 +108,7 @@ export async function resolveImportDestination(
     return {
       target: { kind: 'ic' },
       workLogRoot: getOutputDirectory(config, configPath ?? undefined),
+      sources: { slack: config.slack ?? null },
     };
   } catch (error) {
     return importIssue(
@@ -194,6 +202,7 @@ export async function runImportCommand(
       stagingDir: resolve(stagingDir),
       workLogRoot: destination.workLogRoot,
       target: destination.target,
+      sources: destination.sources,
     });
     result = {
       ok: run.ok,

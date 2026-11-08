@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -31,17 +32,34 @@ const wcHome = join(root, 'wc-home');
 const icWorkLog = join(wcHome, 'profiles', 'solo', 'work-log');
 const reportsDir = join(wcHome, 'profiles', 'team', 'reports');
 const aliceWorkLog = join(reportsDir, 'alice-smith', 'work-log');
+const bobWorkLog = join(reportsDir, 'bob-jones', 'work-log');
+
+/** Slack settings matching the synthetic records' workspace, user and channel */
+const slack = (shared: boolean) => ({
+  workspace: 'T0SYNTH01',
+  user: 'U0SYNTH01',
+  channels: [
+    {
+      id: 'C0SYNTH01',
+      name: 'synthetic-channel',
+      reason: 'Synthetic test channel',
+      ...(shared ? { sharedWithManager: true } : {}),
+    },
+  ],
+});
 
 function setUpWorkspace() {
   mkdirSync(home, { recursive: true });
   mkdirSync(icWorkLog, { recursive: true });
   mkdirSync(aliceWorkLog, { recursive: true });
+  mkdirSync(bobWorkLog, { recursive: true });
   writeFileSync(
     join(wcHome, 'profiles', 'solo', 'config.yaml'),
     stringify({
       github: { username: 'synthetic-ic', orgs: [] },
       output: { directory: './work-log' },
       fetch: { since: '2026-01-01' },
+      slack: slack(false),
     }),
   );
   writeFileSync(
@@ -55,6 +73,13 @@ function setUpWorkspace() {
           name: 'Alice Smith',
           github: 'alice-synthetic',
           email: 'alice@example.com',
+          slack: slack(true),
+        },
+        // No Slack settings: Slack imports nothing for this report
+        {
+          name: 'Bob Jones',
+          github: 'bob-synthetic',
+          email: 'bob@example.com',
         },
       ],
     }),
@@ -113,6 +138,61 @@ describe('work-chronicler import', () => {
     expect(
       existsSync(getImportedRecordFilePath(icWorkLog, slackIdentity(1))),
     ).toBe(true);
+  });
+
+  it('changes nothing when the same batch is imported again', () => {
+    const dir = batch(messageFrontmatter(8));
+    expect(cli('solo', ['import', dir]).status).toBe(0);
+    const path = getImportedRecordFilePath(icWorkLog, slackIdentity(8));
+    const stored = readFileSync(path, 'utf-8');
+
+    const again = cli('solo', ['import', dir, '--json']);
+
+    expect(again.status).toBe(0);
+    expect(JSON.parse(again.stdout).summary).toEqual({
+      records: 1,
+      created: 0,
+      updated: 0,
+      unchanged: 1,
+    });
+    expect(readFileSync(path, 'utf-8')).toBe(stored);
+  });
+
+  it('refuses Slack records for a report without Slack settings', () => {
+    const aboutBob = { subject: { kind: 'report', reportId: 'bob-jones' } };
+    const run = cli('team', [
+      'import',
+      batch(messageFrontmatter(9, aboutBob)),
+      '--report',
+      'bob-jones',
+      '--json',
+    ]);
+
+    expect(run.status).toBe(1);
+    expect(JSON.parse(run.stdout).issues).toEqual([
+      expect.objectContaining({ code: 'SOURCE_RULE', field: 'source' }),
+    ]);
+    expect(
+      existsSync(getImportedRecordFilePath(bobWorkLog, slackIdentity(9))),
+    ).toBe(false);
+  });
+
+  it("refuses another person's message without echoing it", () => {
+    const dir = batch(
+      messageFrontmatter(10, {
+        attribution: { status: 'verified', authorId: 'U0OTHER01' },
+      }),
+    );
+
+    const run = cli('solo', ['import', dir]);
+
+    expect(run.status).toBe(1);
+    expect(run.stderr).toContain('SOURCE_RULE 0.md attribution.authorId');
+    expect(run.stderr).toContain('no records were changed');
+    expect(`${run.stdout}${run.stderr}`).not.toContain(SECRET);
+    expect(
+      existsSync(getImportedRecordFilePath(icWorkLog, slackIdentity(10))),
+    ).toBe(false);
   });
 
   it("imports a manager batch into the report's work log", () => {

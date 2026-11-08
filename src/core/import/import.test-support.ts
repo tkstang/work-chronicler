@@ -22,6 +22,7 @@ import {
   parseImportedRecordFile,
   serializeImportedRecord,
 } from './record-file';
+import type { ImportSourceSettings } from './sources';
 
 /** Planted in record content so tests can assert it is never echoed */
 export const SECRET = 'zebra-quartz-secret';
@@ -56,6 +57,26 @@ export function messageFrontmatter(
     ...overrides,
   };
 }
+
+/**
+ * Slack settings matching {@link messageFrontmatter}: its workspace, author
+ * and channel (confirmed as shared, so report imports accept it too).
+ */
+export const SYNTH_SOURCES: ImportSourceSettings = {
+  slack: {
+    workspace: 'T0SYNTH01',
+    user: 'U0SYNTH01',
+    channels: [
+      {
+        id: 'C0SYNTH01',
+        name: 'synthetic-channel',
+        reason: 'Synthetic test channel',
+        private: false,
+        sharedWithManager: true,
+      },
+    ],
+  },
+};
 
 /** A staged record file's bytes */
 export function recordFile(

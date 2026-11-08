@@ -3,6 +3,7 @@ import type { ImportSubject } from '@wc-types/imported-record';
 import { createImportEnv, type ImportEnv } from './import-fs';
 import type { ImportIssue } from './issues';
 import { type PlannedAction, planImport, resolveWorkLogRoot } from './plan';
+import type { ImportSourceSettings } from './sources';
 import { checkStagedBatch, readStagingBatch } from './staging';
 import {
   acquireImportLock,
@@ -25,6 +26,7 @@ export {
   MAX_RECORD_BYTES,
   MAX_STORED_BYTES,
 } from './staging';
+export { type ImportSourceSettings, NO_SOURCE_SETTINGS } from './sources';
 export type { RecoveryReport } from './transaction';
 
 export interface ImportRunOptions {
@@ -36,6 +38,11 @@ export interface ImportRunOptions {
   workLogRoot: string;
   /** Who the records must be about */
   target: ImportSubject;
+  /**
+   * The target's per-source settings from its config (opt-in, identity,
+   * channels). A source without settings imports nothing.
+   */
+  sources: ImportSourceSettings;
   /** Filesystem and process environment (defaults to the real ones) */
   env?: ImportEnv;
 }
@@ -100,7 +107,10 @@ export function runImport(options: ImportRunOptions): ImportRunResult {
   const staged = readStagingBatch(options.stagingDir, env.fs);
   const batchIssues = [
     ...staged.issues,
-    ...checkStagedBatch(staged.records, options.target),
+    ...checkStagedBatch(staged.records, {
+      target: options.target,
+      settings: options.sources,
+    }),
   ];
   if (batchIssues.length > 0) return rejected(batchIssues);
 
