@@ -446,6 +446,15 @@ Proof: `pnpm format:check`
 
 **Outcome:** gate passed; M1 fixed in p03-t10 (ed8b20df93efb15f5dbdeee10733453e7cd52f0d). Exit carrier recorded allowed at 5cfd2b75d24d416b85bb41fa256453a5923768c5, now stale; gate runs again.
 
+### Review Received: final (m01 exit gate, attempt 5)
+
+**Date:** 2026-11-08
+**Review artifact (local-only):** reviews/archived/final-review-2026-11-08T021601Z.md
+
+**Findings:** Critical 0 · High 0 · Medium 0 · Low 0 (gate `codex-6-sol-xhigh`, verdict passed, run 5e425d5b-5900-4eeb-a861-1cb47dbe20bc, reviewed head ed8b20df93efb15f5dbdeee10733453e7cd52f0d)
+
+**Outcome:** passed. Exit carrier allowed/fresh at ed8b20df93efb15f5dbdeee10733453e7cd52f0d; fresh integrated review next.
+
 ## Deferred Findings
 
 <!-- One line per approved deferral (finding, rationale, approval, follow-up trigger), plus excluded parallel phases and unmerged worktrees. -->
