@@ -65,10 +65,18 @@ const SLACK_TS = /^\d{1,12}\.\d{1,9}$/;
 const SLACK_MESSAGE_ID = /^([A-Z][A-Z0-9]{1,31})\/(\d{1,12}\.\d{1,9})$/;
 
 /**
+ * How far `occurredAt` may be from the message ts: the import skill writes
+ * the ts's whole seconds (`1767261600.000100` is `2026-01-01T10:00:00Z`), so
+ * a time truncated or rounded to the second is accepted.
+ */
+const OCCURRED_AT_TOLERANCE_MS = 1000;
+
+/**
  * Slack identity: `sourceAccount` is the workspace (its team ID or URL
  * label, as configured) and `sourceId`
  * is `<channel ID>/<message ts>`, which Slack keeps stable for a message.
- * The record's `message.container.id` must be that channel.
+ * The record's `message.container.id` must be that channel, and its
+ * `occurredAt` the time of that ts, to the second.
  */
 function checkSlackIdentity(record: ImportedRecord): SourceRuleProblem[] {
   const problems: SourceRuleProblem[] = [];
@@ -84,11 +92,22 @@ function checkSlackIdentity(record: ImportedRecord): SourceRuleProblem[] {
       field: 'sourceId',
       message: 'must be <channel ID>/<message ts> for Slack',
     });
-  } else if (record.message.container.id !== match[1]) {
-    problems.push({
-      field: 'message.container.id',
-      message: 'must be the channel in sourceId',
-    });
+  } else {
+    if (record.message.container.id !== match[1]) {
+      problems.push({
+        field: 'message.container.id',
+        message: 'must be the channel in sourceId',
+      });
+    }
+    const postedMs = Number(match[2]) * 1000;
+    const occurredMs = Date.parse(record.occurredAt);
+    if (!(Math.abs(occurredMs - postedMs) < OCCURRED_AT_TOLERANCE_MS)) {
+      problems.push({
+        field: 'occurredAt',
+        message:
+          'must be when the message was posted: the time of the ts in sourceId, to the second',
+      });
+    }
   }
   return problems;
 }

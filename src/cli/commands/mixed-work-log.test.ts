@@ -805,10 +805,7 @@ describe('a mixed work log with imported messages', () => {
     stage(
       staging,
       'a.md',
-      messageFrontmatter(1, {
-        occurredAt: '2025-03-01T10:00:00Z',
-        capturedAt: '2025-06-02T00:00:00Z',
-      }),
+      messageFrontmatter(1, { capturedAt: '2025-06-02T00:00:00Z' }),
       'Rewritten by an import that stopped.',
     );
     stage(staging, 'b.md', messageFrontmatter(4), 'Added by it too.');

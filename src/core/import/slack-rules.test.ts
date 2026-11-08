@@ -285,6 +285,29 @@ describe('Slack records: others’ content', () => {
     expect(problems(check(overrides))).toEqual([['SOURCE_RULE', field]]);
   });
 
+  it('accepts occurredAt within a second of the ts in sourceId, and nothing further', () => {
+    // TS is 1700000000.000001: 2023-11-14T22:13:20.000001Z
+    for (const occurredAt of [
+      '2023-11-14T22:13:20Z',
+      '2023-11-14T22:13:20.000Z',
+      '2023-11-14T22:13:20.999Z',
+      '2023-11-14T22:13:19.500Z',
+    ]) {
+      expect(check({ occurredAt }).issues, occurredAt).toEqual([]);
+    }
+    for (const occurredAt of [
+      // The capture date, a day off, and a second or more off
+      '2026-03-05T09:00:00Z',
+      '2023-11-15T22:13:20Z',
+      '2023-11-14T22:13:21.001Z',
+      '2023-11-14T22:13:19Z',
+    ]) {
+      expect(problems(check({ occurredAt })), occurredAt).toEqual([
+        ['SOURCE_RULE', 'occurredAt'],
+      ]);
+    }
+  });
+
   it('refuses a thread starter that names itself as its parent', () => {
     expect(problems(check(reply({ parentId: TS })))).toEqual([
       ['SOURCE_RULE', 'message.thread'],

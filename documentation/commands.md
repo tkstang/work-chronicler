@@ -219,6 +219,9 @@ changes nothing. Records that are not in the batch are never removed.
 - Slack is not set up for the IC profile or report: without settings, no
   Slack records are imported;
 - `sourceAccount` is not the configured workspace;
+- `occurredAt` is not when the message was posted: the time of the ts in
+  `sourceId`, to the second (`1767261600.000100` is
+  `2026-01-01T10:00:00Z`);
 - `attribution` is `unverified`, or `authorId` is not the configured user
   (only the subject's own messages are imported);
 - the channel (`message.container.id`) is not in the configured channels,

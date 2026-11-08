@@ -42,7 +42,8 @@ export function messageFrontmatter(
     sourceAccount: 'T0SYNTH01',
     sourceId: `C0SYNTH01/${ts}`,
     url: null,
-    occurredAt: '2026-03-02T10:00:00Z',
+    // The time of the ts above (1700000000), as Slack rules require
+    occurredAt: '2023-11-14T22:13:20Z',
     updatedAt: null,
     capturedAt: '2026-03-05T09:00:00Z',
     subject: { kind: 'ic' },
