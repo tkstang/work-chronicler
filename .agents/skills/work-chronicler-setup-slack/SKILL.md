@@ -56,21 +56,33 @@ From the `slack show` output, note `configured`, `workspace`, `user` and the
 `channels` already listed. If Slack is already configured, skip to step 3
 unless the user wants to change the workspace or user.
 
-### 2. Record the workspace and user IDs
+### 2. Record the workspace and the subject's user ID
 
-- **Workspace (team) ID:** call `slack_list_user_channels` and read
-  `team_id` from the result (`T…`, or `E…` for an Enterprise org).
+Ask the Slack tools for their detailed output (`response_format: "detailed"`)
+throughout: the concise format leaves out IDs.
+
+- **Workspace:** use the workspace (team) ID (`T…`, or `E…` for an
+  Enterprise org) only if a Slack tool shows one; the usual read tools do
+  not. Otherwise use the workspace's URL label: call `slack_search_channels`
+  (detailed) for one of the user's channels and take the first part of the
+  host in a permalink it returns. `https://example.slack.com/archives/C…` and
+  `https://example.enterprise.slack.com/archives/C…/p…` both give `example`.
+  Write it in lower case, without `https://` or `.slack.com`. Show the user
+  the value and get confirmation. Keep the same value from then on: imported
+  messages are stored under it.
 - **User ID** (`U…` or `W…`):
   - IC: the user's own ID, from `slack_read_user_profile` with no user ID
-    (the acting user).
+    (the acting user) and `response_format: "detailed"`; read the
+    `User ID:` line.
   - Report: find the report with `slack_search_users` (the name or email from
-    `reports list`). Show the manager the matching name and ID and get
-    confirmation before using it; if there are several matches, ask.
+    `reports list`), in the detailed format so the ID is shown. Show the
+    manager the matching name and ID and get confirmation before using it;
+    if there are several matches, ask.
 
 Then run:
 
 ```bash
-work-chronicler slack configure --workspace <team-id> --user <user-id> [--report <id>] --json
+work-chronicler slack configure --workspace <team-id-or-label> --user <user-id> [--report <id>] --json
 ```
 
 `changed: false` means the IDs were already set. If the CLI refuses because
@@ -79,10 +91,12 @@ exist: ask before removing channels with `slack channels remove`.
 
 ### 3. List candidate public channels
 
-Call `slack_list_user_channels` with the public channel type only (never
-`im` or `mpim`), paging through every result. This lists channels the user
-(in manager mode, the manager) belongs to. Leave out channels that are
-already configured.
+Call `slack_list_user_channels` (detailed: each channel's name, `ID`,
+`Type`, topic or purpose and whether it is archived) with the public channel
+type only (never `im` or `mpim`), paging through every result. This lists
+channels the user (in manager mode, the manager) belongs to. Leave out
+channels that are already configured, and any whose type is a direct or
+group direct message.
 
 Show the user a short numbered list: channel name, and the topic or purpose
 when there is one. Ask which channels hold work worth citing in a review or
@@ -100,7 +114,8 @@ let the user choose. Every private channel the user chooses is added with
 ### 5. Manager mode: confirm shared membership
 
 For each channel the manager chose for a report, call
-`slack_list_channel_members` for that channel, paging through every result
+`slack_list_channel_members` for that channel (detailed, so member IDs are
+shown), paging through every result
 (about 30 members per page), and check that the report's user ID (step 2) is
 a member. The manager's membership is given by step 3 or 4, which list only
 the manager's channels.

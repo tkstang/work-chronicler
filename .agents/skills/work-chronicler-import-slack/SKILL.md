@@ -94,8 +94,25 @@ from:<@USER_ID> in:<#CHANNEL_ID> after:<day before range.since>
 Add `before:<day after range.until>` when `range.until` is set. Slack's
 `after:` and `before:` exclude the day they name, so search from the day
 before `range.since` (for `since: 2026-01-01`, use `after:2025-12-31`). Pass
-`include_context=false` so neighbouring messages by other people are left
-out, sort by timestamp, and page through every result with the cursor.
+`response_format: "detailed"` and `include_context=false` (so neighbouring
+messages by other people are left out), sort by timestamp, and page through
+every result with the cursor.
+
+Always use the detailed format: the concise format leaves out the channel ID,
+`Message_ts` and permalink, and a record cannot be written without them. A
+detailed result has these lines (invented values):
+
+```text
+Channel: #billing-launch (ID: C0EXAMPLE)
+From: <name> <<email>> (ID: U0EXAMPLE)
+Time: <local time>
+Message_ts: 1767261600.000100
+Permalink: https://example.enterprise.slack.com/archives/C0EXAMPLE/p1767261600000100?thread_ts=1767261600.000100&cid=C0EXAMPLE
+Text: <message text in Slack markup>
+```
+
+Use only the IDs from `Channel` and `From`; never store the author's name or
+email, or the channel name shown there.
 
 In a manager profile the search runs as the manager, for the report's user
 ID, and only in channels the manager confirmed they share with the report
@@ -112,12 +129,12 @@ reason:
 
 1. Its channel ID is the channel you searched (a different channel, a `D…`
    direct message or a group DM is never kept).
-2. Its author's user ID is `user` from `slack show`. Never change a record's
-   author to make it pass.
+2. Its author's user ID (the `ID:` in `From`) is `user` from `slack show`.
+   Never change a record's author to make it pass.
 3. Its time (`Message_ts`) is inside the range: on or after `range.since`
    (00:00 UTC) and, when `range.until` is set, before the day after it.
-4. It has text the subject wrote. A message that is only a file, a shared
-   message or a bot attachment is skipped.
+4. It has text the subject wrote. A message whose `Text` is empty (a
+   file-only message), a shared message or a bot attachment is skipped.
 
 ### 6. Write one record per kept message
 
@@ -153,28 +170,36 @@ Field by field:
 | --- | --- |
 | `sourceAccount`, `subject`, `attribution` | Copied from `record` in `slack show`. Its JSON is valid here: `subject: {"kind":"ic"}` and `{ kind: ic }` are the same. In a manager profile the subject is `{ kind: report, reportId: <id> }`. |
 | `sourceId` | The channel ID, `/`, and the result's `Message_ts` exactly (for example `C0EXAMPLE/1767261600.000100`). |
-| `url` | The message permalink, reduced to `https://<host>/archives/<channel ID>/p<Message_ts without the dot>`. For a reply you may keep `?thread_ts=<parent ts>&cid=<channel ID>`; drop every other query parameter. Use `null` if unsure. |
+| `url` | The message permalink, reduced to `https://<host>/archives/<channel ID>/p<Message_ts without the dot>`, keeping the host it has (`example.slack.com` or `example.enterprise.slack.com`). For a reply you may keep `?thread_ts=<parent ts>&cid=<channel ID>`; drop every other query parameter, including the `thread_ts` a thread starter's permalink names itself with. Use `null` if unsure. |
 | `occurredAt` | The `Message_ts` seconds as UTC ending in `Z` (`1767261600.000100` is `2026-01-01T10:00:00Z`). |
 | `updatedAt` | The edit time when the result shows one, else `null`. |
 | `capturedAt` | The time you read it, UTC ending in `Z`. |
 | `mentions.tickets` | Ticket keys in the subject's text, such as `BILL-311` (uppercase, no duplicates). |
-| `mentions.pullRequests` | GitHub pull request URLs in the subject's text (`https://github.com/<owner>/<repo>/pull/<n>`), each once. |
+| `mentions.pullRequests` | GitHub pull request URLs in the subject's text (`https://github.com/<owner>/<repo>/pull/<n>`), each once. From a Slack link `<URL\|label>`, take only the URL. |
 | `message.container.name` | The channel's `name` exactly as `slack show` lists it, or `null`. Never the name from search results. |
 | `message.thread` | See below. |
-| Body | The subject's own text, verbatim, except: replace each user mention (`<@U…>` or `@name`) with `@someone`, and leave out quoted or forwarded text by anyone else. Never add names, reply text or the parent's text. |
+| Body | The subject's own text, verbatim, with the Slack markup below rewritten. Leave out quoted or forwarded text by anyone else. Never add names, reply text or the parent's text. |
+
+Slack markup in `Text`, rewritten in the body:
+
+| In `Text` | In the body |
+| --- | --- |
+| A user mention, `<@U0EXAMPLE2\|Display Name>` or `<@U0EXAMPLE2>` | `@someone` (the whole token: the display name and ID are never stored) |
+| A link, `<https://github.com/example-org/billing/pull/42\|github.com/example-org/billing/pull/42>` or `<https://…>` | The URL alone: `https://github.com/example-org/billing/pull/42` (drop `\|label`) |
+| A channel link, `<#C0EXAMPLE2\|name>` | `#channel` |
+| `<!here>`, `<!channel>`, `<!everyone>` | `@here`, `@channel`, `@everyone` |
 
 Threads, from the `thread_ts` in the result's permalink:
 
 - **No `thread_ts`, or `thread_ts` equal to `Message_ts`** (a top-level
-  message or a thread the subject started): `thread: null`. Leave
-  `replyCount` and `replyParticipantCount` at `0` unless the search result
-  itself shows the message's reply and reply-user counts; never call another
-  tool to get them.
+  message or a thread the subject started): `thread: null`. The connector's
+  search results do not include reply counts, so `replyCount` and
+  `replyParticipantCount` stay `0`; never call another tool to get them.
 - **`thread_ts` different from `Message_ts`** (the subject's reply in a
   thread): `thread: { parentId: "<thread_ts>", parentUrl: "<parent permalink>" }`
   where the parent permalink is
-  `https://<host>/archives/<channel ID>/p<thread_ts without the dot>`, or
-  `null`. `replyCount` and `replyParticipantCount` stay `0`.
+  `https://<host>/archives/<channel ID>/p<thread_ts without the dot>` on the
+  same host as the message's permalink, or `null`. `replyCount` and `replyParticipantCount` stay `0`.
 
 ### 7. Validate, then import
 
@@ -234,18 +259,19 @@ authored PRs or tickets.
 
 ## Example Records
 
-Invented data for a workspace `T0EXAMPLE`, user `U0EXAMPLE` and channel
-`C0EXAMPLE` named `billing-launch` in an IC profile. A thread the user
-started, mentioning a PR and a ticket:
+Invented data for a workspace configured by its URL label `example`, user
+`U0EXAMPLE` and channel `C0EXAMPLE` named `billing-launch` in an IC profile.
+A thread the user started, whose `Text` was
+`Usage-based invoices are live (BILL-311, <https://github.com/example-org/billing/pull/42|github.com/example-org/billing/pull/42>). Thanks <@U0EXAMPLE2|Sam> for the review.`:
 
 ```markdown
 ---
 schemaVersion: 1
 type: message
 source: slack
-sourceAccount: "T0EXAMPLE"
+sourceAccount: "example"
 sourceId: "C0EXAMPLE/1767261600.000100"
-url: "https://example.slack.com/archives/C0EXAMPLE/p1767261600000100"
+url: "https://example.enterprise.slack.com/archives/C0EXAMPLE/p1767261600000100"
 occurredAt: "2026-01-01T10:00:00Z"
 updatedAt: null
 capturedAt: "2026-01-05T09:00:00Z"
@@ -269,9 +295,9 @@ The user's reply in a thread someone else started:
 schemaVersion: 1
 type: message
 source: slack
-sourceAccount: "T0EXAMPLE"
+sourceAccount: "example"
 sourceId: "C0EXAMPLE/1767262500.000200"
-url: "https://example.slack.com/archives/C0EXAMPLE/p1767262500000200?thread_ts=1767261000.000100&cid=C0EXAMPLE"
+url: "https://example.enterprise.slack.com/archives/C0EXAMPLE/p1767262500000200?thread_ts=1767261000.000100&cid=C0EXAMPLE"
 occurredAt: "2026-01-01T10:15:00Z"
 updatedAt: null
 capturedAt: "2026-01-05T09:00:00Z"
@@ -280,7 +306,7 @@ attribution: { status: verified, authorId: "U0EXAMPLE" }
 mentions: { tickets: [BILL-312], pullRequests: [] }
 message:
   container: { id: "C0EXAMPLE", name: "billing-launch" }
-  thread: { parentId: "1767261000.000100", parentUrl: "https://example.slack.com/archives/C0EXAMPLE/p1767261000000100" }
+  thread: { parentId: "1767261000.000100", parentUrl: "https://example.enterprise.slack.com/archives/C0EXAMPLE/p1767261000000100" }
   replyCount: 0
   replyParticipantCount: 0
 ---
