@@ -38,21 +38,22 @@ oat_generated: false
 
 ## Progress Overview
 
-| Phase | Status      | Units | Accepted |
-| ----- | ----------- | ----- | -------- |
-| p01   | completed   | 1     | 1/1      |
-| p02   | completed   | 1     | 1/1      |
-| p03   | in_progress | 1     | 0/1      |
-| p04   | pending     | 1     | 0/1      |
-| p05   | pending     | 1     | 0/1      |
-| p06   | pending     | 1     | 0/1      |
-| p07   | pending     | 1     | 0/1      |
-| p08   | pending     | 1     | 0/1      |
-| p09   | pending     | 1     | 0/1      |
-| p10   | pending     | 1     | 0/1      |
-| p11   | pending     | 1     | 0/1      |
+| Phase | Status    | Units | Accepted |
+| ----- | --------- | ----- | -------- |
+| p01   | completed | 1     | 1/1      |
+| p02   | completed | 1     | 1/1      |
+| p03   | completed | 1     | 1/1      |
+| p04   | pending   | 1     | 0/1      |
+| p05   | pending   | 1     | 0/1      |
+| p06   | pending   | 1     | 0/1      |
+| p07   | pending   | 1     | 0/1      |
+| p12   | pending   | 1     | 0/1      |
+| p08   | pending   | 1     | 0/1      |
+| p09   | pending   | 1     | 0/1      |
+| p10   | pending   | 1     | 0/1      |
+| p11   | pending   | 1     | 0/1      |
 
-**Total:** 2/11 phases accepted
+**Total:** 3/12 phases accepted
 
 ---
 
@@ -386,6 +387,12 @@ Proof: full DoD batch (254 tests); both new regressions fail on b7a300e code and
 
 ---
 
+## Phase p12: Installer replacement safety
+
+**Status:** pending
+
+---
+
 ## Phase p08: 0.6.0 release preparation
 
 **Status:** pending
@@ -635,6 +642,8 @@ Also in p03-t15: CodeRabbit 4505014153 (docs/notice wrongly said `--overwrite` f
 Known docs follow-up: the shipped CHANGELOG 0.5.0 entry still says `fetch --reviews` in one place (the CLI form is `fetch github --reviews`); correct it under Unreleased in m02.
 
 ## Deferred Findings
+
+- m02 re-alignment disposition (2026-11-08, Astra-advised): pulled into m02 — filter stale-subset replacement and empty-result marker (CodeRabbit 4504862967, 4504862986) and skills pointing at `search_pr_reviews`/`status` (complexity F1, F2) into p05; CHANGELOG `fetch --reviews` wording into p05; installer delete-before-copy and cleanup-failure handling (4504863000, 4504866388) into new p12. All other m01 deferrals below are post-goal follow-ups (trigger: after m03): F3, F4, F5, 4504862946, 4504862950, 4504863012, 4504866382, 4504866386, 4504866392, 4504862955, and the reused-output-directory Low.
 
 <!-- One line per approved deferral (finding, rationale, approval, follow-up trigger), plus excluded parallel phases and unmerged worktrees. -->
 

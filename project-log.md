@@ -103,6 +103,44 @@ target=codex-6-sol-xhigh threshold=high findings=critical:0,high:0,medium:0,low:
 
 target=codex-6-sol-xhigh threshold=high findings=critical:0,high:0,medium:0,low:0 exit=0 status=ok artifact=.oat/projects/synced/work-chronicler-evidence-expansion/reviews/range-review-2026-11-08T043358Z.md run=997add76-1ecd-46a6-9b3c-51ca0cfe4cfd
 
+### 2026-11-08 · structural · oat-project-goal · m01
+
+Re-aligned after m01 (d01 merged as 29fd722, 0.5.0 released); work-chronicler-evidence-expansion-realign-m01
+
+### 2026-11-08 · project · friction · Destructive filesystem paths need a threat model before code
+
+**Category:** gotcha
+**Source:** work-chronicler-evidence-expansion-learning-m01-01
+**Origin:** oat-project-goal
+**Recorded:** 2026-11-08T05:06:37Z
+
+Observation: the skills migration's old-copy removal took six review rounds (gate attempts 6, 7, integrated reviews at aa1da62 and b7a300e, plus CodeRabbit), each finding one more way to delete a copy still in use: nested resource links, permission errors in the walk, unreadable tool directories, case-insensitive paths, backslashes in POSIX names.
+Impact: about ten extra gate/review cycles and a late merge; each fix staled both the exit gate and the integrated review.
+Recommendation: before implementing any delete, overwrite or atomic-replace path (m02 import commits records atomically), list the filesystem edge cases up front (symlinks at every level, case-insensitive volumes, permission and unreadable directories, separators, interrupted writes) and write that test matrix first; prefer designs that keep data when anything cannot be proven safe.
+
+### 2026-11-08 · project · feedback · Deferring a destructive-path finding as contrived was wrong
+
+**Category:** decision
+**Source:** work-chronicler-evidence-expansion-learning-m01-02
+**Origin:** oat-project-goal
+**Recorded:** 2026-11-08T05:06:37Z
+
+Observation: CodeRabbit 4504866395 (nested resource links) was deferred as needing a hand-built layout; the exit gate then reproduced it as High data loss.
+Impact: one wasted gate round and a reversed disposition.
+Recommendation: never defer a reproducible data-loss finding on likelihood alone; fix it or prove it unreachable.
+
+### 2026-11-08 · project · feedback · Goal delivery record shapes are easy to get wrong by hand
+
+**Category:** documentation-gap
+**Source:** work-chronicler-evidence-expansion-learning-m01-03
+**Origin:** oat-project-goal
+**Recorded:** 2026-11-08T05:06:38Z
+
+Observation: d01 was registered by hand with integrated_review.scope as the milestone id, bound_revisions as bare SHAs and member base as a branch name; delivery check accepted the milestone subject before registration but rejected d01 later (review-scope-narrow, base-changed, review-provenance).
+Impact: delivery-record repair after the final review passed.
+Recommendation: write integrated_review.scope as the phase list, bound_revisions as {member, head, base} with base a SHA, and member base as the observed base SHA; run delivery check --subject dNN right after registration.
+Uncertainty: OAT 0.3.46 behavior; may differ in later versions.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

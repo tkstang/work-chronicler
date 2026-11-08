@@ -213,6 +213,7 @@ the exception: the CLI already talks to GitHub, so they are fetched directly.
   the Slack plugin connector and Google Docs through the user's configured
   `gog`. Rejected: synthetic-only evidence.
 - **Ledger: the OAT project only** (user). Rejected: GitHub tracking issue.
+- **m02 re-alignment** (agent, 2026-11-08, GOAL-12 under the autonomous-run decision; Codex `gpt-6-astra` high advised and supports it). m02 incorporates m01's filesystem lessons through fail-closed import (p04), safe filtered-subset replacement and centralized reviewer attribution (p05), and installer replacement safety before release (new p12). p04–p08 are concrete. Remaining m01 deferrals stay recorded in the journal as post-goal follow-ups. Outcomes, Constraints, user Decisions, endpoint and authority are unchanged. Rejected: carrying every m01 deferral into m02 (dilutes the Slack delivery); deferring installer replacement safety past the goal (same data-loss class as m01's findings).
 
 ## Known Unknowns
 
@@ -261,11 +262,11 @@ the exception: the CLI already talks to GitHub, so they are fetched directly.
 
 ## Milestones
 
-| Milestone | Phases                  |
-| --------- | ----------------------- |
-| m01       | p01, p02, p03           |
-| m02       | p04, p05, p06, p07, p08 |
-| m03       | p09, p10, p11           |
+| Milestone | Phases                       |
+| --------- | ---------------------------- |
+| m01       | p01, p02, p03                |
+| m02       | p04, p05, p06, p07, p12, p08 |
+| m03       | p09, p10, p11                |
 
 ## Phase p01: Verb-first skill names and install migration
 
@@ -288,32 +289,39 @@ the exception: the CLI already talks to GitHub, so they are fetched directly.
 ## Phase p04: Staged import contract
 
 **Intent:** Add the shared import envelope and the `messages` record type, plus `work-chronicler import <dir>` (validate, contained destination paths, atomic commit, upsert by identity, manager-report targeting) and `work-chronicler validate`.
-**Exit evidence:** Tests for malformed YAML, schema violations, duplicate identities, path escape, rejected batches preserving existing records, interrupted and repeated imports, and nonzero exit with machine-readable errors on rejection pass; docs updated.
-**Provisional:** yes
+**Exit evidence:** Before implementation, the journal records the import/validate filesystem threat matrix and the batch commit and recovery contract: the whole batch is rejected whenever containment, identity, authorization or safe replacement cannot be established. Tests cover malformed YAML, schema violations, duplicate identities, path escape, symlinked ancestors and files, case-insensitive aliases, POSIX backslashes in names, permission failures (not relying only on non-root execution), paths changing between validation and commit, and interruption at each destructive boundary; they assert existing records stay intact on rejection, recovery never reports a partial batch as successful, repeated imports are idempotent, and rejection exits nonzero with machine-readable errors. Docs updated.
+**Provisional:** no
 
 ## Phase p05: Consumers and linking for imported evidence
 
 **Intent:** Extend or label each consumer (`filter`, `status`, stats, timeline, MCP tools, project detection, writing and detection skills) for imported records, and add mention resolution with PR-URL normalization.
-**Exit evidence:** A mixed work-log test with an existing filtered subset passes; MCP tool tests over imported records pass; linking tests pass; skills name supplementary evidence explicitly.
-**Provisional:** yes
+Also, from the m01 review: `filter` builds and validates a complete replacement subset before replacing the existing one, removes stale records of every type only through that replacement, and publishes its selection marker with its contents (including empty and supplementary-evidence-only results), so a failure keeps the previous subset and consumers never silently fall back to the full log; the writing skills point to `search_pr_reviews` for attributable review evidence and `status` for diagnostics instead of restating the reviewer rule, and still describe reviews as review work; the shipped CHANGELOG's `fetch --reviews` wording is corrected under Unreleased.
+**Exit evidence:** A mixed work-log test with an existing filtered subset passes, including a re-filter that removes stale records of every type, an empty result, and a failure that preserves the previous subset; MCP tool tests over imported records pass; linking tests pass; skills name supplementary evidence explicitly.
+**Provisional:** no
 
 ## Phase p06: Slack configuration and CLI
 
 **Intent:** Add the Slack config for IC profiles and manager reports, `work-chronicler slack channels add|remove|list`, and the read command the skills use, enforcing opt-in, channel and privacy rules in the CLI.
 **Exit evidence:** Config and command tests including unconfigured report, private channel without opt-in, DM rejection and non-destructive config updates pass; `validate`/`import` reject `messages` records whose author is not the configured subject, that carry reply bodies, that list participants beyond counts, whose attribution is `unverified`, or whose parent-thread reference carries message text, exiting nonzero with errors that do not echo the content; the Slack connector capability unknown is settled and recorded.
-**Provisional:** yes
+**Provisional:** no
 
 ## Phase p07: Slack skills and live walkthrough
 
 **Intent:** Write `work-chronicler-setup-slack` (interactive channel discovery that populates config) and `work-chronicler-import-slack` (staging batch → `import`), for IC and opted-in reports.
 **Exit evidence:** Synthetic acceptance test (import → validate → link → MCP) and negative cases pass; a live read-only walkthrough against the user's own Slack into a temp home records only redacted counts, validation results and rerun behavior in the journal.
-**Provisional:** yes
+**Provisional:** no
+
+## Phase p12: Installer replacement safety
+
+**Intent:** `skills install` stages and verifies a replacement before it replaces an existing installed skill, so a failed copy or link keeps the previous installation; cleanup errors are handled to the extent that guarantee needs. From the m01 review (CodeRabbit 4504863000, 4504866388); behavior that predates 0.5.0.
+**Exit evidence:** Tests show an injected copy failure and a failed link during `--overwrite` leave the previous skill intact and readable, report the failure, and do not stop the remaining skills or the migration report; the injected failure does not depend on non-root `chmod`; full DoD batch green.
+**Provisional:** no
 
 ## Phase p08: 0.6.0 release preparation
 
 **Intent:** Bump to 0.6.0 and finalize the CHANGELOG for the import contract and Slack.
 **Exit evidence:** Version and CHANGELOG committed; the local DoD batch (`pnpm lint`, `pnpm format:check`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `npm pack --dry-run`) passes. Ready-PR CI is the merge precondition, not phase evidence.
-**Provisional:** yes
+**Provisional:** no
 
 ## Phase p09: Google Docs documents record and config
 
@@ -371,7 +379,13 @@ Default is `[]` (fully sequential, no worktrees).
 | p01-p03 | code     | passed          | 2026-11-08 | reviews/archived/range-review-2026-11-08T041806Z.md (0 C/H/M/L)                                    | b7a300e0259cfc2a3df8d48de8dd1bbb50c641d8 | gate                                     | codex-6-sol-xhigh |
 | m01     | code     | fixes_completed | 2026-11-08 | reviews/archived/m01-review-2026-11-08T042422Z.md (2 H)                                            | b7a300e0259cfc2a3df8d48de8dd1bbb50c641d8 | manual                                   | -                 |
 | p01-p03 | code     | passed          | 2026-11-08 | reviews/archived/range-review-2026-11-08T043358Z.md (0 C/H/M/L)                                    | b079cd77e9306bdc2a179660a6536afba12f0847 | gate                                     | codex-6-sol-xhigh |
-| m01     | code     | passed          | 2026-11-08 | reviews/archived/m01-review-2026-11-08T044332Z.md                                                           | b079cd77e9306bdc2a179660a6536afba12f0847 | manual                                   | -                 |
+| m01     | code     | passed          | 2026-11-08 | reviews/archived/m01-review-2026-11-08T044332Z.md                                                  | b079cd77e9306bdc2a179660a6536afba12f0847 | manual                                   | -                 |
+| p04     | code     | pending         | -          | -                                                                                                  | -                                        | -                                        | -                 |
+| p05     | code     | pending         | -          | -                                                                                                  | -                                        | -                                        | -                 |
+| p06     | code     | pending         | -          | -                                                                                                  | -                                        | -                                        | -                 |
+| p07     | code     | pending         | -          | -                                                                                                  | -                                        | -                                        | -                 |
+| p12     | code     | pending         | -          | -                                                                                                  | -                                        | -                                        | -                 |
+| p08     | code     | pending         | -          | -                                                                                                  | -                                        | -                                        | -                 |
 
 Add one `code` row per phase as phases become concrete. For code-review events,
 `Reviewed Head` is the full 40-character SHA at the head of the reviewed range.
