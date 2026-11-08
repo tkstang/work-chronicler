@@ -11,6 +11,7 @@ commands/
 ├── link.ts                 # Single-file command
 ├── mcp.ts                  # Single-file command
 ├── status.ts               # Single-file command
+├── validate.ts             # Single-file command (shares import/import.utils.ts)
 │
 ├── fetch/                  # Command with subcommands
 │   ├── index.ts            # Parent command (registers subcommands)
@@ -26,6 +27,10 @@ commands/
 │       ├── index.ts        # fetch jira subcommand
 │       ├── jira.utils.ts   # JIRA fetching logic
 │       └── jira.types.ts   # JIRA-specific types
+│
+├── import/                 # Complex command (has utils)
+│   ├── index.ts            # import command (staged batch → work log)
+│   └── import.utils.ts     # Target resolution and output, shared with validate
 │
 ├── init/                   # Complex command (has prompts/utils/types)
 │   ├── index.ts            # Main command (validates --mode, dispatches)
