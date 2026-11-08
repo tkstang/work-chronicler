@@ -4,6 +4,7 @@ import { CliError } from '@cli/errors';
 import { findConfigPath, getOutputDirectory, loadConfig } from '@config/loader';
 import {
   type ImportIssue,
+  type ImportRangeInput,
   type ImportRunResult,
   type ImportSourceSettings,
   runImport,
@@ -24,14 +25,20 @@ export interface ImportCommandOptions {
   report?: string;
   config?: string;
   json?: boolean;
+  /** Replaces the configured fetch.since for this batch (Google Docs only) */
+  since?: string;
+  /** Replaces the configured fetch.until for this batch (Google Docs only) */
+  until?: string;
 }
 
 /** Where a batch goes, who it must be about and that subject's settings */
 export interface ImportDestination {
   target: ImportSubject;
   workLogRoot: string;
-  /** Per-source settings (Slack) from the IC's or the report's config */
+  /** Per-source settings (Slack, Google Docs) from the IC's or the report's config */
   sources: ImportSourceSettings;
+  /** The subject's configured fetch range */
+  range: { since: string; until: string | null };
 }
 
 /** The machine-readable result printed by `--json` */
@@ -45,6 +52,8 @@ export interface ImportCommandResult {
   issues: ImportIssue[];
   warnings: string[];
   recovery: ImportRunResult['recovery'];
+  /** The range Google Docs records were checked against */
+  range: ImportRunResult['range'];
 }
 
 function message(error: unknown): string {
@@ -60,8 +69,10 @@ function message(error: unknown): string {
  *   profile, and imports into `reports/<id>/work-log/`; every record must be
  *   about that report.
  *
- * Source settings come from the same config: the IC's `slack:` section, or
- * the report's. A source with no settings imports nothing.
+ * Source settings come from the same config: the IC's `slack:` and
+ * `googleDocs:` sections, or the report's. A source with no settings
+ * imports nothing. The range Google Docs must fall in is the profile's
+ * `fetch` range.
  *
  * @param options - Command options
  * @returns The destination, or the issue that rejects the import
@@ -80,8 +91,9 @@ export async function resolveImportDestination(
           );
         }
         const reportId = ReportIdSchema.safeParse(options.report);
+        const managerConfig = loadManagerConfig(profile);
         const report = reportId.success
-          ? getReport(loadManagerConfig(profile), reportId.data)
+          ? getReport(managerConfig, reportId.data)
           : undefined;
         if (!reportId.success || !report) {
           return importIssue(
@@ -89,10 +101,15 @@ export async function resolveImportDestination(
             'no report with this ID is in the manager profile; see `reports list`',
           );
         }
+        const { fetch } = managerConfig;
         return {
           target: { kind: 'report', reportId: reportId.data },
           workLogRoot: getReportWorkLogDir(profile, reportId.data),
-          sources: { slack: report.slack ?? null },
+          sources: {
+            slack: report.slack ?? null,
+            googleDocs: report.googleDocs ?? null,
+          },
+          range: { since: fetch.since, until: fetch.until },
         };
       }
     }
@@ -108,7 +125,11 @@ export async function resolveImportDestination(
     return {
       target: { kind: 'ic' },
       workLogRoot: getOutputDirectory(config, configPath ?? undefined),
-      sources: { slack: config.slack ?? null },
+      sources: {
+        slack: config.slack ?? null,
+        googleDocs: config.googleDocs ?? null,
+      },
+      range: { since: config.fetch.since, until: config.fetch.until },
     };
   } catch (error) {
     return importIssue(
@@ -195,14 +216,20 @@ export async function runImportCommand(
       issues: [destination],
       warnings: [],
       recovery: null,
+      range: null,
     };
   } else {
+    const override: NonNullable<ImportRangeInput['override']> = {
+      ...(options.since !== undefined ? { since: options.since } : {}),
+      ...(options.until !== undefined ? { until: options.until } : {}),
+    };
     const run = runImport({
       mode: command,
       stagingDir: resolve(stagingDir),
       workLogRoot: destination.workLogRoot,
       target: destination.target,
       sources: destination.sources,
+      range: { ...destination.range, override },
     });
     result = {
       ok: run.ok,
@@ -214,6 +241,7 @@ export async function runImportCommand(
       issues: run.issues,
       warnings: run.warnings,
       recovery: run.recovery,
+      range: run.range,
     };
   }
 
@@ -228,6 +256,13 @@ export async function runImportCommand(
   }
 
   if (result.recovery) console.log(describeRecovery(result.recovery));
+  if (result.range?.overridden) {
+    console.log(
+      chalk.gray(
+        `Range for Google Docs records (from --since/--until): ${result.range.since} to ${result.range.until ?? 'now'}`,
+      ),
+    );
+  }
   for (const warning of result.warnings) {
     console.log(chalk.yellow(`⚠ ${warning}`));
   }
