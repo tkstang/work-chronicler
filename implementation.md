@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-11-07
-oat_current_task_id: p05
+oat_current_task_id: p06
 oat_generated: false
 ---
 
@@ -53,7 +53,7 @@ oat_generated: false
 | p10   | pending   | 1     | 0/1      |
 | p11   | pending   | 1     | 0/1      |
 
-**Total:** 4/12 phases accepted
+**Total:** 5/12 phases accepted
 
 ---
 
@@ -461,10 +461,10 @@ Proof: 343 tests, lint, typecheck, format:check pass
 
 ## Phase p05: Consumers and linking for imported evidence
 
-**Status:** in_progress
+**Status:** completed
 **Base:** 81584c399c38f482b747f178e06114fedb37b2f1
 **Executor:** phase-implementer:wce-p05-impl-1
-**Head:** 5d723ff03ce1a3e3c284e99368982ccfbf16b48d
+**Head:** 9e70b3c7a6a3f467e96ccab3c3f72d802c8f3a4b
 
 Worktree and branch as p04. Committing owner: the phase implementer (code); root owns the journal. Parallelism: no declared group; fan-out rejected (consumers share the record readers, the filter subset contract and the linking model); one phase implementer. Task class: hard-reasoning (many consumers; filter subset replacement must keep the previous subset on failure).
 
@@ -600,6 +600,15 @@ Proof: new lock tests; reviewer stress probe 0 deletion warnings (adjusted probe
 Files: `src/cli/commands/status.ts`, `mixed-work-log.test.ts`, `documentation/commands.md`
 Proof: mixed test with a foreign-host lock; root re-ran typecheck, lint, format:check, 435 tests at 5d723ff: pass
 
+### Task p05-t16: (review) Name the right holder in rare filter-lock takeover refusals
+
+**Status:** completed
+**Commit:** 9e70b3c7a6a3f467e96ccab3c3f72d802c8f3a4b
+**Executor:** inline:p05 root (two Low message findings, review round 3; fix-loop bound reached)
+**Source review:** reviews/archived/p05-review-2026-11-08T073033Z.md (L1, L2)
+Files: `src/core/storage/filtered-subset.ts`, `filtered-subset.test.ts`, `documentation/commands.md`
+Proof: new dead-guard test fails on 5d723ff code; 436 tests, lint, typecheck, format:check pass
+
 ---
 
 ## Phase p06: Slack configuration and CLI
@@ -649,6 +658,10 @@ Proof: mixed test with a foreign-host lock; root re-ran typecheck, lint, format:
 <!-- One line per dispatch request id, rendered by `oat project dispatch record --format line` and written as a list item. Update that line in place with the terminal outcome; never paste the record or event JSON. -->
 
 <!-- orchestration-runs-start -->
+
+- run/v1 · request=wce-p05-rev-3 · scope=p05 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p05 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
+
+- Root-inline phase: p05 (fix p05-t16) — two Low takeover-message findings from review round 3 after the fix-loop bound; root model claude-opus-5-5
 
 - run/v1 · request=wce-p05-rev-2 · scope=p05 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p05 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
