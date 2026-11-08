@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-11-08
-oat_current_task_id: p10
+oat_current_task_id: null
 oat_generated: false
 ---
 
@@ -56,9 +56,9 @@ oat_generated: false
 | p17   | pending   | 1     | 0/1      |
 | p09   | pending   | 1     | 0/1      |
 | p10   | completed | 1     | 1/1      |
-| p11   | pending   | 1     | 0/1      |
+| p11   | completed | 1     | 1/1      |
 
-**Total:** 15/16 phases accepted
+**Total:** 16/16 phases accepted
 
 ---
 
@@ -1679,7 +1679,20 @@ Proof: 753 tests; DoD batch green
 
 ## Phase p11: 0.7.0 release preparation
 
-**Status:** pending
+**Status:** completed
+**Base:** 0ea25d70690080f5f0960b3a3eb23951c3e8ed83
+**Executor:** root
+**Head:** 157e2f86c79c60b4722a1199819483a72b2827cf
+
+Version bump and CHANGELOG only; root-inline (see Orchestration Runs). Verification at Head (root): lint, format:check, typecheck, tests (753, 46 files), `pnpm build`, `npm pack --dry-run` (version 0.7.0, 143 files including the new skill): pass.
+
+### Task p11-t01: Release 0.7.0
+
+**Status:** completed
+**Commit:** 157e2f8
+**Executor:** root
+Files: `package.json`, `CHANGELOG.md`
+Proof: DoD batch above; `[0.7.0]` section and link refs; the setup-slack reason fix (0.6.0 known issue) leads Fixed
 
 ---
 
@@ -1717,6 +1730,7 @@ run/v1 · request=wce-p14-rev-1 · scope=p14 · action=review · role=oat-review
   run/v1 · request=wce-p10-rev-1 · scope=p10 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p10 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
   run/v1 · request=wce-p10-rev-2 · scope=p10 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p10 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
   run/v1 · request=wce-p10-rev-3 · scope=p10 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p10 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
+- Root-inline phase: p11 (0.7.0 version bump and CHANGELOG) done by root (claude-opus-5-5); mechanical release prep, no dispatch needed.
 - run/v1 · request=wce-p08-rev-1 · scope=p08 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p08 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 - Root-inline phase: p08 — inline exception for a version bump and CHANGELOG move; root model claude-opus-5-5
