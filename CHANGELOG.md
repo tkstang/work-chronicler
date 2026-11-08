@@ -40,8 +40,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   system clock jumped forward, because a lock's owner counted as gone when
   its recorded start time looked older than the last boot. Locks now record
   the boot they were taken in, and a running process's lock is never taken
-  over because of the clock; a lock from before a reboot is still taken over
-  even when its process ID is in use again.
+  over because of the clock. On Linux and macOS, which give a boot ID, a
+  lock from before a reboot is still taken over even when its process ID is
+  in use again; elsewhere, and for a 0.6.0 lock, a lock is kept while a
+  process with its ID runs, until it is removed by hand.
 - `filter --clear` could report success while an earlier subset left beside
   `filtered/` made `analyze` and the MCP server see an interrupted swap. It
   now finds and sets aside every such subset before deselecting, and when it

@@ -263,8 +263,10 @@ rejected (`SCHEMA_INVALID`).
   exited, or that ran before the last reboot (told by the boot ID recorded
   in the lock, never by the clock), is taken over, by one run at a time,
   under a short-lived `<lock>.takeover` guard. A lock held by a running
-  process, or from another machine, is never moved; a 0.6.0 lock records no
-  boot ID, so it is kept while a process with its ID runs. If a run exits
+  process, or from another machine, is never moved. Only Linux and macOS
+  record a boot ID; elsewhere, and for a 0.6.0 lock (which records none), a
+  lock is kept while a process with its ID runs, even after a reboot, until
+  it is removed by hand. If a run exits
   while holding a guard, later runs are refused with the guard's name, to
   remove once no import or filter is running. `validate` takes no lock; it
   reports `IMPORT_IN_PROGRESS` only while an import holds it.
@@ -465,7 +467,9 @@ a note, instead of reading the full work log. Re-run `filter` to add them.
 a second `filter`, or a `filter` while an import runs, is refused and leaves
 the subset as it is. A lock left by a process on this machine that has
 exited, or that ran before the last reboot (by its recorded boot ID, never
-the clock), is taken over, by one run at a time. A lock held by a running
+the clock; Linux and macOS only), is taken over, by one run at a time.
+Elsewhere, and for a 0.6.0 lock, a lock is kept while a process with its ID
+runs. A lock held by a running
 process, or recorded under another host name (for example after the machine
 was renamed), is not: the error and `status` name the lock, the command,
 process and host that hold it, and say to remove the lock if you know no such
