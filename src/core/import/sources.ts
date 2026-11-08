@@ -149,17 +149,19 @@ function parseSlackPermalink(url: string): SlackPermalink | null {
 /**
  * Raw Slack markup that can carry another person's identity or label text:
  * user mentions (`<@U…>`, `<@W…|name>`), channel links (`<#C…|name>`),
- * special mentions (`<!here>`, `<!subteam^S…|@team>`) and links
- * (`<https://…|label>`, `<https://…>`). The import skill rewrites these
+ * special mentions (`<!here>`, `<!subteam^S…|@team>`, `<!date^…|text>`) and
+ * links (`<https://…|label>`, `<https://…>`, `<mailto:…|label>`, `<tel:…>`).
+ * Other `<!…>` and `<word:…>` text (`<!DOCTYPE html>`, `<std::vector>`) is
+ * ordinary text. The import skill rewrites these
  * (`@someone`, `#channel`, the bare URL) before staging; a body that still
  * holds one was not rewritten. A `>` quote line is ordinary text here.
  */
 const SLACK_MARKUP = [
   /<@[UW][A-Z0-9]*(?:\|[^>]*)?>/,
   /<#[A-Z0-9]+(?:\|[^>]*)?>/,
-  /<![a-z][^>]*>/i,
-  /<[a-z][a-z0-9+.-]*:\/\/[^\s>]*>/i,
-  /<[a-z][a-z0-9+.-]*:\/\/[^\s|>]*\|[^>]*>/i,
+  /<!(?:here|channel|everyone)(?:\|[^>]*)?>/i,
+  /<!(?:subteam|date)\^[^>]*>/i,
+  /<(?:https?|ftp|mailto|tel|sms|slack):[^\s|>]*(?:\|[^>]*)?>/i,
 ];
 
 /**

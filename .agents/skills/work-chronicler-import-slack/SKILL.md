@@ -189,6 +189,9 @@ Slack markup in `Text`, rewritten in the body:
 | A link, `<https://github.com/example-org/billing/pull/42\|github.com/example-org/billing/pull/42>` or `<https://…>` | The URL alone: `https://github.com/example-org/billing/pull/42` (drop `\|label`) |
 | A channel link, `<#C0EXAMPLE2\|name>` | `#channel` |
 | `<!here>`, `<!channel>`, `<!everyone>` | `@here`, `@channel`, `@everyone` |
+| A group mention, `<!subteam^S0EXAMPLE\|@team-name>` | `@group` |
+| A date, `<!date^1767261600^{date}\|January 1st>` | The text after `\|` (`January 1st`) |
+| A mail or phone link, `<mailto:…\|label>` or `<tel:…>` | `(email)` or `(phone)` (never the address, number or label) |
 
 Threads, from the `thread_ts` in the result's permalink:
 

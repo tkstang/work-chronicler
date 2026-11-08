@@ -296,6 +296,9 @@ describe('Slack records: raw markup in the body', () => {
     ['a group mention', `<!subteam^S0OTHER01|@${SECRET}> please look`],
     ['a link with a label', `see <https://example.com/x|${SECRET} words>`],
     ['a link in markup without a label', 'see <https://example.com/x>'],
+    ['a mail link with a label', `ping <mailto:sam@example.com|${SECRET}>`],
+    ['a phone link', 'call <tel:+15550100>'],
+    ['a date', `due <!date^1767261600^{date}|${SECRET}>`],
   ])('refuses %s without echoing it', (_label, body) => {
     expect(problems(checkBody(body))).toEqual([['SOURCE_RULE', 'body']]);
   });
@@ -306,6 +309,8 @@ describe('Slack records: raw markup in the body', () => {
     '> a quote line is ordinary text',
     'if a < b and c > d, mail <me@example.com>',
     '<!-- not Slack markup -->',
+    'use `<!DOCTYPE html>` at the top',
+    'a `std::vector` is a <std::vector> here',
   ])('accepts a body without raw markup: %j', (body) => {
     const result = checkBody(body);
     expect(result.issues).toEqual([]);
