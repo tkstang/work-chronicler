@@ -54,6 +54,7 @@ const github = {
   searches: [] as string[],
   reviewListings: [] as string[],
   failures: new Map<string, () => Error>(),
+  incompleteResults: false,
 };
 
 const notFound = () => Object.assign(new Error('Not Found'), { status: 404 });
@@ -112,7 +113,7 @@ vi.mock('@octokit/rest', () => ({
         return {
           data: {
             total_count: matches.length,
-            incomplete_results: false,
+            incomplete_results: github.incompleteResults,
             items: page(matches, params.per_page, params.page).map((pr) => ({
               number: pr.number,
               title: pr.title,
@@ -213,11 +214,12 @@ function review(
 
 function config(
   orgs: Config['github']['orgs'] = [{ name: 'acme', repos: ['*'] }],
+  range: Config['fetch'] = { since: '2025-01-01', until: '2025-06-01' },
 ): Config {
   return {
     github: { username: ME, token: 'test-token', orgs },
     output: { directory: './work-log' },
-    fetch: { since: '2025-01-01', until: '2025-06-01' },
+    fetch: range,
     analysis: { thresholds: { minor: {}, major: {}, flagship: {} } },
   };
 }
@@ -226,10 +228,14 @@ let outputDir: string;
 let logs: string[];
 
 async function fetchReviews(
-  options: { orgs?: Config['github']['orgs']; useCache?: boolean } = {},
+  options: {
+    orgs?: Config['github']['orgs'];
+    useCache?: boolean;
+    range?: Config['fetch'];
+  } = {},
 ) {
   return fetchGitHubReviews({
-    config: config(options.orgs),
+    config: config(options.orgs, options.range),
     outputDir,
     useCache: options.useCache,
   });
@@ -252,6 +258,7 @@ beforeEach(() => {
   github.searches.length = 0;
   github.reviewListings.length = 0;
   github.failures.clear();
+  github.incompleteResults = false;
   process.exitCode = undefined;
 });
 
@@ -655,5 +662,51 @@ describe('fetchGitHubReviews', () => {
     expect(
       (await storedRecord('acme', 'api', 1))?.reviews.map((r) => r.reviewId),
     ).toEqual([1, 2]);
+  });
+
+  it('keeps entries from an earlier range when fetching a different one, without duplicates', async () => {
+    addPR({
+      number: 7,
+      updatedAt: '2025-08-01T00:00:00Z',
+      reviews: [
+        review(1, '2025-02-01T00:00:00Z'),
+        review(2, '2025-08-01T00:00:00Z', { state: 'APPROVED' }),
+      ],
+    });
+    const reviewIds = async () =>
+      (await storedRecord('acme', 'api', 7))?.reviews.map((r) => r.reviewId);
+
+    await fetchReviews({ range: { since: '2025-01-01', until: '2025-06-01' } });
+    expect(await reviewIds()).toEqual([1]);
+
+    await fetchReviews({ range: { since: '2025-07-01', until: '2025-12-01' } });
+    expect(await reviewIds()).toEqual([1, 2]);
+    expect((await storedRecord('acme', 'api', 7))?.fetchedRange?.since).toBe(
+      '2025-07-01T00:00:00.000Z',
+    );
+
+    // A wider range than the record was written for is fetched once, then
+    // the record is current and --cache skips it
+    github.reviewListings.length = 0;
+    const wide = { since: '2025-01-01', until: '2025-12-01' };
+    await fetchReviews({ range: wide, useCache: true });
+    expect(github.reviewListings).toEqual(['acme/api#7']);
+    expect(await reviewIds()).toEqual([1, 2]);
+    await fetchReviews({ range: wide, useCache: true });
+    expect(github.reviewListings).toEqual(['acme/api#7']);
+  });
+
+  it('warns about incomplete search results once per org, not once per page', async () => {
+    github.incompleteResults = true;
+    for (let n = 1; n <= 150; n++) {
+      addPR({ number: n, reviews: [review(n, '2025-02-01T00:00:00Z')] });
+    }
+
+    await fetchReviews();
+
+    expect(
+      logs.filter((line) => line.includes('incomplete results')),
+    ).toHaveLength(1);
+    expect(process.exitCode).toBe(1);
   });
 });

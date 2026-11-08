@@ -178,8 +178,10 @@ async function searchReviewedPRs(
   let seen = 0;
   for (let page = 1; ; page++) {
     if (page > 1) data = await search(page);
-    if (data.incomplete_results) {
-      problems.push('GitHub search returned incomplete results.');
+    // Once per org, however many pages or date windows report it
+    const incomplete = 'GitHub search returned incomplete results.';
+    if (data.incomplete_results && !problems.includes(incomplete)) {
+      problems.push(incomplete);
     }
     for (const item of data.items) {
       found.set(item.html_url, item);
