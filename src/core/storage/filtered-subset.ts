@@ -52,6 +52,9 @@ const CLEARED_PREFIX = '.filter-cleared-';
 export const FILTER_LOCK = '.filter-lock';
 const LOCK_CLAIM_PREFIX = `${FILTER_LOCK}.claim-`;
 const LOCK_STALE_PREFIX = `${FILTER_LOCK}.stale-`;
+const LOCK_RELEASED_PREFIX = `${FILTER_LOCK}.released-`;
+/** Held while a lock left by an exited run is taken over */
+const LOCK_TAKEOVER_GUARD = `${FILTER_LOCK}.takeover`;
 const LOCK_OWNER_FILE = 'owner.json';
 
 /**
@@ -393,13 +396,38 @@ const LockOwnerSchema = z.object({
 type LockOwner = z.infer<typeof LockOwnerSchema>;
 
 function readLockOwner(fs: SubsetFs, lockDir: string): LockOwner | null {
+  const state = readLockState(fs, lockDir);
+  return state.kind === 'owner' ? state.owner : null;
+}
+
+/**
+ * A lock directory's owner, telling a lock that is gone (`missing`) from
+ * one that names no valid owner (`unreadable`). A lock is put in place
+ * whole, with its owner, so a missing owner file means the lock was
+ * released or replaced while it was read: callers look again.
+ */
+function readLockState(
+  fs: SubsetFs,
+  lockDir: string,
+):
+  | { kind: 'owner'; owner: LockOwner }
+  | { kind: 'missing' }
+  | { kind: 'unreadable' } {
+  let text: string;
   try {
-    const parsed = LockOwnerSchema.safeParse(
-      JSON.parse(fs.readFile(join(lockDir, LOCK_OWNER_FILE)).toString('utf-8')),
-    );
-    return parsed.success ? parsed.data : null;
+    text = fs.readFile(join(lockDir, LOCK_OWNER_FILE)).toString('utf-8');
+  } catch (error) {
+    return errorCode(error) === 'ENOENT'
+      ? { kind: 'missing' }
+      : { kind: 'unreadable' };
+  }
+  try {
+    const parsed = LockOwnerSchema.safeParse(JSON.parse(text));
+    return parsed.success
+      ? { kind: 'owner', owner: parsed.data }
+      : { kind: 'unreadable' };
   } catch {
-    return null;
+    return { kind: 'unreadable' };
   }
 }
 
@@ -422,14 +450,175 @@ function ownerIsAlive(owner: LockOwner, env: SubsetEnv): boolean {
   return env.isProcessAlive(owner.pid);
 }
 
-const LOCK_HELD =
-  'Another `work-chronicler filter` run is changing the filtered subset of this work log (or one was started on another machine); try again when it finishes. The subset was not changed.';
+/** Tries to take a lock that keeps being released and taken by others */
+const MAX_LOCK_ATTEMPTS = 5;
+
+/** How long an ownerless claim or guard is given to be written */
+const UNREADABLE_GRACE_MS = 60_000;
+
+function describeOwner(owner: LockOwner): string {
+  return `process ${owner.pid} on ${owner.hostname}, started ${new Date(owner.startedAt).toISOString()}`;
+}
 
 /**
- * Take the work log's filter lock. The lock directory is created complete
- * (with its owner) under a claim name and renamed into place, which fails
- * while another lock exists, so a lock always names its owner. A lock whose
- * owner is provably gone is taken over.
+ * Why a run could not take the lock, with a recovery step that is safe: the
+ * lock is removed only by someone who knows no filter is running.
+ */
+function lockHeldMessage(lockPath: string, owner: LockOwner | null): string {
+  const who = owner
+    ? `Another \`work-chronicler filter\` run (${describeOwner(owner)}) holds ${lockPath}`
+    : `${lockPath} exists but does not say which run holds it`;
+  return (
+    `${who}. If it is still running, try again when it finishes. ` +
+    `If you know no filter is running (it was stopped, or the machine was renamed), remove ${lockPath} and try again. ` +
+    'The subset was not changed.'
+  );
+}
+
+/**
+ * The work log's filter lock, for diagnostics: its path and owner (null when
+ * the owner cannot be read), or null when no lock is held.
+ */
+export function readFilterLock(
+  outputDir: string,
+  fs: SubsetFs = nodeSubsetFs,
+): { path: string; owner: Omit<LockOwner, 'version' | 'runId'> | null } | null {
+  const path = join(outputDir, FILTER_LOCK);
+  if (!exists(fs, path)) return null;
+  const owner = readLockOwner(fs, path);
+  return {
+    path,
+    owner: owner
+      ? { pid: owner.pid, hostname: owner.hostname, startedAt: owner.startedAt }
+      : null,
+  };
+}
+
+/**
+ * Move a lock-shaped directory out of the way under a name only this run
+ * uses, then remove it. Renaming first means the shared name never holds a
+ * half-removed (empty) directory another run could rename its claim onto.
+ */
+function retireQuietly(
+  fs: SubsetFs,
+  path: string,
+  aside: string,
+  warnings: string[],
+): void {
+  try {
+    fs.rename(path, aside);
+  } catch (error) {
+    if (errorCode(error) !== 'ENOENT') {
+      warnings.push(
+        `Could not release ${path} (${errorCode(error) ?? 'error'}); the next \`work-chronicler filter\` run will take it over once this process has exited.`,
+      );
+    }
+    return;
+  }
+  try {
+    fs.rm(aside);
+  } catch (error) {
+    if (errorCode(error) !== 'ENOENT') {
+      warnings.push(
+        `Could not remove ${aside} (${errorCode(error) ?? 'error'}); it is a released lock, no longer in use, and can be deleted.`,
+      );
+    }
+  }
+}
+
+/**
+ * Create a lock-shaped directory (`<path>/owner.json`) complete under a
+ * claim name and rename it into place. The rename fails while `path` holds
+ * a lock, and a lock is never left empty, so at most one run creates it.
+ *
+ * @returns Whether this run now holds `path`
+ */
+function claimLockPath(
+  fs: SubsetFs,
+  outputDir: string,
+  path: string,
+  owner: LockOwner,
+  tag: string,
+): boolean {
+  const claim = join(outputDir, `${LOCK_CLAIM_PREFIX}${owner.runId}${tag}`);
+  fs.mkdir(claim);
+  let renamed = false;
+  try {
+    fs.writeFile(join(claim, LOCK_OWNER_FILE), JSON.stringify(owner));
+    try {
+      fs.rename(claim, path);
+      renamed = true;
+    } catch (error) {
+      // Another lock is in place (or was, a moment ago)
+      const code = errorCode(error);
+      if (code === 'ENOTEMPTY' || code === 'EEXIST' || exists(fs, path)) {
+        return false;
+      }
+      throw error;
+    }
+    const held = readLockOwner(fs, path);
+    return held !== null && sameOwner(held, owner);
+  } finally {
+    if (!renamed) removeQuietly(fs, claim, []);
+  }
+}
+
+/**
+ * With the lock held: remove what earlier runs left beside it. Moved-aside
+ * and released locks are never in use. A claim or takeover guard is removed
+ * only when its owner is provably gone, or when it never named an owner
+ * within the grace period, so a run that is about to claim is not disturbed.
+ */
+function removeLockLeftovers(
+  fs: SubsetFs,
+  env: SubsetEnv,
+  outputDir: string,
+  warnings: string[],
+): void {
+  let names: string[];
+  try {
+    names = fs.readdir(outputDir);
+  } catch {
+    return;
+  }
+  for (const name of names) {
+    if (!name.startsWith(`${FILTER_LOCK}.`)) continue;
+    const path = join(outputDir, name);
+    const alwaysUnused =
+      name.startsWith(LOCK_STALE_PREFIX) ||
+      name.startsWith(LOCK_RELEASED_PREFIX);
+    if (!alwaysUnused) {
+      const owner = readLockOwner(fs, path);
+      if (owner) {
+        if (ownerIsAlive(owner, env)) continue;
+      } else {
+        let mtime: number;
+        try {
+          mtime = fs.lstat(path).mtimeMs;
+        } catch {
+          continue;
+        }
+        if (env.now() - mtime < UNREADABLE_GRACE_MS) continue;
+      }
+    }
+    try {
+      fs.rm(path);
+    } catch (error) {
+      if (errorCode(error) !== 'ENOENT') {
+        warnings.push(
+          `Could not remove ${path} (${errorCode(error) ?? 'error'}), left by an earlier run.`,
+        );
+      }
+    }
+  }
+}
+
+/**
+ * Take the work log's filter lock. A lock whose owner is provably gone is
+ * taken over, one run at a time: the taker first holds the takeover guard
+ * (`.filter-lock.takeover`, created the same way), checks that the lock
+ * still names the gone owner, moves it aside and removes it, then claims
+ * the lock like any other run, so at most one claim can win.
  *
  * @returns A function that releases the lock and returns any warnings
  * @throws {FilterInProgressError} When another run holds the lock
@@ -441,6 +630,7 @@ function acquireFilterLock(
   randomId: () => string,
 ): () => string[] {
   const lockPath = join(outputDir, FILTER_LOCK);
+  const guardPath = join(outputDir, LOCK_TAKEOVER_GUARD);
   const owner: LockOwner = {
     version: 1,
     pid: env.pid,
@@ -449,76 +639,81 @@ function acquireFilterLock(
     runId: randomId(),
   };
   fs.mkdirp(outputDir);
-  const claim = join(outputDir, `${LOCK_CLAIM_PREFIX}${owner.runId}`);
-  fs.mkdir(claim);
-  const giveUp = (error: Error): never => {
-    removeQuietly(fs, claim, []);
-    throw error;
-  };
-  try {
-    fs.writeFile(join(claim, LOCK_OWNER_FILE), JSON.stringify(owner));
-  } catch (error) {
-    giveUp(error as Error);
-  }
 
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      fs.rename(claim, lockPath);
-      const held = readLockOwner(fs, lockPath);
-      if (held && sameOwner(held, owner)) {
-        return () => {
-          const current = readLockOwner(fs, lockPath);
-          if (!current || !sameOwner(current, owner)) {
-            return [
-              `${lockPath} no longer names this run; it was left as it is.`,
-            ];
-          }
-          const warnings: string[] = [];
-          removeQuietly(fs, lockPath, warnings);
-          return warnings;
-        };
-      }
-      return giveUp(new FilterInProgressError(LOCK_HELD));
-    } catch (error) {
-      if (error instanceof FilterInProgressError) throw error;
-      if (!exists(fs, lockPath)) {
-        if (attempt === 0) continue;
-        return giveUp(error as Error);
-      }
+  for (let attempt = 0; attempt < MAX_LOCK_ATTEMPTS; attempt++) {
+    if (claimLockPath(fs, outputDir, lockPath, owner, '')) {
+      const warnings: string[] = [];
+      removeLockLeftovers(fs, env, outputDir, warnings);
+      return () => {
+        const released: string[] = [...warnings];
+        const current = readLockOwner(fs, lockPath);
+        if (!current || !sameOwner(current, owner)) {
+          released.push(
+            `${lockPath} no longer names this run, so it was left as it is.`,
+          );
+          return released;
+        }
+        retireQuietly(
+          fs,
+          lockPath,
+          join(outputDir, `${LOCK_RELEASED_PREFIX}${owner.runId}`),
+          released,
+        );
+        return released;
+      };
     }
 
     // Someone holds the lock: take it over only if its owner is gone
-    const held = readLockOwner(fs, lockPath);
-    if (!held) {
-      return giveUp(
-        new FilterInProgressError(
-          `${lockPath} exists but could not be read; if no \`work-chronicler filter\` is running, remove it and try again. The subset was not changed.`,
-        ),
+    const state = readLockState(fs, lockPath);
+    if (state.kind === 'missing') continue; // released meanwhile: try again
+    if (state.kind === 'unreadable') {
+      throw new FilterInProgressError(lockHeldMessage(lockPath, null));
+    }
+    const held = state.owner;
+    if (ownerIsAlive(held, env)) {
+      throw new FilterInProgressError(lockHeldMessage(lockPath, held));
+    }
+    if (!claimLockPath(fs, outputDir, guardPath, owner, '.guard')) {
+      const taker = readLockOwner(fs, guardPath);
+      throw new FilterInProgressError(
+        `Another \`work-chronicler filter\` run${taker ? ` (${describeOwner(taker)})` : ''} is taking over ${lockPath} from a run that has exited. ` +
+          `Try again in a moment. If no filter is running, remove ${guardPath} and try again. The subset was not changed.`,
       );
     }
-    if (ownerIsAlive(held, env)) {
-      return giveUp(new FilterInProgressError(LOCK_HELD));
-    }
-    const stale = join(outputDir, `${LOCK_STALE_PREFIX}${randomId()}`);
     try {
-      fs.rename(lockPath, stale);
-    } catch (error) {
-      if (errorCode(error) === 'ENOENT') continue;
-      return giveUp(error as Error);
-    }
-    const moved = readLockOwner(fs, stale);
-    if (!moved || !sameOwner(moved, held)) {
-      // A new run took the lock between our read and the rename: give it back
-      try {
-        fs.rename(stale, lockPath);
-      } catch {
-        // Its owner will report that the lock no longer names it
+      // Under the guard, the gone owner's lock can only be removed by us
+      const current = readLockOwner(fs, lockPath);
+      if (current && sameOwner(current, held)) {
+        const stale = join(outputDir, `${LOCK_STALE_PREFIX}${randomId()}`);
+        fs.rename(lockPath, stale);
+        const moved = readLockOwner(fs, stale);
+        if (!moved || !sameOwner(moved, held)) {
+          try {
+            fs.rename(stale, lockPath);
+          } catch {
+            // Left as a stale copy; reported below
+          }
+          throw new FilterInProgressError(lockHeldMessage(lockPath, moved));
+        }
+        removeQuietly(fs, stale, []);
       }
-      return giveUp(new FilterInProgressError(LOCK_HELD));
+    } finally {
+      retireQuietly(
+        fs,
+        guardPath,
+        join(outputDir, `${LOCK_RELEASED_PREFIX}${owner.runId}.guard`),
+        [],
+      );
     }
-    removeQuietly(fs, stale, []);
   }
-  return giveUp(new FilterInProgressError(LOCK_HELD));
+  const last = readLockState(fs, lockPath);
+  throw new FilterInProgressError(
+    last.kind === 'owner'
+      ? lockHeldMessage(lockPath, last.owner)
+      : exists(fs, lockPath)
+        ? lockHeldMessage(lockPath, null)
+        : 'Other `work-chronicler filter` runs kept taking and releasing the lock; try again. The subset was not changed.',
+  );
 }
 
 /** A relative path that stays inside the subset */

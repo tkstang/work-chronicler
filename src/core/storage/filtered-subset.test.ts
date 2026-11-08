@@ -7,6 +7,7 @@ import {
   renameSync,
   rmSync,
   symlinkSync,
+  utimesSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -17,6 +18,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   clearFilteredSubset,
+  readFilterLock,
   FilterInProgressError,
   type FilterSelection,
   FilteredSubsetInterruptedError,
@@ -419,7 +421,7 @@ describe('clearFilteredSubset', () => {
     await previousSubset();
 
     const { cleared, warnings } = clearFilteredSubset(workLog, {
-      fs: failing('rm'),
+      fs: failing('rm', (p) => basename(p).startsWith('.filter-cleared-')),
     });
 
     expect(cleared).toBe(true);
@@ -557,5 +559,195 @@ describe('one filter run at a time', () => {
     expect(() => getEffectiveOutputDir(workLog)).toThrow(
       /is replacing .* \(it holds \.filter-lock\)/,
     );
+  });
+
+  it('names the lock, its holder and a safe way out when the holder is elsewhere', async () => {
+    await previousSubset();
+    holdLock({ hostname: 'Old-Hostname.local' });
+    const lockPath = join(workLog, '.filter-lock');
+    const message = new RegExp(
+      `run \\(process 4242 on Old-Hostname\\.local, started .*\\) holds ${lockPath}\\..*If you know no filter is running .*remove ${lockPath} and try again`,
+    );
+
+    await expect(
+      replaceFilteredSubset(workLog, runPlan('B'), { env: env(false) }),
+    ).rejects.toThrow(message);
+    expect(() => clearFilteredSubset(workLog, { env: env(false) })).toThrow(
+      message,
+    );
+    expect(readFilterLock(workLog)).toEqual({
+      path: lockPath,
+      owner: { pid: 4242, hostname: 'Old-Hostname.local', startedAt: 2_000 },
+    });
+
+    // Following the advice works
+    rmSync(lockPath, { recursive: true });
+    await replaceFilteredSubset(workLog, runPlan('B'), { env: env(false) });
+    expect(readFilterLock(workLog)).toBeNull();
+  });
+
+  it('releases by moving the lock aside first, so it is never an empty directory another run could claim', async () => {
+    let contender: Promise<unknown> | undefined;
+    const removed: string[] = [];
+    const fs: SubsetFs = {
+      ...nodeSubsetFs,
+      rm: (path) => {
+        removed.push(basename(path));
+        // While the released copy is being removed, another run starts
+        if (!contender && basename(path).startsWith('.filter-lock.released-')) {
+          contender = replaceFilteredSubset(workLog, runPlan('C'));
+        }
+        nodeSubsetFs.rm(path);
+      },
+    };
+
+    const { warnings } = await replaceFilteredSubset(workLog, runPlan('A'), {
+      fs,
+    });
+
+    expect(warnings).toEqual([]);
+    expect(removed).not.toContain('.filter-lock');
+    // The contender found the lock free and ran normally
+    await expect(contender).resolves.toMatchObject({ warnings: [] });
+    const state = getFilteredSubsetState(workLog);
+    expect(state.status === 'selected' && state.selection?.filters).toEqual([
+      'C',
+    ]);
+    expect(rootLeftovers()).toEqual([]);
+  });
+
+  it('never warns that the live lock can be deleted when its removal fails', async () => {
+    const { warnings } = await replaceFilteredSubset(workLog, runPlan('A'), {
+      fs: failing('rm', (p) =>
+        basename(p).startsWith('.filter-lock.released-'),
+      ),
+    });
+
+    expect(warnings).toEqual([
+      expect.stringMatching(
+        /\.filter-lock\.released-.*it is a released lock, no longer in use, and can be deleted/,
+      ),
+    ]);
+    expect(readFilterLock(workLog)).toBeNull();
+  });
+
+  // A stale lock and three runs: only one may hold the lock at a time
+  it.each<[string, (from: string, to: string) => boolean]>([
+    [
+      'while the first taker holds the takeover guard',
+      (from, to) =>
+        from.includes('.filter-lock.claim-') &&
+        to.endsWith('.filter-lock.takeover'),
+    ],
+    [
+      'while the stale lock is moved aside',
+      (from, to) => from.endsWith('.filter-lock') && to.includes('.stale-'),
+    ],
+  ])(
+    'lets exactly one run take over a stale lock when others start %s',
+    async (_, trigger) => {
+      holdLock({ pid: 999 });
+      const deadEnv = {
+        hostname: 'this-host',
+        bootTime: () => 1_000,
+        isProcessAlive: (pid: number) => pid !== 999,
+      };
+      let inside = 0;
+      let maxInside = 0;
+      const gates: (() => void)[] = [];
+      const gated = (tag: string) =>
+        plan(
+          { [`pull-requests/o/r/${tag}.md`]: tag },
+          {
+            selection: selection([tag]),
+            validate: async () => {
+              inside++;
+              maxInside = Math.max(maxInside, inside);
+              await new Promise<void>((resolve) => gates.push(resolve));
+              inside--;
+            },
+          },
+        );
+      const others: Promise<string>[] = [];
+      const fs: SubsetFs = {
+        ...nodeSubsetFs,
+        rename: (from, to) => {
+          nodeSubsetFs.rename(from, to);
+          if (others.length === 0 && trigger(from, to)) {
+            for (const [tag, pid] of [
+              ['B', 101],
+              ['D', 103],
+            ] as const) {
+              others.push(
+                replaceFilteredSubset(workLog, gated(tag), {
+                  env: { ...deadEnv, pid },
+                }).then(
+                  () => `${tag} ok`,
+                  (error: Error) => `${tag} refused: ${error.name}`,
+                ),
+              );
+            }
+          }
+        },
+      };
+
+      const first = replaceFilteredSubset(workLog, gated('C'), {
+        fs,
+        env: { ...deadEnv, pid: 102 },
+      }).then(
+        () => 'C ok',
+        (error: Error) => `C refused: ${error.name}`,
+      );
+      // Let every run that got in reach its gate, then let them all finish
+      for (let i = 0; i < 20 && gates.length < 1; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+      while (gates.length > 0) gates.shift()?.();
+      const outcomes = await Promise.all([first, ...others]);
+
+      expect(maxInside).toBe(1);
+      expect(outcomes.filter((o) => o.endsWith(' ok'))).toHaveLength(1);
+      expect(
+        outcomes.filter((o) => o.includes('refused: FilterInProgressError')),
+      ).toHaveLength(2);
+      expect(rootLeftovers()).toEqual([]);
+    },
+  );
+
+  it('removes what earlier runs left beside the lock, but not a run about to claim', async () => {
+    const owner = (pid: number) =>
+      JSON.stringify({
+        version: 1,
+        pid,
+        hostname: 'this-host',
+        startedAt: 2_000,
+        runId: `r${pid}`,
+      });
+    const leave = (name: string, contents?: string, old = false) => {
+      const dir = join(workLog, name);
+      mkdirSync(dir);
+      if (contents) writeFileSync(join(dir, 'owner.json'), contents);
+      if (old) utimesSync(dir, new Date(0), new Date(0));
+    };
+    leave('.filter-lock.stale-old', owner(1));
+    leave('.filter-lock.released-old', owner(1));
+    leave('.filter-lock.claim-gone', owner(999));
+    leave('.filter-lock.claim-live', owner(101));
+    leave('.filter-lock.claim-empty-old', undefined, true);
+    leave('.filter-lock.claim-empty-new');
+    leave('.filter-lock.takeover', owner(999));
+
+    await replaceFilteredSubset(workLog, runPlan('A'), {
+      env: {
+        hostname: 'this-host',
+        bootTime: () => 1_000,
+        isProcessAlive: (pid) => pid !== 999 && pid !== 1,
+      },
+    });
+
+    expect(rootLeftovers().sort()).toEqual([
+      '.filter-lock.claim-empty-new',
+      '.filter-lock.claim-live',
+    ]);
   });
 });

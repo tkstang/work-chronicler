@@ -11,6 +11,7 @@ export {
   getFilteredSubsetState,
   nodeSubsetEnv,
   nodeSubsetFs,
+  readFilterLock,
   readFilterSelection,
   replaceFilteredSubset,
   type SubsetEnv,

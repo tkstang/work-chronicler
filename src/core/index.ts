@@ -53,6 +53,7 @@ export {
   readAllPRReviews,
   readAllPRs,
   readAllTickets,
+  readFilterLock,
   readFilterSelection,
   readPR,
   readPRReview,
