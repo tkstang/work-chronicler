@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-11-08
-oat_current_task_id: p13
+oat_current_task_id: p14
 oat_generated: false
 ---
 
@@ -38,27 +38,27 @@ oat_generated: false
 
 ## Progress Overview
 
-| Phase | Status      | Units | Accepted |
-| ----- | ----------- | ----- | -------- |
-| p01   | completed   | 1     | 1/1      |
-| p02   | completed   | 1     | 1/1      |
-| p03   | completed   | 1     | 1/1      |
-| p04   | completed   | 1     | 1/1      |
-| p05   | completed   | 1     | 1/1      |
-| p06   | completed   | 1     | 1/1      |
-| p07   | completed   | 1     | 1/1      |
-| p12   | completed   | 1     | 1/1      |
-| p08   | completed   | 1     | 1/1      |
-| p13   | in_progress | 1     | 0/1      |
-| p14   | pending     | 1     | 0/1      |
-| p15   | pending     | 1     | 0/1      |
-| p16   | pending     | 1     | 0/1      |
-| p17   | pending     | 1     | 0/1      |
-| p09   | pending     | 1     | 0/1      |
-| p10   | pending     | 1     | 0/1      |
-| p11   | pending     | 1     | 0/1      |
+| Phase | Status    | Units | Accepted |
+| ----- | --------- | ----- | -------- |
+| p01   | completed | 1     | 1/1      |
+| p02   | completed | 1     | 1/1      |
+| p03   | completed | 1     | 1/1      |
+| p04   | completed | 1     | 1/1      |
+| p05   | completed | 1     | 1/1      |
+| p06   | completed | 1     | 1/1      |
+| p07   | completed | 1     | 1/1      |
+| p12   | completed | 1     | 1/1      |
+| p08   | completed | 1     | 1/1      |
+| p13   | completed | 1     | 1/1      |
+| p14   | pending   | 1     | 0/1      |
+| p15   | pending   | 1     | 0/1      |
+| p16   | pending   | 1     | 0/1      |
+| p17   | pending   | 1     | 0/1      |
+| p09   | pending   | 1     | 0/1      |
+| p10   | pending   | 1     | 0/1      |
+| p11   | pending   | 1     | 0/1      |
 
-**Total:** 9/17 phases accepted
+**Total:** 10/17 phases accepted
 
 ---
 
@@ -1031,7 +1031,7 @@ Proof: Slack suites 13/13 locally; ready-PR CI re-run
 
 ## Phase p13: Import and filter locking and recovery
 
-**Status:** in_progress
+**Status:** completed
 **Base:** 1bdd3d8737dde4aa3305a3ac5a1b06f81e04a2bc
 **Executor:** phase-implementer:wce-p13-impl-1
 **Head:** 1a19d8554d802670f182ecec38952dfde9833ed6
@@ -1148,7 +1148,11 @@ Proof: 638 tests; DoD batch green
 
 ## Phase p14: Import internals simplification
 
-**Status:** pending
+**Status:** in_progress
+**Base:** 1a19d8554d802670f182ecec38952dfde9833ed6
+**Executor:** phase-implementer:wce-p14-impl-1
+
+Branch `oat/evidence-expansion-m03`. Committing owner: the phase implementer (code); root owns the journal. Task class: consequential (refactor of safety-sensitive filesystem code; a behavior change is the failure mode).
 
 ---
 
@@ -1199,6 +1203,8 @@ Proof: 638 tests; DoD batch green
 run/v1 · request=wce-p13-impl-1 · scope=p13 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p13 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 run/v1 · request=wce-p13-rev-1 · scope=p13 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p13 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
+
+run/v1 · request=wce-p13-rev-2 · scope=p13 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p13 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 - run/v1 · request=wce-p08-rev-1 · scope=p08 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p08 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
