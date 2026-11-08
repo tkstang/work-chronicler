@@ -697,8 +697,89 @@ Root re-ran typecheck, lint, format:check and tests at 6bfcfec: pass (515). Note
 **Status:** in_progress
 **Base:** 6bfcfecd44b80efa12b280a6f41f7fe4b0c4e57f
 **Executor:** phase-implementer:wce-p07-impl-1
+**Head:** cf5e68f2ac616aef5ef8e2448c698fa38a2a435d
 
 Worktree and branch as p04. Committing owner: the phase implementer (skills, acceptance test, docs); the root runs the live read-only walkthrough itself (privacy control stays with the root) and owns the journal. Parallelism: no declared group; one phase implementer. Task class: hard-reasoning (skill text that must enforce privacy rules the CLI cannot see).
+
+Verification at Head: implementer ran the full DoD batch at 9bd7083 (535 tests in 37 files; `npm pack --dry-run` 132 files with both Slack skills; built `skills install` into a temp HOME installed 12 skills). Root re-ran typecheck, lint, format:check and tests at 9bd7083 (535) and the Slack suites after p07-t09 (13): pass.
+
+Live read-only walkthrough (root, 2026-11-08; Slack plugin connector, temp `WORK_CHRONICLER_HOME`, deleted afterwards; redacted counts only):
+
+- First pass, following the skills as first written, found five gaps: no read tool exposes the workspace (team) ID; `slack_read_user_profile` concise omits the user ID; `slack_search_public` concise omits channel IDs, `Message_ts` and permalinks; message text uses Slack markup (`<@U…|Name>`, `<url|label>`); file-only messages have empty text. Fixed in p07-t05..t08 (workspace URL label accepted; skills require detailed formats and rewrite markup).
+- Second pass with the fixed skills: workspace configured by URL label (team ID available: no); user ID from the detailed profile; 3 public channels added (0 private; private channels declined). Searched 3 channels (detailed, `include_context=false`, cursor paging): channel A 15 results, channel B 1 result, channel C more than 40 results over several pages (searched for paging behavior; not imported, to bound the walkthrough). Imported channels A and B: 16 results, 15 kept, 1 skipped (empty/file-only), 0 other-author, 0 out of range. `validate`: ok, 0 issues. `import`: created 15. `link`: 0 of 3 PR mentions resolved (no PRs in the temp work log; expected). `status`: 15 messages. Rerun of the same batch: created 0, unchanged 15. Leak check on stored records: 0 files with display names, raw `<@U…>` mentions or `|label` link text; 3 with `@someone`; 11 replies carry only a parent ID and URL.
+- Observations fixed in p07-t09: detailed results do show `Reply count:` for a thread the subject started (copied into `replyCount`); quoted text from others arrives as `>` lines (dropped). Reply participant counts are never shown (stay 0).
+
+### Task p07-t01: Add the setup-slack skill
+
+**Status:** completed
+**Commit:** b9840106d23133ff577ff5d4d9cbd57ac0132f58
+**Executor:** phase-implementer:wce-p07-impl-1
+Files: `.agents/skills/work-chronicler-setup-slack/SKILL.md`
+Proof: commands and flags checked against CLI `--help`
+
+### Task p07-t02: Add the import-slack skill
+
+**Status:** completed
+**Commit:** 6543e3434ce2e43b12516e2faa0382abb4fd6b14
+**Executor:** phase-implementer:wce-p07-impl-1
+Files: `.agents/skills/work-chronicler-import-slack/SKILL.md`
+Proof: both example records validate through the real CLI
+
+### Task p07-t03: Slack import acceptance test
+
+**Status:** completed
+**Commit:** 090df3f334ac21dc38c1a2026e21c387346a2369
+**Executor:** phase-implementer:wce-p07-impl-1
+Files: `src/cli/commands/slack/slack-acceptance.test.ts`
+Proof: 5/5 pass; manager refusal fails with the CLI rule disabled
+
+### Task p07-t04: Docs and CHANGELOG
+
+**Status:** completed
+**Commit:** c6a69c74b5959052e5242fddeb60826c56131434
+**Executor:** phase-implementer:wce-p07-impl-1
+Files: `documentation/{available-skills,commands,configuration,manager-mode}.md`, `README.md`, `AGENTS.md`, `CHANGELOG.md`
+Proof: `format:check`
+
+### Task p07-t05: (walkthrough) Accept a Slack workspace URL label in place of a team ID
+
+**Status:** completed
+**Commit:** c5bb6068e2495fcfde5daa7b53277729d42020d1
+**Executor:** phase-implementer:wce-p07-impl-1 (walkthrough fix)
+Files: `src/core/types/slack.ts`, `src/core/import/sources.ts`, `src/cli/commands/slack/{configure,show}.ts`, tests
+Proof: 5 new tests fail on the old schema
+
+### Task p07-t06: (walkthrough) Match the Slack skills to what the connector returns
+
+**Status:** completed
+**Commit:** 3020f754096126a4313d7bbf29fb44d37e243eff
+**Executor:** phase-implementer:wce-p07-impl-1 (walkthrough fix)
+Files: both Slack `SKILL.md` files
+Proof: commands and flags still exist; examples validate
+
+### Task p07-t07: (walkthrough) Cover a URL-label workspace and Slack markup in acceptance
+
+**Status:** completed
+**Commit:** 134fb3c654f2b8f2445b25133fe03a01a6195135
+**Executor:** phase-implementer:wce-p07-impl-1 (walkthrough fix)
+Files: `slack-acceptance.test.ts`
+Proof: 5/5 pass; no display name, ID or `|` reaches stored records
+
+### Task p07-t08: (walkthrough) Document the Slack workspace URL label
+
+**Status:** completed
+**Commit:** 9bd708333f07da3ed8ba67970885fa2d19dd4818
+**Executor:** phase-implementer:wce-p07-impl-1 (walkthrough fix)
+Files: `documentation/{configuration,commands,available-skills}.md`, `CHANGELOG.md`
+Proof: `format:check`
+
+### Task p07-t09: (walkthrough) Copy shown reply counts and drop quoted lines in import-slack
+
+**Status:** completed
+**Commit:** cf5e68f2ac616aef5ef8e2448c698fa38a2a435d
+**Executor:** inline:p07 root (two small skill-text corrections from the live walkthrough)
+Files: `.agents/skills/work-chronicler-import-slack/SKILL.md`
+Proof: Slack suites 13/13 (skill examples validate)
 
 ---
 
@@ -737,6 +818,10 @@ Worktree and branch as p04. Committing owner: the phase implementer (skills, acc
 <!-- One line per dispatch request id, rendered by `oat project dispatch record --format line` and written as a list item. Update that line in place with the terminal outcome; never paste the record or event JSON. -->
 
 <!-- orchestration-runs-start -->
+
+- run/v1 · request=wce-p07-impl-1 · scope=p07 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p07 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
+
+- Root-inline phase: p07 (fix p07-t09) — two skill-text corrections observed in the live walkthrough; root model claude-opus-5-5
 
 - run/v1 · request=wce-p06-rev-2 · scope=p06 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p06 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
