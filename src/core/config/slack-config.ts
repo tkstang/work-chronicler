@@ -7,7 +7,7 @@ import {
   SlackWorkspaceIdSchema,
 } from '@wc-types/slack';
 import { generateReportId } from '@workspace/report-utils';
-import type { Document } from 'yaml';
+import { type Document, isSeq } from 'yaml';
 import type { z } from 'zod';
 
 import {
@@ -250,6 +250,9 @@ function applyChange(
     doc.setIn([...path, 'channels'], doc.createNode([entry]));
     slack.channels = [entry];
   } else {
+    // An empty list is written `[]`; give its first entry block style
+    const node = doc.getIn([...path, 'channels'], true);
+    if (isSeq(node) && node.items.length === 0) node.flow = false;
     doc.addIn([...path, 'channels'], doc.createNode(entry));
     list.push(entry);
   }

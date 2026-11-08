@@ -15,6 +15,7 @@ import { mcpCommand } from '@commands/mcp';
 import { profileCommand } from '@commands/profile/index';
 import { reportsCommand } from '@commands/reports/index';
 import { skillsCommand } from '@commands/skills/index';
+import { slackCommand } from '@commands/slack/index';
 import { statusCommand } from '@commands/status';
 import { validateCommand } from '@commands/validate';
 import { workspaceCommand } from '@commands/workspace/index';
@@ -98,6 +99,7 @@ function createProgram(): Command {
   program.addCommand(reportsCommand);
   program.addCommand(workspaceCommand);
   program.addCommand(skillsCommand);
+  program.addCommand(slackCommand);
 
   return program;
 }

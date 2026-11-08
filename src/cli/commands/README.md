@@ -55,6 +55,13 @@ commands/
 │   ├── list.ts             # profile list subcommand
 │   └── switch.ts           # profile switch subcommand
 │
+├── slack/                  # Command with subcommands (Slack settings for skills)
+│   ├── index.ts            # Parent command
+│   ├── configure.ts        # slack configure (workspace and user)
+│   ├── channels.ts         # slack channels add|remove|list
+│   ├── show.ts             # slack show (what an import skill reads)
+│   └── slack.utils.ts      # Subject resolution and config changes
+│
 ├── skills/                 # Command with simple subcommands + shared types
 │   ├── index.ts            # Parent command
 │   ├── install.ts          # skills install subcommand
