@@ -7,7 +7,7 @@ import { dirname, resolve } from 'node:path';
 import { CliError, handleCliError } from '@cli/errors';
 import { analyzeCommand } from '@commands/analyze';
 import { fetchCommand } from '@commands/fetch/index';
-import { filterCommand } from '@commands/filter';
+import { filterCommand } from '@commands/filter/index';
 import { importCommand } from '@commands/import/index';
 import { initCommand } from '@commands/init/index';
 import { linkCommand } from '@commands/link';

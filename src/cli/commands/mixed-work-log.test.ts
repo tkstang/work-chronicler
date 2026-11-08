@@ -1,13 +1,24 @@
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 
+import {
+  messageFrontmatter,
+  recordFile,
+  snapshot,
+} from '@core/import/import.test-support';
+import {
+  parseImportedRecordFile,
+  serializeImportedRecord,
+} from '@core/import/record-file';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -22,7 +33,8 @@ const { Command } = await import('commander');
 const core = await import('@core/index');
 const tools = await import('@mcp/tools/index');
 const { analyzeCommand } = await import('./analyze');
-const { filterCommand } = await import('./filter');
+const { filterCommand } = await import('./filter/index');
+const { writeFilteredSubset } = await import('./filter/filter.utils');
 const { statusCommand } = await import('./status');
 
 const configPath = join(root, 'work-chronicler.yaml');
@@ -173,6 +185,28 @@ async function authoredResults() {
   });
 }
 
+afterAll(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+  rmSync(root, { recursive: true, force: true });
+});
+
+function writeConfig() {
+  writeFileSync(
+    configPath,
+    [
+      'github:',
+      '  username: me',
+      'output:',
+      '  directory: ./work-log',
+      'fetch:',
+      '  since: "2025-01-01"',
+      '  until: "2025-12-31"',
+      '',
+    ].join('\n'),
+  );
+}
+
 describe('a work log with authored PRs and review records', () => {
   let logs: string[];
 
@@ -182,28 +216,6 @@ describe('a work log with authored PRs and review records', () => {
       logs.push(args.join(' '));
     });
   });
-
-  afterAll(() => {
-    vi.restoreAllMocks();
-    vi.unstubAllEnvs();
-    rmSync(root, { recursive: true, force: true });
-  });
-
-  function writeConfig() {
-    writeFileSync(
-      configPath,
-      [
-        'github:',
-        '  username: me',
-        'output:',
-        '  directory: ./work-log',
-        'fetch:',
-        '  since: "2025-01-01"',
-        '  until: "2025-12-31"',
-        '',
-      ].join('\n'),
-    );
-  }
 
   // Same repo as an authored PR, the same PR number in another repo, and an
   // org with no authored work
@@ -238,8 +250,8 @@ describe('a work log with authored PRs and review records', () => {
 
     const before = await authoredResults();
     expect(before.mcp.searchPrs.total).toBe(3);
-    // A subset made before any review fetch has no pr-reviews/
-    expect(existsSync(join(filteredDir, 'pr-reviews'))).toBe(false);
+    // filter writes every record directory, even before any review fetch
+    expect(existsSync(join(filteredDir, 'pr-reviews'))).toBe(true);
 
     writeBaselineReviews();
 
@@ -299,5 +311,263 @@ describe('a work log with authored PRs and review records', () => {
         '1 review record(s) in pr-reviews/ belong to another GitHub user (alice), not me, and are not counted',
       ),
     );
+  });
+});
+
+/**
+ * A message the subject wrote, stored where `import` would store it.
+ */
+function importedMessage(
+  n: number,
+  mentions: { tickets?: string[]; pullRequests?: string[] } = {},
+) {
+  const parsed = parseImportedRecordFile(
+    Buffer.from(
+      recordFile(
+        messageFrontmatter(n, {
+          occurredAt: `2025-03-0${n}T10:00:00Z`,
+          capturedAt: '2025-06-01T00:00:00Z',
+          mentions: {
+            tickets: mentions.tickets ?? [],
+            pullRequests: mentions.pullRequests ?? [],
+          },
+        }),
+        `Message ${n} in my own words.`,
+      ),
+    ),
+  );
+  if (!parsed.ok) throw new Error('fixture must be valid');
+  const path = core.getImportedRecordFilePath(
+    workLog,
+    core.getImportedRecordIdentity(parsed.record),
+  );
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, serializeImportedRecord(parsed.record, parsed.body));
+  return path;
+}
+
+function ticketRecord(key: string, status: string, linkedPRs: string[] = []) {
+  core.writeMarkdownFile(
+    core.getTicketFilePath(workLog, 'acme-jira', key.split('-')[0] ?? '', key),
+    {
+      key,
+      summary: `Ticket ${key}`,
+      project: key.split('-')[0] ?? '',
+      org: 'acme-jira',
+      issueType: 'Story',
+      status,
+      storyPoints: null,
+      url: `https://acme.atlassian.net/browse/${key}`,
+      createdAt: '2025-02-01T10:00:00.000+0000',
+      resolvedAt: null,
+      linkedPRs,
+    },
+    '',
+  );
+}
+
+/** Relative paths of every record in the subset, by type */
+async function subsetRecords() {
+  const rel = (path: string) => relative(filteredDir, path);
+  return {
+    prs: (await core.readAllPRs(filteredDir)).map((r) => rel(r.filePath)),
+    tickets: (await core.readAllTickets(filteredDir)).map((r) =>
+      rel(r.filePath),
+    ),
+    reviews: (await core.readAllPRReviews(filteredDir)).map((r) =>
+      rel(r.filePath),
+    ),
+    messages: (await core.readAllImportedRecords(filteredDir))
+      .map((r) => r.body)
+      .sort(),
+  };
+}
+
+function selection() {
+  const state = core.getFilteredSubsetState(workLog);
+  if (state.status !== 'selected') throw new Error('expected a subset');
+  return state.selection;
+}
+
+describe('filter over a mixed work log with an existing subset', () => {
+  beforeEach(() => {
+    rmSync(workLog, { recursive: true, force: true });
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    writeConfig();
+
+    authoredPR('acme', 'api', 7, { jiraTickets: ['BILL-1'] });
+    authoredPR('other', 'api', 4, { createdAt: '2025-05-01T09:00:00Z' });
+    // Linked through GitHub's capitalization of the PR URL
+    ticketRecord('BILL-1', 'Done', ['https://github.com/Acme/API/pull/7']);
+    ticketRecord('OPS-2', 'To Do');
+    reviewRecord('acme', 'api', 8);
+    reviewRecord('external', 'lib', 1);
+    importedMessage(1, {
+      pullRequests: ['https://github.com/ACME/api/pull/7/files'],
+    });
+    importedMessage(2, { tickets: ['OPS-9'] }); // mentions nothing fetched
+    importedMessage(3);
+
+    // An import in progress: its lock and staged copy are not records
+    writeFileSync(join(workLog, '.import-lock'), 'owner');
+    mkdirSync(join(workLog, '.import-transaction', 'staged'), {
+      recursive: true,
+    });
+    writeFileSync(
+      join(workLog, '.import-transaction', 'staged', '0.md'),
+      recordFile(messageFrontmatter(9)),
+    );
+  });
+
+  async function everything() {
+    await run(filterCommand, ['--exclude-status', 'Rejected']);
+    expect(await subsetRecords()).toEqual({
+      prs: [
+        'pull-requests/acme/api/2025-02-10_7.md',
+        'pull-requests/other/api/2025-05-01_4.md',
+      ],
+      tickets: ['jira/acme-jira/BILL/BILL-1.md', 'jira/acme-jira/OPS/OPS-2.md'],
+      reviews: ['pr-reviews/acme/api/8.md', 'pr-reviews/external/lib/1.md'],
+      messages: [
+        'Message 1 in my own words.',
+        'Message 2 in my own words.',
+        'Message 3 in my own words.',
+      ],
+    });
+    return snapshot(filteredDir);
+  }
+
+  it('re-filtering removes stale records of every type', async () => {
+    await everything();
+
+    await run(filterCommand, ['--org', 'acme', '--linked-only']);
+
+    expect(await subsetRecords()).toEqual({
+      prs: ['pull-requests/acme/api/2025-02-10_7.md'],
+      tickets: ['jira/acme-jira/BILL/BILL-1.md'],
+      reviews: ['pr-reviews/acme/api/8.md'],
+      // Only the message whose mention resolves to a PR in the subset
+      messages: ['Message 1 in my own words.'],
+    });
+    expect(selection()).toMatchObject({
+      filters: ['Include orgs: acme', 'Linked only'],
+      counts: { pullRequests: 1, tickets: 1, prReviews: 1, messages: 1 },
+      totals: { pullRequests: 2, tickets: 2, prReviews: 2, messages: 3 },
+    });
+    // Nothing from the import's working files, nothing left over
+    expect(
+      Object.keys(snapshot(filteredDir)).filter((p) => p.includes('import')),
+    ).toEqual([]);
+    expect(
+      readdirSync(workLog).filter((name) => name.startsWith('.filter')),
+    ).toEqual([]);
+  });
+
+  it('publishes an empty result as the selected subset', async () => {
+    await everything();
+
+    await run(filterCommand, ['--org', 'nobody', '--linked-only']);
+
+    expect(await subsetRecords()).toEqual({
+      prs: [],
+      tickets: [],
+      reviews: [],
+      messages: [],
+    });
+    expect(core.getEffectiveOutputDir(workLog)).toEqual({
+      dir: filteredDir,
+      isFiltered: true,
+    });
+    expect(selection()?.counts).toEqual({
+      pullRequests: 0,
+      tickets: 0,
+      prReviews: 0,
+      messages: 0,
+    });
+    // Read commands get the empty subset, not the full work log
+    const results = parse(
+      await tools.searchPrsTool.handler({}, { outputDir: filteredDir }),
+    );
+    expect(results.total).toBe(0);
+  });
+
+  it('publishes a result that holds only supplementary evidence', async () => {
+    await everything();
+
+    await run(filterCommand, [
+      '--org',
+      'nobody',
+      '--exclude-status',
+      'Done',
+      'To Do',
+    ]);
+
+    expect(await subsetRecords()).toEqual({
+      prs: [],
+      tickets: [],
+      reviews: [],
+      messages: [
+        'Message 1 in my own words.',
+        'Message 2 in my own words.',
+        'Message 3 in my own words.',
+      ],
+    });
+    expect(selection()?.counts).toEqual({
+      pullRequests: 0,
+      tickets: 0,
+      prReviews: 0,
+      messages: 3,
+    });
+    expect(core.getEffectiveOutputDir(workLog).isFiltered).toBe(true);
+  });
+
+  it('keeps the previous subset when building the new one fails', async () => {
+    const before = await everything();
+    const config = await core.loadConfig(configPath);
+
+    for (const fs of [
+      // Writing the new subset
+      {
+        ...core.nodeSubsetFs,
+        writeFile: (path: string) => {
+          throw Object.assign(new Error(`injected failure at ${path}`), {
+            code: 'ENOSPC',
+          });
+        },
+      },
+      // Swapping it in
+      {
+        ...core.nodeSubsetFs,
+        rename: (from: string, to: string) => {
+          if (from.includes('.filter-staging-')) {
+            throw Object.assign(new Error('injected failure'), {
+              code: 'EIO',
+            });
+          }
+          core.nodeSubsetFs.rename(from, to);
+        },
+      },
+    ]) {
+      await expect(
+        writeFilteredSubset({
+          outputDir: workLog,
+          config,
+          criteria: { org: ['acme'], linkedOnly: true },
+          fs,
+        }),
+      ).rejects.toThrow('injected failure');
+
+      expect(snapshot(filteredDir)).toEqual(before);
+      expect(core.getEffectiveOutputDir(workLog).dir).toBe(filteredDir);
+      expect(
+        readdirSync(workLog).filter((name) => name.startsWith('.filter-')),
+      ).toEqual([]);
+    }
+
+    // A selector error is reported before anything is written
+    await expect(run(filterCommand, ['--org', '@'])).rejects.toThrow(
+      /Invalid org selector/,
+    );
+    expect(snapshot(filteredDir)).toEqual(before);
   });
 });

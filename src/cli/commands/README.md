@@ -7,7 +7,6 @@ This directory contains all CLI commands for work-chronicler.
 ```
 commands/
 ├── analyze.ts              # Single-file command
-├── filter.ts               # Single-file command
 ├── link.ts                 # Single-file command
 ├── mcp.ts                  # Single-file command
 ├── status.ts               # Single-file command
@@ -27,6 +26,10 @@ commands/
 │       ├── index.ts        # fetch jira subcommand
 │       ├── jira.utils.ts   # JIRA fetching logic
 │       └── jira.types.ts   # JIRA-specific types
+│
+├── filter/                 # Command with utils
+│   ├── index.ts            # filter command (options, prompts, summary)
+│   └── filter.utils.ts     # Record selection and subset replacement
 │
 ├── import/                 # Complex command (has utils)
 │   ├── index.ts            # import command (staged batch → work log)
