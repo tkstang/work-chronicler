@@ -598,6 +598,15 @@ Also in p03-t15: CodeRabbit 4505014153 (docs/notice wrongly said `--overwrite` f
 
 **Outcome:** fixed in p03-t15 (b079cd77e9306bdc2a179660a6536afba12f0847). Recovery stage → exit_gate (gate attempt 10), then a fresh integrated review.
 
+### Review Received: p01-p03 (m01 recovery exit gate, attempt 10)
+
+**Date:** 2026-11-08
+**Review artifact (local-only):** reviews/archived/range-review-2026-11-08T043358Z.md
+
+**Findings:** Critical 0 · High 0 · Medium 0 · Low 0 (gate `codex-6-sol-xhigh`, run 997add76-1ecd-46a6-9b3c-51ca0cfe4cfd, reviewed head b079cd77e9306bdc2a179660a6536afba12f0847)
+
+**Outcome:** passed. Exit carrier allowed/fresh at b079cd77e9306bdc2a179660a6536afba12f0847 (2026-11-08T04:37:35Z); recovery stage → reviewing.
+
 ### PR review received: d01 (PR #25, CodeRabbit)
 
 **Date:** 2026-11-08
