@@ -28,8 +28,20 @@ type checking and tests. Before opening a pull request, run the lint, format,
 type-check and test scripts listed there, plus `pnpm build` when you change
 entry points, exports, path aliases or the published `files` list. CI runs
 lint (oxlint), a format check (oxfmt), type checking, tests, the build and a
-publish dry-run on ready pull requests; draft pull requests skip CI. Tests are
-co-located as `src/**/*.test.ts`.
+publish dry-run on ready pull requests, and verifies the docs app (docs check,
+nav sync check, docs build and manifest freshness); draft pull requests skip
+CI. Tests are co-located as `src/**/*.test.ts`.
+
+## Documentation
+
+The docs are a Fumadocs app in `documentation/`, installed with the root
+workspace by `pnpm install`. Authored pages live in `documentation/docs/`,
+starting at `documentation/docs/index.md`; update them in the same pull request
+as the behavior they describe. To preview the site, run `pnpm dev` in
+`documentation/`. Before opening a pull request that changes the docs, run the
+checks in `documentation/AGENTS.md` (format, nav sync, docs check and build);
+`documentation/docs/contributing/` holds the authoring contract and toolchain
+guide.
 
 ## Branches and commits
 

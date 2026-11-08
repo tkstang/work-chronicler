@@ -14,7 +14,7 @@ Performance review time comes and you need to remember everything you accomplish
 
 Fetch PR descriptions and JIRA tickets, store them as searchable markdown files, and provide AI-ready tooling to analyze and summarize work.
 
-User-facing docs: `README.md` (overview and quick start) and `documentation/index.md` (configuration, command reference, MCP server, skills, manager mode).
+User-facing docs: `README.md` (overview and quick start) and the Fumadocs app in `documentation/`, whose authored pages start at `documentation/docs/index.md` (getting started, workflows, and the command, configuration, MCP server and skills reference). `documentation/AGENTS.md` holds the working rules for the docs app.
 
 ## Non-Negotiables
 
@@ -35,6 +35,7 @@ User-facing docs: `README.md` (overview and quick start) and `documentation/inde
 - Record commands and results in the PR's Testing section. Re-run affected checks after any input changes.
 - CI on the ready PR is the independent proof; a skipped draft run is not verification.
 - User-visible changes get an entry under `## [Unreleased]` in `CHANGELOG.md`.
+- Update the documentation (`documentation/docs/` pages and `README.md`) and agent instruction files (`AGENTS.md`, package skills, `documentation/AGENTS.md`) in the same PR as any behavior change they describe.
 
 ## Project Structure
 
@@ -46,7 +47,7 @@ work-chronicler/
 │       └── release-notes/        # Repo-local dev workflow skill (not published)
 ├── .github/                    # CI and release workflows, PR template
 ├── .oat/                       # OAT project tracking (shared projects tracked; local state ignored)
-├── documentation/              # User docs (index.md is the entry point)
+├── documentation/              # Fumadocs docs app; authored pages in docs/ (docs/index.md is the entry point)
 ├── src/
 │   ├── cli/                    # CLI application (Commander)
 │   │   ├── commands/           # CLI commands (see commands/README.md)
@@ -85,7 +86,7 @@ work-chronicler/
 ├── tsconfig.build.json         # Build config (emits dist/, excludes tests)
 ├── .oxlintrc.json              # oxlint rules
 ├── .oxfmtrc.json               # oxfmt formatting
-├── pnpm-workspace.yaml         # pnpm settings (minimumReleaseAge, allowBuilds)
+├── pnpm-workspace.yaml         # pnpm settings (docs app member, minimumReleaseAge, allowBuilds, overrides)
 └── package.json                # Single package (published as work-chronicler)
 ```
 
@@ -147,7 +148,9 @@ use isolated groups. Tagged releases and their publication jobs are outside this
 cancellation policy.
 The ordinary CI job runs on Node 24 with read-only permissions and a 20-minute
 timeout. It and tagged releases run lint, format check, type checking, the test
-suite and build. On PRs, CI then runs the publish dry-run against that build,
+suite and build. The ordinary CI job then verifies the docs app: `oat docs check`,
+the nav sync check, the docs build and the committed `documentation/index.md`
+manifest's freshness. On PRs, CI then runs the publish dry-run against that build,
 reusing the checkout and dependencies with npm registry configuration. Main pushes
 do not run the publish dry-run. Tagged releases test the checked-out tag before
 publishing; a test failure prevents npm publication and the dependent GitHub
@@ -164,6 +167,9 @@ pnpm typecheck
 pnpm test
 ```
 
+When you change `documentation/`, also run the docs-app checks listed in
+`documentation/AGENTS.md`.
+
 Git hooks run lint-staged (oxlint + oxfmt on staged files) on commit and
 commitlint on the message. Pre-push runs only `pnpm typecheck`; post-checkout
 reinstalls dependencies only when the lockfile changed.
@@ -172,7 +178,7 @@ reinstalls dependencies only when the lockfile changed.
 
 - `tsconfig.json` - TypeScript configuration with path aliases
 - `.oxlintrc.json` / `.oxfmtrc.json` - Lint and format rules
-- `pnpm-workspace.yaml` - pnpm supply-chain settings
+- `pnpm-workspace.yaml` - pnpm supply-chain settings, the docs-app workspace member and its `overrides` pin
 - `work-chronicler.example.yaml` - Example configuration file
 - `src/core/index.ts` - Main exports from core module
 - `src/cli/index.ts` - CLI entry point

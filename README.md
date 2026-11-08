@@ -107,7 +107,7 @@ Data lives in `~/.work-chronicler/profiles/<profile>/`. Each profile has its own
 | Keep work and personal history apart | profiles (`profile list\|switch\|delete`, global `--profile`) |
 | Track direct reports as a manager | manager mode (`init --mode manager`, `reports ...`) |
 
-The [command reference](documentation/commands.md) lists every command and flag.
+The [command reference](documentation/docs/tools/commands.md) lists every command and flag.
 
 ## Scope
 
@@ -148,15 +148,22 @@ the skills or the MCP server.
 
 ## Documentation
 
-Start at the [documentation index](documentation/index.md):
+Start at the [documentation index](documentation/docs/index.md) or
+[Getting started](documentation/docs/getting-started.md). The pages are also a
+Fumadocs site in `documentation/`.
 
-- [Configuration](documentation/configuration.md): profiles, `config.yaml`,
-  tokens, environment variables and the workspace layout.
-- [Command reference](documentation/commands.md): every command and flag.
-- [MCP server](documentation/mcp-server.md): client setup and the available tools.
-- [AI skills](documentation/available-skills.md): what each skill does and how
+- [Workflows](documentation/docs/workflows/index.md): resumes and self-reviews,
+  peer reviews, the PR reviews you gave, Slack and Google Docs imports, and
+  manager review packets.
+- [Configuration](documentation/docs/tools/configuration.md): profiles,
+  `config.yaml`, tokens, environment variables and the workspace layout.
+- [Command reference](documentation/docs/tools/commands.md): every command and flag.
+- [MCP server](documentation/docs/tools/mcp-server.md): client setup and the available tools.
+- [AI skills](documentation/docs/tools/skills.md): what each skill does and how
   skills find your data.
-- [Manager mode](documentation/manager-mode.md): tracking reports and team analysis.
+- [Manager mode](documentation/docs/workflows/manager-mode.md): tracking reports;
+  [Review packets and team analysis](documentation/docs/workflows/review-packets.md)
+  covers per-report and team analysis.
 
 ## Development
 
