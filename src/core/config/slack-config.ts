@@ -85,7 +85,22 @@ function slackPath(
   owner: SlackSettingsOwner,
   current: unknown,
 ): (string | number)[] {
-  if (owner.kind === 'ic') return ['slack'];
+  return subjectSectionPath(owner, current, 'slack');
+}
+
+/**
+ * The path of one subject's settings section (`slack:`, `googleDocs:`) in a
+ * config file's plain value: at the top of an IC profile, or under the one
+ * report with the owner's ID in a manager profile.
+ *
+ * @throws {ConfigUpdateError} When no report, or more than one, has the ID
+ */
+export function subjectSectionPath(
+  owner: SlackSettingsOwner,
+  current: unknown,
+  key: string,
+): (string | number)[] {
+  if (owner.kind === 'ic') return [key];
   const reports = isPlain(current) ? current.reports : undefined;
   const matches = Array.isArray(reports)
     ? reports.flatMap((report, index) =>
@@ -103,7 +118,7 @@ function slackPath(
         : `More than one report has ID ${owner.reportId}; fix the config first. The config was not changed.`,
     );
   }
-  return ['reports', matches[0] as number, 'slack'];
+  return ['reports', matches[0] as number, key];
 }
 
 function getAt(value: unknown, path: (string | number)[]): unknown {

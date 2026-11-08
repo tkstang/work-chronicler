@@ -7,6 +7,7 @@ import {
   type SlackSettingsOwner,
   updateSlackSettings,
 } from '@config/slack-config';
+import type { GoogleDocsSettings } from '@wc-types/google-docs';
 import { type ImportSubject, ReportIdSchema } from '@wc-types/imported-record';
 import type { SlackSettings } from '@wc-types/slack';
 import { getActiveProfile } from '@workspace/global-config';
@@ -26,7 +27,10 @@ export interface SlackCommandOptions {
   json?: boolean;
 }
 
-/** The subject a `slack` command reads or changes, with its settings */
+/**
+ * The subject a `slack` or `google-docs` command reads or changes, with its
+ * settings
+ */
 export interface SlackSubject {
   /** Active profile, or null for a legacy config passed with --config */
   profile: string | null;
@@ -43,6 +47,8 @@ export interface SlackSubject {
   range: { since: string; until: string | null };
   /** Slack settings, or null when Slack is not set up for the subject */
   slack: SlackSettings | null;
+  /** Google Docs settings, or null when not set up for the subject */
+  googleDocs: GoogleDocsSettings | null;
 }
 
 const ERROR = chalk.red('✗');
@@ -97,6 +103,7 @@ export async function resolveSlackSubject(
           workLog: getReportWorkLogDir(profile, reportId.data),
           range: { since: config.fetch.since, until: config.fetch.until },
           slack: report.slack ?? null,
+          googleDocs: report.googleDocs ?? null,
         };
       }
     }
@@ -117,6 +124,7 @@ export async function resolveSlackSubject(
       workLog: getOutputDirectory(config, configPath),
       range: { since: config.fetch.since, until: config.fetch.until },
       slack: config.slack ?? null,
+      googleDocs: config.googleDocs ?? null,
     };
   } catch (error) {
     const failure = toCliError(
