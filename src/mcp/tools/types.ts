@@ -1,3 +1,4 @@
+import { parseUtcDay } from '@core/import/range';
 import {
   DIRECTORIES,
   getFilteredSubsetState,
@@ -105,37 +106,23 @@ export function parseAndValidateDate(dateStr: string, fieldName: string): Date {
   return date;
 }
 
-/** A date without a time: `2025-02-28` */
-const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
-
 /**
  * Validate and parse an inclusive end date. A date without a time
  * (`2025-02-28`, surrounding spaces ignored) means the end of that UTC day,
  * so everything on it is included; a timestamp keeps its precision. Any
  * other text without a time (`2025-2-28`, `Feb 28 2025`, `2025-02`) is
  * refused, since it would be read as a moment in the local time zone or at
- * the start of a month or year, not as a whole UTC day.
+ * the start of a month or year, not as a whole UTC day. Date-only text is
+ * read by {@link parseUtcDay}, as `import` reads it.
  */
 export function parseUntilDate(dateStr: string, fieldName: string): Date {
   const text = dateStr.trim();
-  const day = DATE_ONLY.exec(text);
-  if (day) {
-    const [year, month, date] = day.slice(1).map(Number) as [
-      number,
-      number,
-      number,
-    ];
-    const start = new Date(Date.UTC(year, month - 1, date));
-    if (
-      start.getUTCFullYear() !== year ||
-      start.getUTCMonth() !== month - 1 ||
-      start.getUTCDate() !== date
-    ) {
-      throw new Error(
-        `Invalid ${fieldName} date: "${dateStr}" is not a calendar date. Use YYYY-MM-DD.`,
-      );
-    }
-    return new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1);
+  const day = parseUtcDay(text, 'end');
+  if (day instanceof Date) return day;
+  if (day !== null) {
+    throw new Error(
+      `Invalid ${fieldName} date: "${dateStr}" is not a calendar date. Use YYYY-MM-DD.`,
+    );
   }
   if (!/\d:\d/.test(text)) {
     throw new Error(

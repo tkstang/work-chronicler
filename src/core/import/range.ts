@@ -19,7 +19,9 @@ export interface DateBoundProblem {
 }
 
 /**
- * Read a date-only bound as the start or end of its UTC day.
+ * Read a date-only bound as the start or end of its UTC day. The one
+ * date-only reader: `import` ranges and the MCP tools' `until` both use it,
+ * so they cannot read a date differently.
  *
  * @param text - Bound as given (surrounding spaces ignored)
  * @param edge - Which end of the day a date alone means
