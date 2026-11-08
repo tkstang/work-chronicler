@@ -440,6 +440,28 @@ describe('Slack import skill: IC acceptance', () => {
     );
     expect(staged).toEqual({ kept: 3, skipped: 4 });
 
+    // The CLI, not just the staging helper, keeps Slack markup out: the same
+    // record with its raw search-result text (a <@U…|name> mention and a
+    // <url|label> link) is refused, and the name is never echoed
+    const raw = join(root, 'staging-ic-raw');
+    mkdirSync(raw);
+    const starter = readFileSync(join(staging, '1.md'), 'utf-8');
+    const header = starter.slice(0, starter.lastIndexOf('\n---\n') + 5);
+    writeFileSync(
+      join(raw, '1.md'),
+      `${header}\n${searchResults()[0]?.text}\n`,
+    );
+    const refused = json('solo', fromImportCommand(show, 'validate', raw));
+    expect(refused.status).toBe(1);
+    expect(refused.value.issues).toEqual([
+      expect.objectContaining({
+        code: 'SOURCE_RULE',
+        file: '1.md',
+        field: 'body',
+      }),
+    ]);
+    expect(JSON.stringify(refused.value)).not.toContain(OTHER_NAME);
+
     const validate = json('solo', fromImportCommand(show, 'validate', staging));
     expect(validate.value.issues).toEqual([]);
     expect(validate).toMatchObject({
@@ -455,6 +477,7 @@ describe('Slack import skill: IC acceptance', () => {
     });
     const stored = storedRecords(soloWorkLog);
     expect(stored).toHaveLength(3);
+    // What the import stored (the CLI refuses raw markup, as checked above)
     for (const record of stored) {
       expect(record).not.toContain(OTHER_USER);
       expect(record).not.toContain(OTHER_NAME);

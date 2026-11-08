@@ -227,6 +227,10 @@ If `ok` is `false`, read each issue's `code`, `file` and `field`:
   counts, `SCHEMA_INVALID` or `YAML_INVALID`: a mistake in the file. Fix that
   field following step 6 (or set `url`/`parentUrl` to `null`) and validate
   again.
+- `SOURCE_RULE` on `body`: the text still holds raw Slack markup (a
+  `<@…>` mention, a `<#…>` channel link, a `<!…>` special mention or a
+  `<link>`/`<link|label>`). Rewrite it with the markup table in step 6 and
+  validate again.
 - `RECOVERY_REQUIRED`: an earlier import was interrupted. The next `import`
   finishes it first; tell the user.
 
@@ -265,7 +269,8 @@ authored PRs or tickets.
 Invented data for a workspace configured by its URL label `example`, user
 `U0EXAMPLE` and channel `C0EXAMPLE` named `billing-launch` in an IC profile.
 A thread the user started, whose `Text` was
-`Usage-based invoices are live (BILL-311, <https://github.com/example-org/billing/pull/42|github.com/example-org/billing/pull/42>). Thanks <@U0EXAMPLE2|Sam> for the review.`:
+`Usage-based invoices are live (BILL-311, <https://github.com/example-org/billing/pull/42|github.com/example-org/billing/pull/42>). Thanks <@U0EXAMPLE2|Sam> for the review.` and whose result showed
+`Reply count: 2`:
 
 ```markdown
 ---
@@ -284,7 +289,7 @@ mentions: { tickets: [BILL-311], pullRequests: ["https://github.com/example-org/
 message:
   container: { id: "C0EXAMPLE", name: "billing-launch" }
   thread: null
-  replyCount: 0
+  replyCount: 2
   replyParticipantCount: 0
 ---
 
