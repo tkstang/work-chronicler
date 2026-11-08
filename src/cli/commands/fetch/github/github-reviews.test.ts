@@ -51,6 +51,8 @@ const SEARCH_CAP = 1000;
 const github = {
   prs: [] as FakePR[],
   users: new Set<string>(),
+  organizations: new Set<string>(),
+  lookups: [] as string[],
   searches: [] as string[],
   reviewListings: [] as string[],
   failures: new Map<string, () => Error>(),
@@ -90,6 +92,11 @@ vi.mock('@octokit/rest', () => ({
   Octokit: class {
     users = {
       getByUsername: async ({ username }: { username: string }) => {
+        github.lookups.push(username);
+        fail(`user:${username}`);
+        if (github.organizations.has(username)) {
+          return { data: { type: 'Organization' } };
+        }
         if (!github.users.has(username)) throw notFound();
         return { data: { type: 'User' } };
       },
@@ -255,6 +262,8 @@ beforeEach(() => {
   });
   github.prs = [];
   github.users.clear();
+  github.organizations = new Set(['acme', 'other']);
+  github.lookups.length = 0;
   github.searches.length = 0;
   github.reviewListings.length = 0;
   github.failures.clear();
@@ -605,6 +614,67 @@ describe('fetchGitHubReviews', () => {
       }),
     ).rejects.toThrow(/rate limit/);
     expect(github.searches).toHaveLength(1);
+  });
+
+  it.each([
+    {
+      how: '429',
+      error: () =>
+        Object.assign(new Error('Too Many Requests'), { status: 429 }),
+    },
+    {
+      how: '403 with no requests remaining',
+      error: () =>
+        Object.assign(new Error('API rate limit exceeded'), {
+          status: 403,
+          response: { headers: { 'x-ratelimit-remaining': '0' } },
+        }),
+    },
+  ])(
+    'stops the run when the first owner lookup is rate limited ($how)',
+    async ({ error }) => {
+      addPR({ number: 1, reviews: [review(1, '2025-02-01T00:00:00Z')] });
+      github.failures.set('user:acme', error);
+
+      await expect(
+        fetchReviews({
+          orgs: [
+            { name: 'acme', repos: ['*'] },
+            { name: 'other', repos: ['*'] },
+          ],
+        }),
+      ).rejects.toThrow(/rate limit/);
+      expect(github.lookups).toEqual(['acme']);
+      expect(github.searches).toEqual([]);
+      expect(await readAllPRReviews(outputDir)).toEqual([]);
+    },
+  );
+
+  it('reports an org whose owner lookup fails instead of guessing its kind, and keeps going', async () => {
+    addPR({
+      number: 1,
+      owner: 'other',
+      reviews: [review(1, '2025-02-01T00:00:00Z')],
+    });
+    github.failures.set('user:acme', () =>
+      Object.assign(new Error('Bad Gateway'), { status: 502 }),
+    );
+
+    const results = await fetchReviews({
+      orgs: [
+        { name: 'acme', repos: ['*'] },
+        { name: 'other', repos: ['*'] },
+      ],
+    });
+
+    expect(github.searches).toHaveLength(1);
+    expect(github.searches[0]).toContain('org:other');
+    expect(results[0]?.problems).toEqual([
+      'Could not check whether "acme" is a GitHub user or org (Bad Gateway).',
+    ]);
+    expect(logs.some((line) => line.includes('may be incomplete'))).toBe(true);
+    expect(await storedRecord('other', 'api', 1)).toBeDefined();
+    expect(process.exitCode).toBe(1);
   });
 
   it('stops at a rate-limited PR instead of moving on to the next', async () => {

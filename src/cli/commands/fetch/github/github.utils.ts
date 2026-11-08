@@ -116,15 +116,33 @@ export function mapPRState(
 }
 
 /**
- * Check if the given name is a user (not an organization)
+ * Check if the given name is a user (not an organization).
+ *
+ * GitHub answers `/users/<name>` for both kinds of account; `type` tells them
+ * apart. A 404 means no account by that name is visible, so it is not a user;
+ * the org request that follows then reports the access problem. A rate limit
+ * throws {@link RateLimitError}. Any other failure is rethrown, so callers
+ * report the lookup as unavailable instead of guessing the account kind.
  */
 export async function isUser(octokit: Octokit, name: string): Promise<boolean> {
+  let type: string;
   try {
-    const { data } = await octokit.users.getByUsername({ username: name });
-    return data.type === 'User';
-  } catch {
-    return false;
+    ({
+      data: { type },
+    } = await octokit.users.getByUsername({ username: name }));
+  } catch (error) {
+    if (isRateLimitError(error)) handleRateLimitError(error);
+    if (
+      error &&
+      typeof error === 'object' &&
+      'status' in error &&
+      error.status === 404
+    ) {
+      return false;
+    }
+    throw error;
   }
+  return type === 'User';
 }
 
 /**
@@ -385,6 +403,7 @@ async function fetchOrgPRs(
     try {
       repos = await listOrgRepos(octokit, org, spinner);
     } catch (error) {
+      if (error instanceof RateLimitError) throw error;
       if (isRateLimitError(error)) handleRateLimitError(error);
       const message = error instanceof Error ? error.message : String(error);
       return {

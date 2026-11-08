@@ -481,9 +481,24 @@ async function fetchOrgReviews(
     : new Set(orgConfig.repos.map((r) => r.toLowerCase()));
 
   spinner.text = `Searching ${chalk.cyan(org)} for PRs reviewed by ${username}...`;
-  const ownerQualifier = (await isUser(octokit, org))
-    ? `user:${org}`
-    : `org:${org}`;
+  // The search qualifier depends on the account kind, so an unavailable
+  // lookup stops this org rather than guessing; a rate limit stops the run.
+  let ownerQualifier: string;
+  try {
+    ownerQualifier = (await isUser(octokit, org))
+      ? `user:${org}`
+      : `org:${org}`;
+  } catch (error) {
+    if (error instanceof RateLimitError) throw error;
+    const message = error instanceof Error ? error.message : String(error);
+    const advice = isAccessError(error)
+      ? ' Check that your token is valid and can access it.'
+      : '';
+    result.problems.push(
+      `Could not check whether "${org}" is a GitHub user or org (${message}).${advice}`,
+    );
+    return result;
+  }
   const found = new Map<string, SearchItem>();
   try {
     await searchReviewedPRs(
