@@ -44,7 +44,7 @@ oat_dispatch_policy:
 oat_workflow_mode: goal # spec-driven | quick | import | lite | brief | goal
 oat_workflow_origin: native # native | imported
 oat_milestone: m01
-oat_milestone_status: implementing
+oat_milestone_status: reviewing
 oat_goal_status: active
 oat_goal_outcome_audit: null
 oat_goal_recovery: null
@@ -62,17 +62,17 @@ oat_milestone_gates:
         ref: 623465e4f00261e22326b09af5f7844357a385fa
       decided_at: '2026-11-07T23:19:59Z'
     exit:
-      status: blocked
-      disposition: null
+      status: allowed
+      disposition: passed
       resolution: configured
       config_fingerprint: null
-      reviewed_head: 966fbd2dbeb1bc3761ac9052978791db5d906247
+      reviewed_head: fcb2a87994ef8ef608427ca5fdb0eb849382f969
       subject:
         kind: code
         scope: [p01, p02, p03]
       freshness: fresh
       freshness_reason: null
-      decided_at: "2026-11-08T00:41:28Z"
+      decided_at: "2026-11-08T01:52:04Z"
 oat_deliveries: []
 # oat_skill_gate_overrides: # optional; per-project posture for configured lifecycle gates
 #   oat-project-implement: disabled # only the literal value `disabled`; absence means follow configuration
@@ -131,7 +131,7 @@ oat_pr_status: null # null | ready | open | closed | merged — actual PR state 
 oat_pr_url: null # null | string — tracked PR URL when a PR exists
 oat_project_created: '2026-11-07T22:54:38.498Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: '2026-11-07T23:19:59Z' # ISO 8601 UTC timestamp — updated on every state.md mutation
+oat_project_state_updated: "2026-11-08T01:52:04Z"
 oat_generated: false
 ---
 

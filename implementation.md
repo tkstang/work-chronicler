@@ -192,7 +192,7 @@ Review fix. Proof: full DoD batch.
 
 ## Phase p03: 0.5.0 release preparation
 
-**Status:** in_progress
+**Status:** completed
 **Base:** 23a4f1aae63ebd37c8966dca2c2136f794f14190
 **Executor:** inline:p03-inline-exception
 **Head:** fcb2a87994ef8ef608427ca5fdb0eb849382f969
@@ -385,6 +385,17 @@ Proof: `pnpm lint && pnpm typecheck && pnpm test`
 - M2 (Medium, bookkeeping): the attempt-1 receipt sat under p03 → fixed at receive: moved to this section unchanged.
 
 **Outcome:** fixes queued: p03-t07, p03-t08. Gate attempts exhausted (2 of 2, onFailure block): milestone exit carrier recorded `blocked`; a further gate run needs operator direction.
+
+### Review Received: final (m01 exit gate, attempt 3)
+
+**Date:** 2026-11-08
+**Review artifact (local-only):** reviews/archived/final-review-2026-11-08T014902Z.md
+
+**Findings:** Critical 0 · High 0 · Medium 0 · Low 0 (gate `codex-6-sol-xhigh`, verdict passed, run 0a49aa40-a190-41ad-97a9-2a4260b56267, reviewed head fcb2a87994ef8ef608427ca5fdb0eb849382f969, narrowed range 966fbd2d..fcb2a87)
+
+**Operator choice:** the third gate run was directed by the user in session after attempts 1–2 exhausted `maxAttempts`.
+
+**Outcome:** passed. No deferred Medium findings to resurface; no Low findings to disposition. m01 exit carrier recorded `allowed`/`passed`.
 
 ## Deferred Findings
 
