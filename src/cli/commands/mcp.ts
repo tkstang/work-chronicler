@@ -28,7 +28,10 @@ export const mcpCommand = new Command('mcp')
         "  - search_pr_reviews: Search reviews you gave on others' PRs",
       );
       console.log(
-        '  - search_messages: Search imported messages (such as Slack) by text, date, mention\n',
+        '  - search_messages: Search imported messages (such as Slack) by text, date, mention',
+      );
+      console.log(
+        '  - search_documents: Search imported Google Docs you own by text, modified date, mention\n',
       );
       console.log('Configuration:');
       console.log(

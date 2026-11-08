@@ -1086,4 +1086,53 @@ describe('a mixed work log with imported Google Docs', () => {
     expect(withoutDocs.projects).toEqual(withDocs.projects);
     expect(withoutDocs.stats.documents.total).toBe(0);
   });
+
+  it('MCP tools cover Docs by modified time, over the full work log and a filtered subset', async () => {
+    await run(analyzeCommand, ['--all', '--full']);
+    const full = { outputDir: workLog };
+    type Week = { documents: { title: string }[] };
+    type Period = Week | { weeks: Week[] };
+    // Weeks list their Docs; a month lists them in its weeks
+    const timelineDocs = async (
+      ctx: { outputDir: string },
+      input: Record<string, unknown>,
+    ) =>
+      (
+        parse(await tools.getTimelineTool.handler(input, ctx))
+          .periods as Period[]
+      )
+        .flatMap((period) => ('weeks' in period ? period.weeks : [period]))
+        .flatMap((week) => week.documents.map((d) => d.title));
+
+    // Modified late on the range's date-only until day: in that range
+    const december = { since: '2025-12-01', until: '2025-12-31' };
+    expect(
+      parse(await tools.getStatsTool.handler(december, full)).documents,
+    ).toEqual({ total: 1, bySource: { 'google-docs': 1 } });
+    expect(await timelineDocs(full, december)).toEqual(['Synthetic Doc 2']);
+    // Created in 2024, modified in March: in March's range
+    const march = { since: '2025-03-01', until: '2025-03-31' };
+    expect(
+      parse(await tools.getStatsTool.handler(march, full)).documents.total,
+    ).toBe(1);
+    expect(
+      await timelineDocs(full, { ...march, granularity: 'month' }),
+    ).toEqual(['Synthetic Doc 1']);
+
+    await run(filterCommand, ['--org', 'acme', '--linked-only']);
+    const subset = { outputDir: filteredDir, fullOutputDir: workLog };
+    const found = parse(await tools.searchDocumentsTool.handler({}, subset));
+    expect(found.results.map((r: { title: string }) => r.title)).toEqual([
+      'Synthetic Doc 1',
+    ]);
+    expect(
+      parse(await tools.getStatsTool.handler({}, subset)).documents.total,
+    ).toBe(1);
+    expect(await timelineDocs(subset, {})).toEqual(['Synthetic Doc 1']);
+    expect(
+      parse(
+        await tools.getLinkedWorkTool.handler({ ticketKey: 'BILL-1' }, subset),
+      ).mentionedInDocuments,
+    ).toEqual([expect.objectContaining({ title: 'Synthetic Doc 1' })]);
+  });
 });

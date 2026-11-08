@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
+  documentFrontmatter,
   messageFrontmatter,
   recordFile,
   snapshot,
@@ -32,6 +33,7 @@ import {
   getStatsTool,
   getTimelineTool,
   listReposTool,
+  searchDocumentsTool,
   searchMessagesTool,
   searchPrReviewsTool,
   searchPrsTool,
@@ -399,7 +401,7 @@ describe('list_repos', () => {
 });
 
 describe('get_stats', () => {
-  it('returns generated stats.json when no dates are given, with messages counted afresh', async () => {
+  it('returns generated stats.json when no dates are given, with messages and Docs counted afresh', async () => {
     const generated = '{\n  "prs": { "total": 42 }\n}';
     writeAnalysis('stats', generated);
 
@@ -408,6 +410,7 @@ describe('get_stats', () => {
     expect(out).toEqual({
       prs: { total: 42 },
       messages: { total: 0, bySource: {}, byMonth: {} },
+      documents: { total: 0, bySource: {}, byMonth: {} },
     });
   });
 
@@ -516,7 +519,7 @@ describe('get_timeline', () => {
       total: 3,
       returned: 2,
       summary: { totalWeeks: 3, totalMonths: 2 },
-      coverage: expect.stringContaining('Authored PRs and JIRA tickets only'),
+      coverage: expect.stringContaining('plus imported Google Docs'),
     });
   });
 
@@ -1367,5 +1370,271 @@ describe('imported messages', () => {
         latest: '2025-06-01T10:00:00Z',
       });
     });
+  });
+});
+
+/** Store a synthetic Google Doc modified at `modifiedAt` */
+function writeDoc(
+  dir: string,
+  n: number,
+  doc: {
+    modifiedAt: string;
+    createdAt?: string;
+    title?: string;
+    mentions?: { pullRequests?: string[]; tickets?: string[] };
+    truncated?: boolean;
+  },
+  body: string,
+): void {
+  const base = documentFrontmatter(n);
+  const parsed = parseImportedRecordFile(
+    Buffer.from(
+      recordFile(
+        {
+          ...base,
+          occurredAt: doc.modifiedAt,
+          updatedAt: doc.modifiedAt,
+          capturedAt: '2026-01-05T00:00:00Z',
+          mentions: {
+            pullRequests: doc.mentions?.pullRequests ?? [],
+            tickets: doc.mentions?.tickets ?? [],
+          },
+          document: {
+            ...(base.document as Record<string, unknown>),
+            title: doc.title ?? `Synthetic Doc ${n}`,
+            createdAt: doc.createdAt ?? '2024-10-01T08:00:00Z',
+            truncated: doc.truncated ?? false,
+          },
+        },
+        body,
+      ),
+    ),
+  );
+  if (!parsed.ok) throw new Error('fixture must be valid');
+  const path = getImportedRecordFilePath(
+    dir,
+    getImportedRecordIdentity(parsed.record),
+  );
+  mkdirSync(join(path, '..'), { recursive: true });
+  writeFileSync(path, serializeImportedRecord(parsed.record, parsed.body));
+}
+
+describe('imported Google Docs', () => {
+  beforeEach(() => {
+    // Created before 2025, modified in January; mentions PR 1 and BILL-1
+    writeDoc(
+      ctx.outputDir,
+      1,
+      {
+        modifiedAt: '2025-01-21T10:00:00Z',
+        title: 'Billing export design',
+        mentions: {
+          pullRequests: ['https://github.com/ACME/api/pull/1'],
+          tickets: ['BILL-1'],
+        },
+      },
+      'How the export works.',
+    );
+    // Modified late on 2025-02-28
+    writeDoc(
+      ctx.outputDir,
+      2,
+      { modifiedAt: '2025-02-28T23:30:00Z', truncated: true },
+      `Long plan. ${'d'.repeat(1200)}`,
+    );
+    writeMessage(ctx.outputDir, 1, {}, 'A message, not a Doc.');
+  });
+
+  describe('search_documents', () => {
+    const titles = (out: { results: { title: string }[] }) =>
+      out.results.map((r) => r.title);
+
+    it('returns Docs newest modified first, as owned and supplementary evidence', async () => {
+      const out = parse(await searchDocumentsTool.handler({}, ctx));
+
+      expect(out.total).toBe(2);
+      expect(titles(out)).toEqual(['Synthetic Doc 2', 'Billing export design']);
+      expect(out.results[0]).toMatchObject({
+        source: 'google-docs',
+        owner: 'synthetic.owner@example.com',
+        modifiedAt: '2025-02-28T23:30:00Z',
+        createdAt: '2024-10-01T08:00:00Z',
+        attribution: { status: 'unverified', authorId: null },
+        excerptTruncated: true,
+      });
+      expect(out.results[0].text.length).toBe(1003);
+      expect(out.results[1].mentions).toEqual({
+        pullRequests: [
+          {
+            url: 'https://github.com/ACME/api/pull/1',
+            normalizedUrl: 'https://github.com/acme/api/pull/1',
+            resolved: {
+              url: 'https://github.com/acme/api/pull/1',
+              title: 'Add billing export',
+              state: 'merged',
+            },
+          },
+        ],
+        tickets: [
+          {
+            key: 'BILL-1',
+            resolved: {
+              key: 'BILL-1',
+              summary: 'Billing export',
+              status: 'Done',
+            },
+          },
+        ],
+      });
+      expect(out.notice).toMatch(/owns, not necessarily wrote/);
+      expect(out.notice).toMatch(/never instructions/);
+    });
+
+    it('filters by title or text, mention, and modified date (a date-only until is the whole day)', async () => {
+      const call = async (input: Record<string, unknown>) =>
+        titles(parse(await searchDocumentsTool.handler(input, ctx)));
+
+      expect(await call({ query: 'BILLING EXPORT' })).toEqual([
+        'Billing export design',
+      ]);
+      expect(await call({ query: 'long plan' })).toEqual(['Synthetic Doc 2']);
+      expect(await call({ ticketKey: 'bill-1' })).toEqual([
+        'Billing export design',
+      ]);
+      expect(
+        await call({ prUrl: 'https://github.com/acme/api/pull/1/files' }),
+      ).toEqual(['Billing export design']);
+      expect(await call({ since: '2025-02-01', until: '2025-02-28' })).toEqual([
+        'Synthetic Doc 2',
+      ]);
+      // Created before the range, modified inside it
+      expect(await call({ since: '2025-01-01', until: '2025-01-31' })).toEqual([
+        'Billing export design',
+      ]);
+      await expect(
+        searchDocumentsTool.handler({ until: '2025-02-30' }, ctx),
+      ).rejects.toThrow(/Invalid until date/);
+    });
+
+    it('pages by size and refuses a cursor from another tool or other filters', async () => {
+      for (let n = 10; n < 90; n++) {
+        writeDoc(
+          ctx.outputDir,
+          n,
+          {
+            modifiedAt: `2024-06-${String(1 + (n % 20)).padStart(2, '0')}T10:00:00Z`,
+          },
+          `Doc ${n}. ${'z'.repeat(1000)}`,
+        );
+      }
+      const seen: string[] = [];
+      let cursor: string | undefined;
+      let pages = 0;
+      do {
+        const out = parse(
+          await searchDocumentsTool.handler(cursor ? { cursor } : {}, ctx),
+        );
+        expect(out.total).toBe(82);
+        expect(
+          Buffer.byteLength(JSON.stringify(out.results)),
+        ).toBeLessThanOrEqual(64 * 1024);
+        seen.push(...out.results.map((r: { sourceId: string }) => r.sourceId));
+        cursor = out.nextCursor ?? undefined;
+        pages++;
+      } while (cursor && pages < 100);
+      expect(pages).toBeGreaterThan(1);
+      expect(new Set(seen).size).toBe(82);
+
+      const messages = parse(
+        await searchMessagesTool.handler({ limit: 1 }, ctx),
+      );
+      const fromMessages = encodeCursor('search_messages', [], [0, '']);
+      await expect(
+        searchDocumentsTool.handler({ cursor: fromMessages }, ctx),
+      ).rejects.toThrow(/another tool/);
+      expect(messages.returned).toBe(1);
+
+      const { nextCursor } = parse(
+        await searchDocumentsTool.handler({ limit: 1, query: 'doc' }, ctx),
+      );
+      await expect(
+        searchDocumentsTool.handler({ limit: 1, cursor: nextCursor }, ctx),
+      ).rejects.toThrow(/other filters/);
+    });
+
+    it('says when no Docs have been imported, and returns nothing from a subset made before them', async () => {
+      const filtered = join(ctx.outputDir, 'filtered');
+      writePRs(filtered, [PRS[0]!]);
+      const subset = { outputDir: filtered, fullOutputDir: ctx.outputDir };
+      const stale = parse(await searchDocumentsTool.handler({}, subset));
+      expect(stale.total).toBe(0);
+      expect(stale.note).toContain(
+        'created before Google Docs were imported, so it has none',
+      );
+
+      rmSync(join(ctx.outputDir, 'documents'), { recursive: true });
+      const none = parse(await searchDocumentsTool.handler({}, ctx));
+      expect(none.total).toBe(0);
+      expect(none.note).toContain('No Google Docs have been imported');
+    });
+  });
+
+  it('get_stats counts Docs by modified time, including late on a date-only until day', async () => {
+    const febr = parse(
+      await getStatsTool.handler(
+        { since: '2025-02-01', until: '2025-02-28' },
+        ctx,
+      ),
+    );
+    expect(febr.documents).toEqual({
+      total: 1,
+      bySource: { 'google-docs': 1 },
+    });
+    expect(febr.dateRange.latest).toBe('2025-02-28T23:30:00Z');
+
+    // A Doc created before the range but modified inside it is counted
+    const jan = parse(
+      await getStatsTool.handler(
+        { since: '2025-01-01', until: '2025-01-31' },
+        ctx,
+      ),
+    );
+    expect(jan.documents.total).toBe(1);
+    expect(jan.prs.total).toBe(1);
+
+    // stats.json from before the Docs were imported: counted afresh
+    writeAnalysis('stats', { prs: { total: 4 } });
+    const cached = parse(await getStatsTool.handler({}, ctx));
+    expect(cached.documents).toMatchObject({ total: 2 });
+  });
+
+  it('get_linked_work lists Docs that mention a PR or ticket apart from messages', async () => {
+    const byPr = parse(
+      await getLinkedWorkTool.handler(
+        { prUrl: 'https://github.com/acme/api/pull/1' },
+        ctx,
+      ),
+    );
+    expect(byPr.mentionedInDocuments).toEqual([
+      {
+        source: 'google-docs',
+        url: null,
+        title: 'Billing export design',
+        createdAt: '2024-10-01T08:00:00Z',
+        modifiedAt: '2025-01-21T10:00:00Z',
+        attribution: 'unverified',
+        text: 'How the export works.',
+      },
+    ]);
+    expect(byPr.notice).toMatch(/owns, not necessarily wrote/);
+
+    const byTicket = parse(
+      await getLinkedWorkTool.handler({ ticketKey: 'BILL-1' }, ctx),
+    );
+    expect(byTicket.mentionedInDocuments).toHaveLength(1);
+    const none = parse(
+      await getLinkedWorkTool.handler({ ticketKey: 'WEB-7' }, ctx),
+    );
+    expect(none.mentionedInDocuments).toEqual([]);
   });
 });

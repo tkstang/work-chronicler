@@ -42,9 +42,9 @@ const packageJson = createRequire(import.meta.url)('../../package.json') as {
 };
 
 // Reviewed snapshot of the tools/list result from before the tools were split
-// into modules, plus search_pr_reviews and search_messages (added after the
-// split) and the coverage wording added with imported records. MCP clients
-// depend on these names, descriptions and schemas.
+// into modules, plus search_pr_reviews, search_messages and search_documents
+// (added after the split) and the coverage wording added with imported
+// records. MCP clients depend on these names, descriptions and schemas.
 const goldenTools = JSON.parse(
   readFileSync(join(import.meta.dirname, 'tools-list.golden.json'), 'utf-8'),
 );

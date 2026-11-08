@@ -3,6 +3,7 @@ export { getProjectsTool } from './get-projects';
 export { getStatsTool } from './get-stats';
 export { getTimelineTool } from './get-timeline';
 export { listReposTool } from './list-repos';
+export { searchDocumentsTool } from './search-documents';
 export { searchMessagesTool } from './search-messages';
 export { searchPrReviewsTool } from './search-pr-reviews';
 export { searchPrsTool } from './search-prs';

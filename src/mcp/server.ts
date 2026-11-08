@@ -17,6 +17,7 @@ import {
   getTimelineTool,
   listReposTool,
   type McpTool,
+  searchDocumentsTool,
   searchMessagesTool,
   searchPrReviewsTool,
   searchPrsTool,
@@ -212,6 +213,7 @@ export function createToolServer(root: ServerRoot): McpServer {
   registerTool(server, root, getTimelineTool);
   registerTool(server, root, searchPrReviewsTool);
   registerTool(server, root, searchMessagesTool);
+  registerTool(server, root, searchDocumentsTool);
 
   return server;
 }

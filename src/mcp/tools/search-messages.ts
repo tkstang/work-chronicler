@@ -19,7 +19,13 @@ import {
 } from '@core/index';
 import { z } from 'zod';
 
-import { decodeCursor, encodeCursor, type Position } from './pagination';
+import {
+  decodeCursor,
+  encodeCursor,
+  pageOf,
+  type Position,
+  withMentions,
+} from './pagination';
 import {
   EVIDENCE_NOTICE,
   defineTool,
@@ -40,10 +46,10 @@ import {
  *   records are imported between calls (one that sorts before the cursor is
  *   not returned by later pages).
  * - A page holds at most `limit` results (when given) and at most
- *   {@link MAX_PAGE_BYTES} of serialized results, counting text and
+ *   `MAX_PAGE_BYTES` of serialized results, counting text and
  *   mentions, but always at least one result while any remain. Each result
  *   is itself bounded: text is cut at 1,000 characters and mentions are
- *   listed up to {@link MAX_RESULT_BYTES}, with `omittedMentions` counting
+ *   listed up to `MAX_RESULT_BYTES`, with `omittedMentions` counting
  *   the rest.
  * - `total` counts every result matching the filters, on every page;
  *   `returned` counts this page's; `nextCursor` is null on the last page.
@@ -51,19 +57,7 @@ import {
  *   (`./pagination`): pass the same filters with it. One from another tool,
  *   passed with other filters, or malformed is refused.
  */
-export const MAX_PAGE_BYTES = 64 * 1024;
-export const MAX_RESULT_BYTES = 16 * 1024;
-
-/** Whether position `a` comes before `b` in the result order */
-function comesBefore(a: Position, b: Position): boolean {
-  if (a[0] !== b[0]) return a[0] > b[0];
-  return a[1] < b[1];
-}
-
-/** Bytes of a value serialized as JSON */
-function jsonBytes(value: unknown): number {
-  return Buffer.byteLength(JSON.stringify(value), 'utf-8');
-}
+export { MAX_PAGE_BYTES, MAX_RESULT_BYTES } from './pagination';
 
 const TOOL = 'search_messages';
 
@@ -202,51 +196,25 @@ export const searchMessagesTool = defineTool({
         return true;
       });
 
-    // Newest first, then by identity: one total order for the cursor
-    matches.sort((a, b) =>
-      comesBefore(a.position, b.position)
-        ? -1
-        : comesBefore(b.position, a.position)
-          ? 1
-          : 0,
-    );
-    const total = matches.length;
-    const remaining = after
-      ? matches.filter(({ position }) => comesBefore(after, position))
-      : matches;
-
-    const maxResults =
-      input.limit && input.limit > 0 ? Math.floor(input.limit) : Infinity;
-    const page: unknown[] = [];
-    let pageBytes = 0;
-    let last: Position | null = null;
-    for (const match of remaining) {
-      if (page.length >= Math.max(1, maxResults)) break;
-      const result = boundedResult(match);
-      const bytes = jsonBytes(result) + 1;
-      if (page.length > 0 && pageBytes + bytes > MAX_PAGE_BYTES) break;
-      page.push(result);
-      pageBytes += bytes;
-      last = match.position;
-    }
-    const more = last !== null && page.length < remaining.length;
+    const page = pageOf(matches, {
+      after,
+      limit: input.limit,
+      toResult: messageResult,
+    });
 
     return jsonResult({
-      results: page,
-      total,
-      returned: page.length,
-      nextCursor: more && last ? encodeCursor(TOOL, filters, last) : null,
+      results: page.results,
+      total: page.total,
+      returned: page.results.length,
+      nextCursor: page.next ? encodeCursor(TOOL, filters, page.next) : null,
       notice: EVIDENCE_NOTICE,
       ...(notes.length > 0 ? { note: notes.join(' ') } : {}),
     });
   },
 });
 
-/**
- * One result, with its mentions listed while the result stays within
- * {@link MAX_RESULT_BYTES}; `omittedMentions` counts any left out.
- */
-function boundedResult({
+/** One message result, with its mentions bounded ({@link withMentions}) */
+function messageResult({
   record,
   mentions,
 }: {
@@ -254,67 +222,22 @@ function boundedResult({
   mentions: ResolvedMentions;
 }): Record<string, unknown> {
   const fm = record.frontmatter;
-  const pullRequests = mentions.pullRequests.map((m) => ({
-    url: m.url,
-    normalizedUrl: m.normalizedUrl,
-    resolved: m.resolved
-      ? {
-          url: m.resolved.frontmatter.url,
-          title: m.resolved.frontmatter.title,
-          state: m.resolved.frontmatter.state,
-        }
-      : null,
-  }));
-  const tickets = mentions.tickets.map((m) => ({
-    key: m.key,
-    resolved: m.resolved
-      ? {
-          key: m.resolved.frontmatter.key,
-          summary: m.resolved.frontmatter.summary,
-          status: m.resolved.frontmatter.status,
-        }
-      : null,
-  }));
-  const result: Record<string, unknown> = {
-    source: fm.source,
-    sourceAccount: fm.sourceAccount,
-    sourceId: fm.sourceId,
-    url: fm.url,
-    occurredAt: fm.occurredAt,
-    updatedAt: fm.updatedAt,
-    subject: fm.subject,
-    attribution: fm.attribution,
-    channel: fm.message.container,
-    thread: fm.message.thread,
-    replyCount: fm.message.replyCount,
-    replyParticipantCount: fm.message.replyParticipantCount,
-    text: truncate(record.body, 1000),
-    mentions: { pullRequests, tickets },
-  };
-  if (jsonBytes(result) <= MAX_RESULT_BYTES) return result;
-
-  // List mentions in order (PRs, then tickets) while they fit, leaving room
-  // for the omitted counts
-  const kept: { pullRequests: unknown[]; tickets: unknown[] } = {
-    pullRequests: [],
-    tickets: [],
-  };
-  const omitted = { pullRequests: 0, tickets: 0 };
-  let bytes =
-    jsonBytes({ ...result, mentions: kept, omittedMentions: omitted }) + 16;
-  for (const [kind, list] of [
-    ['pullRequests', pullRequests],
-    ['tickets', tickets],
-  ] as const) {
-    for (const mention of list) {
-      const size = jsonBytes(mention) + 1;
-      if (bytes + size > MAX_RESULT_BYTES) {
-        omitted[kind]++;
-        continue;
-      }
-      kept[kind].push(mention);
-      bytes += size;
-    }
-  }
-  return { ...result, mentions: kept, omittedMentions: omitted };
+  return withMentions(
+    {
+      source: fm.source,
+      sourceAccount: fm.sourceAccount,
+      sourceId: fm.sourceId,
+      url: fm.url,
+      occurredAt: fm.occurredAt,
+      updatedAt: fm.updatedAt,
+      subject: fm.subject,
+      attribution: fm.attribution,
+      channel: fm.message.container,
+      thread: fm.message.thread,
+      replyCount: fm.message.replyCount,
+      replyParticipantCount: fm.message.replyParticipantCount,
+      text: truncate(record.body, 1000),
+    },
+    mentions,
+  );
 }
