@@ -24,6 +24,9 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
+/** These tests run the built CLI several times; slow CI runners need more than the 5 s default */
+const CLI_RUNS = { timeout: 60_000 };
+
 // Acceptance for the Slack import skills: a batch staged exactly as
 // work-chronicler-import-slack instructs (read `slack show --json`, keep only
 // the subject's own messages in configured channels and in range, one record
@@ -400,7 +403,7 @@ function storedRecords(workLog: string): string[] {
     : [];
 }
 
-describe('Slack import skill: IC acceptance', () => {
+describe('Slack import skill: IC acceptance', CLI_RUNS, () => {
   it('stages, validates, imports, links and serves the subject’s own messages', async () => {
     // Setup, as work-chronicler-setup-slack runs it
     expect(json('solo', ['slack', 'show']).value.configured).toBe(false);
@@ -579,7 +582,7 @@ describe('Slack import skill: IC acceptance', () => {
   });
 });
 
-describe('Slack import skill: manager acceptance', () => {
+describe('Slack import skill: manager acceptance', CLI_RUNS, () => {
   const aliceResult = (channel: string, micro: string): SearchResult => {
     const t = ts('2026-03-02T10:00:00Z', micro);
     return {
@@ -663,7 +666,7 @@ describe('Slack import skill: manager acceptance', () => {
   });
 });
 
-describe('import-slack skill text', () => {
+describe('import-slack skill text', CLI_RUNS, () => {
   it('has example records that validate against matching settings', () => {
     const text = readFileSync(skillPath, 'utf-8');
     const examples = [

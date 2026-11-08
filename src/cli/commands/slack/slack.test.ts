@@ -13,6 +13,9 @@ import { fileURLToPath } from 'node:url';
 import { messageFrontmatter, stage } from '@core/import/import.test-support';
 import { afterAll, describe, expect, it } from 'vitest';
 
+/** These tests run the built CLI several times; slow CI runners need more than the 5 s default */
+const CLI_RUNS = { timeout: 60_000 };
+
 // The `slack` commands, run as the real CLI in a child process with HOME and
 // the workspace in a temporary directory, as a skill would run them. Rules
 // and file safety are tested in @config/slack-config and @core/import; these
@@ -110,7 +113,7 @@ function message(n: number, extra: Record<string, unknown> = {}) {
   };
 }
 
-describe('slack commands: IC profile', () => {
+describe('slack commands: IC profile', CLI_RUNS, () => {
   it('sets up Slack, shows it to the skill, and import follows the settings', () => {
     expect(json('solo', ['slack', 'show']).value).toMatchObject({
       configured: false,
@@ -251,7 +254,7 @@ describe('slack commands: IC profile', () => {
   });
 });
 
-describe('slack commands: manager reports', () => {
+describe('slack commands: manager reports', CLI_RUNS, () => {
   it('needs --report in a manager profile', () => {
     const run = cli('team', ['slack', 'show']);
     expect(run.status).toBe(1);
