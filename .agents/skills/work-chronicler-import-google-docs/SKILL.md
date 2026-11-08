@@ -231,11 +231,14 @@ wc -c < "$READS/doc.txt"
 Find the mentions (step 8) in the excerpt without reading it whole:
 
 ```bash
-LC_ALL=C grep -owE '[A-Z][A-Z0-9_]*-[1-9][0-9]*' "$READS/<n>.txt" | sort -u
+LC_ALL=C grep -oE '[A-Za-z0-9_]+-[A-Za-z0-9_]+' "$READS/<n>.txt" | LC_ALL=C grep -xE '[A-Z][A-Z0-9_]*-[1-9][0-9]*' | sort -u
 LC_ALL=C grep -oE 'https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/pull/[0-9]+' "$READS/<n>.txt" | sort -u
 ```
 
-Of the first list, keep only ticket keys (drop look-alikes such as `UTF-8`).
+The first command takes every word-hyphen-word token, then keeps only the
+exact ticket key form, so a near miss such as `H-1B` or `BILL-0311` never
+hides the keys after it on the same line. Of that list, keep only ticket
+keys (drop look-alikes such as `UTF-8`).
 
 ### 8. Write one record per kept Doc
 
