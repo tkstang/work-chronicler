@@ -474,6 +474,7 @@ Proof: `pnpm format:check`
 
 - Low (from p03 fix report, M2 follow-on): review records left from a different reviewer in a reused output directory are still counted by `status`, `filter` and `search_pr_reviews` when the current user has no in-range entries to replace them. Deferred by root (autonomous run): edge case requiring a changed `github.username` with a reused work log; follow-up trigger: p05 consumer work, which revisits these consumers.
 - Withdrawn: the earlier Low deferral about leftover other-reviewer records is superseded by gate attempt-2 M1 (fix task p03-t08).
+- Non-blocking (PR #25 self-review, complexity lens, independent Claude reviewer at ed8b20d): F1 the review-attribution rules are restated as prose in four writing skills (point them at `search_pr_reviews`/`status` instead); F2 the filtered-subset fallback (`fullOutputDir`) could be a note plus empty results; F3 the custom symlink resolver in `skills/migrate.ts` could become `realpath` containment plus one `readlink` hop; F4 `getReviewActivityDates` is an unused export; F5 `isVerifiedSkill` parses frontmatter by regex where `gray-matter` exists. Deferred by root (autonomous run): all non-blocking, and changing code after the clean exit gate and integrated review would stale both for cleanup only. Follow-up trigger: m02 re-alignment (p05 revisits these consumers); F3 needs care because it guards a data-loss path.
 
 ## Deviations from Plan / Design
 
