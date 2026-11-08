@@ -1214,8 +1214,139 @@ Proof: import suites 164/164; full suite 639; lint, typecheck, format:check
 **Status:** in_progress
 **Base:** c785bc5193cb2cafea34961133b741e3e2460857
 **Executor:** phase-implementer:wce-p15-impl-1
+**Head:** 59b3209c9a26a21a4ed12329ef5473000fc8d101
 
 Branch `oat/evidence-expansion-m03`. Committing owner: the phase implementer (code); root owns the journal. Task class: consequential (import durability and evidence correctness).
+
+Verification at Head: implementer ran the full DoD batch (659 tests, 41 files; build). Root re-ran typecheck, lint, format:check and tests at Head: pass (659).
+
+Dispositions: all 15 items still held against the code and were fixed, each in its own commit with a test that fails without it (implementer reverted each fix to confirm). Deferral 4504862955 is now fixed for `search_messages` and date-filtered `get_stats`.
+
+Pagination contract (`documentation/mcp-server.md#pages`; `search_documents` reuses it): newest `occurredAt` first, ties by record identity; opaque base64url `cursor`/`nextCursor` holding the last result's position (not an offset), so nothing is skipped or repeated across imports; `null` on the last page; foreign cursors refused; pages at most 64 KiB serialized (and `limit` when given), at least one result while any remain; text 1,000 chars, mentions until 16 KiB with `omittedMentions`; `total` constant across pages, `returned` per page. A cursor does not carry its filters (documented).
+
+Deviations (implementer): t09 is `test(...)` (test only); `messageFrontmatter` default `occurredAt` now matches its synthetic ts; two tests rewritten for intended behavior changes (`get_stats` refreshed messages; subset state `generation`); golden tools list updated; four package skills explain paging and import-slack gives the batch limit.
+
+Accepted concerns: `get_stats` without a range now returns unavailable during an import (documented); the generation fingerprint includes `filtered/` mtime, so `analyze` creating `filtered/.analysis/` mid-call yields a safe "call again".
+
+### Task p15-t01: Flush the work-log root before an update-only batch changes a record
+
+**Status:** completed
+**Commit:** 78d05c6
+**Executor:** phase-implementer:wce-p15-impl-1
+CodeRabbit: 4506078302
+Proof: test fails without the fix
+
+### Task p15-t02: Permalink host must match a workspace URL label
+
+**Status:** completed
+**Commit:** 41d7f4b
+**Executor:** phase-implementer:wce-p15-impl-1
+CodeRabbit: 4506078299
+Proof: test fails without the fix
+
+### Task p15-t03: occurredAt within 1 s of the Slack ts in sourceId
+
+**Status:** completed
+**Commit:** ab6dbb5
+**Executor:** phase-implementer:wce-p15-impl-1
+CodeRabbit: review body sources.ts 81-92
+Proof: test fails without the fix
+
+### Task p15-t04: Leave Jira keys held by two instances unresolved
+
+**Status:** completed
+**Commit:** f62b364
+**Executor:** phase-implementer:wce-p15-impl-1
+CodeRabbit: 4506078308
+Proof: test fails without the fix
+
+### Task p15-t05: Refuse a stored file named only differently in letter case (IDENTITY_CONFLICT)
+
+**Status:** completed
+**Commit:** 308ec6b
+**Executor:** phase-implementer:wce-p15-impl-1
+CodeRabbit: 4506078311
+Proof: test fails without the fix
+
+### Task p15-t06: Read no records through symlinked record directories (read-only PathGuard walk)
+
+**Status:** completed
+**Commit:** 54191ff
+**Executor:** phase-implementer:wce-p15-impl-1
+CodeRabbit: review body reader.ts 375-380
+Proof: test fails without the fix
+
+### Task p15-t07: Batch memory budget (64 MiB retained; BATCH_TOO_LARGE)
+
+**Status:** completed
+**Commit:** acaaba8
+**Executor:** phase-implementer:wce-p15-impl-1
+CodeRabbit: review body staging.ts 188-194
+Proof: test fails without the fix
+
+### Task p15-t08: MCP fingerprint distinguishes subset generations
+
+**Status:** completed
+**Commit:** 2192923
+**Executor:** phase-implementer:wce-p15-impl-1
+CodeRabbit: 4506078314
+Proof: test fails without the fix
+
+### Task p15-t09: Test: in-flight tool call across a subset change returns unavailable
+
+**Status:** completed
+**Commit:** 0893b52
+**Executor:** phase-implementer:wce-p15-impl-1
+CodeRabbit: review body server.test.ts 340-358
+Proof: test fails without the fix
+
+### Task p15-t10: mcp --info lists search_messages
+
+**Status:** completed
+**Commit:** 389d1f7
+**Executor:** phase-implementer:wce-p15-impl-1
+CodeRabbit: 4506078319
+Proof: test fails without the fix
+
+### Task p15-t11: get_stats refreshes cached messages counts
+
+**Status:** completed
+**Commit:** 60c3554
+**Executor:** phase-implementer:wce-p15-impl-1
+CodeRabbit: 4506078322
+Proof: test fails without the fix
+
+### Task p15-t12: get_stats date range includes message dates
+
+**Status:** completed
+**Commit:** 31becc5
+**Executor:** phase-implementer:wce-p15-impl-1
+CodeRabbit: 4506074793
+Proof: test fails without the fix
+
+### Task p15-t13: analyze reports stats range spans counted messages
+
+**Status:** completed
+**Commit:** 616db41
+**Executor:** phase-implementer:wce-p15-impl-1
+CodeRabbit: 4506078286
+Proof: test fails without the fix
+
+### Task p15-t14: Date-only until through end of UTC day (search_messages, date-filtered get_stats)
+
+**Status:** completed
+**Commit:** 8babe83
+**Executor:** phase-implementer:wce-p15-impl-1
+CodeRabbit: 4506078324
+Proof: test fails without the fix
+
+### Task p15-t15: search_messages size bound and cursor pagination
+
+**Status:** completed
+**Commit:** 59b3209
+**Executor:** phase-implementer:wce-p15-impl-1
+CodeRabbit: review body search-messages.ts 137-142
+Proof: test fails without the fix
 
 ---
 
@@ -1268,6 +1399,7 @@ run/v1 · request=wce-p14-impl-1 · scope=p14 · action=implementation · role=o
 run/v1 · request=wce-p14-rev-1 · scope=p14 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p14 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 - Root-inline phase: p14 review L1 (PathGuard destination separator) fixed by root (claude-opus-5-5) in p14-t05 c785bc5; one-line Low, no dispatch needed.
+  run/v1 · request=wce-p15-impl-1 · scope=p15 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p15 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 - run/v1 · request=wce-p08-rev-1 · scope=p08 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p08 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 - Root-inline phase: p08 — inline exception for a version bump and CHANGELOG move; root model claude-opus-5-5
