@@ -252,9 +252,12 @@ rejected (`SCHEMA_INVALID`).
   `messages/slack/`) are made there too and moved into the work log in one
   step. Each record is then put in place only
   after the work log, the directories leading to it and the destination are
-  checked again. If anything fails or changes on the way, every record already
-  stored is put back and the import reports that no records were changed
-  (`CHANGED_DURING_IMPORT` or `COMMIT_FAILED`).
+  checked again, and records the batch leaves unchanged are checked again
+  before the batch is accepted. If anything fails or changes on the way
+  (including an unchanged record being edited or removed), every record
+  already stored is put back and the import reports that no records were
+  changed (`CHANGED_DURING_IMPORT` or `COMMIT_FAILED`); the outside change is
+  kept.
 - If putting a record back fails too, or `import` cannot confirm whether the
   batch was recorded as stored, it reports `ROLLBACK_INCOMPLETE` (or
   `RECOVERY_CONFLICT` for a record something else changed), says the work
@@ -269,8 +272,11 @@ rejected (`SCHEMA_INVALID`).
   empty directory) finishes it first: an unfinished batch is rolled back and
   reported as rolled back, so none of its records are kept. A batch is
   reported as completed only when it was recorded as stored and every record
-  still holds its new version. `validate` reports `RECOVERY_REQUIRED` while
-  this is pending.
+  still holds its new version. An import whose journal is missing, or says
+  it was still preparing, is cleared only when `.import-transaction/` shows
+  that no record was touched; otherwise recovery stops with
+  `RECOVERY_CONFLICT` and keeps every file there. `validate` reports
+  `RECOVERY_REQUIRED` while this is pending.
 - If a record was changed by something else before recovery or cleanup
   finished (including after a successful import whose cleanup failed),
   recovery leaves it as it is and stops with `RECOVERY_CONFLICT`. The journal
@@ -419,7 +425,10 @@ Most filters describe authored PRs or tickets. For other evidence:
 `filtered/`, reads it back, and only then swaps it in. Records that no longer
 match, of every type, go with the old subset. If anything fails before the
 swap, the previous subset stays exactly as it was and `filter` exits with an
-error. The subset always has `pull-requests/`, `jira/`, `pr-reviews/` and
+error. If the new subset cannot be put in place and the previous one cannot
+be put back either, `filter` says so (not that the subset is unchanged) and
+the next `filter` restores it. Once the new subset is in place, a failure to
+tidy up what earlier runs left is only a warning. The subset always has `pull-requests/`, `jira/`, `pr-reviews/` and
 `messages/`, even when empty.
 
 The subset is in use whenever `filtered/` exists, even when nothing matched:

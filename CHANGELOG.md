@@ -31,7 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   or made a link. One import runs per work log at a time under
   `.import-lock`, the same kind of lock `filter` uses: a lock left by an
   exited process is taken over by one import at a time, and a running
-  import's lock is never moved. Manager
+  import's lock is never moved. Records the batch leaves unchanged are
+  checked too before it is accepted, and an interrupted import whose journal
+  is missing or says it was still preparing is cleared only when its
+  bookkeeping shows no record was touched. Manager
   profiles import into a report's work log with `--report <id>`. Both
   commands exit with status 1 on rejection; `--json` gives machine-readable
   issues that never repeat record content.
@@ -82,9 +85,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `filter` builds the whole subset beside `filtered/`, with a `.filter.json`
   record of its filters and counts, reads it back, and then swaps it in. If
-  anything fails first, the previous subset is kept as it was. One `filter`
-  runs per work log at a time (`.filter-lock`); a second run is refused and
-  changes nothing.
+  anything fails first, the previous subset is kept as it was; once the new
+  subset is in place, failing to tidy up leftovers is only a warning. One
+  `filter` runs per work log at a time (`.filter-lock`); a second run is
+  refused and changes nothing.
 - The filtered subset is in use whenever `filtered/` exists, even when
   nothing matched or it holds only imported messages; `analyze` and the MCP
   server no longer fall back to the full work log, and `status` shows the
