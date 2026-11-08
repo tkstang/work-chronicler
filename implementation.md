@@ -1601,8 +1601,37 @@ Proof: 747 tests; DoD batch green; pack 142 files
 **Status:** in_progress
 **Base:** 7feab1884270735d1e45986dac577c0e0a543a59
 **Executor:** phase-implementer:wce-p10-impl-1
+**Head:** c8d810d5039ad78e747174dfefdbda32ef66c8c4
 
 Branch `oat/evidence-expansion-m03`. Committing owner: the phase implementer (code); root owns the journal and runs the live walkthrough (the user's own Drive via `gog --readonly`, temp `WORK_CHRONICLER_HOME`, redacted counts only). Task class: consequential (privacy of the user's documents).
+
+Live walkthrough (root, 2026-11-08, read-only): `gog --readonly --no-input` v0.47.1 against the user's own Drive (IC, `--account` = the configured account), CLI in a throwaway `HOME` and `WORK_CHRONICLER_HOME`, range since 2026-01-01, following the skill's steps 1–10 with a script. Redacted results: listing complete (3 pages); listed 227; skipped 0 (not a Doc 0, shared drive 0, no owner 0, not owned 0, out of range 0, unreadable 0); empty 4; staged 223, truncated 21. First `validate` refused the batch (`SCHEMA_INVALID` on `mentions.tickets.0`: a picked-up key with a leading zero; gap 1). With keys in the schema's form: `validate` ok; `import` created 223; rerun of the same chunk unchanged 223; `link` exit 0. Scratch directories removed (pass). Confirmed: global flags before the subcommand; `drive search` JSON `{count, files, has_more, nextPageToken}`; `trashed = false` and `<` accepted; paging works; all `webViewLink`s in the accepted form. Gaps sent back to the implementer: (1) state the exact ticket-key form; (2) `drive get --json` nests fields under `file`; (3) plain `docs cat` prints no markers and no cut note, so truncation is by byte length. Manager discovery remains synthetic-only (not live-verified).
+
+Implementer rule breach (reported by the implementer): one run of `tsx src/cli/index.ts skills install --help` with the real HOME loaded `~/.work-chronicler/profiles/default/.env` into that process; help text only, nothing written, no values shown. Later runs used temp homes.
+
+### Task p10-t01: work-chronicler-import-google-docs skill
+
+**Status:** completed
+**Commit:** 75546a8
+**Executor:** phase-implementer:wce-p10-impl-1
+Files: `.agents/skills/work-chronicler-import-google-docs/SKILL.md`
+Proof: the example record validates
+
+### Task p10-t02: Synthetic acceptance test (IC, configured report, unconfigured report)
+
+**Status:** completed
+**Commit:** bb2acc3
+**Executor:** phase-implementer:wce-p10-impl-1
+Files: `src/cli/commands/google-docs/google-docs-acceptance.test.ts`
+Proof: 5/5, 60 s timeout
+
+### Task p10-t03: Docs name the new skill
+
+**Status:** completed
+**Commit:** c8d810d
+**Executor:** phase-implementer:wce-p10-impl-1
+Files: `AGENTS.md`, `CHANGELOG.md`, `README.md`, `documentation/{available-skills,commands,manager-mode}.md`
+Proof: `skills install` lists 13 skills; `npm pack --dry-run` 143 files
 
 ---
 
@@ -1642,6 +1671,7 @@ run/v1 · request=wce-p14-rev-1 · scope=p14 · action=review · role=oat-review
   run/v1 · request=wce-p09-impl-1 · scope=p09 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p09 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
   run/v1 · request=wce-p09-rev-1 · scope=p09 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p09 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
   run/v1 · request=wce-p09-rev-2 · scope=p09 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p09 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
+  run/v1 · request=wce-p10-impl-1 · scope=p10 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p10 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 - run/v1 · request=wce-p08-rev-1 · scope=p08 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p08 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 - Root-inline phase: p08 — inline exception for a version bump and CHANGELOG move; root model claude-opus-5-5
