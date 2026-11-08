@@ -38,25 +38,25 @@ oat_generated: false
 
 ## Progress Overview
 
-| Phase | Status    | Units | Accepted |
-| ----- | --------- | ----- | -------- |
-| p01   | completed | 1     | 1/1      |
-| p02   | completed | 1     | 1/1      |
-| p03   | completed | 1     | 1/1      |
-| p04   | completed | 1     | 1/1      |
-| p05   | completed | 1     | 1/1      |
-| p06   | completed | 1     | 1/1      |
-| p07   | completed | 1     | 1/1      |
-| p12   | completed | 1     | 1/1      |
-| p08   | completed | 1     | 1/1      |
-| p13   | pending   | 1     | 0/1      |
-| p14   | pending   | 1     | 0/1      |
-| p15   | pending   | 1     | 0/1      |
-| p16   | pending   | 1     | 0/1      |
-| p17   | pending   | 1     | 0/1      |
-| p09   | pending   | 1     | 0/1      |
-| p10   | pending   | 1     | 0/1      |
-| p11   | pending   | 1     | 0/1      |
+| Phase | Status      | Units | Accepted |
+| ----- | ----------- | ----- | -------- |
+| p01   | completed   | 1     | 1/1      |
+| p02   | completed   | 1     | 1/1      |
+| p03   | completed   | 1     | 1/1      |
+| p04   | completed   | 1     | 1/1      |
+| p05   | completed   | 1     | 1/1      |
+| p06   | completed   | 1     | 1/1      |
+| p07   | completed   | 1     | 1/1      |
+| p12   | completed   | 1     | 1/1      |
+| p08   | completed   | 1     | 1/1      |
+| p13   | in_progress | 1     | 0/1      |
+| p14   | pending     | 1     | 0/1      |
+| p15   | pending     | 1     | 0/1      |
+| p16   | pending     | 1     | 0/1      |
+| p17   | pending     | 1     | 0/1      |
+| p09   | pending     | 1     | 0/1      |
+| p10   | pending     | 1     | 0/1      |
+| p11   | pending     | 1     | 0/1      |
 
 **Total:** 9/17 phases accepted
 
@@ -1031,7 +1031,11 @@ Proof: Slack suites 13/13 locally; ready-PR CI re-run
 
 ## Phase p13: Import and filter locking and recovery
 
-**Status:** pending
+**Status:** in_progress
+**Base:** 1bdd3d8737dde4aa3305a3ac5a1b06f81e04a2bc
+**Executor:** phase-implementer:wce-p13-impl-1
+
+Branch `oat/evidence-expansion-m03` (from m02 head 6360304 with origin/main b17cb23 merged at 1bdd3d8). Committing owner: the phase implementer (code); root owns the journal. Task class: consequential (concurrent writers to the work log; data loss and stale evidence are the failure modes).
 
 ---
 
