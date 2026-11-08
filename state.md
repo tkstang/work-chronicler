@@ -51,7 +51,7 @@ oat_goal_recovery:
   milestone: m02
   delivery_id: null
   phase_ids: [ p04, p05, p06, p07, p12, p08 ]
-  stage: reviewing
+  stage: delivering
   review_artifact: null
 oat_milestone_gates:
   m01:
@@ -150,6 +150,38 @@ oat_deliveries:
           head: b079cd77e9306bdc2a179660a6536afba12f0847
           base: b8189269dfab0ff9da136f5b2dead7dc8e4b2ad3
           status: merged
+  - delivery_id: d02
+    milestone: m02
+    scope: [ p04, p05, p06, p07, p12, p08 ]
+    endpoint: merged
+    kind: pr
+    status: registering
+    superseded_by: null
+    covers_scope_of: null
+    corrects_delivery_id: null
+    lookup:
+      repository: tkstang/work-chronicler
+      head_branch: oat/evidence-expansion-m02
+      head_sha_at_registration: 9548ee32b4b8b7595a6907bac00b9c18ff211b86
+    members: []
+    integrated_review:
+      artifact: reviews/archived/m02-review-2026-11-08T111220Z.md
+      scope: [ p04, p05, p06, p07, p12, p08 ]
+      bound_revisions: []
+      disposition: passed
+    exit_gate:
+      status: allowed
+      disposition: passed
+      resolution: configured
+      config_fingerprint: null
+      reviewed_head: 9548ee32b4b8b7595a6907bac00b9c18ff211b86
+      subject:
+        kind: code
+        scope: [ p04, p05, p06, p07, p12, p08 ]
+      freshness: fresh
+      freshness_reason: null
+      decided_at: "2026-11-08T11:00:51Z"
+    endpoint_attainment: null
 # oat_skill_gate_overrides: # optional; per-project posture for configured lifecycle gates
 #   oat-project-implement: disabled # only the literal value `disabled`; absence means follow configuration
 # oat_implement_exit_gate: # optional; durable configured implementation exit-gate state
@@ -207,7 +239,7 @@ oat_pr_status: merged
 oat_pr_url: https://github.com/tkstang/work-chronicler/pull/25
 oat_project_created: '2026-11-07T22:54:38.498Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-11-08T11:00:51Z"
+oat_project_state_updated: "2026-11-08T11:14:34Z"
 oat_generated: false
 ---
 

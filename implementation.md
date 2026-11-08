@@ -1354,6 +1354,15 @@ Also in p03-t15: CodeRabbit 4505014153 (docs/notice wrongly said `--overwrite` f
 
 **Outcome:** gate passed. m02 exit carrier allowed/fresh at 9548ee32b4b8b7595a6907bac00b9c18ff211b86 (2026-11-08T11:00:51Z); recovery stage → reviewing (fresh integrated review).
 
+### Review Received: m02 (integrated delivery re-review)
+
+**Date:** 2026-11-08
+**Review artifact (local-only):** reviews/archived/m02-review-2026-11-08T111220Z.md
+
+**Findings:** Critical 0 · High 0 · Medium 0 · Low 0 (cross-provider reviewer codex gpt-6.1-sol high via delegated task, scope `code m02: p04, p05, p06, p07, p12, p08`, reviewed head 9548ee32b4b8b7595a6907bac00b9c18ff211b86; fix delta 890358f..9548ee3 reviewed directly; the p09-deferred Medium excluded)
+
+**Outcome:** passed. m02 → delivering; d02 registering.
+
 ### PR review received: d01 (PR #25, CodeRabbit)
 
 **Date:** 2026-11-08
