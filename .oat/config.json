@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "workflow": {
+    "archiveOnComplete": true
+  },
+  "archive": {
+    "summaryExportPath": ".oat/repo/reference/project-summaries"
+  }
+}
