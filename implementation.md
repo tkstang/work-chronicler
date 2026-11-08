@@ -195,7 +195,7 @@ Review fix. Proof: full DoD batch.
 **Status:** completed
 **Base:** 23a4f1aae63ebd37c8966dca2c2136f794f14190
 **Executor:** inline:p03-inline-exception
-**Head:** aa1da62cea9621cebedd98cd18852853f7965567
+**Head:** b7a300e0259cfc2a3df8d48de8dd1bbb50c641d8
 
 Inline exception (recorded before editing): version bump and CHANGELOG section move only — no new surface, no unresolved design, not consequential before the tag push (which happens after merge under the Release authority), one proof command (the local DoD batch). Committing owner: root. Parallelism: single trivial phase.
 
@@ -338,6 +338,17 @@ Intent: Only a link target proven missing (ENOENT, ENOTDIR) counts as having not
 Files: `skills/migrate.ts`, `skills/install.test.ts`
 Proof: full DoD batch (251 tests); the permission-denied regression (skipped as root) fails on 0e90c25 code and passes after; the missing-target control still removes the old copy.
 
+### Task p03-t14: (review) Keep old skill copies when a tool skills directory is unreadable
+
+**Status:** completed
+**Commit:** b7a300e0259cfc2a3df8d48de8dd1bbb50c641d8
+**Executor:** inline:p03-inline-exception (root, one integrated-review finding)
+**Source review:** reviews/archived/m01-review-2026-11-08T040821Z.md (H1)
+
+Intent: The dependency inventory skips only a missing tool skills directory (ENOENT, ENOTDIR); one that exists but cannot be listed is recorded as not fully checked, which keeps every old name in that run and names the directory.
+Files: `skills/migrate.ts`, `skills/install.test.ts`, `documentation/available-skills.md`
+Proof: full DoD batch (252 tests); the unreadable-tool-directory regression (skipped as root) fails on aa1da62 code and passes after; existing tests with absent tool directories still remove old copies.
+
 ---
 
 ## Phase p04: Staged import contract
@@ -403,6 +414,8 @@ Proof: full DoD batch (251 tests); the permission-denied regression (skipped as 
 - Root-inline phase: p03 — inline exception for a version bump and CHANGELOG move; root model claude-opus-5-5
 
 - Root-inline phase: p03 (fix p03-t10) — one small skill-text finding from exit gate attempt 4; root model claude-opus-5-5
+
+- Root-inline phase: p03 (fix p03-t14) — one High integrated-review finding (unreadable tool skills directory), small and bounded; root model claude-opus-5-5
 
 - Root-inline phase: p03 (fix p03-t13) — one High gate finding (permission errors in the nested-link walk), small and bounded; root model claude-opus-5-5
 
@@ -537,6 +550,17 @@ Proof: full DoD batch (251 tests); the permission-denied regression (skipped as 
 **Findings:** Critical 0 · High 0 · Medium 0 · Low 0 (gate `codex-6-sol-xhigh`, run 52e01ff1-0c64-4f1d-ade8-93a101a80d06, reviewed head aa1da62cea9621cebedd98cd18852853f7965567)
 
 **Outcome:** passed. Exit carrier allowed/fresh at aa1da62cea9621cebedd98cd18852853f7965567 (2026-11-08T04:04:35Z); recovery stage → reviewing (fresh integrated review next).
+
+### Review Received: m01 (integrated delivery re-review at aa1da62)
+
+**Date:** 2026-11-08
+**Review artifact (local-only):** reviews/archived/m01-review-2026-11-08T040821Z.md
+
+**Findings:** Critical 0 · High 1 · Medium 0 · Low 0 (cross-provider reviewer codex gpt-6.1-sol high via delegated task, scope `code m01: p01, p02, p03`, reviewed head aa1da62cea9621cebedd98cd18852853f7965567)
+
+- H1 (High): an unreadable tool skills directory is skipped as if absent, so a dependent skill behind it is missed and the old copy deleted (reproduced; present since ed8b20d) → fix task p03-t14; agree.
+
+**Outcome:** H1 fixed in p03-t14 (b7a300e0259cfc2a3df8d48de8dd1bbb50c641d8). Exit carrier stale again; recovery stage → exit_gate (gate attempt 9), then a fresh integrated review.
 
 ### PR review received: d01 (PR #25, CodeRabbit)
 
