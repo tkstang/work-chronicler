@@ -244,7 +244,9 @@ rejected (`SCHEMA_INVALID`).
   over; one held by a running process or from another machine is not
   (`IMPORT_IN_PROGRESS`).
 - The batch is written to `.import-transaction/` first and checked, with a
-  copy of every record it replaces. Each record is then put in place only
+  copy of every record it replaces. Directories the batch needs (such as
+  `messages/slack/`) are made there too and moved into the work log in one
+  step. Each record is then put in place only
   after the work log, the directories leading to it and the destination are
   checked again. If anything fails or changes on the way, every record already
   stored is put back and the import reports that no records were changed
@@ -271,6 +273,14 @@ rejected (`SCHEMA_INVALID`).
   stays in `.import-transaction/journal.json`, and any version the batch
   replaced stays in `.import-transaction/backup/` (a newly created record has
   none). Sort the record out by hand, then remove `.import-transaction/`.
+- Putting records back and recovering only ever act through directories the
+  import recorded: `.import-transaction/` and each folder in it, and every
+  directory on the way to a record, must still be the same directory (not
+  moved, replaced or made a link). A directory the batch created is removed
+  only if it is still that directory and empty. If any of this does not hold,
+  `import` changes nothing through that path and stops with
+  `RECOVERY_CONFLICT`, keeping `.import-transaction/`. Check the path it
+  names, then remove `.import-transaction/`.
 
 ### Errors and `--json`
 
