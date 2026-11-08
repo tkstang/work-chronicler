@@ -44,10 +44,15 @@ oat_dispatch_policy:
 oat_workflow_mode: goal # spec-driven | quick | import | lite | brief | goal
 oat_workflow_origin: native # native | imported
 oat_milestone: m01
-oat_milestone_status: delivered
+oat_milestone_status: reviewing
 oat_goal_status: active
 oat_goal_outcome_audit: null
-oat_goal_recovery: null
+oat_goal_recovery:
+  milestone: m01
+  delivery_id: d01
+  phase_ids: [p01, p02, p03]
+  stage: exit_gate
+  review_artifact: null
 oat_milestone_gates:
   m01:
     plan:
@@ -169,7 +174,7 @@ oat_pr_status: open
 oat_pr_url: https://github.com/tkstang/work-chronicler/pull/25
 oat_project_created: '2026-11-07T22:54:38.498Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-11-08T03:08:08Z"
+oat_project_state_updated: "2026-11-08T03:36:25Z"
 oat_generated: false
 ---
 

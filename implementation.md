@@ -195,7 +195,7 @@ Review fix. Proof: full DoD batch.
 **Status:** completed
 **Base:** 23a4f1aae63ebd37c8966dca2c2136f794f14190
 **Executor:** inline:p03-inline-exception
-**Head:** ed8b20df93efb15f5dbdeee10733453e7cd52f0d
+**Head:** 27f398fd461d57ec0cee3e295d5ed65c9f0e9763
 
 Inline exception (recorded before editing): version bump and CHANGELOG section move only — no new surface, no unresolved design, not consequential before the tag push (which happens after merge under the Release authority), one proof command (the local DoD batch). Committing owner: root. Parallelism: single trivial phase.
 
@@ -305,6 +305,17 @@ Intent: The four writing skills normalize `github.username` like `normalizeGitHu
 Files: four `SKILL.md` files
 Proof: `pnpm format:check`
 
+### Task p03-t11: (review) Address PR #25 CodeRabbit findings on review records
+
+**Status:** completed
+**Commit:** 27f398fd461d57ec0cee3e295d5ed65c9f0e9763
+**Executor:** inline:p03-inline-exception (root, small fixes from PR review)
+**Source review:** PR #25 CodeRabbit review (comments 4504862929, 4504862939, 4504862960, 4504862978, 4504862995)
+
+Intent: An unreadable review record is left unchanged and its PR reported failed instead of being rewritten with only the current range. A complete fetch that finds nothing leaves `pr-reviews/`. `filter` writes `filtered/pr-reviews/` only once the work log has one, so a subset made before the first review fetch is still flagged. Docs name `fetch github --reviews`. The mixed-work-log status test seeds its own fixtures.
+Files: `github-reviews.utils.ts`, `filter.ts`, `paths.ts` (doc comment), `documentation/commands.md`, `documentation/configuration.md`, two test files
+Proof: full DoD batch (format, lint, typecheck, 247 tests); the three new regression assertions fail on ed8b20d code and pass after.
+
 ---
 
 ## Phase p04: Staged import contract
@@ -370,6 +381,8 @@ Proof: `pnpm format:check`
 - Root-inline phase: p03 — inline exception for a version bump and CHANGELOG move; root model claude-opus-5-5
 
 - Root-inline phase: p03 (fix p03-t10) — one small skill-text finding from exit gate attempt 4; root model claude-opus-5-5
+
+- Root-inline phase: p03 (fix p03-t11) — five small PR #25 review findings (CodeRabbit), fixed in root per the host's small-fix rule; root model claude-opus-5-5
 
 - Root-inline phase: p03 (fix p03-t09) — two small skill-text/README findings from the m01 integrated review, fixed in root per the host's small-fix rule; root model claude-opus-5-5
 
@@ -468,6 +481,13 @@ Proof: `pnpm format:check`
 
 **PR:** https://github.com/tkstang/work-chronicler/pull/25 (scope `m01: p01, p02, p03`, registered 2026-11-08, endpoint `merged`)
 
+### PR review received: d01 (PR #25, CodeRabbit)
+
+**Date:** 2026-11-08
+**Findings:** 20 Minor (19 comments), verified against ed8b20d by an independent Claude reviewer. Fixed 5 in p03-t11 (27f398f). Pre-existing on main: 5 (date-only `until` midnight, `filter` not clearing `filtered/`, full-log fallback with no matching PR, install delete-before-copy, cleanup abort). Rejected with reason: 3 (username-empty by design, truncation matches other tools, concurrent fetch into one dir unsupported). Deferred: the rest (see Deferred Findings). Each comment has a reply with its disposition.
+
+**Outcome:** code changed after the reviewed head; exit carrier and integrated review are stale. m01 → reviewing (recovery stage `exit_gate`).
+
 ## Deferred Findings
 
 <!-- One line per approved deferral (finding, rationale, approval, follow-up trigger), plus excluded parallel phases and unmerged worktrees. -->
@@ -475,6 +495,8 @@ Proof: `pnpm format:check`
 - Low (from p03 fix report, M2 follow-on): review records left from a different reviewer in a reused output directory are still counted by `status`, `filter` and `search_pr_reviews` when the current user has no in-range entries to replace them. Deferred by root (autonomous run): edge case requiring a changed `github.username` with a reused work log; follow-up trigger: p05 consumer work, which revisits these consumers.
 - Withdrawn: the earlier Low deferral about leftover other-reviewer records is superseded by gate attempt-2 M1 (fix task p03-t08).
 - Non-blocking (PR #25 self-review, complexity lens, independent Claude reviewer at ed8b20d): F1 the review-attribution rules are restated as prose in four writing skills (point them at `search_pr_reviews`/`status` instead); F2 the filtered-subset fallback (`fullOutputDir`) could be a note plus empty results; F3 the custom symlink resolver in `skills/migrate.ts` could become `realpath` containment plus one `readlink` hop; F4 `getReviewActivityDates` is an unused export; F5 `isVerifiedSkill` parses frontmatter by regex where `gray-matter` exists. Deferred by root (autonomous run): all non-blocking, and changing code after the clean exit gate and integrated review would stale both for cleanup only. Follow-up trigger: m02 re-alignment (p05 revisits these consumers); F3 needs care because it guards a data-loss path.
+
+- Non-blocking (PR #25 CodeRabbit, deferred by root, autonomous run): comment edits outside the current range are not refreshed (4504862946); a record emptied by reconciliation is not deleted (4504862950); comments lose parent review state when the review falls outside the range (4504863012, needs a schema field); multi-argument helpers should take parameter objects (4504866382); the install-failure test relies on non-root chmod (4504866386); cleanup failure in `install` aborts the run (4504866388, pre-existing); migration plans removals per tool rather than after all tools (4504866392); the dependency check ignores nested resource symlinks (4504866395). Pre-existing, for all record types: date-only `until` is midnight UTC (4504862955); `filter` keeps stale `filtered/` content without `--clear` (4504862967); the subset is ignored when no authored PR matches (4504862986); `install --overwrite` deletes before copying (4504863000). Follow-up trigger: m02 re-alignment.
 
 ## Deviations from Plan / Design
 
