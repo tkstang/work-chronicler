@@ -186,16 +186,27 @@ changes nothing. Records that are not in the batch are never removed.
   copy of every record it replaces. Each record is then put in place only
   after the work log, the directories leading to it and the destination are
   checked again. If anything fails or changes on the way, every record already
-  stored is put back and the import reports that no records were changed.
+  stored is put back and the import reports that no records were changed
+  (`CHANGED_DURING_IMPORT` or `COMMIT_FAILED`).
+- If putting a record back fails too, or `import` cannot confirm whether the
+  batch was recorded as stored, it reports `ROLLBACK_INCOMPLETE` (or
+  `RECOVERY_CONFLICT` for a record something else changed), says the work
+  log needs recovery, and keeps `.import-transaction/`. Run `import` again
+  (an empty directory will do) to finish putting the records back.
+- Once every record is stored and checked, the batch is recorded as stored and
+  is not undone. A cleanup step that fails after that is reported as a
+  warning, and the next `import` finishes the cleanup.
 - If `import` is interrupted, the next `import` (with any batch, even an
   empty directory) finishes it first: an unfinished batch is rolled back and
-  reported as rolled back, so none of its records are kept, and only a batch
-  whose every record was stored and verified is reported as completed.
-  `validate` reports `RECOVERY_REQUIRED` while this is pending.
-- If a record was changed by something else after an interrupted import,
-  recovery leaves it as it is and stops with `RECOVERY_CONFLICT`, keeping the
-  previous version in `.import-transaction/backup/`. Sort the record out by
-  hand, then remove `.import-transaction/`.
+  reported as rolled back, so none of its records are kept. A batch is
+  reported as completed only when it was recorded as stored and every record
+  still holds its new version. `validate` reports `RECOVERY_REQUIRED` while
+  this is pending.
+- If a record was changed by something else during or after an interrupted
+  import, recovery leaves it as it is and stops with `RECOVERY_CONFLICT`,
+  keeping the previous version in `.import-transaction/backup/` and the
+  journal in `.import-transaction/journal.json`. Sort the record out by hand,
+  then remove `.import-transaction/`.
 
 ### Errors and `--json`
 
@@ -205,7 +216,8 @@ With `--json`, stdout holds one JSON object: `ok`, `command`, `target`,
 (an interrupted import this run finished, or `null`). Each issue has a `code`
 and a `message`, and where they apply the staged `file`, the frontmatter
 `field`, the `line` and `column`, and the `destination` relative to the work
-log. Messages never repeat record content.
+log. Messages never repeat record content: an unknown frontmatter key, for
+example, is reported by count and position, not by name.
 
 | Codes | Meaning |
 | --- | --- |

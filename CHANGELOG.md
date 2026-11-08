@@ -18,8 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   again updates it and repeating an import changes nothing. A batch is
   stored all or nothing: anything unsafe or ambiguous (symlinks, a stored
   record with another identity, a record about someone else, a report not in
-  the manager profile) rejects the whole batch, a failure puts every record
-  back, and the next import recovers one that was interrupted. Manager
+  the manager profile) rejects the whole batch, and a failure puts every
+  stored record back. If putting a record back also fails, or a record was
+  changed by something else, `import` says so (`ROLLBACK_INCOMPLETE`,
+  `RECOVERY_CONFLICT`) and the next import finishes the recovery, as it does
+  for an import that was interrupted. Manager
   profiles import into a report's work log with `--report <id>`. Both
   commands exit with status 1 on rejection; `--json` gives machine-readable
   issues that never repeat record content.
