@@ -429,8 +429,9 @@ anything there. The CLI stores the settings and checks every record on import
 (see [Slack](commands.md#slack) and [Slack records](commands.md#slack-records)).
 
 **Setup** (`/work-chronicler-setup-slack`, once per IC profile or report):
-1. Reads the workspace (team) ID and the subject's Slack user ID from the
-   connector, and runs `slack configure`.
+1. Finds the workspace (its team ID if a Slack tool shows one, otherwise its
+   URL label from a permalink, such as `example` for `example.slack.com`)
+   and the subject's Slack user ID, and runs `slack configure`.
 2. Lists your public channels and asks which hold review-relevant work.
    Private channels are offered only if you opt in; direct messages and
    group DMs never are.

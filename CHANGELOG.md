@@ -27,7 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   commands exit with status 1 on rejection; `--json` gives machine-readable
   issues that never repeat record content.
 - Slack settings per IC profile, and per report in a manager profile, for
-  the Slack import skills: `slack configure` (workspace and user IDs),
+  the Slack import skills: `slack configure` (the workspace, by team ID or
+  by URL label such as `example` for `example.slack.com`, and the user ID),
   `slack channels add|remove|list` and `slack show`, which prints the
   subject, fetch range, channels and the fields each staged record needs.
   Slack is opt-in: without settings, `import` accepts no Slack records.
@@ -56,13 +57,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   work, and the user's own words only when attribution is verified.
 - Two Slack skills, for IC profiles and for reports in a manager profile,
   that read Slack read-only through the assistant's Slack connector:
-  `/work-chronicler-setup-slack` finds the workspace and user IDs and lets
+  `/work-chronicler-setup-slack` finds the workspace and user ID and lets
   you choose the channels to import from (public channels by default,
   private channels only when you opt in, never direct messages; for a report,
   only channels it checks you both belong to), and
   `/work-chronicler-import-slack` imports the subject's own messages from
-  those channels in the fetch range, without other people's replies, through
-  `validate` and `import`. Run `skills install` to add them.
+  those channels in the fetch range, without other people's replies or
+  names (mentions become `@someone`), through `validate` and `import`. Run
+  `skills install` to add them.
 
 ### Changed
 

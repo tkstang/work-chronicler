@@ -79,7 +79,7 @@ them for you (see [AI skills](available-skills.md#importing-slack-messages)).
 
 ```yaml
 slack:
-  workspace: T0EXAMPLE      # workspace (team) ID
+  workspace: T0EXAMPLE      # team ID, or the URL label (example for example.slack.com)
   user: U0EXAMPLE           # your Slack user ID
   channels:
     - id: C0EXAMPLE
@@ -90,7 +90,7 @@ slack:
 
 | Field | Required | Meaning |
 | --- | --- | --- |
-| `slack.workspace` | yes | Workspace (team) ID, `T…` (or `E…` for an Enterprise org). Records must come from it. |
+| `slack.workspace` | yes | The workspace: its team ID, `T…` (or `E…` for an Enterprise org), or, when no Slack tool shows the ID, its URL label: the first part of its host name, in lower case (`example` for `example.slack.com` or `example.enterprise.slack.com`). Records' `sourceAccount` must be exactly this value, so keep it once messages are imported. |
 | `slack.user` | yes | Your Slack user ID, `U…` or `W…`. Only messages this user wrote are imported. |
 | `slack.channels[].id` | yes | Channel ID, `C…` or `G…`. Direct messages (`D…`) are never allowed. |
 | `slack.channels[].name` | yes | Channel name without `#`. Group direct messages (`mpdm-…`) are never allowed. |

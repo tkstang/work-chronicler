@@ -152,7 +152,7 @@ Every record shares these frontmatter fields:
 | `schemaVersion` | `1`. |
 | `type` | The record type: `message`. |
 | `source` | Where the record came from: `slack`. |
-| `sourceAccount` | The workspace or account the ID belongs to. For Slack, the workspace (team) ID. |
+| `sourceAccount` | The workspace or account the ID belongs to. For Slack, the configured workspace: its team ID or URL label. |
 | `sourceId` | The item's stable ID within that account. For Slack, `<channel ID>/<message ts>`. |
 | `url` | Link to the item, or `null` (the default). |
 | `occurredAt` | When it happened (ISO 8601). |
@@ -214,7 +214,8 @@ changes nothing. Records that are not in the batch are never removed.
   (use the `name` that `slack show` lists);
 - `message.thread.parentId` is not a message ts, or `parentUrl` (and the
   record's own `url`) is anything but the bare Slack permalink of that
-  message (`https://<workspace>.slack.com/archives/<channel>/p<ts>`, with at
+  message (`https://<host>.slack.com/archives/<channel>/p<ts>`, any
+  `slack.com` host such as `example.enterprise.slack.com`, with at
   most `thread_ts` and `cid` in the query);
 - a reply in a thread carries reply counts, or `replyParticipantCount`
   exceeds `replyCount`.
@@ -297,7 +298,7 @@ the fields.
 
 | Command | Meaning |
 | --- | --- |
-| `slack configure --workspace <team-id> --user <user-id>` | Set up Slack: the workspace (team) ID and the subject's Slack user ID (yours, or the report's). The workspace or user cannot change while channels are configured; remove them first. |
+| `slack configure --workspace <workspace> --user <user-id>` | Set up Slack: the workspace and the subject's Slack user ID (yours, or the report's). The workspace is its team ID (`T…`/`E…`) or, when no Slack tool shows the ID, its URL label (`example` for `example.slack.com` or `example.enterprise.slack.com`). The workspace or user cannot change while channels are configured; remove them first. |
 | `slack channels add <channel-id> --name <name> --reason <text>` | Add a channel whose messages by the subject may be imported. `--name` is the channel name (a leading `#` is dropped); `--reason` says why it holds review-relevant work. |
 | `slack channels remove <channel-id>` | Remove a channel. Records already imported from it are kept; later imports refuse it. An ID that is not configured is refused (exit 1) with the configured IDs listed, so a mistyped ID is never reported as removed. |
 | `slack channels list` | List the configured channels. |
@@ -334,7 +335,7 @@ or changed during the update is refused and left as it was.
 | `subject`, `subjectName` | The record subject (`{ kind: ic }` or `{ kind: report, reportId }`) and the report's name. |
 | `configured` | Whether Slack is set up for the subject. When `false`, nothing can be imported. |
 | `range` | The profile's fetch range: `since`, and `until` (`null` means now). |
-| `workspace`, `user` | The configured IDs, or `null`. |
+| `workspace`, `user` | The configured workspace (team ID or URL label) and user ID, or `null`. |
 | `channels` | Each channel's `id`, `name`, `reason`, `private`, for reports `sharedWithManager`, and `importable` (false for a report channel not confirmed as shared). |
 | `record` | The fields every staged record must carry: `source`, `sourceAccount`, `subject` and verified `attribution`; `null` when not configured. |
 | `importCommand` | The `import` command line for this subject, with `<staging-dir>` to fill in. |
