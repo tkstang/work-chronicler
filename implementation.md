@@ -368,8 +368,57 @@ Proof: full DoD batch (254 tests); both new regressions fail on b7a300e code and
 **Status:** in_progress
 **Base:** 378f881d38602cc7882aa9faf0fdd999541f1c22
 **Executor:** phase-implementer:wce-p04-impl-1
+**Head:** 773e5722a12b7c94a796a555d9594ed9e187c353
 
 Worktree: this T3 worktree, branch `oat/evidence-expansion-m02` (m01 head b079cd7 with origin/main merged). Committing owner: the phase implementer (code); root owns the journal. Parallelism: no declared group; fan-out rejected (envelope schema, storage paths, `import` and `validate` share types and the commit contract and are sequentially dependent); one phase implementer. Task class: consequential (atomic writes over existing user records; fail-closed data safety per the m01 learning).
+
+Verification at Head: implementer ran `pnpm format && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build && npm pack --dry-run` (337 tests, 118 packed files, no test-support files) and an end-to-end import through the built CLI in a temp home. Root re-ran typecheck, lint, format:check and tests at Head: pass (337). No dependency, lockfile or CI changes.
+
+Known Unknown settled (p04): records live at `<work-log>/messages/<source>/<sha256(identity) 32 hex>.md` (manager mode: `reports/<id>/work-log/messages/...`); identity is `(type, source, sourceAccount, sourceId)`; for Slack, `sourceAccount` is the workspace (team) ID and `sourceId` is `<channel ID>/<message ts>`. Upsert replaces the whole record; byte-identical content is left unchanged.
+
+Threat matrix and commit contract (written before the commit code; summary): the whole batch is rejected whenever containment, identity, authorization or safe replacement cannot be established, and only a proven ENOENT counts as absent. T1 destination paths never use record text; T2 staging entries must be regular `*.md` files (lstat); T3 staging opened with O_NOFOLLOW|O_NONBLOCK and dev/ino matched to the listing; T4 names are never split on backslashes; T5 strict YAML and schema, size caps; T6 duplicate identity or case-folded destination collision rejected; T7 subject must match the resolved target (IC, or `--report` present in the manager profile); T8 every component below the root is lstat-checked; T9 the configured root is resolved once and trusted; T10 an existing file with another identity or subject is a conflict; T11 case aliases resolve to the same entry and are identity-checked; T12 identities and hashes are re-checked before each destructive step; T13 failures injected through an ImportFs layer (not chmod); T14 write-ahead journal with recovery on the next import (old or new batch, never a mix); T15 `.import-lock` by atomic hard link; T16 stale lock taken over only when the owner is provably dead; T17 an unreadable journal or ambiguous record stops recovery and keeps backups; T18 errors never echo record content. Commit: read-only plan, lock, recover, re-plan, prepare in `.import-transaction/` with read-back hashes, journal `prepared` → `committing` (per-record applying marker, then `link` create or `rename` update with hash check) → `committed`; any failure rolls back only marked records by hash. Residual race windows (final check to link/rename; simultaneous stale-lock takeover; hard-link support required) are documented.
+
+Notes for later phases: p05 must teach consumers about imported records and to ignore `.import-*` entries in the work-log root (docs currently say imported records are not read yet); p06 plugs Slack rules into `checkRecord` in `src/core/import/sources.ts` (its context needs the config, additive). Recovery runs on the next `import`; `validate` reports `RECOVERY_REQUIRED`. `tsconfig.build.json` now excludes `src/**/*.test-support.ts`.
+
+### Task p04-t01: Import envelope and `messages` record type
+
+**Status:** completed
+**Commit:** b39d339d742bbece00c6abc854b5ab7bbd6b3a96
+**Executor:** phase-implementer:wce-p04-impl-1
+Files: `src/core/types/imported-record.ts`, `src/core/storage/paths.ts`, `src/core/import/{issues,sources,record-file}.ts` and tests, index exports
+Proof: `pnpm vitest run src/core/import`
+
+### Task p04-t02: Validate staged batches without writing
+
+**Status:** completed
+**Commit:** 8f73aa354a5db6ee6b656186cb2ead1d1b6f7448
+**Executor:** phase-implementer:wce-p04-impl-1
+Files: `src/core/import/{import-fs,staging,plan,index}.ts`, `import.test-support.ts`, `validate.test.ts`, `tsconfig.build.json`
+Proof: `pnpm vitest run src/core/import`, `pnpm build`
+
+### Task p04-t03: Atomic commit with recovery
+
+**Status:** completed
+**Commit:** 780b4e5142d1866d48b808262fdd6d21253b7f05
+**Executor:** phase-implementer:wce-p04-impl-1
+Files: `src/core/import/transaction.ts`, `index.ts`, `plan.ts`, `staging.ts`, `commit.test.ts`, test support
+Proof: `pnpm vitest run src/core/import` (fault injection at every operation and crash at every write)
+
+### Task p04-t04: `import` and `validate` commands
+
+**Status:** completed
+**Commit:** 1c0ee9a6923df63a3a773489e18f2c7cac8ea012
+**Executor:** phase-implementer:wce-p04-impl-1
+Files: `src/cli/commands/import/{index,import.utils,import.test}.ts`, `validate.ts`, `src/cli/index.ts`, `src/cli/commands/README.md`
+Proof: `pnpm vitest run src/cli/commands/import`, `pnpm build`, built CLI run in a temp home
+
+### Task p04-t05: Docs and CHANGELOG
+
+**Status:** completed
+**Commit:** 773e5722a12b7c94a796a555d9594ed9e187c353
+**Executor:** phase-implementer:wce-p04-impl-1
+Files: `documentation/{commands,configuration,manager-mode}.md`, `README.md`, `AGENTS.md`, `CHANGELOG.md`
+Proof: `pnpm format:check`; documented example record validated with the CLI
 
 ---
 
@@ -426,6 +475,8 @@ Worktree: this T3 worktree, branch `oat/evidence-expansion-m02` (m01 head b079cd
 <!-- One line per dispatch request id, rendered by `oat project dispatch record --format line` and written as a list item. Update that line in place with the terminal outcome; never paste the record or event JSON. -->
 
 <!-- orchestration-runs-start -->
+
+- run/v1 · request=wce-p04-impl-1 · scope=p04 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p04 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 - run/v1 · request=wce-p01-impl-1 · scope=p01 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p01 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
