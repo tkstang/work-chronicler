@@ -262,6 +262,7 @@ the exception: the CLI already talks to GitHub, so they are fetched directly.
   independent confirmation.
 - **Brief approved:** 2026-11-07 by autonomous run (GOAL-11) under the user's in-session pre-authorization at 623465e4f00261e22326b09af5f7844357a385fa
 - **Milestone m02 approved:** 2026-11-08 by autonomous run (GOAL-11) under the user's standing pre-authorization at b142daa862caf6233013c7669deadfdb76867743
+- **Milestone m03 approved:** 2026-11-08 by autonomous run (GOAL-11) under the user's standing pre-authorization at 2c3d2b71405df343ddf42d7eaed8cc7d896b5bf1
 
 ## Milestones
 
@@ -419,6 +420,7 @@ Default is `[]` (fully sequential, no worktrees).
 | m02     | code     | passed          | 2026-11-08 | reviews/archived/m02-review-2026-11-08T111220Z.md                                                                            | 9548ee32b4b8b7595a6907bac00b9c18ff211b86 | manual                                   | -                 |
 | p04-p08 | code     | passed          | 2026-11-08 | reviews/archived/range-review-2026-11-08T112332Z.md (0 C/H/M/L)                                                              | 6360304b9d261a54a8cdc1f46089ab7a6068a163 | gate                                     | codex-6-sol-xhigh |
 | m02     | code     | passed          | 2026-11-08 | reviews/archived/m02-review-2026-11-08T112855Z.md                                                                            | 6360304b9d261a54a8cdc1f46089ab7a6068a163 | manual                                   | -                 |
+| plan    | artifact | passed          | 2026-11-08 | structured (no file); m03 amendment; 2 rounds (round 1: 1 H, 7 M, 6 L fixed; round 2: 1 M, 4 L folded without re-review)     | 2c3d2b71405df343ddf42d7eaed8cc7d896b5bf1 | oat-reviewer-claude-claude-opus-5-5-high | -                 |
 
 Add one `code` row per phase as phases become concrete. For code-review events,
 `Reviewed Head` is the full 40-character SHA at the head of the reviewed range.
