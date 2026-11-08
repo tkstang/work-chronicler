@@ -1,5 +1,5 @@
 ---
-oat_status: in_progress
+oat_status: complete
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-11-08
@@ -50,11 +50,10 @@ oat_generated: false
 | p12   | completed | 1     | 1/1      |
 | p08   | completed | 1     | 1/1      |
 | p13   | completed | 1     | 1/1      |
-| p14   | pending   | 1     | 0/1      |
+| p14   | completed | 1     | 1/1      |
 | p15   | completed | 1     | 1/1      |
 | p16   | completed | 1     | 1/1      |
-| p17   | pending   | 1     | 0/1      |
-| p09   | pending   | 1     | 0/1      |
+| p09   | completed | 1     | 1/1      |
 | p10   | completed | 1     | 1/1      |
 | p11   | completed | 1     | 1/1      |
 
@@ -2189,27 +2188,38 @@ Document any intentional deviations from the brief. Include accepted review find
 
 **What shipped:**
 
-- [capability 1]
+- 0.5.0 (PR #25): verb-first package skill names with a safe `skills install` migration; PR reviews given (`fetch github --reviews`, `search_pr_reviews`).
+- 0.6.0 (PR #26): staged `import`/`validate` contract with atomic, recoverable batches; opt-in Slack settings and the setup/import Slack skills; imported messages in every consumer and `search_messages`.
+- 0.7.0 (PR #27): imported Google Docs the subject owns (`google-docs configure|show`, `/work-chronicler-import-google-docs`, `search_documents`); one work-log lock for import and filter; the still-valid PR #26 review fixes.
 
 **Behavioral changes (user-facing):**
 
-- [bullet]
+- New commands: `import`, `validate`, `slack configure|channels|show`, `google-docs configure|show`; `fetch github --reviews`.
+- New MCP tools: `search_pr_reviews`, `search_messages` (cursor-paged), `search_documents`.
+- Five package skills renamed (migrated by `skills install`); four new package skills (setup-slack, import-slack, import-google-docs, plus renamed peer review).
+- `filter` replaces its subset atomically and serializes with `import`; readers never see a partial import.
 
 **Key files / modules:**
 
-- `[path]` - [purpose]
+- `src/core/import/` - import envelope, source rules, planning and atomic transaction
+- `src/core/storage/{work-log-lock,filtered-subset,reader}.ts` - shared lock, subset replacement, import-aware readers
+- `src/cli/commands/{slack,google-docs,import}/` - settings and import commands
+- `src/mcp/tools/{search-messages,search-documents,pagination}.ts` - imported-evidence search
+- `.agents/skills/work-chronicler-{setup-slack,import-slack,import-google-docs}/` - source skills
 
 **Verification performed:**
 
-- [tests/lint/typecheck/build/manual steps]
+- Per phase: full DoD batch (lint, format, typecheck, tests, build; `npm pack --dry-run` where packaging changed) re-run by the root; final suite 753 tests.
+- Per milestone: Codex exit gate and Codex integrated review passed at each delivered head; ready-PR CI green; release runs green and `npm view` confirmed 0.5.0, 0.6.0, 0.7.0.
+- Live read-only walkthroughs against the user's own Slack (p07) and Drive (p10), recorded as redacted counts.
 
 **Outcomes audit:**
 
-- Outcome 1: [observed evidence (accepted phase, commit, or verification result) or the recorded deferral]
+- Outcomes 1–7: met; see `oat_goal_outcome_audit` in `state.md` (all 16 phases accepted, deliveries d01–d03 at their merged endpoint).
 
 **Brief deltas (if any):**
 
-- [what changed vs plan.md and why]
+- p17 removed by the user's decision (post-goal follow-ups); p14 kept staged record directories; p02 excludes the user's own PRs from reviews given. See Deviations from Plan.
 
 ## References
 
