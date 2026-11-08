@@ -60,8 +60,8 @@ are no date flags.
 lookup and a search per org (more search pages when you reviewed many PRs),
 plus at least two requests per reviewed PR.
 It stores the reviews and inline review comments you submitted inside the
-date range, on any PR in your configured orgs and repos, however old the PR
-and whoever wrote it. PRs you authored are skipped. Pending (unsubmitted)
+date range, on other people's PRs in your configured orgs and repos, however
+old the PR. PRs you authored are skipped. Pending (unsubmitted)
 reviews and ordinary PR conversation comments are not included. A comment
 counts by when it was written, not when it was last edited, and the stored
 text is its latest version.

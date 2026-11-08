@@ -17,8 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   something else or fails to install. Tools you do not select are left alone
   and named so you can migrate them separately. `skills list` flags old names.
 - `fetch github --reviews` and `fetch all --reviews` record the PR reviews
-  and inline review comments you gave inside the fetch range, on any PR in
-  your configured orgs and repos, however old the PR. Pending reviews and
+  and inline review comments you gave inside the fetch range, on other
+  people's PRs in your configured orgs and repos, however old the PR (your
+  own PRs are skipped). Pending reviews and
   ordinary PR conversation comments are left out. Each reviewed PR is stored
   once at `work-log/pr-reviews/<org>/<repo>/<number>.md` and updated on later
   fetches; it is never counted as a PR you authored. Opt-in because it costs
@@ -26,10 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and skip it.
 - `status` shows the reviewed PRs, reviews and inline comments; the new
   read-only MCP tool `search_pr_reviews` searches them; `filter` copies them
-  into `filtered/` using its org and repo selectors.
-- `work-chronicler-write-self-review`, `work-chronicler-write-resume-bullets`
-  and `work-chronicler-summarize-work` cite PR reviews you gave as review
-  work, never as authored PRs.
+  into `filtered/` using its org and repo selectors. Re-run `filter` after
+  your first `fetch --reviews`; until then `status` and `search_pr_reviews`
+  point out that the subset is missing them.
+- `work-chronicler-write-self-review`, `work-chronicler-write-resume-bullets`,
+  `work-chronicler-update-resume` and `work-chronicler-summarize-work` cite PR
+  reviews you gave as review work, never as authored PRs.
 - `skills install` flags for running without prompts: `--tool <tool...>`,
   `--method <copy|symlink>`, `--yes`, `--overwrite` and `--keep-old`. Without
   flags it prompts as before.
