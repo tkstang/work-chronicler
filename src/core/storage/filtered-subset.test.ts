@@ -22,6 +22,7 @@ import {
   FilterInProgressError,
   type FilterSelection,
   FilteredSubsetInterruptedError,
+  FilteredSubsetNotRestoredError,
   getEffectiveOutputDir,
   getFilteredSubsetState,
   nodeSubsetFs,
@@ -395,6 +396,77 @@ describe('replaceFilteredSubset', () => {
     );
   });
 
+  /** Fail listing the work log once `filtered/` has been put in place */
+  function failListingAfterPublishing(): SubsetFs {
+    let published = false;
+    return {
+      ...nodeSubsetFs,
+      rename: (from, to) => {
+        nodeSubsetFs.rename(from, to);
+        if (to === filtered) published = true;
+      },
+      readdir: (path) => {
+        if (published && path === workLog) {
+          throw Object.assign(new Error('injected readdir failure'), {
+            code: 'EIO',
+          });
+        }
+        return nodeSubsetFs.readdir(path);
+      },
+    };
+  }
+
+  it('reports the new subset, with a warning, when listing leftovers fails after it is in place', async () => {
+    await previousSubset();
+
+    const { dir, warnings } = await replaceFilteredSubset(
+      workLog,
+      plan({ 'pull-requests/acme/api/2025-02-02_2.md': 'new PR' }),
+      { fs: failListingAfterPublishing() },
+    );
+
+    expect(dir).toBe(filtered);
+    expect(warnings).toEqual([
+      expect.stringMatching(
+        /Could not list .*EIO.*the filtered subset is in place/,
+      ),
+    ]);
+    expect(getEffectiveOutputDir(workLog).dir).toBe(filtered);
+    expect(Object.keys(snapshot(filtered))).toContain(
+      'pull-requests/acme/api/2025-02-02_2.md',
+    );
+  });
+
+  it('marks the one failure that leaves the subset changed', async () => {
+    await previousSubset();
+    let renames = 0;
+    const fs: SubsetFs = {
+      ...nodeSubsetFs,
+      rename: (from, to) => {
+        if (from.includes('.filter-lock') || to.includes('.filter-lock')) {
+          nodeSubsetFs.rename(from, to);
+          return;
+        }
+        if (++renames > 1) {
+          throw Object.assign(new Error('injected rename failure'), {
+            code: 'EIO',
+          });
+        }
+        nodeSubsetFs.rename(from, to);
+      },
+    };
+
+    await expect(
+      replaceFilteredSubset(workLog, plan({}), { fs }),
+    ).rejects.toBeInstanceOf(FilteredSubsetNotRestoredError);
+    // Any earlier failure leaves the subset unchanged and is not marked
+    await expect(
+      replaceFilteredSubset(workLog, plan({}), {
+        fs: failing('mkdir', inStaging),
+      }),
+    ).rejects.not.toBeInstanceOf(FilteredSubsetNotRestoredError);
+  });
+
   it('refuses paths outside the subset before touching anything', async () => {
     const before = await previousSubset();
     await expect(
@@ -426,6 +498,36 @@ describe('clearFilteredSubset', () => {
 
     expect(cleared).toBe(true);
     expect(warnings).toHaveLength(1);
+    expect(getFilteredSubsetState(workLog)).toEqual({ status: 'none' });
+  });
+
+  it('reports the subset cleared, with a warning, when listing leftovers then fails', async () => {
+    await previousSubset();
+    let deselected = false;
+    const fs: SubsetFs = {
+      ...nodeSubsetFs,
+      rename: (from, to) => {
+        nodeSubsetFs.rename(from, to);
+        if (from === filtered) deselected = true;
+      },
+      readdir: (path) => {
+        if (deselected && path === workLog) {
+          throw Object.assign(new Error('injected readdir failure'), {
+            code: 'EIO',
+          });
+        }
+        return nodeSubsetFs.readdir(path);
+      },
+    };
+
+    const { cleared, warnings } = clearFilteredSubset(workLog, { fs });
+
+    expect(cleared).toBe(true);
+    expect(warnings).toEqual([
+      expect.stringMatching(
+        /Could not list .*EIO.*the filtered subset is cleared/,
+      ),
+    ]);
     expect(getFilteredSubsetState(workLog)).toEqual({ status: 'none' });
   });
 

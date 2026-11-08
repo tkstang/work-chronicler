@@ -32,6 +32,7 @@ export {
   FilterInProgressError,
   type FilteredSubsetState,
   FilteredSubsetInterruptedError,
+  FilteredSubsetNotRestoredError,
   type FilterSelection,
   FilterSelectionSchema,
   getAnalysisFilePath,

@@ -1,6 +1,7 @@
 import { toCliError } from '@cli/errors';
 import {
   clearFilteredSubset,
+  FilteredSubsetNotRestoredError,
   findConfigPath,
   getOutputDirectory,
   loadConfig,
@@ -126,7 +127,11 @@ export const filterCommand = new Command('filter')
       try {
         result = await writeFilteredSubset({ outputDir, config, criteria });
       } catch (error) {
-        spinner.fail('The filtered subset was not changed');
+        spinner.fail(
+          error instanceof FilteredSubsetNotRestoredError
+            ? 'The filtered subset could not be replaced or put back'
+            : 'The filtered subset was not changed',
+        );
         throw error;
       }
       spinner.succeed(`Wrote filtered files to ${chalk.cyan(result.dir)}`);
