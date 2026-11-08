@@ -137,12 +137,15 @@ export const getStatsTool = defineTool({
       messagesBySource[source] = (messagesBySource[source] ?? 0) + 1;
     }
 
+    // Everything counted, messages included, ordered by time (the sources
+    // write dates in different formats)
     const sortedDates = [
       ...prs.map((pr) => pr.frontmatter.createdAt),
       ...tickets.map((t) => t.frontmatter.createdAt),
+      ...messages.map((m) => m.frontmatter.occurredAt),
     ]
-      .filter(Boolean)
-      .sort();
+      .filter((date) => date && !Number.isNaN(new Date(date).getTime()))
+      .sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
 
     const prsWithTickets = prs.filter(
       (pr) => pr.frontmatter.jiraTickets?.length,

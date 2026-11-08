@@ -1092,5 +1092,36 @@ describe('imported messages', () => {
       expect(out.messages).toEqual({ total: 2, bySource: { slack: 2 } });
       expect(out.prs.total).toBe(2);
     });
+
+    it('includes message dates in the date range', async () => {
+      // From Feb 11 to 28 there is one message and no PR or ticket: a range
+      // with messages alone still has its dates
+      const out = parse(
+        await getStatsTool.handler(
+          { since: '2025-02-11', until: '2025-02-28' },
+          ctx,
+        ),
+      );
+      expect(out.prs.total + out.tickets.total).toBe(0);
+      expect(out.messages.total).toBe(1);
+      expect(out.dateRange).toEqual({
+        earliest: '2025-02-15T10:00:00Z',
+        latest: '2025-02-15T10:00:00Z',
+      });
+
+      writeMessage(
+        ctx.outputDir,
+        4,
+        { occurredAt: '2025-06-01T10:00:00Z' },
+        'Later than any PR.',
+      );
+      const all = parse(
+        await getStatsTool.handler({ since: '2025-01-01' }, ctx),
+      );
+      expect(all.dateRange).toEqual({
+        earliest: '2025-01-02T10:00:00.000+0000',
+        latest: '2025-06-01T10:00:00Z',
+      });
+    });
   });
 });

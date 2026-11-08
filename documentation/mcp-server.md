@@ -97,7 +97,7 @@ The server looks for a config in this order:
 | `search_tickets` | JIRA tickets filtered by project, status or keywords. |
 | `get_linked_work` | A PR (by URL in any form, or by bare PR number) with its linked tickets, or a ticket with its linked PRs, plus the imported messages that mention it (`mentionedInMessages`). |
 | `list_repos` | Repositories in the work log with per-repo statistics. |
-| `get_stats` | Summary statistics, optionally for a date range, with imported messages counted in their own `messages` section. Without a date range it returns the `stats.json` that `analyze` generated, with its `messages` section counted afresh from the work log, so messages imported since are included. |
+| `get_stats` | Summary statistics, optionally for a date range, with imported messages counted in their own `messages` section. Without a date range it returns the `stats.json` that `analyze` generated, with its `messages` section counted afresh from the work log, so messages imported since are included. For a date range, `dateRange` spans the PRs, tickets and messages counted. |
 | `get_projects` | Detected project groupings of related PRs and tickets (PRs and tickets only; the result says so in `coverage`). |
 | `get_timeline` | Work grouped by week or month (PRs and tickets only; the result says so in `coverage`). |
 | `search_pr_reviews` | Reviews and inline review comments you gave on other people's PRs, filtered by date range, org, repository, review state or keywords. |

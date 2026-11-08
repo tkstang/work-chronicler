@@ -89,6 +89,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `analyze` as it was, so messages imported after the analysis were missing
   from its counts. Its `messages` section is now counted afresh from the
   work log (or subset) the call reads.
+- `get_stats` for a date range left message dates out of `dateRange`, so a
+  range holding only messages reported positive counts with no dates. The
+  range now spans the messages counted too.
 
 ## [0.6.0] - 2026-11-08
 
