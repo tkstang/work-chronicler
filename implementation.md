@@ -1214,7 +1214,7 @@ Proof: import suites 164/164; full suite 639; lint, typecheck, format:check
 **Status:** in_progress
 **Base:** c785bc5193cb2cafea34961133b741e3e2460857
 **Executor:** phase-implementer:wce-p15-impl-1
-**Head:** 59b3209c9a26a21a4ed12329ef5473000fc8d101
+**Head:** 49b6dc355dec62fec1ad89419c01a9631859faa2
 
 Branch `oat/evidence-expansion-m03`. Committing owner: the phase implementer (code); root owns the journal. Task class: consequential (import durability and evidence correctness).
 
@@ -1222,7 +1222,7 @@ Verification at Head: implementer ran the full DoD batch (659 tests, 41 files; b
 
 Dispositions: all 15 items still held against the code and were fixed, each in its own commit with a test that fails without it (implementer reverted each fix to confirm). Deferral 4504862955 is now fixed for `search_messages` and date-filtered `get_stats`.
 
-Pagination contract (`documentation/mcp-server.md#pages`; `search_documents` reuses it): newest `occurredAt` first, ties by record identity; opaque base64url `cursor`/`nextCursor` holding the last result's position (not an offset), so nothing is skipped or repeated across imports; `null` on the last page; foreign cursors refused; pages at most 64 KiB serialized (and `limit` when given), at least one result while any remain; text 1,000 chars, mentions until 16 KiB with `omittedMentions`; `total` constant across pages, `returned` per page. A cursor does not carry its filters (documented).
+Pagination contract (`documentation/mcp-server.md#pages`; `search_documents` reuses it): newest `occurredAt` first, ties by record identity; opaque base64url `cursor`/`nextCursor` holding the last result's position (not an offset), so nothing is skipped or repeated across imports; `null` on the last page; foreign cursors refused; pages at most 64 KiB serialized (and `limit` when given), at least one result while any remain; text 1,000 chars, mentions until 16 KiB with `omittedMentions`; `total` constant across pages, `returned` per page. Cursors are bound to the tool and a hash of the filters (t17); a cursor used with other filters or by another tool is refused.
 
 Deviations (implementer): t09 is `test(...)` (test only); `messageFrontmatter` default `occurredAt` now matches its synthetic ts; two tests rewritten for intended behavior changes (`get_stats` refreshed messages; subset state `generation`); golden tools list updated; four package skills explain paging and import-slack gives the batch limit.
 
@@ -1348,6 +1348,41 @@ Proof: test fails without the fix
 CodeRabbit: review body search-messages.ts 137-142
 Proof: test fails without the fix
 
+### Task p15-t16: (review L1) get_stats unavailable during an import in every mode (docs, CHANGELOG)
+
+**Status:** completed
+**Commit:** 5a0fa2e
+**Executor:** phase-implementer:wce-p15-impl-1
+Proof: 660 tests; DoD batch green
+
+### Task p15-t17: (review L2) cursors bound to tool and filter hash; foreign cursors refused (`pagination.ts`)
+
+**Status:** completed
+**Commit:** c4db129
+**Executor:** phase-implementer:wce-p15-impl-1
+Proof: 660 tests; DoD batch green
+
+### Task p15-t18: (review L3) parseUntilDate trims and builds date-only values in UTC; refuses ambiguous dates
+
+**Status:** completed
+**Commit:** 847262c
+**Executor:** phase-implementer:wce-p15-impl-1
+Proof: 660 tests; DoD batch green
+
+### Task p15-t19: (review L4) detect-projects and detect-themes follow nextCursor
+
+**Status:** completed
+**Commit:** 6f5de39
+**Executor:** phase-implementer:wce-p15-impl-1
+Proof: 660 tests; DoD batch green
+
+### Task p15-t20: (review L5) document the Enterprise Grid sibling-host limitation
+
+**Status:** completed
+**Commit:** 49b6dc3
+**Executor:** phase-implementer:wce-p15-impl-1
+Proof: 660 tests; DoD batch green
+
 ---
 
 ## Phase p16: Installer, config, CLI and skill review follow-ups
@@ -1400,6 +1435,7 @@ run/v1 · request=wce-p14-rev-1 · scope=p14 · action=review · role=oat-review
 
 - Root-inline phase: p14 review L1 (PathGuard destination separator) fixed by root (claude-opus-5-5) in p14-t05 c785bc5; one-line Low, no dispatch needed.
   run/v1 · request=wce-p15-impl-1 · scope=p15 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p15 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
+  run/v1 · request=wce-p15-rev-1 · scope=p15 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p15 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 - run/v1 · request=wce-p08-rev-1 · scope=p08 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p08 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 - Root-inline phase: p08 — inline exception for a version bump and CHANGELOG move; root model claude-opus-5-5
