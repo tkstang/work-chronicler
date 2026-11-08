@@ -135,18 +135,41 @@ describe('parseImportedRecordFile', () => {
       'subject.reportId',
       'url',
     ]);
-    // The unknown key is named so the skill can fix it
-    expect(issues.find((i) => i.field === '(frontmatter)')?.message).toContain(
-      'participants',
+    // The unknown key is counted, not named
+    expect(issues.find((i) => i.field === '(frontmatter)')?.message).toBe(
+      'has 1 unrecognized key(s); the format defines no such field',
     );
     expect(JSON.stringify(issues)).not.toContain(SECRET);
   });
 
-  it('does not print an unknown key that is not a plain name', () => {
-    const issues = issuesOf(
-      file({ ...frontmatter(), [`${SECRET} said hi`]: 1 }),
-    );
+  it.each([
+    [
+      'a plain top-level key',
+      (data: Record<string, unknown>) => ({ ...data, [SECRET]: 1 }),
+    ],
+    [
+      'a key with spaces',
+      (data: Record<string, unknown>) => ({
+        ...data,
+        [`${SECRET} said hi`]: 1,
+      }),
+    ],
+    [
+      'a nested key',
+      (data: Record<string, unknown>) => ({
+        ...data,
+        message: { ...(data.message as object), [SECRET]: 'x' },
+      }),
+    ],
+  ])('never prints an unknown key (%s), only where it is', (_label, add) => {
+    const bytes = file(add(frontmatter()));
+    const issues = issuesOf(bytes);
+
+    expect(issues).toHaveLength(1);
     expect(JSON.stringify(issues)).not.toContain(SECRET);
+    // The reported position is the unknown key's line
+    const line = issues[0]?.line ?? 0;
+    expect(bytes.toString('utf-8').split('\n')[line - 1]).toContain(SECRET);
   });
 
   it('rejects an edit or capture that precedes the event', () => {

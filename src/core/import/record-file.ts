@@ -2,7 +2,15 @@ import {
   type ImportedRecord,
   ImportedRecordSchema,
 } from '@wc-types/imported-record';
-import { isMap, parseDocument, stringify, visit } from 'yaml';
+import {
+  type Document,
+  isMap,
+  isScalar,
+  LineCounter,
+  parseDocument,
+  stringify,
+  visit,
+} from 'yaml';
 import type { z } from 'zod';
 
 import { type ImportIssue, importIssue } from './issues';
@@ -51,11 +59,34 @@ function splitFrontmatter(
   return undefined;
 }
 
-/** A key name safe to print: short and plain, or a placeholder */
-function printableKey(key: unknown): string {
-  return typeof key === 'string' && /^[A-Za-z0-9_.-]{1,64}$/.test(key)
-    ? key
-    : '<unprintable key>';
+/**
+ * Where the first of some unknown keys is written, as a 1-based position in
+ * the file. Keys are text from the record, so issues give their count and
+ * position, never the keys themselves.
+ */
+function unknownKeyPosition(
+  doc: Document,
+  lineCounter: LineCounter,
+  path: readonly PropertyKey[],
+  keys: readonly string[],
+): { line: number; column: number } | undefined {
+  const node =
+    path.length === 0
+      ? doc.contents
+      : doc.getIn(
+          path.map((key) => (typeof key === 'symbol' ? String(key) : key)),
+          true,
+        );
+  if (!isMap(node)) return undefined;
+  for (const pair of node.items) {
+    const key = pair.key;
+    if (isScalar(key) && keys.includes(String(key.value)) && key.range) {
+      const { line, col } = lineCounter.linePos(key.range[0]);
+      // +1: the opening "---" line precedes the frontmatter
+      return { line: line + 1, column: col };
+    }
+  }
+  return undefined;
 }
 
 /** The value at a path, used only to tell a missing field from a wrong one */
@@ -99,7 +130,7 @@ function describeSchemaIssue(issue: z.core.$ZodIssue, data: unknown): string {
     case 'invalid_value':
       return `must be one of: ${issue.values.map((v) => JSON.stringify(v)).join(', ')}`;
     case 'unrecognized_keys':
-      return `has unrecognized key(s): ${issue.keys.map(printableKey).join(', ')}`;
+      return `has ${issue.keys.length} unrecognized key(s); the format defines no such field`;
     case 'invalid_union':
       return isDateTimeUnion(issue)
         ? 'must be an ISO 8601 date-time'
@@ -153,9 +184,11 @@ export function parseImportedRecordFile(
     };
   }
 
+  const lineCounter = new LineCounter();
   const doc = parseDocument(parts.yaml, {
     uniqueKeys: true,
     prettyErrors: true,
+    lineCounter,
   });
   const yamlProblem = [...doc.errors, ...doc.warnings][0];
   if (yamlProblem) {
@@ -227,6 +260,9 @@ export function parseImportedRecordFile(
         importIssue('SCHEMA_INVALID', describeSchemaIssue(issue, data), {
           ...where,
           field: fieldPath(issue.path),
+          ...(issue.code === 'unrecognized_keys'
+            ? unknownKeyPosition(doc, lineCounter, issue.path, issue.keys)
+            : {}),
         }),
       ),
     };
