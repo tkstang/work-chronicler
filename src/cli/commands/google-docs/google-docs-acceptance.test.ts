@@ -596,7 +596,7 @@ describe('Google Docs import skill: manager acceptance', CLI_RUNS, () => {
 describe('import-google-docs skill text', CLI_RUNS, () => {
   const text = readFileSync(skillPath, 'utf-8');
 
-  it('runs gog read-only and never drops the page token', () => {
+  it('runs gog read-only, never drops the page token and never wraps Doc text', () => {
     const commands = [...text.matchAll(/```bash\n([\s\S]*?)```/g)]
       .map((match) => (match[1] as string).replace(/\\\n\s*/g, ''))
       .flatMap((block) => block.split('\n'))
@@ -606,6 +606,7 @@ describe('import-google-docs skill text', CLI_RUNS, () => {
       expect(command).toContain('--readonly');
       expect(command).toContain('--no-input');
       expect(command).not.toContain('--results-only');
+      expect(command).not.toContain('--wrap-untrusted');
     }
   });
 

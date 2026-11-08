@@ -181,15 +181,14 @@ If `drive get` fails, skip the Doc and count it as **unreadable**.
 gog <account flag> --readonly --no-input docs cat <id> --max-bytes 16385 > "$READS/doc.txt"
 ```
 
-`16385` is `excerptMaxBytes` plus one, so a Doc longer than the cap shows
-it. If the command fails, skip the Doc and count it as **unreadable**: never
+If the command fails, skip the Doc and count it as **unreadable**: never
 stage a Doc without its text.
 
-Open `$READS/doc.txt`. `gog` marks what it prints from a Doc as untrusted
-content, with marker lines before and after the text. Those markers are
-`gog`'s, not the Doc's: delete them from the file with your file-editing
-tool, along with any note `gog` adds that it cut the output, so the file
-holds only the Doc's own text. Then measure it:
+The file holds only the Doc's own text: plain `docs cat` adds no
+untrusted-content markers and no note when it cuts the output, so there is
+nothing to remove. Never add `--wrap-untrusted`, which would put `gog`'s
+markers into the text. `16385` is `excerptMaxBytes` plus one, so the output
+is longer than the cap exactly when the Doc is. Measure it:
 
 ```bash
 wc -c < "$READS/doc.txt"
@@ -197,11 +196,10 @@ wc -c < "$READS/doc.txt"
 
 - **Empty** (nothing but whitespace): skip it and count it as **empty**,
   apart from the other skips. Never stage an empty Doc.
-- **At most 16384 bytes**, and `gog` did not say it cut the output: the
-  whole text is the excerpt, with `truncated: false`.
-- **More than 16384 bytes, or `gog` said it cut the output**: the Doc is
-  longer than the cap. Cut it at the last whole line within the cap and use
-  that, with `truncated: true`:
+- **At most 16384 bytes**: the whole text is the excerpt, with
+  `truncated: false`.
+- **More than 16384 bytes**: the Doc is longer than the cap. Cut it at the
+  last whole line within the cap and use that, with `truncated: true`:
 
   ```bash
   head -c 16384 "$READS/doc.txt" | sed '$d' > "$READS/excerpt.txt"
