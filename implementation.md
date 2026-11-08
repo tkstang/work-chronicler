@@ -1381,6 +1381,15 @@ Also in p03-t15: CodeRabbit 4505014153 (docs/notice wrongly said `--overwrite` f
 
 **Date:** 2026-11-08 · ci run 42474884622: two CLI-running Slack tests timed out at 5 s on the runner (591 passed). Fixed in p08-t13 (test-only timeout). The commit stales the exit carrier and the integrated review (disallowed path under section 12.8); m02 → reviewing with recovery for d02 at `exit_gate`.
 
+### Review Received: p04-p08 (m02 recovery exit gate, attempt 6)
+
+**Date:** 2026-11-08
+**Review artifact (local-only):** reviews/archived/range-review-2026-11-08T112332Z.md
+
+**Findings:** Critical 0 · High 0 · Medium 0 · Low 0 (gate `codex-6-sol-xhigh`, run ac90319d-fc12-4556-b8a9-51edfb01684f, reviewed head 6360304b9d261a54a8cdc1f46089ab7a6068a163)
+
+**Outcome:** passed. m02 exit carrier allowed/fresh at 6360304b9d261a54a8cdc1f46089ab7a6068a163; d02 recovery → reviewing.
+
 ### PR review received: d01 (PR #25, CodeRabbit)
 
 **Date:** 2026-11-08

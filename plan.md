@@ -401,7 +401,7 @@ Default is `[]` (fully sequential, no worktrees).
 | p04-p08 | code     | fixes_completed | 2026-11-08 | reviews/archived/range-review-2026-11-08T103910Z.md (1 H, 2 M)                                                               | 1ad43f40604571e0cf3262d6f5c2e10d745fcf1d | gate                                     | codex-6-sol-xhigh |
 | p04-p08 | code     | passed          | 2026-11-08 | reviews/archived/range-review-2026-11-08T105734Z.md (0 C/H; 1 M deferred to p09)                                             | 9548ee32b4b8b7595a6907bac00b9c18ff211b86 | gate                                     | codex-6-sol-xhigh |
 | m02     | code     | passed          | 2026-11-08 | reviews/archived/m02-review-2026-11-08T111220Z.md                                                                            | 9548ee32b4b8b7595a6907bac00b9c18ff211b86 | manual                                   | -                 |
-| p04-p08 | code     | received        | 2026-11-08 | reviews/range-review-2026-11-08T112332Z.md                                                                                   | 6360304b9d261a54a8cdc1f46089ab7a6068a163 | gate                                     | codex-6-sol-xhigh |
+| p04-p08 | code     | passed          | 2026-11-08 | reviews/archived/range-review-2026-11-08T112332Z.md (0 C/H/M/L)                                                              | 6360304b9d261a54a8cdc1f46089ab7a6068a163 | gate                                     | codex-6-sol-xhigh |
 
 Add one `code` row per phase as phases become concrete. For code-review events,
 `Reviewed Head` is the full 40-character SHA at the head of the reviewed range.

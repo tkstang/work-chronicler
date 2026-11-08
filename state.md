@@ -51,7 +51,7 @@ oat_goal_recovery:
   milestone: m02
   delivery_id: d02
   phase_ids: [ p04, p05, p06, p07, p12, p08 ]
-  stage: exit_gate
+  stage: reviewing
   review_artifact: null
 oat_milestone_gates:
   m01:
@@ -95,13 +95,13 @@ oat_milestone_gates:
       disposition: passed
       resolution: configured
       config_fingerprint: null
-      reviewed_head: 9548ee32b4b8b7595a6907bac00b9c18ff211b86
+      reviewed_head: 6360304b9d261a54a8cdc1f46089ab7a6068a163
       subject:
         kind: code
         scope: [ p04, p05, p06, p07, p12, p08 ]
       freshness: stale
       freshness_reason: "delivery refresh (d02): disallowed-path: 6360304b9d261a54a8cdc1f46089ab7a6068a163 changes src/cli/commands/slack/slack-acceptance.test.ts, which is not permitted bookkeeping"
-      decided_at: "2026-11-08T11:00:51Z"
+      decided_at: "2026-11-08T11:25:21Z"
 oat_deliveries:
   - delivery_id: d01
     milestone: m01
@@ -248,7 +248,7 @@ oat_pr_status: open
 oat_pr_url: https://github.com/tkstang/work-chronicler/pull/26
 oat_project_created: '2026-11-07T22:54:38.498Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-11-08T11:18:37Z"
+oat_project_state_updated: "2026-11-08T11:25:21Z"
 oat_generated: false
 ---
 
