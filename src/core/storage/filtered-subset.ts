@@ -654,8 +654,13 @@ function settleImport(
   }
   if (settled.report) {
     const { outcome, records } = settled.report;
+    const done = {
+      discarded: 'discarded',
+      'rolled-back': 'rolled back',
+      completed: 'completed',
+    }[outcome];
     warnings.push(
-      `An interrupted import was ${outcome} before filtering (${records} record${records === 1 ? '' : 's'} in its batch${outcome === 'rolled-back' ? ', none kept' : ''}).`,
+      `An interrupted import was ${done} before filtering (${records} record${records === 1 ? '' : 's'} in its batch${outcome === 'rolled-back' ? ', none kept' : ''}).`,
     );
   }
 }

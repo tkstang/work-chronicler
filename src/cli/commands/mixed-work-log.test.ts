@@ -840,7 +840,7 @@ describe('a mixed work log with imported messages', () => {
     ]);
     expect(logs).toContainEqual(
       expect.stringContaining(
-        'An interrupted import was rolled-back before filtering (2 records in its batch, none kept)',
+        'An interrupted import was rolled back before filtering (2 records in its batch, none kept)',
       ),
     );
     expect(existsSync(join(workLog, '.import-transaction'))).toBe(false);

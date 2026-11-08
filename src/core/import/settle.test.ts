@@ -157,11 +157,11 @@ describe('filter and interrupted imports', () => {
     [
       'prepared' | 'committing' | 'committed',
       string,
-      'discarded' | 'rolled-back' | 'completed',
+      'discarded' | 'rolled back' | 'completed',
     ]
   >([
     ['prepared', 'Stored earlier.', 'discarded'],
-    ['committing', 'Stored earlier.', 'rolled-back'],
+    ['committing', 'Stored earlier.', 'rolled back'],
     ['committed', 'Updated by the interrupted batch.', 'completed'],
   ])(
     'finishes a 0.6.0 import interrupted while %s before reading records',
