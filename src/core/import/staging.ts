@@ -218,8 +218,8 @@ export function checkStagedBatch(
   const issues: ImportIssue[] = [];
   const identities = new Set<string>();
   const destinations = new Set<string>();
-  for (const { file, record } of records) {
-    for (const problem of checkSourceRules(record, context)) {
+  for (const { file, record, body } of records) {
+    for (const problem of checkSourceRules(record, context, body)) {
       issues.push(
         importIssue('SOURCE_RULE', problem.message, {
           file,

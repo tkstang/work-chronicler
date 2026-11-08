@@ -272,3 +272,43 @@ describe('Slack records: others’ content', () => {
     ).toEqual([['SOURCE_RULE', 'message.replyParticipantCount']]);
   });
 });
+
+describe('Slack records: raw markup in the body', () => {
+  function checkBody(body: string) {
+    const w = makeWorld();
+    bases.push(w.base);
+    stage(w.staging, 'a.md', messageFrontmatter(1), body);
+    return runImport({
+      mode: 'validate',
+      stagingDir: w.staging,
+      workLogRoot: w.workLog,
+      target: { kind: 'ic' },
+      sources: SYNTH_SOURCES,
+    });
+  }
+
+  it.each([
+    ['a user mention with a display name', `thanks <@U0OTHER01|${SECRET}>`],
+    ['a user mention', 'thanks <@U0OTHER01> for the review'],
+    ['an org user mention', `thanks <@W0OTHER01|${SECRET}>`],
+    ['a channel link', `moved to <#C0OTHER01|${SECRET}>`],
+    ['a special mention', '<!here> the deploy is done'],
+    ['a group mention', `<!subteam^S0OTHER01|@${SECRET}> please look`],
+    ['a link with a label', `see <https://example.com/x|${SECRET} words>`],
+    ['a link in markup without a label', 'see <https://example.com/x>'],
+  ])('refuses %s without echoing it', (_label, body) => {
+    expect(problems(checkBody(body))).toEqual([['SOURCE_RULE', 'body']]);
+  });
+
+  it.each([
+    'Shipped https://github.com/synthetic-org/api/pull/42 thanks @someone',
+    'Moved to #channel, cc @here',
+    '> a quote line is ordinary text',
+    'if a < b and c > d, mail <me@example.com>',
+    '<!-- not Slack markup -->',
+  ])('accepts a body without raw markup: %j', (body) => {
+    const result = checkBody(body);
+    expect(result.issues).toEqual([]);
+    expect(result.ok).toBe(true);
+  });
+});

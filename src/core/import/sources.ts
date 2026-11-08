@@ -51,11 +51,13 @@ export interface ImportSourceRules {
   checkIdentity: (record: ImportedRecord) => SourceRuleProblem[];
   /**
    * Source-specific policy (opt-in, privacy). Optional; a source without it
-   * relies on the common schema.
+   * relies on the common schema. `body` is the record's body text (for a
+   * message, its text).
    */
   checkRecord?: (
     record: ImportedRecord,
     context: SourceRuleContext,
+    body: string,
   ) => SourceRuleProblem[];
 }
 
@@ -145,6 +147,22 @@ function parseSlackPermalink(url: string): SlackPermalink | null {
 }
 
 /**
+ * Raw Slack markup that can carry another person's identity or label text:
+ * user mentions (`<@U…>`, `<@W…|name>`), channel links (`<#C…|name>`),
+ * special mentions (`<!here>`, `<!subteam^S…|@team>`) and links
+ * (`<https://…|label>`, `<https://…>`). The import skill rewrites these
+ * (`@someone`, `#channel`, the bare URL) before staging; a body that still
+ * holds one was not rewritten. A `>` quote line is ordinary text here.
+ */
+const SLACK_MARKUP = [
+  /<@[UW][A-Z0-9]*(?:\|[^>]*)?>/,
+  /<#[A-Z0-9]+(?:\|[^>]*)?>/,
+  /<![a-z][^>]*>/i,
+  /<[a-z][a-z0-9+.-]*:\/\/[^\s>]*>/i,
+  /<[a-z][a-z0-9+.-]*:\/\/[^\s|>]*\|[^>]*>/i,
+];
+
+/**
  * Slack policy. A Slack record is accepted only when Slack is set up for the
  * subject and the record is the subject's own message, verified, from one of
  * the subject's configured channels (for a report, one the manager confirmed
@@ -155,6 +173,7 @@ function parseSlackPermalink(url: string): SlackPermalink | null {
 function checkSlackRecord(
   record: ImportedRecord,
   context: SourceRuleContext,
+  body: string,
 ): SourceRuleProblem[] {
   const settings = context.settings.slack;
   if (!settings) {
@@ -265,6 +284,12 @@ function checkSlackRecord(
   if (record.message.replyParticipantCount > record.message.replyCount) {
     problem('message.replyParticipantCount', 'cannot exceed replyCount');
   }
+  if (SLACK_MARKUP.some((markup) => markup.test(body))) {
+    problem(
+      'body',
+      'holds raw Slack markup (a user, channel or special mention, or a <link|label>); rewrite it as the import skill describes',
+    );
+  }
   return problems;
 }
 
@@ -285,11 +310,13 @@ export const IMPORT_SOURCE_RULES: Record<ImportSource, ImportSourceRules> = {
  *
  * @param record - A record that passed the common schema
  * @param context - Import target and its source settings
+ * @param body - The record's body text
  * @returns Problems; empty when the record is acceptable
  */
 export function checkSourceRules(
   record: ImportedRecord,
   context: SourceRuleContext,
+  body = '',
 ): SourceRuleProblem[] {
   const rules = IMPORT_SOURCE_RULES[record.source];
   if (!rules.recordTypes.includes(record.type)) {
@@ -297,6 +324,6 @@ export function checkSourceRules(
   }
   return [
     ...rules.checkIdentity(record),
-    ...(rules.checkRecord?.(record, context) ?? []),
+    ...(rules.checkRecord?.(record, context, body) ?? []),
   ];
 }
