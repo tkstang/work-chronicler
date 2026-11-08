@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A `slack` command could write a config larger than 1 MiB, which every
+  later `slack` change then refused to edit. A change that would make the
+  config larger than that is now refused and the config is left as it was.
 - A `slack` command that changed the config could narrow its permissions:
   the replacement was created with the original mode narrowed by the
   process umask, so with umask `077` a `0640` config became `0600` and lost

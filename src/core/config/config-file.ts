@@ -121,7 +121,8 @@ function parseStrict(path: string, text: string, what: string): Document {
  * The file is read once (it must be a regular UTF-8 YAML file that passes
  * `validate`), changed in its parsed form, and the result is checked before
  * anything is written: it must parse cleanly, pass `validate`, and hold
- * exactly the value `edit` promised, so every other setting is unchanged.
+ * exactly the value `edit` promised, so every other setting is unchanged,
+ * and be no larger than {@link MAX_CONFIG_BYTES}.
  * The new contents are written to a new file beside the config (same
  * permissions, flushed to disk), the config is read again and must still be
  * the same file with the same bytes, and only then is the new file renamed
@@ -181,6 +182,13 @@ export function updateConfigFile(update: ConfigUpdate): ConfigUpdateResult {
   }
 
   const data = Buffer.from(next, 'utf-8');
+  // A larger file could not be read for the next change
+  if (data.length > MAX_CONFIG_BYTES) {
+    refuse(
+      path,
+      `The change would make the config larger than ${MAX_CONFIG_BYTES} bytes`,
+    );
+  }
   const dir = dirname(path);
   const temp = join(dir, `.${basename(path)}.tmp-${randomId()}`);
   try {

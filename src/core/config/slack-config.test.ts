@@ -24,7 +24,7 @@ import { loadManagerConfig, updateReport } from '@workspace/report-manager';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parse } from 'yaml';
 
-import { ConfigUpdateError } from './config-file';
+import { ConfigUpdateError, MAX_CONFIG_BYTES } from './config-file';
 import { ConfigSchema } from './schema';
 import {
   type SlackChannelInput,
@@ -473,6 +473,18 @@ describe('updateSlackSettings: the file is replaced whole or not at all', () => 
     }
 
     expect(statSync(configPath).mode & 0o777).toBe(0o640);
+  });
+
+  it('refuses a change that would make the config too large to edit again', () => {
+    // A long comment brings the file to just under the limit
+    const padding = `# ${'x'.repeat(MAX_CONFIG_BYTES - IC_YAML.length - 40)}\n`;
+    write(`${IC_YAML}${padding}`);
+    const before = read();
+    expect(Buffer.byteLength(before)).toBeLessThanOrEqual(MAX_CONFIG_BYTES);
+
+    expect(() => change(IC, CONFIGURE)).toThrow(/larger than/);
+    expect(read()).toBe(before);
+    expect(leftovers()).toEqual([]);
   });
 
   it('refuses a config that is a symbolic link, leaving the target alone', () => {

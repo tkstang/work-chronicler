@@ -395,7 +395,8 @@ edited in its parsed form, the result must validate and differ only in the
 Slack settings, and it is written to a new file beside the config (with the
 same permissions) that replaces the config in one rename, after checking the
 config did not change meanwhile. A config that is a symbolic link, has other hard links, is invalid,
-or changed during the update is refused and left as it was.
+is larger than 1 MiB, or changed during the update is refused and left as it was, and so is a
+change that would make the config larger than 1 MiB.
 
 ### `slack show --json`
 
