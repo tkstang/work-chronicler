@@ -7,7 +7,6 @@ export {
   FilterSelectionSchema,
   getEffectiveOutputDir,
   getFilteredSubsetState,
-  isFilteredSubsetMissingReviews,
   nodeSubsetFs,
   readFilterSelection,
   replaceFilteredSubset,

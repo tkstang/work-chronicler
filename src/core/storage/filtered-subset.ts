@@ -509,20 +509,3 @@ export function clearFilteredSubset(
   }
   return { cleared, warnings };
 }
-
-/**
- * Whether the selected subset was made before review records existed.
- *
- * @deprecated Use `getFilteredSubsetState(...).missing`
- */
-export function isFilteredSubsetMissingReviews(outputDir: string): boolean {
-  try {
-    const state = getFilteredSubsetState(outputDir);
-    return (
-      state.status === 'selected' &&
-      state.missing.includes(DIRECTORIES.PR_REVIEWS)
-    );
-  } catch {
-    return false;
-  }
-}

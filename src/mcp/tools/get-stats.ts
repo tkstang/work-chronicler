@@ -1,6 +1,11 @@
 import * as fs from 'node:fs/promises';
 
-import { getAnalysisFilePath, readAllPRs, readAllTickets } from '@core/index';
+import {
+  getAnalysisFilePath,
+  readAllImportedRecords,
+  readAllPRs,
+  readAllTickets,
+} from '@core/index';
 import { z } from 'zod';
 
 import {
@@ -13,7 +18,7 @@ import {
 export const getStatsTool = defineTool({
   name: 'get_stats',
   description:
-    'Get summary statistics about work history, optionally filtered by date range',
+    'Get summary statistics about work history, optionally filtered by date range. Imported messages are counted in their own section, never as PRs or tickets',
   inputSchema: {
     since: z.string().optional().describe('Start date (ISO format)'),
     until: z.string().optional().describe('End date (ISO format)'),
@@ -31,12 +36,18 @@ export const getStatsTool = defineTool({
 
     let prs = await readAllPRs(outputDir);
     let tickets = await readAllTickets(outputDir);
+    let messages = (await readAllImportedRecords(outputDir)).filter(
+      (record) => record.frontmatter.type === 'message',
+    );
 
     if (input.since) {
       const sinceDate = parseAndValidateDate(input.since, 'since');
       prs = prs.filter((pr) => new Date(pr.frontmatter.createdAt) >= sinceDate);
       tickets = tickets.filter(
         (t) => new Date(t.frontmatter.createdAt) >= sinceDate,
+      );
+      messages = messages.filter(
+        (m) => new Date(m.frontmatter.occurredAt) >= sinceDate,
       );
     }
 
@@ -45,6 +56,9 @@ export const getStatsTool = defineTool({
       prs = prs.filter((pr) => new Date(pr.frontmatter.createdAt) <= untilDate);
       tickets = tickets.filter(
         (t) => new Date(t.frontmatter.createdAt) <= untilDate,
+      );
+      messages = messages.filter(
+        (m) => new Date(m.frontmatter.occurredAt) <= untilDate,
       );
     }
 
@@ -84,6 +98,12 @@ export const getStatsTool = defineTool({
       totalStoryPoints += ticket.frontmatter.storyPoints ?? 0;
     }
 
+    const messagesBySource: Record<string, number> = {};
+    for (const message of messages) {
+      const source = message.frontmatter.source;
+      messagesBySource[source] = (messagesBySource[source] ?? 0) + 1;
+    }
+
     const sortedDates = [
       ...prs.map((pr) => pr.frontmatter.createdAt),
       ...tickets.map((t) => t.frontmatter.createdAt),
@@ -112,6 +132,11 @@ export const getStatsTool = defineTool({
         byProject: ticketsByProject,
         byStatus: ticketsByStatus,
         totalStoryPoints,
+      },
+      // Supplementary evidence, counted apart and never added to PRs
+      messages: {
+        total: messages.length,
+        bySource: messagesBySource,
       },
       dateRange: {
         earliest: sortedDates[0] ?? null,

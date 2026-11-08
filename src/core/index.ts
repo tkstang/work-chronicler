@@ -35,7 +35,6 @@ export {
   getAnalysisFilePath,
   getEffectiveOutputDir,
   getFilteredSubsetState,
-  isFilteredSubsetMissingReviews,
   getImportedRecordFilePath,
   getImportedRecordSegments,
   getJiraDirectory,

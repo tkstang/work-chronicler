@@ -7,7 +7,7 @@ import {
 } from '@core/index';
 import { z } from 'zod';
 
-import { defineTool, jsonResult } from './types';
+import { defineTool, jsonResult, PR_TICKET_COVERAGE } from './types';
 
 interface TimelineFile {
   months: TimelineMonth[];
@@ -21,7 +21,8 @@ interface TimelineFile {
 
 export const getTimelineTool = defineTool({
   name: 'get_timeline',
-  description: 'Get chronological timeline of work grouped by week or month',
+  description:
+    'Get chronological timeline of authored PRs and tickets grouped by week or month (PR reviews given and imported messages are not included)',
   inputSchema: {
     granularity: z
       .enum(['week', 'month'])
@@ -72,6 +73,7 @@ export const getTimelineTool = defineTool({
         total: totalCount,
         returned: periods.length,
         summary: timelineData.summary,
+        coverage: PR_TICKET_COVERAGE,
       });
     } catch {
       return jsonResult({

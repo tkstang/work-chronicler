@@ -14,6 +14,7 @@ import {
   getTimelineTool,
   listReposTool,
   type McpTool,
+  searchMessagesTool,
   searchPrReviewsTool,
   searchPrsTool,
   searchTicketsTool,
@@ -103,6 +104,7 @@ export function createToolServer(context: ToolContext): McpServer {
   registerTool(server, context, getProjectsTool);
   registerTool(server, context, getTimelineTool);
   registerTool(server, context, searchPrReviewsTool);
+  registerTool(server, context, searchMessagesTool);
 
   return server;
 }

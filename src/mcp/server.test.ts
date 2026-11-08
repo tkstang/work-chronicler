@@ -27,7 +27,8 @@ const packageJson = createRequire(import.meta.url)('../../package.json') as {
 };
 
 // Reviewed snapshot of the tools/list result from before the tools were split
-// into modules, plus search_pr_reviews (added after the split). MCP clients
+// into modules, plus search_pr_reviews and search_messages (added after the
+// split) and the coverage wording added with imported records. MCP clients
 // depend on these names, descriptions and schemas.
 const goldenTools = JSON.parse(
   readFileSync(join(import.meta.dirname, 'tools-list.golden.json'), 'utf-8'),
@@ -121,7 +122,7 @@ describe('MCP server over a transport', () => {
     }
   });
 
-  it('reads reviews from the full work log, with a note, when the filtered subset predates them', async () => {
+  it('never reads reviews from behind a selected subset, and leaves out other reviewers', async () => {
     const workLog = join(root, 'work-log');
     writePR(join(workLog, 'filtered'), 2, 'Filtered subset');
     vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -176,13 +177,29 @@ describe('MCP server over a transport', () => {
         '',
       );
 
+      // The subset predates the review fetch: no results, and a note,
+      // rather than the full work log behind the user's selection
       const stale = await searchReviews();
-      expect(stale.total).toBe(1);
+      expect(stale.total).toBe(0);
       expect(stale.note).toContain('Re-run `work-chronicler filter`');
+      expect(stale.note).toContain('not taken from the full work log');
 
-      // Another person's record is not the configured user's work
+      // A subset written after reviews existed is used as is, even empty
+      mkdirSync(join(workLog, 'filtered', 'pr-reviews'));
+      const current = await searchReviews();
+      expect(current.total).toBe(0);
+      expect(current.note).toBeUndefined();
+
+      // Another person's record in the subset is not the configured user's
+      // work
+      const filtered = join(workLog, 'filtered');
       writeMarkdownFile(
-        getPRReviewFilePath(workLog, 'acme', 'api', 10),
+        getPRReviewFilePath(filtered, 'acme', 'api', 9),
+        record,
+        '',
+      );
+      writeMarkdownFile(
+        getPRReviewFilePath(filtered, 'acme', 'api', 10),
         { ...record, reviewer: 'alice', pr: { ...record.pr, prNumber: 10 } },
         '',
       );
@@ -191,12 +208,6 @@ describe('MCP server over a transport', () => {
       expect(mixed.note).toContain(
         'Left out 1 review record(s) written for another GitHub user (alice), not me',
       );
-
-      // A subset written after reviews existed is used as is, even empty
-      mkdirSync(join(workLog, 'filtered', 'pr-reviews'));
-      const current = await searchReviews();
-      expect(current.total).toBe(0);
-      expect(current.note).toBeUndefined();
     } finally {
       await client.close();
     }
