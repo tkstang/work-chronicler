@@ -1,7 +1,10 @@
-import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import {
+  errorCode,
+  type ProcessEnv,
+  removeQuietly,
+} from '@core/import/import-fs';
 import { z } from 'zod';
 
 /**
@@ -60,19 +63,6 @@ export interface LockFs {
   rm: (path: string) => void;
 }
 
-/** This process and machine */
-export interface LockEnv {
-  pid: number;
-  hostname: string;
-  now: () => number;
-  /**
-   * An ID unique to this boot of this machine, or null when the platform
-   * gives none. Never derived from the wall clock.
-   */
-  bootId: () => string | null;
-  isProcessAlive: (pid: number) => boolean;
-}
-
 export const LOCK_OWNER_FILE = 'owner.json';
 
 export const LockOwnerSchema = z.object({
@@ -93,10 +83,6 @@ const MAX_LOCK_ATTEMPTS = 5;
 
 /** How long an ownerless claim or guard is given to be written */
 const UNREADABLE_GRACE_MS = 60_000;
-
-function errorCode(error: unknown): string | undefined {
-  return (error as NodeJS.ErrnoException | undefined)?.code;
-}
 
 /**
  * A lock directory's owner, telling a lock that is gone (`missing`) from
@@ -154,48 +140,16 @@ export function sameOwner(a: LockOwner, b: LockOwner): boolean {
  * never used, so a clock that jumps cannot make a live owner look dead; an
  * owner without a boot ID (a 0.6.0 lock) is judged by its process alone.
  */
-export function ownerIsAlive(owner: LockOwner, env: LockEnv): boolean {
+export function ownerIsAlive(
+  owner: LockOwner,
+  env: Pick<ProcessEnv, 'hostname' | 'bootId' | 'isProcessAlive'>,
+): boolean {
   if (owner.hostname !== env.hostname) return true;
   if (owner.bootId !== undefined) {
     const current = env.bootId();
     if (current !== null && current !== owner.bootId) return false;
   }
   return env.isProcessAlive(owner.pid);
-}
-
-function readSystemBootId(): string | null {
-  try {
-    if (process.platform === 'linux') {
-      const id = readFileSync('/proc/sys/kernel/random/boot_id', 'utf-8');
-      return id.trim() || null;
-    }
-    if (process.platform === 'darwin') {
-      const id = execFileSync(
-        '/usr/sbin/sysctl',
-        ['-n', 'kern.bootsessionuuid'],
-        {
-          encoding: 'utf-8',
-          timeout: 5_000,
-          stdio: ['ignore', 'pipe', 'ignore'],
-        },
-      );
-      return id.trim() || null;
-    }
-  } catch {
-    // No ID: owners are then judged by their process alone
-  }
-  return null;
-}
-
-let systemBootIdCache: string | null | undefined;
-
-/**
- * This boot's ID: Linux's `boot_id`, or macOS's boot session UUID. Null on
- * other platforms or when it cannot be read.
- */
-export function systemBootId(): string | null {
-  if (systemBootIdCache === undefined) systemBootIdCache = readSystemBootId();
-  return systemBootIdCache;
 }
 
 export function describeOwner(owner: LockOwner): string {
@@ -214,12 +168,12 @@ export function holderCommand(name: string, owner: LockOwner | null): string {
 /** Where a work-log lock lives and who is taking it */
 export interface WorkLogLockSpec {
   fs: LockFs;
-  env: LockEnv;
+  /** This process and machine (`randomId` names the lock's temporary names) */
+  env: ProcessEnv;
   /** The work-log root the lock lives in */
   dir: string;
   /** The command taking it, recorded in the lock */
   command: WorkLogCommand;
-  randomId: () => string;
   /** This run's ID; a new random ID when omitted */
   runId?: string;
 }
@@ -280,23 +234,13 @@ function retireQuietly(
     }
     return;
   }
-  try {
-    fs.rm(aside);
-  } catch (error) {
-    if (errorCode(error) !== 'ENOENT') {
+  removeQuietly(
+    () => fs.rm(aside),
+    (error) =>
       warnings.push(
         `Could not remove ${aside} (${errorCode(error) ?? 'error'}); it is a released lock, no longer in use, and can be deleted.`,
-      );
-    }
-  }
-}
-
-function removeQuietly(fs: LockFs, path: string): void {
-  try {
-    fs.rm(path);
-  } catch {
-    // Unused either way; a later run removes it
-  }
+      ),
+  );
 }
 
 /**
@@ -332,7 +276,8 @@ function claimLockPath(
     const held = readLockOwner(fs, path);
     return held !== null && sameOwner(held, owner);
   } finally {
-    if (!renamed) removeQuietly(fs, claim);
+    // Unused either way; a later run removes it
+    if (!renamed) removeQuietly(() => fs.rm(claim));
   }
 }
 
@@ -370,15 +315,13 @@ function removeLockLeftovers(spec: NameSpec, warnings: string[]): void {
         if (env.now() - mtime < UNREADABLE_GRACE_MS) continue;
       }
     }
-    try {
-      fs.rm(path);
-    } catch (error) {
-      if (errorCode(error) !== 'ENOENT') {
+    removeQuietly(
+      () => fs.rm(path),
+      (error) =>
         warnings.push(
           `Could not remove ${path} (${errorCode(error) ?? 'error'}), left by an earlier run.`,
-        );
-      }
-    }
+        ),
+    );
   }
 }
 
@@ -398,7 +341,7 @@ export function acquireWorkLogLock(spec: WorkLogLockSpec): LockAcquisition {
     pid: env.pid,
     hostname: env.hostname,
     startedAt: env.now(),
-    runId: spec.runId ?? spec.randomId(),
+    runId: spec.runId ?? env.randomId(),
     ...(bootId !== null ? { bootId } : {}),
     command: spec.command,
   };
@@ -481,7 +424,7 @@ function acquireLockName(spec: NameSpec, owner: LockOwner): NameAcquisition {
       // Under the guard, the gone owner's lock can only be removed by us
       const current = readLockOwner(fs, lockPath);
       if (current && sameOwner(current, held)) {
-        const stale = join(spec.dir, `${spec.name}.stale-${spec.randomId()}`);
+        const stale = join(spec.dir, `${spec.name}.stale-${env.randomId()}`);
         fs.rename(lockPath, stale);
         const moved = readLockOwner(fs, stale);
         if (!moved || !sameOwner(moved, held)) {
@@ -498,7 +441,8 @@ function acquireLockName(spec: NameSpec, owner: LockOwner): NameAcquisition {
             owner: moved ?? readLockOwner(fs, lockPath),
           };
         }
-        removeQuietly(fs, stale);
+        // Unused either way; a later run removes it
+        removeQuietly(() => fs.rm(stale));
       }
     } finally {
       retireQuietly(

@@ -13,11 +13,11 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import type { ProcessEnv } from '@core/import/import-fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   acquireWorkLogLock,
-  type LockEnv,
   type LockFs,
   type LockOwner,
   ownerIsAlive,
@@ -40,13 +40,14 @@ const owner = (overrides: Partial<LockOwner> = {}): LockOwner => ({
   ...overrides,
 });
 
-function env(overrides: Partial<LockEnv> = {}): LockEnv {
+function env(overrides: Partial<ProcessEnv> = {}): ProcessEnv {
   return {
     pid: 1,
     hostname: 'this-host',
     now: () => 3_000,
     bootId: () => 'this-boot',
     isProcessAlive: () => true,
+    randomId: () => 'unused',
     ...overrides,
   };
 }
@@ -78,7 +79,7 @@ describe('ownerIsAlive', () => {
     expect(ownerIsAlive(owner({ bootId: 'earlier-boot' }), env())).toBe(false);
   });
 
-  it.each<[string, Partial<LockEnv>]>([
+  it.each<[string, Partial<ProcessEnv>]>([
     ['the clock jumped far ahead', { now: () => 9e15 }],
     ['the clock jumped back', { now: () => 0 }],
   ])('never counts a running owner as gone because %s', (_, clock) => {
@@ -136,15 +137,14 @@ describe('acquireWorkLogLock', () => {
   let ids = 0;
   const take = (
     command: 'import' | 'filter',
-    overrides: Partial<LockEnv> = {},
+    overrides: Partial<ProcessEnv> = {},
     fs: LockFs = nodeLockFs,
   ) =>
     acquireWorkLogLock({
       fs,
-      env: env({ pid: 100, ...overrides }),
+      env: env({ pid: 100, randomId: () => `id${++ids}`, ...overrides }),
       dir,
       command,
-      randomId: () => `id${++ids}`,
     });
 
   /** A lock as 0.6.0 left it: no boot ID, no command */

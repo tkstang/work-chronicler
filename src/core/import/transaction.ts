@@ -18,13 +18,14 @@ import {
 import { IMPORT_SOURCES } from '@wc-types/imported-record';
 import { z } from 'zod';
 
-import type { ImportEnv, ImportFs } from './import-fs';
 import {
-  describeFsError,
+  codedError,
+  entryAt,
   errorCode,
-  type ImportIssue,
-  importIssue,
-} from './issues';
+  type ImportEnv,
+  type ImportFs,
+} from './import-fs';
+import { describeFsError, type ImportIssue, importIssue } from './issues';
 import {
   displayPath,
   type FileId,
@@ -168,10 +169,6 @@ class ChangedError extends Error {
   constructor(readonly destination?: string) {
     super('changed');
   }
-}
-
-function codedError(code: string): Error {
-  return Object.assign(new Error(code), { code });
 }
 
 function toId(id: FileId): Id {
@@ -394,15 +391,7 @@ function lockFsFor(guard: PathGuard): LockFs {
     readFile: (path) => fs.readFile(path, OWNER_MAX_BYTES).data,
     readdir: (path) => fs.readdir(path),
     mtimeMs: (path) => fs.lstat(path).mtimeMs,
-    exists: (path) => {
-      try {
-        fs.lstat(path);
-        return true;
-      } catch (error) {
-        if (errorCode(error) === 'ENOENT') return false;
-        throw error;
-      }
-    },
+    exists: (path) => entryAt(fs, path) !== null,
     mkdir: (path) => {
       try {
         guard.mkdir(path);
@@ -458,7 +447,6 @@ export function acquireImportLock(
       env,
       dir: root,
       command: 'import',
-      randomId: env.randomId,
       runId: batchId,
     });
   } catch (error) {

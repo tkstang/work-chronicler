@@ -388,7 +388,9 @@ describe('replaceFilteredSubset', () => {
     await previousSubset();
 
     const { warnings } = await replaceFilteredSubset(workLog, plan({}), {
-      fs: failing('rm', (p) => basename(p).startsWith('.filter-previous-')),
+      fs: failing('removeTree', (p) =>
+        basename(p).startsWith('.filter-previous-'),
+      ),
     });
 
     expect(warnings).toEqual([
@@ -497,7 +499,9 @@ describe('clearFilteredSubset', () => {
     await previousSubset();
 
     const { cleared, warnings } = clearFilteredSubset(workLog, {
-      fs: failing('rm', (p) => basename(p).startsWith('.filter-cleared-')),
+      fs: failing('removeTree', (p) =>
+        basename(p).startsWith('.filter-cleared-'),
+      ),
     });
 
     expect(cleared).toBe(true);
@@ -790,14 +794,14 @@ describe('one filter run at a time', () => {
     const removed: string[] = [];
     const fs: SubsetFs = {
       ...nodeSubsetFs,
-      rm: (path) => {
+      removeTree: (path) => {
         removed.push(basename(path));
         // While the last released name (`.import-lock`, taken first and
         // released last) is being removed, another run starts
         if (!contender && basename(path).startsWith('.import-lock.released-')) {
           contender = replaceFilteredSubset(workLog, runPlan('C'));
         }
-        nodeSubsetFs.rm(path);
+        nodeSubsetFs.removeTree(path);
       },
     };
 
@@ -825,7 +829,7 @@ describe('one filter run at a time', () => {
 
   it('never warns that the live lock can be deleted when its removal fails', async () => {
     const { warnings } = await replaceFilteredSubset(workLog, runPlan('A'), {
-      fs: failing('rm', (p) =>
+      fs: failing('removeTree', (p) =>
         basename(p).startsWith('.filter-lock.released-'),
       ),
     });

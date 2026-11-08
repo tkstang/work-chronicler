@@ -3,6 +3,8 @@ import { cpSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
+  entryAt,
+  errorCode,
   type FsEntry,
   type ImportFs,
   nodeImportFs,
@@ -55,20 +57,6 @@ function sideName(skill: string, role: string, id: string): string {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-function errorCode(error: unknown): string | undefined {
-  return (error as NodeJS.ErrnoException | undefined)?.code;
-}
-
-/** What is at `path`, null only when it is proven absent (ENOENT) */
-function entryAt(fs: SkillInstallFs, path: string): FsEntry | null {
-  try {
-    return fs.lstat(path);
-  } catch (error) {
-    if (errorCode(error) === 'ENOENT') return null;
-    throw error;
-  }
 }
 
 /** Whether `<dir>/SKILL.md` declares `name` */

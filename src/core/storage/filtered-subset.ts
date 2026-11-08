@@ -1,19 +1,19 @@
-import { randomBytes } from 'node:crypto';
-import {
-  lstatSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  renameSync,
-  rmSync,
-  type Stats,
-  statSync,
-  writeFileSync,
-} from 'node:fs';
-import { hostname } from 'node:os';
+import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, normalize, sep } from 'node:path';
 
-import { createImportEnv, type ImportEnv } from '@core/import/import-fs';
+import {
+  createImportEnv,
+  createProcessEnv,
+  entryAt,
+  errorCode,
+  type FsEntry,
+  fsEntry,
+  type ImportEnv,
+  type ImportFs,
+  nodeImportFs,
+  type ProcessEnv,
+  removeQuietly,
+} from '@core/import/import-fs';
 import { settleInterruptedImport } from '@core/import/transaction';
 import { IsoDateTimeSchema } from '@wc-types/pr';
 import { z } from 'zod';
@@ -29,7 +29,6 @@ import {
   type LockOwner,
   readLockOwner,
   readWorkLogLock,
-  systemBootId,
 } from './work-log-lock';
 
 export { FILTER_LOCK } from './work-log-lock';
@@ -190,41 +189,41 @@ export class FilterInProgressError extends Error {
   }
 }
 
-function errorCode(error: unknown): string | undefined {
-  return (error as NodeJS.ErrnoException | undefined)?.code;
-}
-
 /**
- * Filesystem operations the subset uses, so tests can inject failures
- * without relying on permissions.
+ * The filesystem the subset uses, so tests can inject failures without
+ * relying on permissions: the shared seam's operations (`lstat`, `readdir`,
+ * `mkdir`, `rename`, `removeTree`; see `@core/import/import-fs`), plus the
+ * few the subset needs with other semantics.
  */
-export interface SubsetFs {
-  lstat(path: string): Stats;
-  stat(path: string): Stats;
-  readdir(path: string): string[];
+export interface SubsetFs extends Pick<
+  ImportFs,
+  'lstat' | 'readdir' | 'mkdir' | 'rename' | 'removeTree'
+> {
+  /** What is at a path, following a final symlink (`filtered/` may be one) */
+  stat(path: string): FsEntry;
+  /** Read a whole file, following a final symlink */
   readFile(path: string): Buffer;
-  /** Create one directory; fails if it exists */
-  mkdir(path: string): void;
   /** Create a directory and any missing parents */
   mkdirp(path: string): void;
+  /**
+   * Write a file, replacing any there. Not flushed file by file: the subset
+   * is read back before it is swapped in.
+   */
   writeFile(path: string, contents: string | Buffer): void;
-  rename(from: string, to: string): void;
-  /** Remove a file or directory tree; a symlink is removed, not followed */
-  rm(path: string): void;
 }
 
 export const nodeSubsetFs: SubsetFs = {
-  lstat: (path) => lstatSync(path),
-  stat: (path) => statSync(path),
-  readdir: (path) => readdirSync(path),
+  lstat: nodeImportFs.lstat,
+  readdir: nodeImportFs.readdir,
+  mkdir: nodeImportFs.mkdir,
+  rename: nodeImportFs.rename,
+  removeTree: nodeImportFs.removeTree,
+  stat: (path) => fsEntry(statSync(path, { bigint: true })),
   readFile: (path) => readFileSync(path),
-  mkdir: (path) => mkdirSync(path),
   mkdirp: (path) => {
     mkdirSync(path, { recursive: true });
   },
   writeFile: (path, contents) => writeFileSync(path, contents),
-  rename: (from, to) => renameSync(from, to),
-  rm: (path) => rmSync(path, { recursive: true }),
 };
 
 /**
@@ -257,14 +256,9 @@ function findLeftovers(
  * absent; anything else that is not a directory is an error.
  */
 function subsetExists(fs: SubsetFs, filteredDir: string): boolean {
-  let entry: Stats;
-  try {
-    entry = fs.lstat(filteredDir);
-  } catch (error) {
-    if (errorCode(error) === 'ENOENT') return false;
-    throw error;
-  }
-  if (entry.isSymbolicLink()) {
+  let entry = entryAt(fs, filteredDir);
+  if (entry === null) return false;
+  if (entry.kind === 'symlink') {
     try {
       entry = fs.stat(filteredDir);
     } catch (error) {
@@ -275,23 +269,13 @@ function subsetExists(fs: SubsetFs, filteredDir: string): boolean {
       );
     }
   }
-  if (!entry.isDirectory()) {
+  if (entry.kind !== 'directory') {
     throw new Error(
       `${filteredDir} exists but is not a directory, so it is not a filtered subset. ` +
         'Move or remove it, then run `work-chronicler filter` again.',
     );
   }
   return true;
-}
-
-function exists(fs: SubsetFs, path: string): boolean {
-  try {
-    fs.lstat(path);
-    return true;
-  } catch (error) {
-    if (errorCode(error) === 'ENOENT') return false;
-    throw error;
-  }
 }
 
 /**
@@ -338,7 +322,9 @@ export function getFilteredSubsetState(
       : { status: 'none' };
   }
   const missing = LATER_RECORD_DIRECTORIES.filter(
-    (name) => !exists(fs, join(dir, name)) && exists(fs, join(outputDir, name)),
+    (name) =>
+      entryAt(fs, join(dir, name)) === null &&
+      entryAt(fs, join(outputDir, name)) !== null,
   );
   return {
     status: 'selected',
@@ -393,48 +379,15 @@ export interface SubsetPlan {
   validate?: (stagingDir: string) => void | Promise<void>;
 }
 
-/**
- * This process and machine, for the filter lock. Tests replace members.
- */
-export interface SubsetEnv {
-  pid: number;
-  hostname: string;
-  now: () => number;
-  /** This boot's ID, or null when the platform gives none */
-  bootId: () => string | null;
-  isProcessAlive: (pid: number) => boolean;
-}
-
-/**
- * Whether a process is running. A permission error means it exists; any
- * other doubt also counts as running, so a live run is never taken over.
- */
-function isProcessAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (error) {
-    return errorCode(error) !== 'ESRCH';
-  }
-}
-
-export const nodeSubsetEnv: SubsetEnv = {
-  pid: process.pid,
-  hostname: hostname(),
-  now: () => Date.now(),
-  bootId: systemBootId,
-  isProcessAlive,
-};
-
 export interface SubsetOptions {
   fs?: SubsetFs;
-  env?: Partial<SubsetEnv>;
-  randomId?: () => string;
-  /** The environment for finishing an interrupted import (tests) */
-  importEnv?: ImportEnv;
+  /**
+   * This process and machine (for the work-log lock and temporary names),
+   * and the filesystem for finishing an interrupted import. Tests replace
+   * members; the rest are the real ones.
+   */
+  env?: Partial<ImportEnv>;
 }
-
-const defaultRandomId = () => randomBytes(8).toString('hex');
 
 /**
  * Why a run could not take the lock, with a recovery step that is safe: the
@@ -465,7 +418,7 @@ export function readFilterLock(
   fs: SubsetFs = nodeSubsetFs,
 ): { path: string; owner: Omit<LockOwner, 'version' | 'runId'> | null } | null {
   const path = join(outputDir, FILTER_LOCK);
-  if (!exists(fs, path)) return null;
+  if (entryAt(fs, path) === null) return null;
   const owner = readLockOwner(fs, path);
   return {
     path,
@@ -492,11 +445,11 @@ function lockFs(fs: SubsetFs): LockFs {
     readFile: (path) => fs.readFile(path),
     readdir: (path) => fs.readdir(path),
     mtimeMs: (path) => fs.lstat(path).mtimeMs,
-    exists: (path) => exists(fs, path),
+    exists: (path) => entryAt(fs, path) !== null,
     mkdir: (path) => fs.mkdir(path),
     writeFile: (path, contents) => fs.writeFile(path, contents),
     rename: (from, to) => fs.rename(from, to),
-    rm: (path) => fs.rm(path),
+    rm: (path) => fs.removeTree(path),
   };
 }
 
@@ -511,9 +464,8 @@ function lockFs(fs: SubsetFs): LockFs {
  */
 function acquireFilterLock(
   fs: SubsetFs,
-  env: SubsetEnv,
+  env: ProcessEnv,
   outputDir: string,
-  randomId: () => string,
 ): () => string[] {
   fs.mkdirp(outputDir);
   const lock = acquireWorkLogLock({
@@ -521,7 +473,6 @@ function acquireFilterLock(
     env,
     dir: outputDir,
     command: 'filter',
-    randomId,
   });
   if (lock.held) return lock.release;
   const lockPath = join(outputDir, lock.name);
@@ -577,15 +528,15 @@ function checkRelativePath(path: string): string {
   return normalized;
 }
 
-function removeQuietly(fs: SubsetFs, path: string, warnings: string[]): void {
-  try {
-    fs.rm(path);
-  } catch (error) {
-    if (errorCode(error) === 'ENOENT') return;
-    warnings.push(
-      `Could not remove ${path} (${errorCode(error) ?? 'error'}); it is not used and can be deleted.`,
-    );
-  }
+/** Remove something no subset uses; a failure is only a warning */
+function removeUnused(fs: SubsetFs, path: string, warnings: string[]): void {
+  removeQuietly(
+    () => fs.removeTree(path),
+    (error) =>
+      warnings.push(
+        `Could not remove ${path} (${errorCode(error) ?? 'error'}); it is not used and can be deleted.`,
+      ),
+  );
 }
 
 /**
@@ -690,20 +641,25 @@ export async function replaceFilteredSubset(
   options: SubsetOptions = {},
 ): Promise<{ dir: string; warnings: string[] }> {
   const fs = options.fs ?? nodeSubsetFs;
-  const randomId = options.randomId ?? defaultRandomId;
   const warnings: string[] = [];
 
   // A plan given as is is checked before anything is touched
   const given = typeof plan === 'function' ? null : preparePlan(plan);
 
-  const env = { ...nodeSubsetEnv, ...options.env };
-  const release = acquireFilterLock(fs, env, outputDir, randomId);
+  const env: ImportEnv = { ...createImportEnv(), ...options.env };
+  const release = acquireFilterLock(fs, env, outputDir);
   try {
-    settleImport(outputDir, options.importEnv ?? createImportEnv(), warnings);
+    settleImport(outputDir, env, warnings);
     const prepared =
       given ??
       preparePlan(await (plan as () => SubsetPlan | Promise<SubsetPlan>)());
-    const dir = await swapInSubset(fs, randomId, outputDir, prepared, warnings);
+    const dir = await swapInSubset(
+      fs,
+      env.randomId,
+      outputDir,
+      prepared,
+      warnings,
+    );
     return { dir, warnings };
   } finally {
     warnings.push(...release());
@@ -750,7 +706,7 @@ async function swapInSubset(
       }
     }
     for (const directory of directories) {
-      if (!fs.stat(join(staging, directory)).isDirectory()) {
+      if (fs.stat(join(staging, directory)).kind !== 'directory') {
         throw new Error(`The new filtered subset is missing ${directory}`);
       }
     }
@@ -759,7 +715,7 @@ async function swapInSubset(
     }
     await plan.validate?.(staging);
   } catch (error) {
-    removeQuietly(fs, staging, []);
+    removeQuietly(() => fs.removeTree(staging));
     throw error;
   }
 
@@ -770,7 +726,7 @@ async function swapInSubset(
     try {
       fs.rename(filteredDir, previous);
     } catch (error) {
-      removeQuietly(fs, staging, []);
+      removeQuietly(() => fs.removeTree(staging));
       throw error;
     }
   }
@@ -788,14 +744,14 @@ async function swapInSubset(
         );
       }
     }
-    removeQuietly(fs, staging, []);
+    removeQuietly(() => fs.removeTree(staging));
     throw error;
   }
 
   // The new subset is in place. Under the lock, no other run is using any
   // leftover, so all of them are unused. From here nothing may fail the run:
   // the new subset is selected, so problems are only warnings.
-  if (previous) removeQuietly(fs, previous, warnings);
+  if (previous) removeUnused(fs, previous, warnings);
   removeLeftoversQuietly(fs, outputDir, warnings);
 
   return filteredDir;
@@ -826,7 +782,7 @@ function removeLeftoversQuietly(
     return;
   }
   for (const name of kinds.flatMap((kind) => leftovers[kind])) {
-    removeQuietly(fs, join(outputDir, name), warnings);
+    removeUnused(fs, join(outputDir, name), warnings);
   }
 }
 
@@ -843,21 +799,22 @@ export function clearFilteredSubset(
   options: SubsetOptions = {},
 ): { cleared: boolean; warnings: string[] } {
   const fs = options.fs ?? nodeSubsetFs;
-  const randomId = options.randomId ?? defaultRandomId;
+  const env: ProcessEnv = { ...createProcessEnv(), ...options.env };
   const filteredDir = join(outputDir, DIRECTORIES.FILTERED);
   const warnings: string[] = [];
   // Nothing to clear (and no lock to take) in a work log that does not exist
-  if (!exists(fs, outputDir)) return { cleared: false, warnings };
+  if (entryAt(fs, outputDir) === null) return { cleared: false, warnings };
 
-  const release = acquireFilterLock(
-    fs,
-    { ...nodeSubsetEnv, ...options.env },
-    outputDir,
-    randomId,
-  );
+  const release = acquireFilterLock(fs, env, outputDir);
   try {
     return {
-      cleared: clearUnderLock(fs, randomId, outputDir, filteredDir, warnings),
+      cleared: clearUnderLock(
+        fs,
+        env.randomId,
+        outputDir,
+        filteredDir,
+        warnings,
+      ),
       warnings,
     };
   } finally {

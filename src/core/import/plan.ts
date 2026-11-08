@@ -8,13 +8,8 @@ import {
   type ImportSubject,
 } from '@wc-types/imported-record';
 
-import type { ImportFs } from './import-fs';
-import {
-  describeFsError,
-  errorCode,
-  type ImportIssue,
-  importIssue,
-} from './issues';
+import { errorCode, type ImportFs } from './import-fs';
+import { describeFsError, type ImportIssue, importIssue } from './issues';
 import { parseImportedRecordFile } from './record-file';
 import { MAX_STORED_BYTES, type StagedRecord } from './staging';
 

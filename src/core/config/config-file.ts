@@ -3,11 +3,13 @@ import { basename, dirname, join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 
 import {
+  errorCode,
   type FsFile,
   type ImportFs,
   nodeImportFs,
+  removeQuietly,
 } from '@core/import/import-fs';
-import { describeFsError, errorCode } from '@core/import/issues';
+import { describeFsError } from '@core/import/issues';
 import { type Document, parseDocument } from 'yaml';
 
 /** Largest config file the CLI will rewrite */
@@ -113,14 +115,6 @@ function parseStrict(path: string, text: string, what: string): Document {
   return doc;
 }
 
-function removeQuietly(fs: ImportFs, path: string): void {
-  try {
-    fs.unlink(path);
-  } catch {
-    // A leftover temporary file is harmless; it is never read
-  }
-}
-
 /**
  * Change a YAML config file without losing or corrupting it.
  *
@@ -192,7 +186,8 @@ export function updateConfigFile(update: ConfigUpdate): ConfigUpdateResult {
   try {
     fs.writeFile(temp, data, original.mode);
   } catch (error) {
-    removeQuietly(fs, temp);
+    // A leftover temporary file is harmless; it is never read
+    removeQuietly(() => fs.unlink(temp));
     refuse(path, `A new copy could not be written (${describeFsError(error)})`);
   }
   try {
@@ -206,7 +201,8 @@ export function updateConfigFile(update: ConfigUpdate): ConfigUpdateResult {
     }
     fs.rename(temp, path);
   } catch (error) {
-    removeQuietly(fs, temp);
+    // A leftover temporary file is harmless; it is never read
+    removeQuietly(() => fs.unlink(temp));
     if (error instanceof ConfigUpdateError) throw error;
     refuse(
       path,

@@ -1,3 +1,5 @@
+import { errorCode } from './import-fs';
+
 /**
  * Machine-readable problems reported by `import` and `validate`.
  *
@@ -70,19 +72,6 @@ export function importIssue(
   details: Omit<ImportIssue, 'code' | 'message'> = {},
 ): ImportIssue {
   return { code, message, ...details };
-}
-
-/**
- * The `code` of a Node.js filesystem error, if it has one.
- *
- * @param error - Any caught value
- */
-export function errorCode(error: unknown): string | undefined {
-  if (typeof error === 'object' && error !== null && 'code' in error) {
-    const code = (error as { code: unknown }).code;
-    return typeof code === 'string' ? code : undefined;
-  }
-  return undefined;
 }
 
 /**
