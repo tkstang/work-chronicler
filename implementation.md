@@ -195,7 +195,7 @@ Review fix. Proof: full DoD batch.
 **Status:** in_progress
 **Base:** 23a4f1aae63ebd37c8966dca2c2136f794f14190
 **Executor:** inline:p03-inline-exception
-**Head:** 81017148924eb180394a8b92dde7e48fa80d0590
+**Head:** 966fbd2dbeb1bc3761ac9052978791db5d906247
 
 Inline exception (recorded before editing): version bump and CHANGELOG section move only — no new surface, no unresolved design, not consequential before the tag push (which happens after merge under the Release authority), one proof command (the local DoD batch). Committing owner: root. Parallelism: single trivial phase.
 
@@ -233,7 +233,9 @@ Review `reviews/p03-review-2026-11-08T000907Z.md` (0 C/H/M, 1 Low) passed; root 
 
 ### Task p03-t03: (review) Keep old skill copies a replacement depends on
 
-**Status:** pending
+**Status:** completed
+**Commit:** 9337246bf75c43d656cd0190fb39823e6aa48c84
+**Executor:** phase-implementer:wce-p03-fix-1
 **Source review:** reviews/archived/final-review-2026-11-08T001944Z.md (H1)
 
 Intent: Before removing an old entry, require that the replacement (and its SKILL.md) does not resolve into the path being removed; otherwise keep the old entry, print why, and install an independent copy only if allowed. Regression: dependent new-name symlink into the old dir + independent-symlink control.
@@ -242,7 +244,9 @@ Proof: `pnpm lint && pnpm typecheck && pnpm test`
 
 ### Task p03-t04: (review) Treat any occupant of a destination as an overwrite conflict
 
-**Status:** pending
+**Status:** completed
+**Commit:** f09dbfe04e1ae8079c51a02998247d45879c85e9
+**Executor:** phase-implementer:wce-p03-fix-1
 **Source review:** reviews/archived/final-review-2026-11-08T001944Z.md (M1)
 
 Intent: Conflicts come from occupancy of every intended destination (files, dirs, links), not only `findInstalledSkills`; replacement only on explicit overwrite or documented broken-link repair. Regression: regular file at a new name during an upgrade.
@@ -251,7 +255,9 @@ Proof: `pnpm lint && pnpm typecheck && pnpm test`
 
 ### Task p03-t05: (review) Make owner-lookup rate limits fatal in review fetch
 
-**Status:** pending
+**Status:** completed
+**Commit:** c20f78f01046cea791c1e99ea719fc3bad5460f0
+**Executor:** phase-implementer:wce-p03-fix-1
 **Source review:** reviews/archived/final-review-2026-11-08T001944Z.md (H2)
 
 Intent: Propagate 429/rate-limited 403 from the owner lookup through `handleRateLimitError`; distinguish confirmed user/org classification from an unavailable lookup. Regression: rate limit on the first lookup → no search, run fails; user and org controls.
@@ -260,7 +266,9 @@ Proof: `pnpm lint && pnpm typecheck && pnpm test`
 
 ### Task p03-t06: (review) Bind stored review records to the reviewer identity
 
-**Status:** pending
+**Status:** completed
+**Commit:** 966fbd2dbeb1bc3761ac9052978791db5d906247
+**Executor:** phase-implementer:wce-p03-fix-1
 **Source review:** reviews/archived/final-review-2026-11-08T001944Z.md (M2)
 
 Intent: Require a case-insensitive `reviewer` match before cache reuse or merge; on mismatch replace the record without inheriting the other person's entries (or refuse with guidance). Regression: cache path and different-range path.
@@ -333,6 +341,8 @@ Proof: `pnpm lint && pnpm typecheck && pnpm test`
 
 - run/v1 · request=wce-p03-rev-1 · scope=p03 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p03 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
+- run/v1 · request=wce-p03-fix-1 · scope=p03 · action=fix · role=oat-phase-implementer · target=oat-phase-implementer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p03 action=fix role=fix producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
+
 <!-- orchestration-runs-end -->
 
 ## Reviews and Gates
@@ -342,6 +352,8 @@ Proof: `pnpm lint && pnpm typecheck && pnpm test`
 ## Deferred Findings
 
 <!-- One line per approved deferral (finding, rationale, approval, follow-up trigger), plus excluded parallel phases and unmerged worktrees. -->
+
+- Low (from p03 fix report, M2 follow-on): review records left from a different reviewer in a reused output directory are still counted by `status`, `filter` and `search_pr_reviews` when the current user has no in-range entries to replace them. Deferred by root (autonomous run): edge case requiring a changed `github.username` with a reused work log; follow-up trigger: p05 consumer work, which revisits these consumers.
 
 ## Deviations from Plan / Design
 
