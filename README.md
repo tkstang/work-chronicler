@@ -116,13 +116,16 @@ What exists today:
   fetched.
 - **Imported records:** `import` checks a batch of message records that a
   skill staged in a directory and stores it in the work log all or nothing.
-  The CLI never contacts the service the records came from.
+  The CLI never contacts the service the records came from. `status`,
+  `filter`, stats, `link`, the MCP server and the skills read them as
+  supplementary evidence, apart from PRs and tickets; project detection and
+  the timeline cover PRs and tickets only.
 - **Local enrichment:** PR-to-ticket linking, impact classification, project
   detection from shared ticket references, a week/month timeline, and filtered
   subsets. None of these call an AI model.
 - **IC and manager modes:** an individual work log per profile, or per-report
   work logs plus team-level project and timeline rollups for people managers.
-- **MCP server:** eight read-only query tools over the work log.
+- **MCP server:** nine read-only query tools over the work log.
 - **AI skills:** ten skills (six for IC profiles, one peer-review skill for
   any profile, three manager-only) that read the work log and write documents
   to the profile's `outputs/` directory.

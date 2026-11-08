@@ -344,7 +344,11 @@ work-chronicler import ./staged-batch --report alice-smith
 ```
 
 See [Import](commands.md#import) for the record format and how a batch is
-stored all or nothing.
+stored all or nothing. `analyze reports <id>` counts a report's imported
+messages in a separate `messages` section of its `stats.json`; project
+detection, the timeline and `analyze team` cover PRs and tickets only. The
+manager skills cite messages as supplementary evidence, never as PRs or
+tickets.
 
 ---
 

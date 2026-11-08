@@ -50,6 +50,7 @@ work-chronicler/
 │   ├── cli/                    # CLI application (Commander)
 │   │   ├── commands/           # CLI commands (see commands/README.md)
 │   │   │   ├── fetch/          # Fetch commands (github, jira, all)
+│   │   │   ├── filter/         # Filtered subset selection and replacement
 │   │   │   ├── init/           # Interactive setup wizard
 │   │   │   ├── import/         # Staged import (validate shares it)
 │   │   │   ├── profile/        # Profile management
@@ -64,7 +65,8 @@ work-chronicler/
 │   └── core/                   # Shared types, config, storage
 │       ├── config/             # Config loading and schema (Zod)
 │       ├── import/             # Import envelope checks, planning and atomic commit
-│       ├── storage/            # Markdown file reader/writer
+│       ├── linking/            # PR-URL normalization and mention resolution
+│       ├── storage/            # Markdown file reader/writer, filtered subset
 │       ├── workspace/          # Portable workspace and profile management
 │       └── types/              # Zod schemas and TypeScript types
 ├── bin/
@@ -183,11 +185,11 @@ The project has four layers:
    - `fetch github --reviews`, `fetch all --reviews` - Also fetch PR reviews the user gave (IC only)
    - `import <dir>` - Validate a staged batch of records (from a skill) and commit it atomically (`--report <id>` in manager mode)
    - `validate <dir>` - Check a staged batch without writing
-   - `link` - Cross-reference PRs ↔ tickets
+   - `link` - Cross-reference PRs ↔ tickets; report mentions in imported records that resolve (never stored as links)
    - `analyze` - Generate `.analysis/` files
    - `analyze reports <id>` - Per-report analysis (manager mode)
    - `analyze team` - Team-level aggregations (manager mode)
-   - `filter` - Filter work-log to a subset
+   - `filter` - Replace the `filtered/` subset (built beside it, read back, then swapped in; the previous subset is kept on failure)
    - `status` - Show current state
    - `init` - Create config file with interactive wizard
    - `init --mode manager` - Create manager profile
@@ -216,7 +218,7 @@ The project has four layers:
 
 4. **MCP Server** (read-only data access for AI assistants):
    - Exposes work-log data to Claude Desktop, Cursor, etc. over stdio
-   - Tools (one module each in `src/mcp/tools/`, registered in `src/mcp/server.ts`): `search_prs`, `search_tickets`, `get_linked_work`, `list_repos`, `get_stats`, `get_projects`, `get_timeline`, `search_pr_reviews`
+   - Tools (one module each in `src/mcp/tools/`, registered in `src/mcp/server.ts`): `search_prs`, `search_tickets`, `get_linked_work`, `list_repos`, `get_stats`, `get_projects`, `get_timeline`, `search_pr_reviews`, `search_messages`
 
 ## Data Storage
 
@@ -234,8 +236,13 @@ work-log/
 ├── resumes/                 # User-added existing resume(s)
 ├── notes/                   # User-added notes and goals
 ├── .analysis/               # Generated analysis JSON
-└── filtered/                # Filtered subset (from filter command)
+└── filtered/                # Filtered subset (from filter command; selected while it exists, even empty)
 ```
+
+Imported records are supplementary evidence: consumers count them apart from
+PRs and tickets (or say they cover PRs and tickets only), and resolve their
+mentions on read (`src/core/linking/`). Readers ignore `.import-*` and
+`.filter-*` entries in the work-log root.
 
 ### Manager Mode
 

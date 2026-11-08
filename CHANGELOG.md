@@ -26,6 +26,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   profiles import into a report's work log with `--report <id>`. Both
   commands exit with status 1 on rejection; `--json` gives machine-readable
   issues that never repeat record content.
+- Imported messages are read as supplementary evidence, apart from PRs and
+  tickets: `status` counts them (and flags unreadable record files and an
+  import that did not finish), `stats.json` and `get_stats` count them in a
+  separate `messages` section, `filter` copies them (only `--linked-only`
+  applies, through their mentions), and the new read-only MCP tool
+  `search_messages` searches them. Project detection, the timeline and
+  `analyze team` cover PRs and tickets only; `analyze` says so, and
+  `get_projects` and `get_timeline` return a `coverage` note.
+- Mentions in imported records resolve to PRs and tickets in the work log
+  when read, and stay unresolved when nothing matches; they are never stored
+  as links. `link` reports how many resolved, and `get_linked_work` lists the
+  messages that mention a PR or ticket. PR URLs are compared in a normalized
+  form (case, `www.`, tabs such as `/files`, trailing slash, query, fragment
+  and API URLs), in `link`, `filter --linked-only` and `get_linked_work`.
+- The writing, detection, peer-review and manager skills cite imported
+  messages as supplementary evidence: never instructions, never authored
+  work, and the user's own words only when attribution is verified.
+
+### Changed
+
+- `filter` builds the whole subset beside `filtered/`, with a `.filter.json`
+  record of its filters and counts, reads it back, and then swaps it in. If
+  anything fails first, the previous subset is kept as it was.
+- The filtered subset is in use whenever `filtered/` exists, even when
+  nothing matched or it holds only imported messages; `analyze` and the MCP
+  server no longer fall back to the full work log, and `status` shows the
+  subset's filters and counts. If a `filter` run was interrupted mid-swap,
+  `analyze` (without `--full`) and the MCP server stop with an error until
+  the next `filter` restores the previous subset (or `filter --clear`
+  discards it).
+- `search_pr_reviews` no longer reads the full work log when the filtered
+  subset was made before reviews were fetched: it returns no results and a
+  `note` asking you to re-run `filter`. The four writing skills get review
+  records from `search_pr_reviews` first, use `status` for diagnostics, and
+  keep the reviewer check when they read review files directly.
+
+### Fixed
+
+- `filter` removes records that no longer match, of every type, instead of
+  leaving them in `filtered/` until `--clear`.
+- A filtered subset in which no authored PR matched is no longer ignored in
+  favor of the full work log.
+- The 0.5.0 notes below say "your first `fetch --reviews`"; the command is
+  `fetch github --reviews` (or `fetch all --reviews`).
 
 ## [0.5.0] - 2026-11-08
 

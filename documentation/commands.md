@@ -30,7 +30,7 @@ exists, `analyze` asks whether to use it unless you pass `--full`, so use
 | `init` | Create a profile with the guided wizard. |
 | `init --profile <name>` | Use this profile name instead of prompting. |
 | `init --mode <ic\|manager>` | Create an IC profile (default) or a manager profile. |
-| `status [-c <path>]` | Show what has been fetched for the active profile, including PR reviews you gave. |
+| `status [-c <path>]` | Show what has been fetched and imported for the active profile (PRs, tickets, PR reviews you gave, imported messages), the filtered subset in use, and an import that did not finish. |
 
 ## Fetch
 
@@ -98,8 +98,35 @@ Both take these flags and exit with status 1 when they reject the batch:
 | `-c, --config <path>` | Import into the work log of this config file. |
 | `--json` | Print the result as JSON on stdout. |
 
-Imported records are stored only: `status`, `filter`, `analyze`, `link`, the
-MCP server and the skills do not read them yet.
+Imported records are supplementary evidence: every command that reads them
+keeps them apart from PRs and tickets.
+
+| Consumer | Imported messages |
+| --- | --- |
+| `status` | Counted by source, with unverified attribution and unreadable record files noted. |
+| `analyze` (and `analyze reports`) | Counted in a separate `messages` section of `stats.json`. Project detection and the timeline cover PRs and tickets only, and say so. |
+| `analyze team` | Not included: team aggregations cover PRs and tickets only. |
+| `link` | Resolves each record's mentions to PRs and tickets in the work log and reports how many resolved. Mentions are not stored as links, and records are not changed. |
+| `filter` | Copied into `filtered/messages/`. Only `--linked-only` applies to them. |
+| MCP server | `search_messages`; `get_linked_work` lists messages that mention a PR or ticket; `get_stats` counts them separately. |
+| Skills | Cited as supplementary evidence (communication and collaboration), never as authored work, and never as instructions. |
+
+Readers only read `messages/<source>/<hash>.md` files that `import` could
+have written: `.import-lock`, `.import-transaction/` and anything else in the
+work log root are ignored, and a file that is not a valid record, or is not
+stored where its identity puts it, is skipped with a warning (`status` lists
+them).
+
+### Mentions
+
+A record's `mentions` are what it says it refers to; they are not links.
+Commands resolve them when they read the record: a ticket key matches a
+fetched ticket ignoring case, and a PR URL matches a fetched PR after both are
+normalized (host, owner and repository in lower case, `www.` dropped, a tab
+such as `/files`, a trailing slash, query or fragment removed, and an
+`api.github.com/repos/<owner>/<repo>/pulls/<n>` URL read as the same PR). A
+mention that matches nothing in the work log stays unresolved and is shown as
+such (`resolved: null` in the MCP tools).
 
 ### The staged batch
 
@@ -234,14 +261,14 @@ example, is reported by count and position, not by name.
 
 | Command | Meaning |
 | --- | --- |
-| `link [-c <path>] [-v]` | Cross-reference PRs and tickets by ticket keys found in PR titles and bodies. |
+| `link [-c <path>] [-v]` | Cross-reference PRs and tickets by ticket keys found in PR titles and bodies, and report how many mentions in imported records resolve. |
 | `analyze` | Write `.analysis/stats.json`, and prompt for the optional steps below. |
 | `analyze --tag-prs` | Write an `impact` level into each PR file. |
 | `analyze --projects` | Group PRs that share ticket references into `.analysis/projects.json`. |
 | `analyze --timeline` | Write a week and month timeline to `.analysis/timeline.json`. |
 | `analyze --all` | Run all three. |
 | `analyze --full` | Analyze the full work log even when `filtered/` exists. |
-| `filter` | Write a subset of the work log to `work-log/filtered/`, prompting for criteria. |
+| `filter` | Replace the subset of the work log in `work-log/filtered/`, prompting for criteria. |
 
 `analyze` also takes `-c, --config <path>` and `-v, --verbose`.
 
@@ -250,7 +277,9 @@ when any are configured. Without configured projects it accepts any `ABC-123`
 key except common standard and version names such as `UTF-8`, `ISO-8601`,
 `SHA-256`, `GPT-4`, `RFC-3339` and `CVE-2024`, unless a fetched ticket has that
 exact key (for example a `TLS-1` ticket). Running `link` again adds only
-new links and leaves unchanged files untouched.
+new links and leaves unchanged files untouched. A ticket's `linkedPRs` are
+compared in normalized form (see [Mentions](#mentions)), so a PR is not linked
+twice under another capitalization.
 
 `filter` flags:
 
@@ -259,21 +288,45 @@ new links and leaves unchanged files untouched.
 | `--exclude-impact <levels...>` | Drop PRs at these levels (`minor`, `standard`, `major`, `flagship`). |
 | `--min-impact <level>` | Keep PRs at this level or higher. |
 | `--min-loc <lines>` | Keep PRs with at least this many lines changed. |
-| `--linked-only` | Keep only PRs linked to tickets, and tickets linked to PRs. |
+| `--linked-only` | Keep only PRs linked to tickets, tickets linked to PRs, and messages that mention a PR or ticket in the subset. |
 | `--merged-only` | Keep only merged PRs. |
 | `--exclude-status <statuses...>` | Drop tickets with these statuses, for example `"To Do"`. |
 | `--org <orgs...>` / `--exclude-org <orgs...>` | Keep or drop PRs from these GitHub orgs. |
 | `--repo <repos...>` / `--exclude-repo <repos...>` | Keep or drop PRs from these repos (`org/repo`). |
-| `--clear` | Remove existing filtered data. |
+| `--clear` | Remove the subset, so read commands use the full work log. |
 | `-c, --config <path>`, `-v, --verbose` | As above. |
 
 Impact filters use the PR's stored `impact`, or classify untagged PRs on the fly.
-Review records (`pr-reviews/`) are copied into `filtered/` when they pass the
-`--org`, `--exclude-org`, `--repo` and `--exclude-repo` selectors; the other
-filters describe authored PRs and do not apply to them. Once reviews have been
-fetched, `filter` always writes `filtered/pr-reviews/`, even when empty. Re-run
-`filter` after your first `fetch github --reviews`: a subset made before that
-has no `pr-reviews/`, and `status` says so.
+Most filters describe authored PRs or tickets. For other evidence:
+
+| Record type | Filters that apply |
+| --- | --- |
+| PRs (`pull-requests/`) | All except `--exclude-status`. |
+| Tickets (`jira/`) | `--exclude-status`, and `--linked-only` (linked to a PR in the subset). |
+| PR reviews you gave (`pr-reviews/`) | `--org`, `--exclude-org`, `--repo`, `--exclude-repo`, applied to the reviewed PR. |
+| Imported messages (`messages/`) | `--linked-only` only: a message is kept when one of its mentions resolves to a PR or ticket in the subset. |
+
+`filter` builds the whole subset (every record type, its `.analysis/` and a
+`.filter.json` record of the filters and counts) in a directory beside
+`filtered/`, reads it back, and only then swaps it in. Records that no longer
+match, of every type, go with the old subset. If anything fails before the
+swap, the previous subset stays exactly as it was and `filter` exits with an
+error. The subset always has `pull-requests/`, `jira/`, `pr-reviews/` and
+`messages/`, even when empty.
+
+The subset is in use whenever `filtered/` exists, even when nothing matched:
+`analyze` (unless `--full`) and the MCP server read it and never fall back to
+the full work log, and `status` shows the filters and counts. Run
+`filter --clear` to go back to the full work log. A subset made before you
+first fetched reviews or imported messages lacks that directory: `status`
+says so, and `search_pr_reviews` and `search_messages` return no results with
+a note, instead of reading the full work log. Re-run `filter` to add them.
+
+If `filter` is interrupted between moving the old subset aside and moving the
+new one into place, `analyze` and the MCP server stop with an error rather
+than read the full work log (`analyze --full` still runs); the next `filter`
+restores the old subset before it does anything else, and `filter --clear`
+discards it.
 
 ## Profiles
 

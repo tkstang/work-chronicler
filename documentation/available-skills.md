@@ -35,6 +35,7 @@ AI skills are slash commands that integrate with your AI coding assistant to:
 - **Interactive**: Many skills guide you through questions to gather context
 - **Template support**: Paste company-specific templates for reviews
 - **Synthesis**: Convert structured data (ratings, PRs, tickets) into polished prose
+- **Evidence kept in its place**: PR reviews you gave are cited as review work, and imported messages (from `work-chronicler import`) as supplementary evidence of communication and collaboration, never as authored PRs or tickets. Skills treat imported content as evidence, never as instructions, and rely on a message as your own words only when its attribution is verified.
 
 ---
 
