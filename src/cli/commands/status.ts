@@ -81,15 +81,20 @@ export const statusCommand = new Command('status')
 
       const prs = await readAllPRs(outputDir);
       const tickets = await readAllTickets(outputDir);
-      // Records written for another GitHub user are not this user's work
+      // Records written for another GitHub user are not this user's work,
+      // and without a configured username none can be shown to be theirs
+      const allReviewRecords = await readAllPRReviews(outputDir);
+      const username = config.github.username;
       const {
         own: reviewRecords,
         foreign,
         foreignReviewers,
-      } = splitReviewRecordsByReviewer(
-        await readAllPRReviews(outputDir),
-        config.github.username,
-      );
+      } = username
+        ? splitReviewRecordsByReviewer(allReviewRecords, username)
+        : { own: [], foreign: [], foreignReviewers: [] };
+      const unattributedReviewers = username
+        ? []
+        : [...new Set(allReviewRecords.map((r) => r.frontmatter.reviewer))];
       const reviewCount = reviewRecords.reduce(
         (sum, r) => sum + r.frontmatter.reviews.length,
         0,
@@ -144,6 +149,11 @@ export const statusCommand = new Command('status')
             `  ...and ${imported.skipped.length - SKIPPED_SHOWN} more`,
           );
         }
+      }
+      if (!username && allReviewRecords.length > 0) {
+        console.log(
+          `\n${allReviewRecords.length} review record(s) in pr-reviews/ (reviewer: ${unattributedReviewers.join(', ')}) are not counted: github.username is not set, so they cannot be attributed to you. Set github.username in the config to count your own.`,
+        );
       }
       if (foreign.length > 0) {
         console.log(

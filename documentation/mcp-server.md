@@ -101,7 +101,9 @@ results and a `note` asking you to re-run `filter`; it does not read the full
 work log behind your subset. It also adds a `note` when no reviews have been
 fetched. Each result names its `reviewer`; records written for a GitHub user
 other than your configured `github.username` are left out, with a `note`
-saying how many.
+saying how many. Without a configured `github.username` no record can be
+attributed to you: the tool returns no results, an `unattributed` count with
+the reviewers it found, and a `note` (`status` likewise does not count them).
 
 `search_messages` reads the records stored by `work-chronicler import`. They
 are supplementary evidence, never authored PRs or tickets, and the response

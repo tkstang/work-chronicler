@@ -119,7 +119,11 @@ Get review records from the MCP tool `search_pr_reviews` when it is
 available. It reads the same work log as the other tools (the `filtered/`
 subset when one is selected), leaves out records written for another GitHub
 user and says how many in its `note`, and returns `reviewer` with each
-result. To find out why reviews are missing or unexpected, run
+result. The same rule as for files applies on this path: when the configured
+username is unknown (the tool returns no results, a `note` that the records
+cannot be attributed, and `unattributed`), do not present any review record
+as the user's work; ask the user instead. Never present a result whose
+`reviewer` is not the user as theirs. To find out why reviews are missing or unexpected, run
 `work-chronicler status`: it shows how many reviewed PRs the work log holds,
 how many records belong to another GitHub user, and whether the filtered
 subset is out of date.

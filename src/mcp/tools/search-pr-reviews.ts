@@ -65,9 +65,32 @@ export const searchPrReviewsTool = defineTool({
       );
     }
 
+    const records = await readAllPRReviews(outputDir);
+    // Without a configured username no record can be shown to be the user's:
+    // return none, and say whose records there are, rather than present
+    // someone else's reviews as the user's
+    if (!githubUsername) {
+      const reviewers = [
+        ...new Set(records.map((r) => r.frontmatter.reviewer)),
+      ];
+      if (records.length > 0) {
+        notes.push(
+          `github.username is not set in the profile config, so ${records.length} review record(s) (reviewer: ${reviewers.join(', ')}) cannot be attributed to the user and are not returned. Do not present them as the user's work: ask the user, or set github.username and restart the MCP server.`,
+        );
+      }
+      return jsonResult({
+        results: [],
+        total: 0,
+        returned: 0,
+        totals: { reviews: 0, comments: 0 },
+        unattributed: { records: records.length, reviewers },
+        ...(notes.length > 0 ? { note: notes.join(' ') } : {}),
+      });
+    }
+
     // Records written for another GitHub user are not this user's work
     const { own, foreign, foreignReviewers } = splitReviewRecordsByReviewer(
-      await readAllPRReviews(outputDir),
+      records,
       githubUsername,
     );
     if (foreign.length > 0) {

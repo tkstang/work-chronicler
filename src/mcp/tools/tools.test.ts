@@ -532,6 +532,9 @@ describe('get_timeline', () => {
 });
 
 describe('search_pr_reviews', () => {
+  // The configured GitHub user the records below belong to
+  const asMe = (): ToolContext => ({ ...ctx, githubUsername: 'me' });
+
   function reviewRecord(
     repo: string,
     prNumber: number,
@@ -620,7 +623,7 @@ describe('search_pr_reviews', () => {
   });
 
   it('returns PRs with the same number in different repos as separate entries, newest activity first', async () => {
-    const out = parse(await searchPrReviewsTool.handler({}, ctx));
+    const out = parse(await searchPrReviewsTool.handler({}, asMe()));
 
     expect(out.results.map((r: { prUrl: string }) => r.prUrl)).toEqual([
       'https://github.com/acme/api/pull/1',
@@ -633,7 +636,7 @@ describe('search_pr_reviews', () => {
     const out = parse(
       await searchPrReviewsTool.handler(
         { since: '2025-01-15', until: '2025-03-15' },
-        ctx,
+        asMe(),
       ),
     );
 
@@ -652,7 +655,7 @@ describe('search_pr_reviews', () => {
 
   it('filters by review state, keeping the inline comments of matching reviews', async () => {
     const changes = parse(
-      await searchPrReviewsTool.handler({ state: 'CHANGES_REQUESTED' }, ctx),
+      await searchPrReviewsTool.handler({ state: 'CHANGES_REQUESTED' }, asMe()),
     );
     expect(changes.total).toBe(1);
     expect(
@@ -665,14 +668,14 @@ describe('search_pr_reviews', () => {
     ).toEqual([30]);
 
     const approved = parse(
-      await searchPrReviewsTool.handler({ state: 'APPROVED' }, ctx),
+      await searchPrReviewsTool.handler({ state: 'APPROVED' }, asMe()),
     );
     expect(approved.total).toBe(1);
     expect(approved.results[0].reviews).toHaveLength(1);
     expect(approved.results[0].comments).toEqual([]);
 
     const byText = parse(
-      await searchPrReviewsTool.handler({ query: 'listener' }, ctx),
+      await searchPrReviewsTool.handler({ query: 'listener' }, asMe()),
     );
     expect(byText.results.map((r: { prUrl: string }) => r.prUrl)).toEqual([
       'https://github.com/acme/web-app/pull/1',
@@ -720,14 +723,18 @@ describe('search_pr_reviews', () => {
       );
     });
 
-    it('is attributed to its reviewer when the configured user is unknown', async () => {
+    it("is not presented as the user's, nor is any record, when the configured user is unknown", async () => {
       const out = parse(await searchPrReviewsTool.handler({}, ctx));
 
-      expect(out.results[0]).toMatchObject({
-        reviewer: 'alice',
-        prUrl: 'https://github.com/acme/lib/pull/9',
+      expect(out.results).toEqual([]);
+      expect(out.total).toBe(0);
+      expect(out.unattributed).toEqual({
+        records: 3,
+        reviewers: expect.arrayContaining(['me', 'alice']),
       });
-      expect(out.total).toBe(3);
+      expect(out.note).toContain('github.username is not set');
+      expect(out.note).toContain('cannot be attributed to the user');
+      expect(out.note).toContain('alice');
     });
   });
 

@@ -60,7 +60,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   discards it).
 - `search_pr_reviews` no longer reads the full work log when the filtered
   subset was made before reviews were fetched: it returns no results and a
-  `note` asking you to re-run `filter`. The four writing skills get review
+  `note` asking you to re-run `filter`. Without a configured
+  `github.username`, `search_pr_reviews` and `status` no longer present any
+  review record as yours: they return or count none and say why. The four
+  writing skills get review
   records from `search_pr_reviews` first, use `status` for diagnostics, and
   keep the reviewer check when they read review files directly.
 

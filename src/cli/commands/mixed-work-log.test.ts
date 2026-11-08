@@ -293,6 +293,31 @@ describe('a work log with authored PRs and review records', () => {
     expect(existsSync(join(filteredDir, 'pr-reviews'))).toBe(true);
   });
 
+  it('does not count review records in status when the GitHub username is not set', async () => {
+    writeConfig();
+    writeBaselineReviews();
+    writeFileSync(
+      configPath,
+      readFileSync(configPath, 'utf-8').replace(
+        '  username: me\n',
+        '  username: ""\n',
+      ),
+    );
+
+    logs = [];
+    await run(statusCommand, []);
+
+    expect(
+      logs.some((line) => line.startsWith('PR Reviews:    0 reviewed PRs')),
+    ).toBe(true);
+    expect(logs).toContainEqual(
+      expect.stringContaining(
+        'review record(s) in pr-reviews/ (reviewer: me) are not counted: github.username is not set',
+      ),
+    );
+    writeConfig();
+  });
+
   it('does not count review records written for another GitHub user in status', async () => {
     writeConfig();
     writeBaselineReviews();
