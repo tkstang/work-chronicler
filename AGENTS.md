@@ -56,6 +56,7 @@ work-chronicler/
 │   │   │   ├── import/         # Staged import (validate shares it)
 │   │   │   ├── profile/        # Profile management
 │   │   │   ├── skills/         # Skill management (install, uninstall, list)
+│   │   │   ├── google-docs/    # Google Docs settings (configure, show)
 │   │   │   ├── slack/          # Slack settings (configure, channels, show)
 │   │   │   └── workspace/      # Workspace path resolution
 │   │   ├── linker/             # Cross-reference linking
@@ -201,6 +202,7 @@ The project has four layers:
    - `workspace profile|work-log|analysis|root` - Output workspace paths
    - `skills install|uninstall|list` - Manage AI skills
    - `slack configure`, `slack channels add|remove|list`, `slack show` - Slack settings per IC profile or report (opt-in; `import` enforces them); `show` prints what an import skill uses
+   - `google-docs configure`, `google-docs show` - Google Docs settings (the owner account) per IC profile or report (opt-in; `import` enforces ownership and the fetch range, `--since`/`--until` replacing it per batch); `show` prints what an import skill uses
 
 2. **AI Skills** (package skills in `.agents/skills/`, installed via `skills install`):
    - IC mode:
@@ -224,7 +226,7 @@ The project has four layers:
 
 4. **MCP Server** (read-only data access for AI assistants):
    - Exposes work-log data to Claude Desktop, Cursor, etc. over stdio
-   - Tools (one module each in `src/mcp/tools/`, registered in `src/mcp/server.ts`): `search_prs`, `search_tickets`, `get_linked_work`, `list_repos`, `get_stats`, `get_projects`, `get_timeline`, `search_pr_reviews`, `search_messages`
+   - Tools (one module each in `src/mcp/tools/`, registered in `src/mcp/server.ts`): `search_prs`, `search_tickets`, `get_linked_work`, `list_repos`, `get_stats`, `get_projects`, `get_timeline`, `search_pr_reviews`, `search_messages`, `search_documents`
 
 ## Data Storage
 
@@ -237,6 +239,7 @@ work-log/
 ├── pull-requests/<org>/<repo>/<date>_<number>.md
 ├── pr-reviews/<org>/<repo>/<number>.md  # Reviews the user gave (never authored work)
 ├── messages/<source>/<hash>.md          # Imported records (`import`); hash of the record identity
+├── documents/<source>/<hash>.md         # Imported Google Docs the subject owns (`import`); same hashing
 ├── jira/<org>/<project>/<key>.md
 ├── performance-reviews/     # User-added past reviews
 ├── resumes/                 # User-added existing resume(s)
@@ -253,6 +256,10 @@ while `.import-transaction/` exists (`ImportInProgressError`). `import`,
 `filter` and `filter --clear` share one work-log lock
 (`src/core/storage/work-log-lock.ts`, held as `.import-lock` then
 `.filter-lock`); `filter` reads records only under it.
+Imported Google Docs are Docs the subject owns, not ones they necessarily
+wrote: their attribution is always `unverified`, their body is a capped
+excerpt (`MAX_DOCUMENT_EXCERPT_BYTES`), and consumers date them by modified
+time (`occurredAt`).
 
 ### Manager Mode
 

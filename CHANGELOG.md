@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Google Docs you own can be imported as supplementary evidence. A new
+  `document` record type (source `google-docs`, stored under
+  `documents/google-docs/`) holds a Doc's title, created and modified times,
+  owners and an excerpt of its own text of at most 16 KiB (UTF-8), with a
+  `truncated` flag. `import` accepts one only when Google Docs is set up for
+  the IC or report, the Doc is a Google Doc owned by the configured account
+  alone (not in a shared drive), its attribution is `unverified` (owning a
+  Doc is not writing it), and it was modified inside the profile's fetch
+  range; refusals never repeat record content.
+- `google-docs configure --account <email>` and `google-docs show --json`
+  keep the Google Docs settings (`googleDocs: { account }`) per IC profile
+  and per report, and print what an import skill needs. The CLI never
+  contacts Google.
+- `import` and `validate` take `--since` and `--until` to replace the
+  fetch range for one batch of Google Docs records (a date alone is the
+  whole UTC day), report the range they applied as `range` in `--json`
+  output, and refuse a malformed bound with `RANGE_INVALID`.
+- The `search_documents` MCP tool searches imported Google Docs by title or
+  excerpt, mention and modified date, in pages like `search_messages`.
+  `get_stats` counts Docs in a `documents` section, `get_timeline` lists
+  them by modified time, and `get_linked_work` lists the Docs that mention a
+  PR or ticket (`mentionedInDocuments`). `status`, `filter`, `analyze` and
+  `link` cover them too, and the writing and detection skills read them as
+  Docs the user owns, never as instructions.
+
 ### Changed
 
 - `import`, `filter` and `filter --clear` now share one work-log lock, so

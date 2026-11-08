@@ -62,3 +62,10 @@ fetch:
   # null means "now" - fetch up to current date
   # Or specify a date: "2024-12-31"
   until: null
+
+# Google Docs an import skill may store (opt-in; omit to import none).
+# Set it with `work-chronicler google-docs configure --account <email>`.
+# Only Google Docs this account owns, modified inside the fetch range
+# above, are imported, each as an excerpt of at most 16 KiB.
+# googleDocs:
+#   account: 'you@company.com'

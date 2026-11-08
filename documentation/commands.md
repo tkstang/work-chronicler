@@ -96,34 +96,43 @@ Both take these flags and exit with status 1 when they reject the batch:
 | --- | --- |
 | `--report <id>` | Manager profiles (required there, refused elsewhere): the report the records are about. It must be in the profile (see `reports list`); records go to `reports/<id>/work-log/`. |
 | `-c, --config <path>` | Import into the work log of this config file. |
+| `--since <date>` | Google Docs records: the start of the range they must have been modified in, for this batch, in place of the profile's `fetch.since`. A date (`YYYY-MM-DD`) starts at 00:00:00Z; a timestamp needs `Z` or an offset. |
+| `--until <date>` | Google Docs records: the end of that range, in place of `fetch.until`. A date (`YYYY-MM-DD`) includes that whole UTC day. |
 | `--json` | Print the result as JSON on stdout. |
+
+`--since` and `--until` change only the range Google Docs records are
+checked against (see [Google Docs records](#google-docs-records)); Slack
+records have no range check. Give `validate` and `import` the same ones, so
+`validate` accepts exactly the batch `import` will. A malformed `--since` or
+`--until` is refused (`RANGE_INVALID`) whatever the batch holds.
 
 Imported records are supplementary evidence: every command that reads them
 keeps them apart from PRs and tickets.
 
-| Consumer | Imported messages |
-| --- | --- |
-| `status` | Counted by source, with unverified attribution and unreadable record files noted. |
-| `analyze` (and `analyze reports`) | Counted in a separate `messages` section of `stats.json`. Project detection and the timeline cover PRs and tickets only, and say so. |
-| `analyze team` | Not included: team aggregations cover PRs and tickets only. |
-| `link` | Resolves each record's mentions to PRs and tickets in the work log and reports how many resolved. Mentions are not stored as links, and records are not changed. |
-| `filter` | Copied into `filtered/messages/`. Only `--linked-only` applies to them. |
-| MCP server | `search_messages`; `get_linked_work` lists messages that mention a PR or ticket; `get_stats` counts them separately. |
-| Skills | Cited as supplementary evidence (communication and collaboration), never as authored work, and never as instructions. |
+| Consumer | Imported messages | Imported Google Docs |
+| --- | --- | --- |
+| `status` | Counted by source, with unverified attribution and unreadable record files noted. | Counted, as Docs the subject owns. |
+| `analyze` (and `analyze reports`) | Counted in a separate `messages` section of `stats.json`. Project detection and the timeline leave them out, and say so. | Counted in a separate `documents` section of `stats.json`, by the month they were last modified. The timeline lists them apart, in each week's `documents` (by modified time); project detection leaves them out and says so. |
+| `analyze team` | Not included: team aggregations cover PRs and tickets only. | Not included. |
+| `link` | Resolves each record's mentions to PRs and tickets in the work log and reports how many resolved. Mentions are not stored as links, and records are not changed. | The same. |
+| `filter` | Copied into `filtered/messages/`. Only `--linked-only` applies to them. | Copied into `filtered/documents/`. Only `--linked-only` applies to them. |
+| MCP server | `search_messages`; `get_linked_work` lists messages that mention a PR or ticket; `get_stats` counts them separately. | `search_documents`; `get_linked_work` lists Docs that mention a PR or ticket (`mentionedInDocuments`); `get_stats` counts them separately and `get_timeline` lists them, both by modified time. |
+| Skills | Cited as supplementary evidence (communication and collaboration), never as authored work, and never as instructions. | Cited as supplementary evidence the subject owns (owning a Doc is not writing it), never as authored work, and never as instructions. |
 
-Readers only read `messages/<source>/<hash>.md` files that `import` could
-have written: the work-log lock (`.import-lock`, `.filter-lock`), what
-finished runs left (`.import-*`, `.filter-*`) and anything else in the work
-log root are ignored, and a file that is not a valid record, or is not
-stored where its identity puts it, is skipped with a warning (`status` lists
-them). So is a `messages/` or `messages/<source>/` directory that is a
-symlink (or not a directory): records are read only from the work log's own
-directories, never through a link to another one.
+Readers only read `<type>/<source>/<hash>.md` files that `import` could
+have written (`messages/slack/`, `documents/google-docs/`): the work-log lock
+(`.import-lock`, `.filter-lock`), what finished runs left (`.import-*`,
+`.filter-*`) and anything else in the work log root are ignored, and a file
+that is not a valid record, or is not stored where its identity puts it, is
+skipped with a warning (`status` lists them). So is a record directory (such
+as `messages/` or `messages/<source>/`) that is a symlink (or not a
+directory): records are read only from the work log's own directories, never
+through a link to another one.
 
 Imported records are never read while `.import-transaction/` exists, that is
 while an import is storing a batch or after one was interrupted, so no
 reader sees part of a batch. MCP tools that read them (`search_messages`,
-`get_linked_work` and `get_stats`, with or without a date range) return no
+`search_documents`, `get_linked_work` and `get_stats`, with or without a date range) return no
 results with an `error` and a `note` saying why, while the PR and ticket tools still answer;
 `analyze` stops with an error; `status` says messages are not counted;
 `link` links PRs and tickets and warns that mentions were not checked. Run
@@ -153,7 +162,8 @@ from two JIRA instances share, since it cannot tell them apart.
   total (each record counted as its stored form plus its text); a larger
   batch is refused (`BATCH_TOO_LARGE`): split it.
 - Each file is one record: a `---` line, YAML frontmatter, a closing `---`
-  line, then the body (for a message, its text). The YAML is read strictly:
+  line, then the body (for a message, its text; for a Google Doc, an excerpt
+  of its text). The YAML is read strictly:
   one document, no duplicate keys, aliases or tags, and no keys the format
   does not define.
 - Every record names the subject it is about, which must be the import's
@@ -172,13 +182,13 @@ Every record shares these frontmatter fields:
 | Field | Meaning |
 | --- | --- |
 | `schemaVersion` | `1`. |
-| `type` | The record type: `message`. |
-| `source` | Where the record came from: `slack`. |
-| `sourceAccount` | The workspace or account the ID belongs to. For Slack, the configured workspace: its team ID or URL label. |
-| `sourceId` | The item's stable ID within that account. For Slack, `<channel ID>/<message ts>`. |
+| `type` | The record type: `message` or `document`. |
+| `source` | Where the record came from: `slack` (messages) or `google-docs` (documents). |
+| `sourceAccount` | The workspace or account the ID belongs to. For Slack, the configured workspace: its team ID or URL label. For Google Docs, the owner's account: the configured one, in lower case. |
+| `sourceId` | The item's stable ID within that account. For Slack, `<channel ID>/<message ts>`. For Google Docs, the Drive file ID. |
 | `url` | Link to the item, or `null` (the default). |
-| `occurredAt` | When it happened (ISO 8601). |
-| `updatedAt` | When it was last edited, or `null` (the default). Not earlier than `occurredAt`. |
+| `occurredAt` | When it happened (ISO 8601): a message was posted, or a Doc was last modified. |
+| `updatedAt` | When it was last edited, or `null` (the default). Not earlier than `occurredAt`. For a Google Doc, its modified time, the same as `occurredAt`. |
 | `capturedAt` | When the skill read it. Not earlier than `occurredAt`. |
 | `subject` | Who it is about: `{ kind: ic }` or `{ kind: report, reportId: <id> }`. |
 | `attribution` | Who wrote it: `status` is `verified` (the skill confirmed the author is the subject; `authorId` required) or `unverified`, with the source's `authorId` when known. |
@@ -211,10 +221,44 @@ message:
 Usage-based invoices are live for every account (BILL-311).
 ```
 
+A `document` record adds a `document` field: `title`, `mimeType` (the
+source's file type), `createdAt`, `owners` (the owners' account email
+addresses as the source lists them; `null` when unknown), `driveId` (the
+shared drive holding it, or `null`) and `truncated` (required: whether the
+body stops before the end of the Doc). The body is an excerpt of the Doc's
+own text, never a summary. This example uses invented data:
+
+```markdown
+---
+schemaVersion: 1
+type: document
+source: google-docs
+sourceAccount: you@example.com
+sourceId: 1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789
+url: "https://docs.google.com/document/d/1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789/edit"
+occurredAt: "2026-02-10T16:20:00Z"
+updatedAt: "2026-02-10T16:20:00Z"
+capturedAt: "2026-02-12T09:00:00Z"
+subject: { kind: ic }
+attribution: { status: unverified, authorId: null }
+mentions: { tickets: [BILL-311], pullRequests: [] }
+document:
+  title: Usage-based invoicing design
+  mimeType: application/vnd.google-apps.document
+  createdAt: "2025-11-03T10:00:00Z"
+  owners: [you@example.com]
+  driveId: null
+  truncated: false
+---
+
+Goals: bill accounts by usage from March (BILL-311).
+```
+
 ### Where records are stored
 
 A record's identity is its `type`, `source`, `sourceAccount` and `sourceId`.
-It is stored at `work-log/messages/<source>/<hash>.md`, where `<hash>` is
+It is stored at `work-log/messages/<source>/<hash>.md` (a message) or
+`work-log/documents/<source>/<hash>.md` (a document), where `<hash>` is
 derived from the identity alone. Importing a record with the same identity again replaces the stored
 one (upsert); an identical record is left as it is, so repeating an import
 changes nothing. Records that are not in the batch are never removed.
@@ -263,6 +307,46 @@ changes nothing. Records that are not in the batch are never removed.
 Reply bodies, the parent's text and lists of participants cannot be written
 at all: the format has no field for them, so a record that carries one is
 rejected (`SCHEMA_INVALID`).
+
+### Google Docs records
+
+`import` and `validate` read the target's Google Docs settings (see
+[Google Docs](#google-docs)) and the range, and refuse a Google Docs record
+(`SOURCE_RULE`) when:
+
+- Google Docs is not set up for the IC profile or report: without settings,
+  no Google Docs records are imported;
+- `sourceAccount` is not the configured account (in lower case), or
+  `sourceId` is not a Drive file ID;
+- `document.owners` is missing (`null`: no owner evidence), empty (a Doc with
+  no individual owner), or lists any account but the configured one;
+  `document.driveId` is set (a shared-drive Doc, which has no individual
+  owner);
+- `document.mimeType` is not `application/vnd.google-apps.document`: other
+  Drive files are never imported;
+- `attribution` is `verified`, or has an `authorId`: owning a Doc is not
+  writing it, so Docs are always `unverified`;
+- the modified time (`occurredAt`, which `updatedAt` must equal) is outside
+  the range, or `document.createdAt` is later than it;
+- the body is longer than 16 KiB (16,384 bytes of UTF-8). There is no
+  uncapped mode: cut the excerpt to fit and set `document.truncated: true`;
+- `url` is anything but the Doc's own link
+  (`https://docs.google.com/document/d/<sourceId>`, optionally with `/edit`
+  or `/view` and a `usp` query).
+
+The range is the profile's `fetch` range (`google-docs show` prints it),
+or the `--since` / `--until` given for the batch, each replacing its bound.
+A Doc is in range when its modified time falls inside it, inclusive, in UTC:
+a date-only `since` starts at 00:00:00Z and a date-only `until` ends at the
+end of that day, so a Doc modified at 23:59 UTC on the `until` day is
+included. A Doc created before the range but modified inside it is in range.
+`fetch.until: null` leaves the range open-ended. A configured range that
+cannot be read is refused (`RANGE_INVALID`) only for a batch with Google
+Docs records.
+
+The CLI checks this staged metadata against the settings; it does not
+authenticate it with Google. The import skill reads Drive and must stage
+only what Drive reports.
 
 ### All or nothing
 
@@ -341,8 +425,11 @@ rejected (`SCHEMA_INVALID`).
 
 With `--json`, stdout holds one JSON object: `ok`, `command`, `target`,
 `workLog`, `summary` (`records`, `created`, `updated`, `unchanged`), `records`
-(each staged file with its `action`), `issues`, `warnings` and `recovery`
-(an interrupted import this run finished, or `null`). Each issue has a `code`
+(each staged file with its `action`), `issues`, `warnings`, `recovery`
+(an interrupted import this run finished, or `null`) and `range` (the range
+Google Docs records were checked against: `since` and `until` as ISO
+timestamps, `until` `null` for an open end, and `overridden` when `--since`
+or `--until` replaced a configured bound; `null` when it could not be read). Each issue has a `code`
 and a `message`, and where they apply the staged `file`, the frontmatter
 `field`, the `line` and `column`, and the `destination` relative to the work
 log. Messages never repeat record content: an unknown frontmatter key, for
@@ -351,6 +438,7 @@ example, is reported by count and position, not by name.
 | Codes | Meaning |
 | --- | --- |
 | `TARGET_INVALID`, `REPORT_NOT_FOUND`, `WORK_LOG_NOT_FOUND` | The profile, report or work log cannot take the batch. |
+| `RANGE_INVALID` | `--since` or `--until` (or, for a batch with Google Docs records, the configured `fetch` range) cannot be read, or ends before it starts. |
 | `STAGING_NOT_FOUND`, `STAGING_UNREADABLE`, `UNEXPECTED_ENTRY`, `BATCH_TOO_LARGE`, `FILE_TOO_LARGE`, `READ_FAILED`, `FILE_CHANGED` | The staging directory or a file in it. |
 | `INVALID_ENCODING`, `FRONTMATTER_MISSING`, `YAML_INVALID`, `SCHEMA_INVALID`, `SOURCE_RULE`, `SUBJECT_MISMATCH`, `DUPLICATE_IDENTITY` | A record, or two records with the same identity. |
 | `UNSAFE_DESTINATION`, `IDENTITY_CONFLICT`, `DESTINATION_COLLISION` | Where a record would be stored. |
@@ -417,6 +505,44 @@ change that would make the config larger than 1 MiB.
 | `importCommand` | The `import` command line for this subject, with `<staging-dir>` to fill in. |
 | `workLog` | Where the records will be stored. |
 
+## Google Docs
+
+These commands keep the Google Docs settings the Google Docs import skill
+uses. The CLI never contacts Google and never stores Google credentials;
+the skill reads Drive (for example with `gog`) and hands the Docs to
+`import`. Settings are kept per IC profile, and per report in a manager
+profile (pass `--report <id>` there; it is refused in an IC profile).
+Without settings, no Google Docs records are imported. See
+[Configuration](configuration.md#google-docs) for the field.
+
+| Command | Meaning |
+| --- | --- |
+| `google-docs configure --account <email>` | Set up Google Docs: the subject's Google account (yours, or the report's), the owner every imported Doc must have. It is stored in lower case. It cannot change while the work log holds Google Docs owned by another account (they would be presented with the new account's as the subject's): remove the `documents/google-docs/` directory the error names first (and run `filter` again if you use a subset). |
+| `google-docs show` | Print what the import skill uses (read-only). |
+
+Both take `--report <id>`, `-c, --config <path>` and `--json`. Configuring
+the same account again writes nothing and reports `changed: false`; a
+refused change exits with status 1 and, with `--json`, prints
+`{ "ok": false, "error": "…" }`. The config is changed the same way as for
+the `slack` commands, keeping everything else in it.
+
+### `google-docs show --json`
+
+`google-docs show --json` prints one JSON object:
+
+| Field | Meaning |
+| --- | --- |
+| `profile` | The profile, or `null` with `--config`. |
+| `mode` | `ic` or `manager`. |
+| `subject`, `subjectName` | The record subject (`{ kind: ic }` or `{ kind: report, reportId }`) and the report's name. |
+| `configured` | Whether Google Docs is set up for the subject. When `false`, nothing can be imported. |
+| `range` | The profile's fetch range, `since` and `until` (`null` means now), as configured: a Doc is imported when its modified time falls inside it (see [Google Docs records](#google-docs-records)). |
+| `account` | The account every imported Doc must be owned by, or `null`. |
+| `record` | The fields every staged record must carry: `type`, `source`, `sourceAccount`, `subject`, `unverified` `attribution` with no `authorId`, and `document.mimeType`; `null` when not configured. |
+| `excerptMaxBytes` | The largest record body, in UTF-8 bytes (16384). |
+| `importCommand` | The `import` command line for this subject, with `<staging-dir>` to fill in. |
+| `workLog` | Where the records will be stored. |
+
 ## Link, analyze and filter
 
 | Command | Meaning |
@@ -448,7 +574,7 @@ twice under another capitalization.
 | `--exclude-impact <levels...>` | Drop PRs at these levels (`minor`, `standard`, `major`, `flagship`). |
 | `--min-impact <level>` | Keep PRs at this level or higher. |
 | `--min-loc <lines>` | Keep PRs with at least this many lines changed (a whole number). |
-| `--linked-only` | Keep only PRs linked to tickets, tickets linked to PRs, and messages that mention a PR or ticket in the subset. |
+| `--linked-only` | Keep only PRs linked to tickets, tickets linked to PRs, and messages and Google Docs that mention a PR or ticket in the subset. |
 | `--merged-only` | Keep only merged PRs. |
 | `--exclude-status <statuses...>` | Drop tickets with these statuses, for example `"To Do"`. |
 | `--org <orgs...>` / `--exclude-org <orgs...>` | Keep or drop PRs from these GitHub orgs. |
@@ -467,6 +593,7 @@ Most filters describe authored PRs or tickets. For other evidence:
 | Tickets (`jira/`) | `--exclude-status`, and `--linked-only` (linked to a PR in the subset). |
 | PR reviews you gave (`pr-reviews/`) | `--org`, `--exclude-org`, `--repo`, `--exclude-repo`, applied to the reviewed PR. |
 | Imported messages (`messages/`) | `--linked-only` only: a message is kept when one of its mentions resolves to a PR or ticket in the subset. |
+| Imported Google Docs (`documents/`) | `--linked-only` only, as for messages. |
 
 `filter` builds the whole subset (every record type, its `.analysis/` and a
 `.filter.json` record of the filters and counts) in a directory beside

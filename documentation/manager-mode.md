@@ -345,8 +345,9 @@ work-chronicler import ./staged-batch --report alice-smith
 
 See [Import](commands.md#import) for the record format and how a batch is
 stored all or nothing. `analyze reports <id>` counts a report's imported
-messages in a separate `messages` section of its `stats.json`; project
-detection, the timeline and `analyze team` cover PRs and tickets only. The
+messages and imported Google Docs in separate `messages` and `documents`
+sections of its `stats.json`; its timeline lists the Docs apart by modified
+time, and project detection and `analyze team` cover PRs and tickets only. The
 manager skills cite messages as supplementary evidence, never as PRs or
 tickets.
 
@@ -373,6 +374,25 @@ work-chronicler slack show --report alice-smith --json
 The same rules as for an IC apply: only the report's own messages, public
 channels unless `--private` opts one in, never direct messages. See
 [Slack](commands.md#slack).
+
+### Google Docs for a Report
+
+Google Docs import is opt-in per report too: a report without Google Docs
+settings contributes no Google Docs records. The settings name the report's
+own Google account, the owner every imported Doc must have. The import skill
+reads Drive as you (the manager), so it can only find Docs the report owns
+and shared with you, and it never changes sharing. `import` refuses a Doc
+owned by anyone else, and a Doc for a report without settings.
+
+```bash
+work-chronicler google-docs configure --report alice-smith \
+  --account alice@example.com
+work-chronicler google-docs show --report alice-smith --json
+```
+
+The same rules as for an IC apply: only Google Docs (not other Drive files)
+the report owns, outside shared drives, modified inside the profile's fetch
+range. See [Google Docs](commands.md#google-docs).
 
 ---
 
@@ -517,7 +537,8 @@ Manager mode uses a specialized directory structure:
         │   │   │   │       │   ├── PLAT-100.md
         │   │   │   │       │   └── PLAT-101.md
         │   │   │   │       └── AUTH/...
-        │   │   │   └── messages/    # Records stored by `import --report alice-smith`
+        │   │   │   ├── messages/    # Records stored by `import --report alice-smith`
+        │   │   │   └── documents/   # Google Docs stored by `import --report alice-smith`
         │   │   ├── analysis/        # Per-report analysis
         │   │   │   ├── stats.json
         │   │   │   ├── projects.json

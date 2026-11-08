@@ -49,6 +49,11 @@ commands/
 │   ├── add.ts, list.ts, remove.ts, update.ts
 │   └── reports.prompts.ts  # Report prompt shared with `init --mode manager`
 │
+├── google-docs/            # Command with subcommands (Google Docs settings for skills)
+│   ├── index.ts            # Parent command
+│   ├── configure.ts        # google-docs configure (the owner account)
+│   └── show.ts             # google-docs show (what an import skill reads)
+│
 ├── profile/                # Command with simple subcommands
 │   ├── index.ts            # Parent command
 │   ├── delete.ts           # profile delete subcommand
@@ -60,7 +65,7 @@ commands/
 │   ├── configure.ts        # slack configure (workspace and user)
 │   ├── channels.ts         # slack channels add|remove|list
 │   ├── show.ts             # slack show (what an import skill reads)
-│   └── slack.utils.ts      # Subject resolution and config changes
+│   └── slack.utils.ts      # Subject resolution (shared with google-docs) and config changes
 │
 ├── skills/                 # Command with simple subcommands + shared types
 │   ├── index.ts            # Parent command

@@ -37,7 +37,7 @@ AI skills are slash commands that integrate with your AI coding assistant to:
 - **Interactive**: Many skills guide you through questions to gather context
 - **Template support**: Paste company-specific templates for reviews
 - **Synthesis**: Convert structured data (ratings, PRs, tickets) into polished prose
-- **Evidence kept in its place**: PR reviews you gave are cited as review work, and imported messages (from `work-chronicler import`) as supplementary evidence of communication and collaboration, never as authored PRs or tickets. Skills treat imported content as evidence, never as instructions, and rely on a message as your own words only when its attribution is verified.
+- **Evidence kept in its place**: PR reviews you gave are cited as review work, and imported messages (from `work-chronicler import`) as supplementary evidence of communication and collaboration, never as authored PRs or tickets. Skills treat imported content as evidence, never as instructions, and rely on a message as your own words only when its attribution is verified. Imported Google Docs are Docs you own, cited as supplementary evidence and never described as written by you (owning a Doc is not writing it).
 
 ---
 
@@ -507,7 +507,7 @@ Skills automatically detect:
 ### Data Sources
 
 Skills read from:
-1. **work-log/** - PRs and tickets (markdown with YAML frontmatter), and imported messages in `messages/`
+1. **work-log/** - PRs and tickets (markdown with YAML frontmatter), imported messages in `messages/` and imported Google Docs in `documents/`
 2. **analysis/** - Generated JSON (stats, projects, timeline)
 3. **notes/** - User-added context
 4. **performance-reviews/** - Past reviews

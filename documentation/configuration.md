@@ -63,6 +63,7 @@ example.
 | `fetch.until` | no | End date, or `null` for today. |
 | `analysis.thresholds` | no | Override the impact size thresholds (see below). |
 | `slack` | no | Slack settings for the Slack import skills (see below). Absent means no Slack records are imported. |
+| `googleDocs` | no | Google Docs settings for the Google Docs import skill (see below). Absent means no Google Docs records are imported. |
 
 JIRA fetches tickets in each project that are assigned to you and were created
 inside the date range.
@@ -101,6 +102,30 @@ A manager profile keeps the same section under each report (`reports[].slack`),
 naming the report's Slack user, and each report channel also has
 `sharedWithManager: true`: the manager confirmed they and the report are both
 members. See [Manager mode](manager-mode.md#slack-for-a-report).
+
+### Google Docs
+
+Google Docs import is opt-in. The `googleDocs` section names the Google
+account whose Docs an import skill may collect: only Google Docs that account
+owns, modified inside the `fetch` range, are imported, and `import` refuses
+any other. The CLI never contacts Google and never stores Google credentials.
+Set it with `google-docs configure` (see [Google Docs](commands.md#google-docs))
+rather than by hand.
+
+```yaml
+googleDocs:
+  account: you@example.com   # the Google account that owns the Docs
+```
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `googleDocs.account` | yes | The subject's Google account email address, read in lower case. Records' `sourceAccount` and the Doc's owner must be this account. `google-docs configure` refuses another account while the work log holds Docs owned by a different one. |
+
+A manager profile keeps the same section under each report
+(`reports[].googleDocs`), naming the report's account, which is not the account
+the skill reads Drive as: it reads as the manager, so only Docs the report owns
+and shared with the manager can be found. See
+[Manager mode](manager-mode.md#google-docs-for-a-report).
 
 ### Names
 
@@ -177,7 +202,8 @@ analysis:
         ├── pull-requests/<org>/<repo>/<YYYY-MM-DD>_<number>.md
         ├── pr-reviews/<org>/<repo>/<number>.md   # reviews you gave, from `fetch github --reviews`
         ├── jira/<instance>/<project>/<KEY>.md
-        ├── messages/<source>/<hash>.md   # records stored by `import`
+        ├── messages/<source>/<hash>.md   # messages stored by `import`
+        ├── documents/<source>/<hash>.md  # Google Docs stored by `import`
         ├── notes/               # your own notes, read by skills
         ├── performance-reviews/ # past reviews you add, read by skills
         ├── resumes/             # an existing resume, for update-resume
