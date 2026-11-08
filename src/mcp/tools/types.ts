@@ -23,7 +23,10 @@ export const PR_TICKET_COVERAGE =
  * Everything a tool handler needs, resolved once at server startup.
  */
 export interface ToolContext {
-  /** Work-log directory the tools read (`filtered/` when it has data). */
+  /**
+   * Work-log directory this call reads: the selected `filtered/` subset
+   * (even an empty one), or the full work log. Resolved on every call.
+   */
   outputDir: string;
   /**
    * The full work log (the same as `outputDir` when no subset is selected).

@@ -84,10 +84,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The filtered subset is in use whenever `filtered/` exists, even when
   nothing matched or it holds only imported messages; `analyze` and the MCP
   server no longer fall back to the full work log, and `status` shows the
-  subset's filters and counts. If a `filter` run was interrupted mid-swap,
-  `analyze` (without `--full`) and the MCP server stop with an error until
-  the next `filter` restores the previous subset (or `filter --clear`
-  discards it).
+  subset's filters and counts. The MCP server checks which subset is
+  selected on every tool call, so a running client follows `filter` and
+  `filter --clear` without a restart. If a `filter` run is in progress or
+  was interrupted mid-swap, `analyze` (without `--full`) stops with an error
+  and every MCP tool returns no results with a `note`, until the swap
+  finishes or the next `filter` restores the previous subset (or
+  `filter --clear` discards it).
 - `search_pr_reviews` no longer reads the full work log when the filtered
   subset was made before reviews were fetched: it returns no results and a
   `note` asking you to re-run `filter`. Without a configured

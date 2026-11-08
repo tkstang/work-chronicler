@@ -56,12 +56,12 @@ function describeSubset(outputDir: string, locked: boolean): string[] {
   }
   if (state.status === 'interrupted' && locked) {
     return [
-      'Filtered subset: a `work-chronicler filter` run is replacing filtered/ (see the filter lock below); `analyze` (without `--full`) and the MCP server refuse to run until it finishes or the lock is removed.',
+      'Filtered subset: a `work-chronicler filter` run is replacing filtered/ (see the filter lock below); `analyze` (without `--full`) refuses to run and MCP tools return no results until it finishes or the lock is removed.',
     ];
   }
   if (state.status === 'interrupted') {
     return [
-      'Filtered subset: a `work-chronicler filter` run was interrupted while replacing filtered/; `analyze` (without `--full`) and the MCP server refuse to run until you run `work-chronicler filter` again (it restores the previous subset first) or `work-chronicler filter --clear`.',
+      'Filtered subset: a `work-chronicler filter` run was interrupted while replacing filtered/; `analyze` (without `--full`) refuses to run and MCP tools return no results until you run `work-chronicler filter` again (it restores the previous subset first) or `work-chronicler filter --clear`.',
     ];
   }
 

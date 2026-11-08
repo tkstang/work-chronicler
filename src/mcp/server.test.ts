@@ -2,6 +2,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -9,18 +10,31 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { writeFilteredSubset } from '@cli/commands/filter/filter.utils';
 import {
+  messageFrontmatter,
+  recordFile,
+} from '@core/import/import.test-support';
+import {
+  parseImportedRecordFile,
+  serializeImportedRecord,
+} from '@core/import/record-file';
+import {
+  clearFilteredSubset,
+  getImportedRecordFilePath,
+  getImportedRecordIdentity,
   getPRFilePath,
   getPRReviewFilePath,
   type PRReviewRecord,
   type PullRequest,
+  loadConfig,
   writeMarkdownFile,
 } from '@core/index';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createServer } from './server';
+import { createServer, resolveToolContext } from './server';
 
 const packageJson = createRequire(import.meta.url)('../../package.json') as {
   version: string;
@@ -211,5 +225,136 @@ describe('MCP server over a transport', () => {
     } finally {
       await client.close();
     }
+  });
+});
+
+describe('one MCP server while the filtered subset changes', () => {
+  it('reads the subset selected at each call, and reports a replacement in progress instead of guessing', async () => {
+    const workLog = join(root, 'work-log');
+    writePR(workLog, 1, 'Full log PR');
+    const parsed = parseImportedRecordFile(
+      Buffer.from(recordFile(messageFrontmatter(1), 'Shipped it.')),
+    );
+    if (!parsed.ok) throw new Error('fixture must be valid');
+    const messagePath = getImportedRecordFilePath(
+      workLog,
+      getImportedRecordIdentity(parsed.record),
+    );
+    mkdirSync(join(messagePath, '..'), { recursive: true });
+    writeFileSync(
+      messagePath,
+      serializeImportedRecord(parsed.record, parsed.body),
+    );
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const config = await loadConfig(join(root, 'work-chronicler.yaml'));
+
+    // One server, one client, for the whole test
+    const ctx = await createServer();
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test', version: '0.0.0' });
+    await ctx.server.connect(serverTransport);
+    await client.connect(clientTransport);
+    const call = async (name: string) => {
+      const result = await client.callTool({ name, arguments: {} });
+      const [content] = result.content as { type: string; text: string }[];
+      return JSON.parse(content?.text ?? '');
+    };
+
+    try {
+      // Full work log
+      expect((await call('search_messages')).total).toBe(1);
+      expect((await call('search_prs')).total).toBe(1);
+      expect((await call('get_stats')).messages.total).toBe(1);
+
+      // A subset selected after startup: linked-only keeps nothing here
+      await writeFilteredSubset({
+        outputDir: workLog,
+        config,
+        criteria: { linkedOnly: true },
+      });
+      expect((await call('search_messages')).total).toBe(0);
+      expect((await call('search_prs')).total).toBe(0);
+      expect((await call('get_stats')).messages.total).toBe(0);
+
+      // Back to the full work log
+      clearFilteredSubset(workLog);
+      expect((await call('search_messages')).total).toBe(1);
+      expect((await call('search_prs')).total).toBe(1);
+
+      // A replacement interrupted between its renames
+      await writeFilteredSubset({
+        outputDir: workLog,
+        config,
+        criteria: { linkedOnly: true },
+      });
+      renameSync(
+        join(workLog, 'filtered'),
+        join(workLog, '.filter-previous-crash'),
+      );
+      for (const tool of ['search_messages', 'search_prs', 'get_stats']) {
+        const out = await call(tool);
+        expect(out.error).toContain('filtered subset is unavailable');
+        expect(out.note).toContain('was interrupted while replacing');
+        expect(out.results).toBeUndefined();
+      }
+
+      // ...and one in progress (its lock is held)
+      mkdirSync(join(workLog, '.filter-lock'));
+      writeFileSync(
+        join(workLog, '.filter-lock', 'owner.json'),
+        JSON.stringify({
+          version: 1,
+          pid: process.pid,
+          hostname: 'this-host',
+          startedAt: Date.now(),
+          runId: 'live',
+        }),
+      );
+      const inProgress = await call('search_messages');
+      expect(inProgress.note).toContain('(it holds .filter-lock)');
+
+      // Once the swap completes, the same client reads the subset again
+      rmSync(join(workLog, '.filter-lock'), { recursive: true });
+      renameSync(
+        join(workLog, '.filter-previous-crash'),
+        join(workLog, 'filtered'),
+      );
+      expect((await call('search_messages')).total).toBe(0);
+    } finally {
+      await client.close();
+    }
+  });
+
+  it('tells two selections apart, so a call that spans a change is reported', async () => {
+    const workLog = join(root, 'work-log');
+    writePR(workLog, 1, 'PR');
+    const config = await loadConfig(join(root, 'work-chronicler.yaml'));
+    const resolve = () => {
+      const resolved = resolveToolContext({ workLogDir: workLog });
+      if (!('key' in resolved)) throw new Error('expected a context');
+      return resolved;
+    };
+
+    const full = resolve();
+    expect(full.context.outputDir).toBe(workLog);
+    await writeFilteredSubset({
+      outputDir: workLog,
+      config,
+      criteria: { mergedOnly: true },
+      now: new Date('2026-01-01T00:00:00Z'),
+    });
+    const first = resolve();
+    expect(first.context.outputDir).toBe(join(workLog, 'filtered'));
+    await writeFilteredSubset({
+      outputDir: workLog,
+      config,
+      criteria: { mergedOnly: true },
+      now: new Date('2026-01-02T00:00:00Z'),
+    });
+    const second = resolve();
+
+    expect(new Set([full.key, first.key, second.key]).size).toBe(3);
   });
 });

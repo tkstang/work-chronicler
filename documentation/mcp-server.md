@@ -19,11 +19,15 @@ work-chronicler analyze --all
 ```
 
 If `work-log/filtered/` exists, the server reads the filtered subset instead of
-the full work log, even when the subset is empty. It never falls back to the
+the full work log, even when the subset is empty. It checks on every tool
+call, so a `filter` or `filter --clear` run while the client is connected
+takes effect on the next call without a restart. It never falls back to the
 full work log while a subset is selected; run `work-chronicler filter --clear`
-to use the full work log. If a `filter` run was interrupted while replacing
-the subset, the server stops at startup with an error until you run `filter`
-again.
+to use the full work log. While a `filter` run is replacing the subset, or
+after one was interrupted mid-swap, every tool returns no results: an `error`
+saying the subset is unavailable and a `note` saying what to do (wait, or run
+`filter` again). A call during which the selection changed is reported the
+same way; call the tool again.
 
 ## Client configuration
 

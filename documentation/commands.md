@@ -436,8 +436,9 @@ holding it, later runs are refused with the guard's path, to remove once no
 filter is running.
 
 If `filter` is interrupted between moving the old subset aside and moving the
-new one into place, `analyze` and the MCP server stop with an error rather
-than read the full work log (`analyze --full` still runs); the next `filter`
+new one into place, `analyze` stops with an error and MCP tools return no
+results with a `note`, rather than read the full work log (`analyze --full`
+still runs); the next `filter`
 restores the old subset before it does anything else, and `filter --clear`
 discards it.
 
