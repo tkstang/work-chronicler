@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-11-08
-oat_current_task_id: p09
+oat_current_task_id: p10
 oat_generated: false
 ---
 
@@ -38,27 +38,27 @@ oat_generated: false
 
 ## Progress Overview
 
-| Phase | Status    | Units | Accepted |
-| ----- | --------- | ----- | -------- |
-| p01   | completed | 1     | 1/1      |
-| p02   | completed | 1     | 1/1      |
-| p03   | completed | 1     | 1/1      |
-| p04   | completed | 1     | 1/1      |
-| p05   | completed | 1     | 1/1      |
-| p06   | completed | 1     | 1/1      |
-| p07   | completed | 1     | 1/1      |
-| p12   | completed | 1     | 1/1      |
-| p08   | completed | 1     | 1/1      |
-| p13   | completed | 1     | 1/1      |
-| p14   | pending   | 1     | 0/1      |
-| p15   | completed | 1     | 1/1      |
-| p16   | completed | 1     | 1/1      |
-| p17   | pending   | 1     | 0/1      |
-| p09   | pending   | 1     | 0/1      |
-| p10   | pending   | 1     | 0/1      |
-| p11   | pending   | 1     | 0/1      |
+| Phase | Status      | Units | Accepted |
+| ----- | ----------- | ----- | -------- |
+| p01   | completed   | 1     | 1/1      |
+| p02   | completed   | 1     | 1/1      |
+| p03   | completed   | 1     | 1/1      |
+| p04   | completed   | 1     | 1/1      |
+| p05   | completed   | 1     | 1/1      |
+| p06   | completed   | 1     | 1/1      |
+| p07   | completed   | 1     | 1/1      |
+| p12   | completed   | 1     | 1/1      |
+| p08   | completed   | 1     | 1/1      |
+| p13   | completed   | 1     | 1/1      |
+| p14   | pending     | 1     | 0/1      |
+| p15   | completed   | 1     | 1/1      |
+| p16   | completed   | 1     | 1/1      |
+| p17   | pending     | 1     | 0/1      |
+| p09   | pending     | 1     | 0/1      |
+| p10   | in_progress | 1     | 0/1      |
+| p11   | pending     | 1     | 0/1      |
 
-**Total:** 13/16 phases accepted
+**Total:** 14/16 phases accepted
 
 ---
 
@@ -1516,7 +1516,7 @@ Proof: slack suites 29/29; skill text matches the CLI
 
 ## Phase p09: Google Docs documents record and config
 
-**Status:** in_progress
+**Status:** completed
 **Base:** b00981489409bf782ed49e56fade418903fa1a1c
 **Executor:** phase-implementer:wce-p09-impl-1
 **Head:** 7feab1884270735d1e45986dac577c0e0a543a59
@@ -1598,7 +1598,11 @@ Proof: 747 tests; DoD batch green; pack 142 files
 
 ## Phase p10: Google Docs import skill and live walkthrough
 
-**Status:** pending
+**Status:** in_progress
+**Base:** 7feab1884270735d1e45986dac577c0e0a543a59
+**Executor:** phase-implementer:wce-p10-impl-1
+
+Branch `oat/evidence-expansion-m03`. Committing owner: the phase implementer (code); root owns the journal and runs the live walkthrough (the user's own Drive via `gog --readonly`, temp `WORK_CHRONICLER_HOME`, redacted counts only). Task class: consequential (privacy of the user's documents).
 
 ---
 
@@ -1637,6 +1641,7 @@ run/v1 · request=wce-p14-rev-1 · scope=p14 · action=review · role=oat-review
 - Root-inline phase: p16 confirmation-review L1 (skill block exits 0 on refusal) fixed by root (claude-opus-5-5) in p16-t14 b009814; skill text only.
   run/v1 · request=wce-p09-impl-1 · scope=p09 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p09 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
   run/v1 · request=wce-p09-rev-1 · scope=p09 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p09 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
+  run/v1 · request=wce-p09-rev-2 · scope=p09 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p09 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 - run/v1 · request=wce-p08-rev-1 · scope=p08 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p08 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 - Root-inline phase: p08 — inline exception for a version bump and CHANGELOG move; root model claude-opus-5-5

@@ -292,6 +292,10 @@ Recommendation: Apply AGENTS.md "Get buy-in before speculative complexity" (5c1f
 
 p16 passed (round 1: 0 C/H/M, 3 L: L2 fixed, L1 fixed before deferral, L3 deferred by user; confirmation: 1 L fixed root-inline, 2 speculative deferred); fix loops: 1. Head b00981489409bf782ed49e56fade418903fa1a1c; wce-p16-outcome
 
+### 2026-11-08 · structural · oat-project-implement · p09
+
+p09 passed (round 1: 0 C, 1 H, 1 L fixed in t08-t09, 4 speculative deferred; confirmation 0 findings); fix loops: 1. Head 7feab1884270735d1e45986dac577c0e0a543a59; wce-p09-outcome
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
