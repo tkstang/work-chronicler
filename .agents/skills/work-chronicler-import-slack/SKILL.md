@@ -224,13 +224,14 @@ Field by field:
 | `mentions.pullRequests` | GitHub pull request URLs in the subject's text (`https://github.com/<owner>/<repo>/pull/<n>`), each once. From a Slack link `<URL\|label>`, take only the URL. |
 | `message.container.name` | The channel's `name` exactly as `slack show` lists it, or `null`. Never the name from search results. |
 | `message.thread` | See below. |
-| Body | The subject's own text, verbatim: HTML entities decoded and the Slack markup below rewritten, so the body holds what the subject typed. Leave out quoted or forwarded text by anyone else: every line that starts with `>` is a quote, so drop it. Never add names, reply text or the parent's text. |
+| Body | The subject's own text, verbatim: HTML entities decoded and the Slack markup below rewritten, so the body holds what the subject typed. Leave out quoted or forwarded text by anyone else: a line that starts with `>` and a space (Slack's quote form, `> quoted text`) is a quote, so drop it. A line such as `>50% of tests pass` is the subject's own text and stays. Never add names, reply text or the parent's text. |
 
 Build the body from `Text` in this order:
 
 1. Decode the HTML entities Slack escapes: `&amp;` → `&`, `&lt;` → `<`,
    `&gt;` → `>`.
-2. Rewrite the Slack markup with the table below, then look again and repeat
+2. Drop the quote lines: those that start with `>` followed by a space.
+3. Rewrite the Slack markup with the table below, then look again and repeat
    until no markup is left. A literal `<…>` the subject typed around an
    auto-linked URL nests: `<<https://example.com/spec>>` becomes
    `<https://example.com/spec>` after one pass and `https://example.com/spec`
