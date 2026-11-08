@@ -140,7 +140,8 @@ normalized (host, owner and repository in lower case, `www.` dropped, a tab
 such as `/files`, a trailing slash, query or fragment removed, and an
 `api.github.com/repos/<owner>/<repo>/pulls/<n>` URL read as the same PR). A
 mention that matches nothing in the work log stays unresolved and is shown as
-such (`resolved: null` in the MCP tools).
+such (`resolved: null` in the MCP tools). So does a ticket key that tickets
+from two JIRA instances share, since it cannot tell them apart.
 
 ### The staged batch
 

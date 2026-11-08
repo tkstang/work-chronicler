@@ -63,6 +63,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   message was posted (such as the capture date), so date-filtered search and
   monthly statistics could place it in the wrong period. `occurredAt` must
   now be the time of the ts in `sourceId`, to the second.
+- A mention of a ticket key that two JIRA instances both hold resolved to
+  whichever ticket was read first, so `get_linked_work` could list a message
+  under the wrong ticket. Such a mention now stays unresolved.
 
 ## [0.6.0] - 2026-11-08
 
