@@ -30,7 +30,8 @@
     "es2024": true,
     "node": true
   },
-  "ignorePatterns": ["dist", "coverage", "node_modules"],
+  // The docs app (Next.js) has its own toolchain.
+  "ignorePatterns": ["dist", "coverage", "node_modules", "documentation/**"],
   "overrides": [
     {
       "files": ["**/*.test.ts"],
