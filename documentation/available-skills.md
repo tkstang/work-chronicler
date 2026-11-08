@@ -466,8 +466,10 @@ anything there. The CLI stores the settings and checks every record on import
    URL label from a permalink, such as `example` for `example.slack.com`)
    and the subject's Slack user ID, and runs `slack configure`.
 2. Lists your public channels and asks which hold review-relevant work.
-   Private channels are offered only if you opt in; direct messages and
-   group DMs never are.
+   If you ask for the channels you posted in, it finds them by searching
+   your own messages (the channel list leaves out archived channels and
+   ones you left). Private channels are offered only if you opt in; direct
+   messages and group DMs never are.
 3. In a manager profile, offers only channels you share with the report: it
    checks the report is a member before passing `--shared-with-manager`.
 4. Records a one-line reason per channel with `slack channels add`.
