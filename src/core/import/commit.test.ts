@@ -19,6 +19,8 @@ import {
   countingFs,
   crashAfterFs,
   crashingFs,
+  doubleFaultFs,
+  fastFs,
   faultyFs,
   fsError,
   hookedFs,
@@ -312,7 +314,7 @@ describe('import: failures and interruption at every step', () => {
           const w = world();
           setup(w);
           const result = importInto(w, {
-            env: env({ fs: faultyFs(nodeImportFs, failAt) }),
+            env: env({ fs: faultyFs(fastFs, failAt) }),
           });
           const label = `operation ${failAt} of ${counts.all} failed`;
           // Reference runs leave no bookkeeping, so before/after are records only
@@ -335,7 +337,7 @@ describe('import: failures and interruption at every step', () => {
           const w = world();
           setup(w);
           const crashed = importInto(w, {
-            env: env({ fs: crashingFs(nodeImportFs, crashAt), pid: DEAD_PID }),
+            env: env({ fs: crashingFs(fastFs, crashAt), pid: DEAD_PID }),
           });
           const recovered = recover(w);
           const final = snapshot(w.workLog);
@@ -356,6 +358,139 @@ describe('import: failures and interruption at every step', () => {
     );
   });
 
+  it(
+    'never reports a mix when handling a failure fails too',
+    EXHAUSTIVE,
+    () => {
+      // A first failure anywhere, then a second one in the rollback or
+      // cleanup that follows (the first three changes it makes).
+      const setup = scenarios[1]?.setup ?? (() => {});
+      const { before, after, counts } = reference(setup);
+      for (let first = 1; first <= counts.all; first++) {
+        for (let then = 1; then <= 3; then++) {
+          const w = world();
+          setup(w);
+          const result = importInto(w, {
+            env: env({ fs: doubleFaultFs(fastFs, first, then) }),
+          });
+          const recovered = recover(w);
+          const final = snapshot(w.workLog);
+          const label = `operation ${first} failed, then change ${then} after it`;
+
+          expect(recovered.ok, label).toBe(true);
+          if (isDeepStrictEqual(final, after)) {
+            expect([undefined, 'completed'], label).toContain(
+              recovered.recovery?.outcome,
+            );
+          } else {
+            expect(final, label).toEqual(before);
+            expect(result.ok, label).toBe(false);
+            expect(recovered.recovery?.outcome, label).not.toBe('completed');
+          }
+        }
+      }
+    },
+  );
+
+  describe('once the batch is recorded as stored', () => {
+    const setup = scenarios[1]?.setup ?? (() => {});
+    const isCommittedJournal = (path: string) =>
+      JSON.parse(readFileSync(path, 'utf-8')).state === 'committed';
+
+    /**
+     * Fail the directory sync after the `committed` journal is in place,
+     * and every later operation that `also` matches.
+     */
+    function failAfterCommitted(
+      also: (op: string, path: string) => boolean,
+    ): ImportEnv {
+      let committed = false;
+      return env({
+        fs: hookedFs(nodeImportFs, (op, args) => {
+          const path = String(args[0]);
+          if (
+            committed &&
+            op === 'syncDirectory' &&
+            path.endsWith('.import-transaction')
+          ) {
+            throw fsError('EIO');
+          }
+          if (committed && also(op, path)) throw fsError('EIO');
+          if (op === 'rename' && path.endsWith('journal.json.tmp')) {
+            committed = isCommittedJournal(path);
+          }
+        }),
+      });
+    }
+
+    it('keeps the stored batch when a later flush and a restore would fail', () => {
+      const { after } = reference(setup);
+      const w = world();
+      setup(w);
+
+      const result = importInto(w, {
+        env: failAfterCommitted(
+          (op, path) =>
+            op === 'rename' &&
+            path.includes(`${join('.import-transaction', 'backup')}`),
+        ),
+      });
+
+      expect(result.ok).toBe(true);
+      expect(result.warnings.join('\n')).toContain('could not be flushed');
+      expect(snapshot(w.workLog)).toEqual(after);
+      expect(recover(w).ok).toBe(true);
+      expect(snapshot(w.workLog)).toEqual(after);
+    });
+
+    it('reports completed only for a stored batch when cleanup also fails', () => {
+      const { after } = reference(setup);
+      const w = world();
+      setup(w);
+
+      const result = importInto(w, {
+        env: failAfterCommitted(
+          (op, path) => op === 'rename' && path.endsWith('.import-transaction'),
+        ),
+      });
+      const recovered = recover(w);
+
+      expect(result.ok).toBe(true);
+      expect(recovered.ok).toBe(true);
+      expect(recovered.recovery?.outcome).toBe('completed');
+      expect(snapshot(w.workLog)).toEqual(after);
+    });
+
+    it('does not call a recorded batch completed when a record lacks its new version', () => {
+      const w = world();
+      setup(w);
+      const dest = getImportedRecordFilePath(w.workLog, slackIdentity(1));
+      importInto(w, {
+        env: env({
+          fs: crashAfterFs(
+            nodeImportFs,
+            (op, args) =>
+              op === 'rename' &&
+              String(args[1]).endsWith('journal.json') &&
+              isCommittedJournal(String(args[1])),
+          ),
+          pid: DEAD_PID,
+        }),
+      });
+      writeFileSync(dest, 'edited after the interruption');
+
+      const result = recover(w);
+
+      expect(result.ok).toBe(false);
+      expect(result.recovery).toBeNull();
+      expect(result.issues).toEqual([
+        expect.objectContaining({ code: 'RECOVERY_CONFLICT' }),
+      ]);
+      expect(readFileSync(dest, 'utf-8')).toBe('edited after the interruption');
+      expect(existsSync(join(w.workLog, '.import-transaction'))).toBe(true);
+    });
+  });
+
   it('recovers after a crash during recovery itself', EXHAUSTIVE, () => {
     const setup = scenarios[1]?.setup ?? (() => {});
     const { before } = reference(setup);
@@ -369,7 +504,7 @@ describe('import: failures and interruption at every step', () => {
       importInto(w, {
         env: env({
           fs: crashAfterFs(
-            nodeImportFs,
+            fastFs,
             (op, args) => op === 'rename' && updated(args),
           ),
           pid: DEAD_PID,
@@ -379,7 +514,7 @@ describe('import: failures and interruption at every step', () => {
       importInto(w, {
         stagingDir: w.empty,
         env: laterEnv({
-          fs: crashingFs(nodeImportFs, crashAt),
+          fs: crashingFs(fastFs, crashAt),
           pid: DEAD_PID + 1,
         }),
       });

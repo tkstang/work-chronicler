@@ -408,6 +408,66 @@ function writeJournal(fs: ImportFs, txn: string, journal: Journal): void {
   fs.syncDirectory(txn);
 }
 
+/** Where the final journal write left the transaction, judged from disk */
+type CommitRecord =
+  | { state: 'committed' }
+  | { state: 'not-committed'; error: unknown }
+  | { state: 'unknown'; error: unknown };
+
+/**
+ * Write the journal's final `committed` state.
+ *
+ * What happens next must follow the journal on disk, never the intent: once
+ * `journal.json` says `committed`, a later recovery treats the batch as
+ * stored, so this import must not roll anything back. Every record is
+ * already stored and verified by then, so a failure to flush the directory
+ * afterwards is only a warning. If the rename itself fails, the journal is
+ * read back to learn which state is on disk.
+ */
+function writeCommittedJournal(
+  fs: ImportFs,
+  txn: string,
+  journal: Journal,
+  warnings: string[],
+): CommitRecord {
+  const tmp = join(txn, JOURNAL_TMP);
+  try {
+    try {
+      fs.unlink(tmp);
+    } catch (error) {
+      if (errorCode(error) !== 'ENOENT') throw error;
+    }
+    fs.writeFile(
+      tmp,
+      Buffer.from(JSON.stringify({ ...journal, state: 'committed' })),
+    );
+  } catch (error) {
+    // journal.json was not touched: it still says `committing`
+    return { state: 'not-committed', error };
+  }
+  try {
+    fs.rename(tmp, join(txn, JOURNAL));
+  } catch (error) {
+    const onDisk = readJournal(fs, txn);
+    if (!('journal' in onDisk) || onDisk.journal.batchId !== journal.batchId) {
+      return { state: 'unknown', error };
+    }
+    if (onDisk.journal.state === 'committing') {
+      return { state: 'not-committed', error };
+    }
+    if (onDisk.journal.state !== 'committed')
+      return { state: 'unknown', error };
+  }
+  try {
+    fs.syncDirectory(txn);
+  } catch (error) {
+    warnings.push(
+      `the import's completion record could not be flushed to disk (${describeFsError(error)}); every record is stored`,
+    );
+  }
+  return { state: 'committed' };
+}
+
 function readJournal(
   fs: ImportFs,
   txn: string,
@@ -697,6 +757,29 @@ export function recoverInterruptedImport(
   });
 
   if (journal.state === 'committed') {
+    // Only a batch whose every record holds its new version is completed
+    const unverified = journal.operations.filter((op) => {
+      try {
+        return (
+          hashOf(destinationState(fs, root, op.destination)) !== op.newHash
+        );
+      } catch {
+        return true;
+      }
+    });
+    if (unverified.length > 0) {
+      return {
+        report: null,
+        issues: unverified.map((op) =>
+          importIssue(
+            'RECOVERY_CONFLICT',
+            `an interrupted import was recorded as complete, but this record does not hold its new version; it was left as it is, and the previous version and the journal are kept in ${TRANSACTION_NAME}`,
+            { destination: displayPath(op.destination) },
+          ),
+        ),
+        warnings,
+      };
+    }
     discardTransaction(fs, txn, env, warnings);
     return { report: report('completed'), issues: [], warnings };
   }
@@ -942,10 +1025,33 @@ export function commitImportPlan(
         throw new ChangedError(displayPath(record.segments));
       }
     });
-
-    journal.state = 'committed';
-    writeJournal(fs, txn, journal);
   } catch (error) {
+    // The journal on disk says `prepared` or `committing`: undo
+    return undo(error);
+  }
+
+  // 3. Record the batch as stored. From here the journal on disk decides.
+  const record = writeCommittedJournal(fs, txn, journal, warnings);
+  if (record.state === 'not-committed') return undo(record.error);
+  if (record.state === 'unknown') {
+    return {
+      ok: false,
+      issues: [
+        importIssue(
+          'ROLLBACK_INCOMPLETE',
+          `whether the batch was recorded as stored could not be confirmed (${describeFsError(record.error)}); nothing was undone, and the next import will finish or undo it`,
+        ),
+      ],
+      warnings,
+    };
+  }
+
+  // Done: the batch is stored. Leftover bookkeeping is only a warning.
+  discardTransaction(fs, txn, env, warnings);
+  return { ok: true, issues: [], warnings };
+
+  /** Roll back the records this import may have changed */
+  function undo(error: unknown) {
     const unrestored = rollBack(
       fs,
       plan.root,
@@ -963,8 +1069,4 @@ export function commitImportPlan(
     discardTransaction(fs, txn, env, warnings);
     return { ok: false, issues: [failureIssue(error, true)], warnings };
   }
-
-  // 3. Done: the batch is stored. Leftover bookkeeping is only a warning.
-  discardTransaction(fs, txn, env, warnings);
-  return { ok: true, issues: [], warnings };
 }

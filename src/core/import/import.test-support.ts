@@ -17,7 +17,7 @@ import { dirname, join } from 'node:path';
 import { getImportedRecordFilePath } from '@storage/paths';
 import { stringify } from 'yaml';
 
-import type { ImportFs } from './import-fs';
+import { type ImportFs, nodeImportFs } from './import-fs';
 import {
   parseImportedRecordFile,
   serializeImportedRecord,
@@ -272,4 +272,43 @@ export function storeRecord(
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, serializeImportedRecord(parsed.record, parsed.body));
   return path;
+}
+
+/**
+ * The real filesystem without fsync. Loops that run hundreds of imports use
+ * it: durability cannot be observed in-process, and every operation (sync
+ * calls included) still goes through the same interface and hooks.
+ */
+export const fastFs: ImportFs = {
+  ...nodeImportFs,
+  writeFile: (path, data) => writeFileSync(path, data, { flag: 'wx' }),
+  syncDirectory: () => {},
+};
+
+/**
+ * Fail operation call `first` (1-based, any operation) and then the
+ * `then`-th mutating operation after it, so the failure handling itself
+ * (rollback, cleanup) meets a second failure. Everything else runs.
+ */
+export function doubleFaultFs(
+  base: ImportFs,
+  first: number,
+  then: number,
+): ImportFs {
+  let calls = 0;
+  let mutationsAfter = -1;
+  return hookedFs(base, (op) => {
+    calls++;
+    if (calls === first) {
+      mutationsAfter = 0;
+      throw fsError('EIO');
+    }
+    if (
+      mutationsAfter >= 0 &&
+      MUTATING_OPS.has(op) &&
+      ++mutationsAfter === then
+    ) {
+      throw fsError('EIO');
+    }
+  });
 }
