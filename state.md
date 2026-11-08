@@ -44,7 +44,7 @@ oat_dispatch_policy:
 oat_workflow_mode: goal # spec-driven | quick | import | lite | brief | goal
 oat_workflow_origin: native # native | imported
 oat_milestone: m03
-oat_milestone_status: reviewing
+oat_milestone_status: delivered
 oat_goal_status: active
 oat_goal_outcome_audit: null
 oat_goal_recovery: null
@@ -216,6 +216,47 @@ oat_deliveries:
           head: 6360304b9d261a54a8cdc1f46089ab7a6068a163
           base: 29fd72279976b9aa0f74d83ef488de353d379108
           status: merged
+  - delivery_id: d03
+    milestone: m03
+    scope: [ p13, p14, p15, p16, p09, p10, p11 ]
+    endpoint: merged
+    kind: pr
+    status: open
+    superseded_by: null
+    covers_scope_of: null
+    corrects_delivery_id: null
+    lookup:
+      repository: tkstang/work-chronicler
+      head_branch: oat/evidence-expansion-m03
+      head_sha_at_registration: 806f36cc245745a520a730c77012d7cd8ae8e495
+    members:
+      - url: https://github.com/tkstang/work-chronicler/pull/27
+        base: b17cb235eb1fa268d234a4098a7e343a6ac9fc3a
+        reviewed_head: 806f36cc245745a520a730c77012d7cd8ae8e495
+        observed_head: 806f36cc245745a520a730c77012d7cd8ae8e495
+        observed_base: b17cb235eb1fa268d234a4098a7e343a6ac9fc3a
+        status: open
+    integrated_review:
+      artifact: reviews/archived/m03-review-2026-11-08T164527Z.md
+      scope: [ p13, p14, p15, p16, p09, p10, p11 ]
+      bound_revisions:
+        - member: 0
+          head: 806f36cc245745a520a730c77012d7cd8ae8e495
+          base: b17cb235eb1fa268d234a4098a7e343a6ac9fc3a
+      disposition: passed
+    exit_gate:
+      status: allowed
+      disposition: passed
+      resolution: configured
+      config_fingerprint: null
+      reviewed_head: 806f36cc245745a520a730c77012d7cd8ae8e495
+      subject:
+        kind: code
+        scope: [ p13, p14, p15, p16, p09, p10, p11 ]
+      freshness: fresh
+      freshness_reason: null
+      decided_at: "2026-11-08T16:38:35Z"
+    endpoint_attainment: null
 # oat_skill_gate_overrides: # optional; per-project posture for configured lifecycle gates
 #   oat-project-implement: disabled # only the literal value `disabled`; absence means follow configuration
 # oat_implement_exit_gate: # optional; durable configured implementation exit-gate state
@@ -269,11 +310,11 @@ oat_deliveries:
 #   reviewed_head: null # full SHA of the commit the gate reviewed; provenance only
 #   decided_at: null # ISO 8601 UTC
 oat_docs_updated: null # null | skipped | complete — documentation sync status
-oat_pr_status: merged
-oat_pr_url: https://github.com/tkstang/work-chronicler/pull/26
+oat_pr_status: open
+oat_pr_url: https://github.com/tkstang/work-chronicler/pull/27
 oat_project_created: '2026-11-07T22:54:38.498Z' # ISO 8601 UTC timestamp — set once at project creation
 oat_project_completed: null # ISO 8601 UTC timestamp — set when project is completed/archived
-oat_project_state_updated: "2026-11-08T16:38:35Z"
+oat_project_state_updated: "2026-11-08T16:46:50Z"
 oat_generated: false
 ---
 

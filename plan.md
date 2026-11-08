@@ -450,7 +450,7 @@ Default is `[]` (fully sequential, no worktrees).
 | p11     | code     | passed          | 2026-11-08 | reviews/archived/p11-review-2026-11-08T162216Z.md (0 C/H/M; 1 Low fixed root-inline in p11-t02)                                                                                           | 157e2f86c79c60b4722a1199819483a72b2827cf | oat-reviewer-claude-claude-opus-5-5-high | -                 |
 | final   | code     | passed          | 2026-11-08 | reviews/archived/final-review-2026-11-08T163528Z.md (0 C/H/M/L)                                                                                                                           | 806f36cc245745a520a730c77012d7cd8ae8e495 | gate                                     | codex-6-sol-xhigh |
 
-| m03 | code | received | 2026-11-08 | reviews/m03-review-2026-11-08T164527Z.md | 806f36cc245745a520a730c77012d7cd8ae8e495 | manual | - |
+| m03 | code | passed | 2026-11-08 | reviews/archived/m03-review-2026-11-08T164527Z.md | 806f36cc245745a520a730c77012d7cd8ae8e495 | manual | - |
 
 Add one `code` row per phase as phases become concrete. For code-review events,
 `Reviewed Head` is the full 40-character SHA at the head of the reviewed range.
