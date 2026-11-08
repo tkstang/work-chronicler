@@ -78,6 +78,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   A batch's records may now hold at most 64 MiB in total; a larger batch is
   refused (`BATCH_TOO_LARGE`) with an instruction to split it, before the
   rest of it is read.
+- An MCP tool call that spanned two `filter` runs made with the same
+  creation time and missing record types (or two subsets from before 0.6.0,
+  which have no marker) could return data from both subsets without saying
+  the selection changed. Each subset is now told apart by the directory put
+  in place, so such a call reports that the subset changed.
 
 ## [0.6.0] - 2026-11-08
 

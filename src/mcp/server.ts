@@ -103,12 +103,14 @@ export async function createServer(): Promise<MCPServerContext> {
 
 /**
  * A fingerprint of the subset state: equal fingerprints before and after a
- * call mean the call read one consistent selection.
+ * call mean the call read one consistent selection. The generation tells
+ * successive subsets apart even when their markers match or they have none.
  */
 function stateKey(state: FilteredSubsetState): string {
   if (state.status !== 'selected') return state.status;
   return JSON.stringify([
     state.dir,
+    state.generation,
     state.selection?.createdAt ?? null,
     state.missing,
   ]);

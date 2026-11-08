@@ -143,6 +143,7 @@ describe('filtered subset selection', () => {
       status: 'selected',
       dir: filtered,
       selection: null,
+      generation: expect.any(String),
       missing: [],
     });
   });

@@ -112,6 +112,12 @@ export type FilteredSubsetState =
       /** The selection marker; null for a subset from before 0.6.0 */
       selection: FilterSelection | null;
       /**
+       * Which subset this is. Every replacement puts a new directory in
+       * place, so two subsets in turn never share it, even when their
+       * markers match or they have none (subsets from before 0.6.0).
+       */
+      generation: string;
+      /**
        * Record directories the full work log has and the subset lacks: the
        * subset was made before those records existed, so it is out of date.
        */
@@ -256,8 +262,17 @@ function findLeftovers(
  * absent; anything else that is not a directory is an error.
  */
 function subsetExists(fs: SubsetFs, filteredDir: string): boolean {
-  let entry = entryAt(fs, filteredDir);
-  if (entry === null) return false;
+  return subsetGeneration(fs, filteredDir) !== null;
+}
+
+/**
+ * The identity of `filtered/` (and of the directory it links to, if it is a
+ * link), or null when it is absent; throws as {@link subsetExists} does.
+ */
+function subsetGeneration(fs: SubsetFs, filteredDir: string): string | null {
+  const named = entryAt(fs, filteredDir);
+  if (named === null) return null;
+  let entry = named;
   if (entry.kind === 'symlink') {
     try {
       entry = fs.stat(filteredDir);
@@ -275,7 +290,8 @@ function subsetExists(fs: SubsetFs, filteredDir: string): boolean {
         'Move or remove it, then run `work-chronicler filter` again.',
     );
   }
-  return true;
+  const id = (e: FsEntry) => `${e.dev}:${e.ino}:${e.mtimeMs}`;
+  return entry === named ? id(named) : `${id(named)}>${id(entry)}`;
 }
 
 /**
@@ -309,7 +325,8 @@ export function getFilteredSubsetState(
   fs: SubsetFs = nodeSubsetFs,
 ): FilteredSubsetState {
   const dir = join(outputDir, DIRECTORIES.FILTERED);
-  if (!subsetExists(fs, dir)) {
+  const generation = subsetGeneration(fs, dir);
+  if (generation === null) {
     const { previous } = findLeftovers(fs, outputDir);
     return previous.length > 0
       ? {
@@ -330,6 +347,7 @@ export function getFilteredSubsetState(
     status: 'selected',
     dir,
     selection: readFilterSelection(dir, fs),
+    generation,
     missing,
   };
 }

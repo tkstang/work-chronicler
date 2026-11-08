@@ -367,7 +367,34 @@ describe('one MCP server while the filtered subset changes', () => {
       now: new Date('2026-01-02T00:00:00Z'),
     });
     const second = resolve();
+    // A replacement made in the same instant as the one before it
+    await writeFilteredSubset({
+      outputDir: workLog,
+      config,
+      criteria: { mergedOnly: true },
+      now: new Date('2026-01-02T00:00:00Z'),
+    });
+    const sameInstant = resolve();
+    // Subsets from before 0.6.0 have no marker at all
+    const legacy = () => {
+      const next = join(workLog, 'legacy-next');
+      mkdirSync(join(next, 'pull-requests'), { recursive: true });
+      rmSync(join(workLog, 'filtered'), { recursive: true });
+      renameSync(next, join(workLog, 'filtered'));
+      return resolve();
+    };
+    const firstLegacy = legacy();
+    const secondLegacy = legacy();
 
-    expect(new Set([full.key, first.key, second.key]).size).toBe(3);
+    expect(
+      new Set([
+        full.key,
+        first.key,
+        second.key,
+        sameInstant.key,
+        firstLegacy.key,
+        secondLegacy.key,
+      ]).size,
+    ).toBe(6);
   });
 });
