@@ -481,7 +481,9 @@ anything there. The CLI stores the settings and checks every record on import
    returns (400) is searched again channel by channel.
 3. Writes one record per message (the subject's own text; a reply keeps only
    its parent's ID and link) to a temporary staging directory, runs
-   `validate`, then `import`, and deletes the directory.
+   `validate`, then `import`, and deletes the directory. A message holding a
+   password, key, token or other secret is held back and counted, never
+   stored.
 4. Reports counts only. Running it again updates the same records and never
    duplicates them.
 

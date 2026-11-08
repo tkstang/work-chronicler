@@ -39,6 +39,10 @@ and stores the batch all or nothing.
 - **Private channels only with consent.** Search private channels, and keep
   a message from a channel that `slack show` lists with `private: true`, only
   after the user agrees in this session.
+- **Hold back secrets.** Never stage a message that contains a password, API
+  key, token, private key, auth header or a password-manager share link,
+  and never write a placeholder record for it. Count it as "held back
+  (secret)".
 - **Never read threads or channels.** Do not call `slack_read_thread` (it
   returns everyone's replies) or `slack_read_channel`. Search results are the
   only input.
@@ -150,6 +154,10 @@ reason:
    dropped here.
 4. It has text the subject wrote. A message whose `Text` is empty (a
    file-only message), a shared message or a bot attachment is skipped.
+5. It holds no secret: no password, API key, token, private key, auth
+   header or password-manager share link. Hold such a message back whole
+   (no record, no placeholder, no edited copy) and count it as "held back
+   (secret)".
 
 ### 6. Write one record per kept message
 
@@ -282,8 +290,9 @@ PR and ticket mentions in imported messages resolve to the work log.
 ### 9. Report
 
 Report counts only: days searched, whether private channels were included,
-messages found, messages skipped by reason, and the import summary
-(`created`, `updated`, `unchanged`). Do not quote message text or name anyone.
+messages found, messages skipped by reason (including "held back
+(secret)"), and the import summary (`created`, `updated`, `unchanged`). Do
+not quote message text or name anyone.
 
 Importing again is safe: each message is stored by its identity
 (workspace, channel and `Message_ts`), so a rerun updates the same records
