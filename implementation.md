@@ -3,7 +3,7 @@ oat_status: in_progress
 oat_ready_for: null
 oat_blockers: []
 oat_last_updated: 2026-11-08
-oat_current_task_id: p16
+oat_current_task_id: p09
 oat_generated: false
 ---
 
@@ -38,27 +38,27 @@ oat_generated: false
 
 ## Progress Overview
 
-| Phase | Status      | Units | Accepted |
-| ----- | ----------- | ----- | -------- |
-| p01   | completed   | 1     | 1/1      |
-| p02   | completed   | 1     | 1/1      |
-| p03   | completed   | 1     | 1/1      |
-| p04   | completed   | 1     | 1/1      |
-| p05   | completed   | 1     | 1/1      |
-| p06   | completed   | 1     | 1/1      |
-| p07   | completed   | 1     | 1/1      |
-| p12   | completed   | 1     | 1/1      |
-| p08   | completed   | 1     | 1/1      |
-| p13   | completed   | 1     | 1/1      |
-| p14   | pending     | 1     | 0/1      |
-| p15   | completed   | 1     | 1/1      |
-| p16   | in_progress | 1     | 0/1      |
-| p17   | pending     | 1     | 0/1      |
-| p09   | pending     | 1     | 0/1      |
-| p10   | pending     | 1     | 0/1      |
-| p11   | pending     | 1     | 0/1      |
+| Phase | Status    | Units | Accepted |
+| ----- | --------- | ----- | -------- |
+| p01   | completed | 1     | 1/1      |
+| p02   | completed | 1     | 1/1      |
+| p03   | completed | 1     | 1/1      |
+| p04   | completed | 1     | 1/1      |
+| p05   | completed | 1     | 1/1      |
+| p06   | completed | 1     | 1/1      |
+| p07   | completed | 1     | 1/1      |
+| p12   | completed | 1     | 1/1      |
+| p08   | completed | 1     | 1/1      |
+| p13   | completed | 1     | 1/1      |
+| p14   | pending   | 1     | 0/1      |
+| p15   | completed | 1     | 1/1      |
+| p16   | completed | 1     | 1/1      |
+| p17   | pending   | 1     | 0/1      |
+| p09   | pending   | 1     | 0/1      |
+| p10   | pending   | 1     | 0/1      |
+| p11   | pending   | 1     | 0/1      |
 
-**Total:** 12/16 phases accepted
+**Total:** 13/16 phases accepted
 
 ---
 
@@ -1387,10 +1387,10 @@ Proof: 660 tests; DoD batch green
 
 ## Phase p16: Config, CLI and skill review follow-ups
 
-**Status:** in_progress
+**Status:** completed
 **Base:** 49b6dc355dec62fec1ad89419c01a9631859faa2
 **Executor:** phase-implementer:wce-p16-impl-1
-**Head:** b04e0f29d011356864fc1eada0596d9c4d3a5c25
+**Head:** b00981489409bf782ed49e56fade418903fa1a1c
 
 Branch `oat/evidence-expansion-m03`. Committing owner: the phase implementer (code); root owns the journal. Task class: consequential (shell-safety in skill text; config rewrites).
 
@@ -1504,11 +1504,23 @@ Proof: 691 tests; DoD batch green
 **Executor:** phase-implementer:wce-p16-impl-1
 Proof: 691 tests; DoD batch green
 
+### Task p16-t14: (confirmation L1) Judge a channel add by its JSON, not the block's exit status
+
+**Status:** completed
+**Commit:** b009814
+**Executor:** root
+Files: `.agents/skills/work-chronicler-setup-slack/SKILL.md`
+Proof: slack suites 29/29; skill text matches the CLI
+
 ---
 
 ## Phase p09: Google Docs documents record and config
 
-**Status:** pending
+**Status:** in_progress
+**Base:** b00981489409bf782ed49e56fade418903fa1a1c
+**Executor:** phase-implementer:wce-p09-impl-1
+
+Branch `oat/evidence-expansion-m03`. Committing owner: the phase implementer (code); root owns the journal. Task class: consequential (new record type and privacy-bearing import rules).
 
 ---
 
@@ -1549,6 +1561,8 @@ run/v1 · request=wce-p14-rev-1 · scope=p14 · action=review · role=oat-review
   run/v1 · request=wce-p16-impl-1 · scope=p16 · action=implementation · role=oat-phase-implementer · target=oat-phase-implementer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p16 action=implementation role=implementer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-phase-implementer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 - Root-inline phase: m03 AGENTS.md rule "Get buy-in before speculative complexity" added by root (claude-opus-5-5) at the user's request in 5c1f224; docs only, outside any phase.
   run/v1 · request=wce-p16-rev-1 · scope=p16 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p16 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
+  run/v1 · request=wce-p16-rev-2 · scope=p16 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p16 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
+- Root-inline phase: p16 confirmation-review L1 (skill block exits 0 on refusal) fixed by root (claude-opus-5-5) in p16-t14 b009814; skill text only.
 - run/v1 · request=wce-p08-rev-1 · scope=p08 · action=review · role=oat-reviewer · target=oat-reviewer-claude-claude-opus-5-5-high · model=claude-opus-5-5 · effort=high · stamp=Dispatch: scope=p08 action=review role=reviewer producer=unknown provenance=unknown model_axis=selected:claude-opus-5-5 effort_axis=selected:high dispatch_policy=high dispatch_ceiling=high target=oat-reviewer-claude-claude-opus-5-5-high · launch=accepted · outcome=completed · terminal=yes · class=completed · continuation=~ · observed=~ · match=~
 
 - Root-inline phase: p08 — inline exception for a version bump and CHANGELOG move; root model claude-opus-5-5
@@ -1924,6 +1938,8 @@ Also in p03-t15: CodeRabbit 4505014153 (docs/notice wrongly said `--overwrite` f
 Known docs follow-up: the shipped CHANGELOG 0.5.0 entry still says `fetch --reviews` in one place (the CLI form is `fetch github --reviews`); correct it under Unreleased in m02.
 
 ## Deferred Findings
+
+- Speculative under the AGENTS.md rule (p16 confirmation review, deferred by root; the user may pull either in): the temporary reason file in a shared `/tmp` could be pre-created or symlinked by another user on a multi-user host (a few lines of skill text and a test-helper change); a reason saved padded by 0.6.0 makes re-adding the same channel fail as "configured with other settings" (a trimmed comparison and one test).
 
 - User decision (2026-11-08): all of p17 deferred post-goal (CodeRabbit 4506074753 verify the moved-aside entry before deleting it; 4506074768 never restore a committed replacement's backup after a failed rename; 4506074774 recover a case-differing backup), together with p16 L3 (and L1, already fixed in p16-t12). Note for L3 (implementer): locking `slack configure` alone would not close the race; `import` would also need to re-check the batch against the settings under its lock.
 

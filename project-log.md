@@ -288,6 +288,10 @@ Observation: Reviewers kept raising very unlikely failure modes (concurrent comm
 Impact: Extra phases, longer reviews and more code to maintain for little user value.
 Recommendation: Apply AGENTS.md "Get buy-in before speculative complexity" (5c1f224): fix real defects; take speculative findings to the user with their cost.
 
+### 2026-11-08 · structural · oat-project-implement · p16
+
+p16 passed (round 1: 0 C/H/M, 3 L: L2 fixed, L1 fixed before deferral, L3 deferred by user; confirmation: 1 L fixed root-inline, 2 speculative deferred); fix loops: 1. Head b00981489409bf782ed49e56fade418903fa1a1c; wce-p16-outcome
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
