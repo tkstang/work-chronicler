@@ -86,7 +86,7 @@ work-chronicler/
 ├── tsconfig.build.json         # Build config (emits dist/, excludes tests)
 ├── .oxlintrc.json              # oxlint rules
 ├── .oxfmtrc.json               # oxfmt formatting
-├── pnpm-workspace.yaml         # pnpm settings (docs app member, minimumReleaseAge, allowBuilds, overrides)
+├── pnpm-workspace.yaml         # pnpm settings (minimumReleaseAge, allowBuilds)
 └── package.json                # Single package (published as work-chronicler)
 ```
 
@@ -148,7 +148,8 @@ use isolated groups. Tagged releases and their publication jobs are outside this
 cancellation policy.
 The ordinary CI job runs on Node 24 with read-only permissions and a 20-minute
 timeout. It and tagged releases run lint, format check, type checking, the test
-suite and build. The ordinary CI job then verifies the docs app: `oat docs check`,
+suite and build. The ordinary CI job then installs the docs app in `documentation/` (its own
+lockfile) and verifies it: `oat docs check`,
 the nav sync check, the docs build and the committed `documentation/index.md`
 manifest's freshness. On PRs, CI then runs the publish dry-run against that build,
 reusing the checkout and dependencies with npm registry configuration. Main pushes
@@ -178,7 +179,8 @@ reinstalls dependencies only when the lockfile changed.
 
 - `tsconfig.json` - TypeScript configuration with path aliases
 - `.oxlintrc.json` / `.oxfmtrc.json` - Lint and format rules
-- `pnpm-workspace.yaml` - pnpm supply-chain settings, the docs-app workspace member and its `overrides` pin
+- `pnpm-workspace.yaml` - pnpm supply-chain settings
+- `documentation/pnpm-workspace.yaml` - the docs app's own pnpm install root (supply-chain settings and its `overrides` pin)
 - `work-chronicler.example.yaml` - Example configuration file
 - `src/core/index.ts` - Main exports from core module
 - `src/cli/index.ts` - CLI entry point

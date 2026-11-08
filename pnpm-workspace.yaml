@@ -1,7 +1,4 @@
-# pnpm reads its settings from this file. The root package is published;
-# the docs app (documentation/, private) is the only workspace member.
-packages:
-  - documentation
+# Single-package repo. pnpm reads its settings from this file.
 
 # Supply-chain hold: do not install versions published in the last 24h.
 # Comment this out only when a deliberately selected dependency must be
@@ -12,10 +9,3 @@ minimumReleaseAge: 1440
 # scripts. esbuild (a tsx/vitest transitive) ships prebuilt binaries.
 allowBuilds:
   esbuild: true
-
-# Fumadocs loses Markdown handler properties added in
-# mdast-util-to-markdown 2.2.0, so valid bold or italic text can fail to
-# compile. Keep this pin at the install root (see
-# documentation/docs/contributing/docs-toolchain.md).
-overrides:
-  mdast-util-to-markdown: 2.1.2

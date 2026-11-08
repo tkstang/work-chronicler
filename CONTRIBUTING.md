@@ -34,8 +34,9 @@ CI. Tests are co-located as `src/**/*.test.ts`.
 
 ## Documentation
 
-The docs are a Fumadocs app in `documentation/`, installed with the root
-workspace by `pnpm install`. Authored pages live in `documentation/docs/`,
+The docs are a Fumadocs app in `documentation/` with its own pnpm install root
+and lockfile: run `pnpm install` in `documentation/` (the root install does not
+include it). Authored pages live in `documentation/docs/`,
 starting at `documentation/docs/index.md`; update them in the same pull request
 as the behavior they describe. To preview the site, run `pnpm dev` in
 `documentation/`. Before opening a pull request that changes the docs, run the
