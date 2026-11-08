@@ -221,12 +221,20 @@ async function migrateRenamedSkills(
 ): Promise<string[]> {
   const tool = AI_TOOLS[toolKey];
   const skillsDir = getSkillsDir(toolKey);
-  const { removable, blocked } = planRenamedSkillRemoval(skillsDir);
+  const { removable, blocked, dependent } = planRenamedSkillRemoval(skillsDir);
 
   if (blocked.length > 0) {
     console.log(
       chalk.yellow(
         `  Kept ${blocked.length} old-name skill(s) in ${tool.name}: the new name is missing or its SKILL.md does not declare that name.\n${formatRenames(blocked)}\n  Re-run with --overwrite to replace what occupies the new name.`,
+      ),
+    );
+  }
+
+  if (dependent.length > 0) {
+    console.log(
+      chalk.yellow(
+        `  Kept ${dependent.length} old-name skill(s) in ${tool.name}: a skill installed under a new name resolves into the old entry (for example a symlink to the old copy), so removing it would break that skill.\n${formatRenames(dependent)}\n  Re-run with --overwrite to install an independent copy under the new name.`,
       ),
     );
   }

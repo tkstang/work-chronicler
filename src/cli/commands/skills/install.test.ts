@@ -222,6 +222,117 @@ describe('skills install rename migration', () => {
     expect(occupied(oldTeam)).toBe(false);
   });
 
+  describe('a new name already exposed through a symlink', () => {
+    /** The old copy, edited to declare the new name and linked to from it. */
+    function seedDependentLink(): { oldDir: string; newLink: string } {
+      const oldDir = seedCopy('claude', OLD_NAMES.bullets);
+      writeFileSync(
+        join(oldDir, 'SKILL.md'),
+        `---\nname: ${NEW_NAMES.bullets}\n---\nmy edits\n`,
+      );
+      const newLink = seedLink('claude', NEW_NAMES.bullets, oldDir);
+      return { oldDir, newLink };
+    }
+
+    it('keeps the old copy the new-name link points into and says why', async () => {
+      const { oldDir, newLink } = seedDependentLink();
+
+      const { error } = await install([
+        '--tool',
+        'claude',
+        '--method',
+        'copy',
+        '--yes',
+      ]);
+
+      expect(error).toBeUndefined();
+      expect(readFileSync(join(oldDir, 'SKILL.md'), 'utf8')).toContain(
+        'my edits',
+      );
+      expect(lstatSync(newLink).isSymbolicLink()).toBe(true);
+      expect(installedName('claude', NEW_NAMES.bullets)).toBe(
+        NEW_NAMES.bullets,
+      );
+      expect(output()).toContain(
+        'Kept 1 old-name skill(s) in Claude Code: a skill installed under a new name resolves into the old entry',
+      );
+      expect(output()).not.toContain('Removed');
+    });
+
+    it('keeps an old symlink that the new-name link resolves through', async () => {
+      const target = join(root, 'my-skills', 'bullets');
+      mkdirSync(target, { recursive: true });
+      writeFileSync(
+        join(target, 'SKILL.md'),
+        `---\nname: ${NEW_NAMES.bullets}\n---\nmy edits\n`,
+      );
+      const oldLink = seedLink('claude', OLD_NAMES.bullets, target);
+      seedLink('claude', NEW_NAMES.bullets, oldLink);
+
+      const { error } = await install([
+        '--tool',
+        'claude',
+        '--method',
+        'copy',
+        '--yes',
+      ]);
+
+      expect(error).toBeUndefined();
+      expect(lstatSync(oldLink).isSymbolicLink()).toBe(true);
+      expect(installedName('claude', NEW_NAMES.bullets)).toBe(
+        NEW_NAMES.bullets,
+      );
+      expect(output()).toContain('resolves into the old entry');
+    });
+
+    it('replaces the link with an independent copy and then removes the old copy with --overwrite', async () => {
+      const { oldDir, newLink } = seedDependentLink();
+
+      const { error } = await install([
+        '--tool',
+        'claude',
+        '--method',
+        'copy',
+        '--yes',
+        '--overwrite',
+      ]);
+
+      expect(error).toBeUndefined();
+      expect(occupied(oldDir)).toBe(false);
+      expect(lstatSync(newLink).isDirectory()).toBe(true);
+      expect(installedName('claude', NEW_NAMES.bullets)).toBe(
+        NEW_NAMES.bullets,
+      );
+    });
+
+    it('still removes the old copy when the new-name link points elsewhere', async () => {
+      const oldDir = seedCopy('claude', OLD_NAMES.bullets);
+      const elsewhere = join(root, 'my-skills', NEW_NAMES.bullets);
+      mkdirSync(elsewhere, { recursive: true });
+      writeFileSync(
+        join(elsewhere, 'SKILL.md'),
+        `---\nname: ${NEW_NAMES.bullets}\n---\nmy edits\n`,
+      );
+      const newLink = seedLink('claude', NEW_NAMES.bullets, elsewhere);
+
+      const { error } = await install([
+        '--tool',
+        'claude',
+        '--method',
+        'copy',
+        '--yes',
+      ]);
+
+      expect(error).toBeUndefined();
+      expect(occupied(oldDir)).toBe(false);
+      expect(readlinkSync(newLink)).toBe(elsewhere);
+      expect(readFileSync(join(newLink, 'SKILL.md'), 'utf8')).toContain(
+        'my edits',
+      );
+      expect(output()).toContain('Removed 1 old-name skill(s)');
+    });
+  });
+
   it('asks before overwriting a same-name skill and keeps it when declined', async () => {
     const edited = join(skillsDir('gemini'), NEW_NAMES.bullets);
     mkdirSync(edited, { recursive: true });

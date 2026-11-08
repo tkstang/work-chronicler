@@ -2,11 +2,14 @@ import {
   existsSync,
   lstatSync,
   readFileSync,
+  readlinkSync,
+  realpathSync,
   rmSync,
   unlinkSync,
 } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, isAbsolute, join, parse, resolve, sep } from 'node:path';
 
+import { findInstalledSkills } from './installed';
 import { RENAMED_SKILLS } from './types';
 
 /**
@@ -70,22 +73,105 @@ export function isVerifiedSkill(skillsDir: string, name: string): boolean {
   }
 }
 
+/** Upper bound on symlinks followed while resolving one path */
+const MAX_SYMLINKS = 40;
+
 /**
- * Split a tool's old-name skills into those whose replacement is installed
- * and verified (safe to remove) and those whose replacement is not.
+ * Every filesystem location visited while resolving `path`: each symlink
+ * on the way (where the link itself sits) and each real directory or file
+ * reached, all with their parent directories already resolved. Returns null
+ * when the path does not resolve.
+ */
+function resolutionTrail(path: string): string[] | null {
+  const trail: string[] = [];
+  const absolute = resolve(path);
+  let current = parse(absolute).root;
+  let pending = absolute.slice(current.length).split(/[\\/]+/);
+  let links = 0;
+
+  while (pending.length > 0) {
+    const part = pending.shift() as string;
+    if (part === '' || part === '.') continue;
+    if (part === '..') {
+      current = dirname(current);
+      continue;
+    }
+    const next = join(current, part);
+    let isSymlink: boolean;
+    try {
+      isSymlink = lstatSync(next).isSymbolicLink();
+    } catch {
+      return null;
+    }
+    trail.push(next);
+    if (!isSymlink) {
+      current = next;
+      continue;
+    }
+    if (++links > MAX_SYMLINKS) return null;
+    const target = readlinkSync(next);
+    if (isAbsolute(target)) current = parse(target).root;
+    pending = [
+      ...target.slice(parse(target).root.length).split(/[\\/]+/),
+      ...pending,
+    ];
+  }
+  return trail;
+}
+
+/**
+ * Where an old-name entry really sits: its parent resolved, the entry itself
+ * not followed. Removing the entry deletes this location (and, for a copy,
+ * everything under it); a symlink's target is never part of it.
+ */
+function entryLocation(skillsDir: string, name: string): string {
+  return join(realpathSync(skillsDir), name);
+}
+
+function isAtOrUnder(path: string, location: string): boolean {
+  return path === location || path.startsWith(location + sep);
+}
+
+/**
+ * Split a tool's old-name skills into those safe to remove and those to keep.
+ *
+ * - `removable`: the replacement is installed and verified, and no other
+ *   installed skill resolves into the old entry
+ * - `blocked`: the replacement is missing or not a verified install
+ * - `dependent`: the replacement is verified, but a skill installed under
+ *   another name (typically the replacement, symlinked to the old copy)
+ *   resolves into the old entry, so removing it would break that skill
  */
 export function planRenamedSkillRemoval(skillsDir: string): {
   removable: RenamedSkillEntry[];
   blocked: RenamedSkillEntry[];
+  dependent: RenamedSkillEntry[];
 } {
   const removable: RenamedSkillEntry[] = [];
   const blocked: RenamedSkillEntry[] = [];
-  for (const entry of findRenamedSkills(skillsDir)) {
-    (isVerifiedSkill(skillsDir, entry.newName) ? removable : blocked).push(
-      entry,
+  const dependent: RenamedSkillEntry[] = [];
+  const entries = findRenamedSkills(skillsDir);
+  if (entries.length === 0) return { removable, blocked, dependent };
+
+  // Every location the other installed skills rely on
+  const relied = findInstalledSkills(skillsDir)
+    .filter((skill) => !(skill.name in RENAMED_SKILLS))
+    .flatMap(
+      (skill) => resolutionTrail(join(skillsDir, skill.name, 'SKILL.md')) ?? [],
     );
+
+  for (const entry of entries) {
+    if (!isVerifiedSkill(skillsDir, entry.newName)) {
+      blocked.push(entry);
+      continue;
+    }
+    const location = entryLocation(skillsDir, entry.oldName);
+    (relied.some((path) => isAtOrUnder(path, location))
+      ? dependent
+      : removable
+    ).push(entry);
   }
-  return { removable, blocked };
+  return { removable, blocked, dependent };
 }
 
 /**
