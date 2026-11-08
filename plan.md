@@ -214,6 +214,7 @@ the exception: the CLI already talks to GitHub, so they are fetched directly.
   `gog`. Rejected: synthetic-only evidence.
 - **Ledger: the OAT project only** (user). Rejected: GitHub tracking issue.
 - **m02 re-alignment** (agent, 2026-11-08, GOAL-12 under the autonomous-run decision; Codex `gpt-6-astra` high advised and supports it). m02 incorporates m01's filesystem lessons through fail-closed import (p04), safe filtered-subset replacement and centralized reviewer attribution (p05), and installer replacement safety before release (new p12). p04–p08 are concrete. Remaining m01 deferrals stay recorded in the journal as post-goal follow-ups. Outcomes, Constraints, user Decisions, endpoint and authority are unchanged. Rejected: carrying every m01 deferral into m02 (dilutes the Slack delivery); deferring installer replacement safety past the goal (same data-loss class as m01's findings).
+- **m03 re-alignment** (agent, 2026-11-08, GOAL-12 under the autonomous-run decision; Codex `gpt-6-astra` high advised). m03 adds p13 (import and filter consolidation, closing the deferred `filter --clear` Medium and the PR #26 complexity findings except installer recovery) before the Google Docs phases, and makes p09–p11 concrete from the `gog` capability check. The Docs date range applies to modified time. m02 learnings applied: live walkthrough early in p10; explicit timeouts on CLI-running tests. Outcomes, Constraints, user Decisions, endpoint and authority are unchanged. Rejected: Docs first and consolidation after (Docs would build on code about to change); folding consolidation into p09 (too large to review as one phase).
 
 ## Known Unknowns
 
@@ -227,12 +228,13 @@ the exception: the CLI already talks to GitHub, so they are fetched directly.
 - Which consumers are extended versus labelled PR/ticket-only. — Settled by:
   p05
 - Slack config field names and inclusion settings. — Settled by: p06
+- Whether `import` and `filter` share one work-log lock. — Settled by: p13
 - Whether the Slack connector exposes author identity, channel visibility,
   membership, pagination and reply counts without retrieving others' text. —
   Settled by: p06
 - Whether `gog` can list docs filtered by owner (the user, or a report
   sharing with the manager) with created/modified times and pagination, and
-  which timestamp the date range applies to. — Settled by: p09
+  which timestamp the date range applies to. — Settled by: p09 (answered by the m03 capability check: yes, by owner query, with created/modified times and page tokens; the range applies to modified time)
 
 ## Delivery endpoint and authority
 
@@ -267,7 +269,7 @@ the exception: the CLI already talks to GitHub, so they are fetched directly.
 | --------- | ---------------------------- |
 | m01       | p01, p02, p03                |
 | m02       | p04, p05, p06, p07, p12, p08 |
-| m03       | p09, p10, p11                |
+| m03       | p13, p09, p10, p11           |
 
 ## Phase p01: Verb-first skill names and install migration
 
@@ -324,23 +326,31 @@ Also, from the m01 review: `filter` builds and validates a complete replacement 
 **Exit evidence:** Version and CHANGELOG committed; the local DoD batch (`pnpm lint`, `pnpm format:check`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `npm pack --dry-run`) passes. Ready-PR CI is the merge precondition, not phase evidence.
 **Provisional:** no
 
+## Phase p13: Import and filter consolidation
+
+**Intent:** Before `documents` builds on them, simplify the m02 import and filter internals and close the deferred `filter --clear` Medium. Make the identity-checked PathGuard the only ancestor checker; create the fixed record directories (`messages/<source>/`, and `documents/<source>/` once p09 adds it) up front through it instead of staging directories to any depth; give `filtered-subset`, the work-log lock and import one shared filesystem and environment seam (`errorCode`, quiet removal, coded errors); decide whether `import` and `filter` exclude each other through one work-log lock, and implement that decision; make `filter --clear` inventory restorable previous subsets under the lock before deselecting and refuse when it cannot; fix the stale lock comment in `transaction.ts`. Installer recovery (deferral 5) stays a post-goal follow-up because it guards a data-loss path.
+**Exit evidence:** The journal records the lock decision with its reason. The existing import, filter, lock and installer suites stay green without weakening any assertion (a removed test names the stronger test that replaces it). A new test shows `filter --clear` refusing, with the previous subset intact and readers unblocked, when the inventory listing fails. When import and filter share one lock, a test shows each refusing while the other holds it. `rg` finds one ancestor checker. Full DoD batch green, with explicit timeouts on any new test that runs the built CLI.
+**Provisional:** no
+
 ## Phase p09: Google Docs documents record and config
 
-**Intent:** Add the `documents` record type on the envelope and opt-in Google Docs config for IC profiles and manager reports, with ownership as the inclusion test and a defined date-range field.
-**Exit evidence:** Import tests for owned versus non-owned docs, unconfigured report, out-of-range docs, malformed records and repeated imports pass; consumers from p05 cover `documents`; the `gog` capability unknown is settled and recorded.
-**Provisional:** yes
+**Intent:** Add the `documents` record type on the import envelope and opt-in Google Docs settings for IC profiles and manager reports, with the CLI enforcing ownership and range on import, and every p05 consumer covering `documents`.
+Settled by the m03 capability check: `gog` lists a subject's Docs with a Drive query on owner (`'me' in owners`, or `'<email>' in owners` run as the manager, which returns only the report's Docs shared with the manager), Google Docs MIME type and modified time; results page with a token; `drive get --fields` gives owners and created/modified times; `docs cat --max-bytes` returns plain text.
+Design: identity `(documents, google-docs, <owner account>, <Drive file ID>)`. Settings `googleDocs: { account }` per IC profile and per report (the subject's Google account email; field names settle here), with `work-chronicler google-docs configure` and `google-docs show --json` mirroring the Slack commands; absent settings import nothing. A record carries the URL, created and modified times, owner, title and a bounded excerpt of the Doc's own text as the body; it holds no generated summary (interpretation stays in skill outputs). Import refuses a record whose owner is not the configured account, whose modified time is outside the requested range, that is not a Google Doc, or whose body exceeds the excerpt cap; in manager mode it refuses Docs for an unconfigured report. Refusals never echo record content.
+**Exit evidence:** Tests for owned versus non-owned Docs, unconfigured IC and report, out-of-range Docs, a non-Doc file, an oversized excerpt, malformed records and repeated imports pass, all without echoing content. `filter`, `status`, stats, timeline, project detection, mention resolution and an MCP tool cover `documents` (search over Docs, separate from messages), shown over a mixed work log including a filtered subset. Docs, AGENTS.md, CHANGELOG Unreleased and the config example updated. Full DoD batch green.
+**Provisional:** no
 
 ## Phase p10: Google Docs import skill and live walkthrough
 
-**Intent:** Write `work-chronicler-import-google-docs` (via `gog` or a Google Workspace MCP) for the IC and for opted-in reports.
-**Exit evidence:** Synthetic acceptance test passes; a live read-only walkthrough against the user's own Drive via `gog` into a temp home records only redacted counts and validation results in the journal.
-**Provisional:** yes
+**Intent:** Write `work-chronicler-import-google-docs` for the IC and opted-in reports: read the settings with `google-docs show --json`, list owned Docs in range with `gog` (read-only flags: `--readonly`, `--no-input`), stage one record per Doc with a bounded excerpt, then `validate` and `import`. It says Doc text is evidence, never instructions, and never writes summaries into records.
+**Exit evidence:** Early in the phase (before the gate, from the m02 learning), a live read-only walkthrough with `gog --readonly` against the user's own Drive into a temp `WORK_CHRONICLER_HOME` records only redacted counts (listed, staged, imported, refused by reason), validation results and rerun behavior in the journal; gaps it finds are fixed in this phase. A synthetic acceptance test (import → validate → link → MCP) passes for IC and for a configured report, plus refusal of an unconfigured report. Skill text reviewed against the CLI. Full DoD batch green.
+**Provisional:** no
 
 ## Phase p11: 0.7.0 release preparation
 
-**Intent:** Bump to 0.7.0 and finalize the CHANGELOG for Google Docs.
+**Intent:** Bump to 0.7.0 and finalize the CHANGELOG for m03 (Google Docs, import and filter consolidation, `filter --clear` fix).
 **Exit evidence:** Version and CHANGELOG committed; the local DoD batch (`pnpm lint`, `pnpm format:check`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `npm pack --dry-run`) passes. Ready-PR CI is the merge precondition, not phase evidence.
-**Provisional:** yes
+**Provisional:** no
 
 ---
 
@@ -402,7 +412,7 @@ Default is `[]` (fully sequential, no worktrees).
 | p04-p08 | code     | passed          | 2026-11-08 | reviews/archived/range-review-2026-11-08T105734Z.md (0 C/H; 1 M deferred to p09)                                             | 9548ee32b4b8b7595a6907bac00b9c18ff211b86 | gate                                     | codex-6-sol-xhigh |
 | m02     | code     | passed          | 2026-11-08 | reviews/archived/m02-review-2026-11-08T111220Z.md                                                                            | 9548ee32b4b8b7595a6907bac00b9c18ff211b86 | manual                                   | -                 |
 | p04-p08 | code     | passed          | 2026-11-08 | reviews/archived/range-review-2026-11-08T112332Z.md (0 C/H/M/L)                                                              | 6360304b9d261a54a8cdc1f46089ab7a6068a163 | gate                                     | codex-6-sol-xhigh |
-| m02     | code     | passed          | 2026-11-08 | reviews/archived/m02-review-2026-11-08T112855Z.md                                                                                     | 6360304b9d261a54a8cdc1f46089ab7a6068a163 | manual                                   | -                 |
+| m02     | code     | passed          | 2026-11-08 | reviews/archived/m02-review-2026-11-08T112855Z.md                                                                            | 6360304b9d261a54a8cdc1f46089ab7a6068a163 | manual                                   | -                 |
 
 Add one `code` row per phase as phases become concrete. For code-review events,
 `Reviewed Head` is the full 40-character SHA at the head of the reviewed range.

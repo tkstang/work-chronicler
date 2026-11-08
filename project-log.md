@@ -223,6 +223,44 @@ target=codex-6-sol-xhigh threshold=high findings=critical:0,high:0,medium:1,low:
 
 target=codex-6-sol-xhigh threshold=high findings=critical:0,high:0,medium:0,low:0 exit=0 status=ok artifact=.oat/projects/synced/work-chronicler-evidence-expansion/reviews/range-review-2026-11-08T112332Z.md run=ac90319d-fc12-4556-b8a9-51edfb01684f
 
+### 2026-11-08 · structural · oat-project-goal · m02
+
+Re-alignment entry after m02 delivered (d02, PR #26 open, evidence fresh at 6360304); work-chronicler-evidence-expansion-realign-m02
+
+### 2026-11-08 · project · friction · Filesystem findings converge on sweeps, not point fixes
+
+**Category:** gotcha
+**Source:** work-chronicler-evidence-expansion-learning-m02-01
+**Origin:** oat-project-goal
+**Recorded:** 2026-11-08T11:32:17Z
+
+Observation: The m02 exit gate took six attempts; each round found a new filesystem edge case in import (ancestor swaps, recovery branches, lock takeover).
+Impact: Point fixes each staled the gate and integrated review, costing a full re-run per finding.
+Recommendation: After the second filesystem finding, stop and do a generic sweep (one identity-checked ancestor guard, an explicit recovery-branch audit, one shared lock) before re-gating.
+
+### 2026-11-08 · project · friction · Test-only commits stale milestone evidence
+
+**Category:** gotcha
+**Source:** work-chronicler-evidence-expansion-learning-m02-02
+**Origin:** oat-project-goal
+**Recorded:** 2026-11-08T11:32:17Z
+
+Observation: Two CLI-spawning tests timed out on the CI runner after the gate passed; the 60 s timeout fix was test-only but staled both the exit carrier and the integrated review.
+Impact: One extra gate run and one extra integrated review.
+Recommendation: Open the PR ready and get CI green before the exit gate; give tests that spawn the built CLI an explicit timeout when written.
+
+### 2026-11-08 · project · friction · Live connector walkthrough finds what unit tests miss
+
+**Category:** environment-limited
+**Source:** work-chronicler-evidence-expansion-learning-m02-03
+**Origin:** oat-project-goal
+**Recorded:** 2026-11-08T11:32:17Z
+
+Observation: The first live Slack walkthrough found five gaps (no team ID in any read tool, concise formats omit IDs, raw markup in bodies, file-only messages) that synthetic tests had not.
+Impact: A fix round (p07-t05..t08) after the phase was otherwise done.
+Recommendation: For m03, do a read-only live walkthrough with gog against the user's own docs early in the import-skill phase, before the gate, and record only redacted counts.
+Uncertainty: gog output shapes may differ by account and doc type.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
