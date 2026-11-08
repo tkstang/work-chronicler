@@ -134,6 +134,39 @@ describe('Slack records: opt-in and identity', () => {
     ]);
   });
 
+  it('accepts permalinks only on the host of a workspace configured by its URL label', () => {
+    const slack = SYNTH_SOURCES.slack as NonNullable<
+      ImportSourceSettings['slack']
+    >;
+    const sources = { slack: { ...slack, workspace: 'example' } };
+    const at = (host: string) => ({
+      sourceAccount: 'example',
+      url: `https://${host}/archives/C0SYNTH01/p${TS.replace('.', '')}`,
+      ...reply({
+        parentUrl: `https://${host}/archives/C0SYNTH01/p${PARENT_TS.replace('.', '')}`,
+      }),
+    });
+
+    for (const host of ['example.slack.com', 'example.enterprise.slack.com']) {
+      expect(check(at(host), { sources }).issues, host).toEqual([]);
+    }
+    for (const host of [
+      'other.slack.com',
+      'other.enterprise.slack.com',
+      'example.other.slack.com',
+      'slack.com',
+    ]) {
+      expect(problems(check(at(host), { sources })), host).toEqual([
+        ['SOURCE_RULE', 'url'],
+        ['SOURCE_RULE', 'message.thread.parentUrl'],
+      ]);
+    }
+    // A team ID names no host, so any Slack host is accepted for it
+    expect(
+      check({ ...at('other.slack.com'), sourceAccount: 'T0SYNTH01' }).issues,
+    ).toEqual([]);
+  });
+
   it('refuses a message whose author is not the configured user', () => {
     const result = check({
       attribution: { status: 'verified', authorId: 'U0OTHER01' },

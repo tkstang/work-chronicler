@@ -95,6 +95,8 @@ function checkSlackIdentity(record: ImportedRecord): SourceRuleProblem[] {
 
 /** A Slack permalink: a message, by channel and ts, and nothing else */
 interface SlackPermalink {
+  /** Host name, in lower case (`example.slack.com`) */
+  host: string;
   channel: string;
   ts: string;
   threadTs: string | null;
@@ -140,10 +142,26 @@ function parseSlackPermalink(url: string): SlackPermalink | null {
     else return null;
   }
   return {
+    host,
     channel,
     ts: `${digits.slice(0, -6)}.${digits.slice(-6)}`,
     threadTs,
   };
+}
+
+/**
+ * Whether a permalink's host belongs to the configured workspace. A
+ * workspace configured by its URL label (`example`) has its messages at
+ * `example.slack.com`, or `example.enterprise.slack.com` in an Enterprise
+ * Grid org. A team ID (`T…`, `E…`) does not name a host, so any Slack host
+ * is accepted for it.
+ */
+function onConfiguredWorkspace(host: string, workspace: string): boolean {
+  if (/^[TE][A-Z0-9]/.test(workspace)) return true;
+  return (
+    host === `${workspace}.slack.com` ||
+    host === `${workspace}.enterprise.slack.com`
+  );
 }
 
 /**
@@ -246,6 +264,8 @@ function checkSlackRecord(
       (link.threadTs !== null && link.threadTs !== (thread?.parentId ?? null))
     ) {
       problem('url', 'must be the Slack permalink of this message');
+    } else if (!onConfiguredWorkspace(link.host, settings.workspace)) {
+      problem('url', 'must be a permalink on the configured Slack workspace');
     }
   }
   if (thread) {
@@ -270,6 +290,11 @@ function checkSlackRecord(
         problem(
           'message.thread.parentUrl',
           'must be the Slack permalink of the parent message, with nothing else',
+        );
+      } else if (!onConfiguredWorkspace(link.host, settings.workspace)) {
+        problem(
+          'message.thread.parentUrl',
+          'must be a permalink on the configured Slack workspace',
         );
       }
     }

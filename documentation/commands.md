@@ -228,9 +228,11 @@ changes nothing. Records that are not in the batch are never removed.
   (use the `name` that `slack show` lists);
 - `message.thread.parentId` is not a message ts, or `parentUrl` (and the
   record's own `url`) is anything but the bare Slack permalink of that
-  message (`https://<host>.slack.com/archives/<channel>/p<ts>`, any
-  `slack.com` host such as `example.enterprise.slack.com`, with at
-  most `thread_ts` and `cid` in the query);
+  message (`https://<host>.slack.com/archives/<channel>/p<ts>`, with at
+  most `thread_ts` and `cid` in the query). For a workspace configured by
+  its URL label (`example`), the host must be that workspace's
+  (`example.slack.com`, or `example.enterprise.slack.com` in an Enterprise
+  Grid org); for a team ID, any `slack.com` host is accepted;
 - a reply in a thread carries reply counts, or `replyParticipantCount`
   exceeds `replyCount`;
 - the body (the message text) still holds raw Slack markup that can carry

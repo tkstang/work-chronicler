@@ -54,6 +54,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   so the next import could not roll the partial batch back. The work log is
   now flushed after the transaction directory is created, before any record
   changes.
+- `import` accepted a Slack permalink (`url`, `message.thread.parentUrl`)
+  on another workspace's host when its channel and timestamp matched, so
+  `search_messages` could cite the wrong workspace. For a workspace
+  configured by its URL label, a permalink's host must now be
+  `<label>.slack.com` or `<label>.enterprise.slack.com`.
 
 ## [0.6.0] - 2026-11-08
 
