@@ -1048,6 +1048,12 @@ Proof: Slack suites 13/13 locally; ready-PR CI re-run
 
 ---
 
+## Phase p17: Installer replacement identity and recovery
+
+**Status:** pending
+
+---
+
 ## Phase p09: Google Docs documents record and config
 
 **Status:** pending
@@ -1421,6 +1427,15 @@ Also in p03-t15: CodeRabbit 4505014153 (docs/notice wrongly said `--overwrite` f
 
 **Outcome:** no code change after the reviewed head; d02 evidence stays fresh.
 
+### Release: m02 → 0.6.0
+
+**Merged:** https://github.com/tkstang/work-chronicler/pull/26 as b17cb235eb1fa268d234a4098a7e343a6ac9fc3a (squash, head 6360304b9d261a54a8cdc1f46089ab7a6068a163 matched), 2026-11-08
+**Tag:** v0.6.0 on b17cb23
+**Release run:** https://github.com/tkstang/work-chronicler/actions/runs/42477221644 (Publish to npm: success; Create GitHub Release: success; provenance signed)
+**npm:** `npm view work-chronicler@0.6.0 version --prefer-online` → `0.6.0`; dist-tag latest → 0.6.0 (the cached `npm view` lagged a few minutes)
+**GitHub Release:** https://github.com/tkstang/work-chronicler/releases/tag/v0.6.0 (notes written with /release-notes; a Known Issues entry covers the setup-slack reason quoting, fixed in p16)
+**Delivery:** d02 at_endpoint (merged), endpoint attainment recorded by `oat project delivery refresh`.
+
 ### PR review received: d01 (PR #25, CodeRabbit)
 
 **Date:** 2026-11-08
@@ -1441,7 +1456,7 @@ Known docs follow-up: the shipped CHANGELOG 0.5.0 entry still says `fetch --revi
 
 ## Deferred Findings
 
-- m03 re-alignment disposition (2026-11-08, Astra-advised, artifact-reviewed): the `filter --clear` Medium (gate attempt 5, M1) and PR #26 complexity finding 4 (one lock for import and filter) move to p13; findings 1–3 and 6 (fixed-depth staging, one ancestor checker, shared fs seams, `stageAsTheSkillDoes`) move to p14, and the stale `transaction.ts` comment to p13; finding 5 (installer recovery) is a post-goal follow-up: non-blocking simplification of safety-sensitive code, not a known defect. The m01 post-goal list is unchanged; 4504862955 (date-only `until` is midnight UTC) is fixed for messages in p15 and for Docs in p09.
+- m03 re-alignment disposition (2026-11-08, Astra-advised, artifact-reviewed): the `filter --clear` Medium (gate attempt 5, M1) and PR #26 complexity finding 4 (one lock for import and filter) move to p13; findings 1–3 and 6 (fixed-depth staging, one ancestor checker, shared fs seams, `stageAsTheSkillDoes`) move to p14, and the stale `transaction.ts` comment to p13; finding 5 (installer recovery) is a post-goal follow-up: non-blocking simplification of safety-sensitive code, not a known defect. The m01 post-goal list is unchanged; 4504862955 (date-only `until` is midnight UTC) is fixed in `search_messages` and date-filtered `get_stats` in p15 and for Docs in p09; it stays post-goal for PRs, tickets and review records (`search_prs`, `search_tickets`, `search_pr_reviews`).
 
 - Non-blocking (PR #26 self-review, complexity lens, independent Claude reviewer at 9548ee3): (1) directory staging built for any depth although records only go to `messages/<source>/` — create the two known directories up front through the PathGuard; (2) ancestor checks repeated at several layers — make PathGuard the only checker; (3) `SubsetFs`/`SubsetEnv`, `LockEnv`, `errorCode`/`removeQuietly`/`codedError` duplicate `ImportFs`/`ImportEnv` helpers; (4) two lock names where one work-log lock could serialize import and filter (today `filter` can run during an `import`); (5) installer crash recovery could be simplified; (6) `stageAsTheSkillDoes` re-implements skill prose; stale header comment at `transaction.ts:34-36` (lock is now mkdir+rename). Deferred by root (autonomous run): changing code now would stale the running gate for cleanup only. Follow-up trigger: m03 re-alignment / p09 (`filter` rework for `documents`); (4) decide there whether import and filter should exclude each other.
 
