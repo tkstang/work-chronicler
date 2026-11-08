@@ -32,11 +32,13 @@ and stores the batch all or nothing.
   wrote: top-level messages, threads they started, and their own replies in
   other people's threads. Never store anyone else's words, names or user IDs:
   no reply text, no parent-message text, no lists of people.
-- **Only configured channels.** Search only channels that `slack show` lists
-  with `importable: true`. Never search or store direct messages or group
+- **Only configured channels.** Keep only messages from channels that
+  `slack show` lists with `importable: true`; drop every other search result
+  without using its text. Never search or store direct messages or group
   direct messages.
-- **Private channels only with consent.** Search a channel that `slack show`
-  lists with `private: true` only after the user agrees in this session.
+- **Private channels only with consent.** Search private channels, and keep
+  a message from a channel that `slack show` lists with `private: true`, only
+  after the user agrees in this session.
 - **Never read threads or channels.** Do not call `slack_read_thread` (it
   returns everyone's replies) or `slack_read_channel`. Search results are the
   only input.
@@ -78,26 +80,37 @@ It must be outside the work log, and hold only record files named `1.md`,
 records, and about 32 MiB of record files, per batch (start a second batch
 if there are more; `BATCH_TOO_LARGE` means split it).
 
-### 4. Search each channel
+### 4. Search one day at a time
 
-For each importable channel, search with:
-
-- `slack_search_public` for a public channel (`private: false`);
-- `slack_search_public_and_private` only for a private channel the user
-  agreed to in step 2.
-
-Query, with the IDs from `slack show`:
+Slack search returns at most 400 results for one query (20 pages of 20;
+asking for page 21 fails with `page_limit_exceeded`), and a busy week has
+more. So search one day at a time, with the user ID from `slack show`:
 
 ```text
-from:<@USER_ID> in:<#CHANNEL_ID> after:<day before range.since>
+from:<@USER_ID> on:2026-01-01
 ```
 
-Add `before:<day after range.until>` when `range.until` is set. Slack's
-`after:` and `before:` exclude the day they name, so search from the day
-before `range.since` (for `since: 2026-01-01`, use `after:2025-12-31`). Pass
-`response_format: "detailed"` and `include_context=false` (so neighbouring
-messages by other people are left out), sort by timestamp, and page through
-every result with the cursor.
+- Use `slack_search_public_and_private` with
+  `channel_types: "public_channel,private_channel"` when the user agreed to
+  private channels in step 2, and `slack_search_public` (public channels
+  only) otherwise. Direct messages and group DMs then never appear.
+- Pass `response_format: "detailed"` and `include_context=false` (so
+  neighbouring messages by other people are left out), sort by timestamp,
+  and page through every result with the cursor to the last page.
+- If one day still reaches the cap (400 results, or the next page fails with
+  `page_limit_exceeded`), search that day again once per importable channel,
+  adding `in:<#CHANNEL_ID>` to the query, and use those results for the day.
+
+Slack's `on:` names a day in the searching user's own time zone, while the
+range is in UTC. So search every day from the day before `range.since`
+through `range.until` (and the day after it), or through today when
+`range.until` is `null`; step 5 keeps only messages whose UTC time is inside
+the range. The same message can come back from more than one search: keep it
+once per channel ID and `Message_ts`.
+
+Work in small date slices: search a few days, check and write their records
+(steps 5 and 6), then move on. Never hold a month of results in the
+conversation.
 
 Always use the detailed format: the concise format leaves out the channel ID,
 `Message_ts` and permalink, and a record cannot be written without them. A
@@ -117,24 +130,24 @@ Use only the IDs from `Channel` and `From`; never store the author's name or
 email, or the channel name shown there.
 
 In a manager profile the search runs as the manager, for the report's user
-ID, and only in channels the manager confirmed they share with the report
-(`importable: true`). A channel listed with `importable: false` is never
-searched.
-
-Write each record as you go (step 6) rather than holding every message in
-the conversation.
+ID, and only messages from channels the manager confirmed they share with
+the report (`importable: true`) are kept. A message from a channel listed
+with `importable: false` is never kept.
 
 ### 5. Check each result
 
 Keep a result only when all of these hold; otherwise skip it and count the
 reason:
 
-1. Its channel ID is the channel you searched (a different channel, a `D…`
-   direct message or a group DM is never kept).
+1. Its channel ID is an importable channel in `slack show` (a private one
+   only with the user's consent from step 2). Any other channel, a `D…`
+   direct message or a group DM is never kept.
 2. Its author's user ID (the `ID:` in `From`) is `user` from `slack show`.
    Never change a record's author to make it pass.
-3. Its time (`Message_ts`) is inside the range: on or after `range.since`
-   (00:00 UTC) and, when `range.until` is set, before the day after it.
+3. Its time (`Message_ts`) is inside the range in UTC: on or after
+   `range.since` (00:00 UTC) and, when `range.until` is set, before the day
+   after it (00:00 UTC). Messages from the extra days step 4 searched are
+   dropped here.
 4. It has text the subject wrote. A message whose `Text` is empty (a
    file-only message), a shared message or a bot attachment is skipped.
 
@@ -255,9 +268,9 @@ PR and ticket mentions in imported messages resolve to the work log.
 
 ### 9. Report
 
-Report counts only: channels searched (public and private), messages found,
-messages skipped by reason, and the import summary (`created`, `updated`,
-`unchanged`). Do not quote message text or name anyone.
+Report counts only: days searched, whether private channels were included,
+messages found, messages skipped by reason, and the import summary
+(`created`, `updated`, `unchanged`). Do not quote message text or name anyone.
 
 Importing again is safe: each message is stored by its identity
 (workspace, channel and `Message_ts`), so a rerun updates the same records

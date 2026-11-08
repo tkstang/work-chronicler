@@ -474,9 +474,11 @@ anything there. The CLI stores the settings and checks every record on import
 
 **Import** (`/work-chronicler-import-slack`):
 1. Reads `slack show --json` and stops if Slack is not set up.
-2. Searches each importable channel for messages the subject wrote in the
+2. Searches one day at a time for messages the subject wrote in the
    profile's fetch range (private channels only with your consent), without
-   reading threads or other people's replies.
+   reading threads or other people's replies, and keeps only those from
+   importable channels. A day with more results than one Slack search
+   returns (400) is searched again channel by channel.
 3. Writes one record per message (the subject's own text; a reply keeps only
    its parent's ID and link) to a temporary staging directory, runs
    `validate`, then `import`, and deletes the directory.
