@@ -122,11 +122,11 @@ from:<@USER_ID> on:2026-01-01
 - If one day still reaches the cap (400 results, or the next page fails with
   `page_limit_exceeded`), search that day again once per importable channel,
   adding `in:<#CHANNEL_ID>` to the query, and use those results for the day.
-
-If `on:` returns nothing for a day you expect to have messages, search that
-day again with a one-day window, `after:<the day before> before:<the day after>`,
-and use those results; the `on:` filter has returned nothing for days that
-had messages.
+  If a channel search reaches the cap too, keep its results and count that
+  channel-day as possibly incomplete.
+- If `on:` returns nothing for a day, always search that day again with a
+  one-day window, `after:<the day before> before:<the day after>`, and use
+  those results: `on:` has returned nothing for days that had messages.
 
 Slack's `on:` names a day in the searching user's own time zone, while the
 range is in UTC. So search every day from the day before `range.since`
@@ -328,8 +328,10 @@ PR and ticket mentions in imported messages resolve to the work log.
 
 Report counts only: days searched, whether private channels were included,
 messages found, messages skipped by reason (including "held back
-(secret)"), batches imported, and the import summary added up across
-batches (`created`, `updated`, `unchanged`). If the import stopped, say so
+(secret)"), batches imported, how many channel-days are possibly
+incomplete because a channel search reached the cap (say the import may be
+incomplete for them), and the import summary added up across batches
+(`created`, `updated`, `unchanged`). If the import stopped, say so
 and give the days not imported (from the failed batch's first day to the
 end of the range). Do not quote message text or name anyone.
 
