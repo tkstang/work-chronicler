@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-08
+
 ### Added
 
 - `skills install` migrates skills installed under old names on each tool you
@@ -45,7 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking:** five package skills are renamed to follow one rule,
   `work-chronicler-[manager-]<verb>-<object>`. Re-run
   `work-chronicler skills install` after upgrading on every AI tool that has
-  the skills (it replaces the old names), then restart the tool so it reloads
+  the skills (it replaces the old names; add `--overwrite` to also refresh
+  skills whose names did not change), then restart the tool so it reloads
   its skill list:
 
   | Old name                                    | New name                                             |
@@ -298,7 +301,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `analyze`, `filter`, `status`, the MCP server, and Claude Code and Cursor
   commands for summaries, resume bullets, self-reviews, projects and themes.
 
-[Unreleased]: https://github.com/tkstang/work-chronicler/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/tkstang/work-chronicler/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/tkstang/work-chronicler/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/tkstang/work-chronicler/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/tkstang/work-chronicler/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/tkstang/work-chronicler/compare/v0.3.0...v0.3.1
