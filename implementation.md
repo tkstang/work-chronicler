@@ -893,7 +893,7 @@ Proof: `format:check`
 **Status:** completed
 **Base:** 76140798ed0f67bb17ab685ed76f9d364e76a4cd
 **Executor:** inline:p08-inline-exception
-**Head:** 9b9cb42346c8f4b57438a86177933624ec44063c
+**Head:** ce900184bb444954f45978a233c4478ffac09694
 
 Inline exception (recorded before editing): version bump and CHANGELOG section move only — no new surface, no unresolved design, not consequential before the tag push (which happens after merge under the Release authority), one proof command (the local DoD batch). Committing owner: root. Parallelism: single trivial phase.
 
@@ -934,6 +934,16 @@ Proof: 6 new tests fail on a30a118 (gate hook, swapped parent, linked/copied bac
 **Source review:** reviews/archived/final-review-2026-11-08T092006Z.md (H1, H2)
 Files: `documentation/commands.md`, `CHANGELOG.md` ([0.6.0], unreleased)
 Proof: `format:check`; root re-ran typecheck, lint, format:check, 574 tests at 9b9cb42: pass
+
+### Task p08-t05: (gate) Resolve the filtered subset on every MCP tool call
+
+**Status:** completed
+**Commit:** ce900184bb444954f45978a233c4478ffac09694
+**Executor:** phase-implementer:wce-p05-impl-1 (m02 closeout fix)
+**Source review:** reviews/archived/final-review-2026-11-08T092006Z.md (M1)
+The server is bound to the full work log and resolves the subset state before every tool call, re-checking after the handler; an in-progress, interrupted or unreadable subset returns no results with an `error` and `note`, never the full log.
+Files: `src/mcp/server.ts`, `server.test.ts`, `src/mcp/tools/types.ts`, `src/cli/commands/status.ts`, `documentation/{mcp-server,commands}.md`, `CHANGELOG.md` ([0.6.0])
+Proof: same-client transport regression (full → subset → full, interrupted, in progress); root re-ran typecheck, lint, format:check, 576 tests at ce90018: pass
 
 ---
 
@@ -1218,7 +1228,7 @@ Also in p03-t15: CodeRabbit 4505014153 (docs/notice wrongly said `--overwrite` f
 - H2 (High): recovery reads and renames backup files through a symlinked `backup/` ancestor (`transaction.ts:603`) → fix; agree.
 - M1 (Medium): a running MCP server keeps the directory captured at startup, so a subset selected later is bypassed (`src/mcp/tools/search-messages.ts:98`, `server.ts:120`) → fix; agree.
 
-**Outcome:** fixes dispatched as m02 closeout tasks under p08 (the milestone's last phase, as m01 did under p03).
+**Outcome:** H1, H2 fixed in p08-t03..t04 (9b9cb42); M1 fixed in p08-t05 (ce90018). Gate runs again (attempt 2).
 
 ### PR review received: d01 (PR #25, CodeRabbit)
 
