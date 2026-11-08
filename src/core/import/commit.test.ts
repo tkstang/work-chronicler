@@ -211,6 +211,26 @@ describe('import: committing a batch', () => {
     expect(result.ok).toBe(false);
     expect(snapshot(w.workLog)).toEqual(before);
   });
+
+  it('creates no record directory when a batch is only validated or is rejected', () => {
+    // A fresh work log: storing this batch would create messages/slack/
+    const w = world();
+    scenarios[0]?.setup(w);
+    expect(snapshot(w.workLog)).toEqual({});
+
+    const validated = importInto(w, { mode: 'validate' });
+    expect(validated.ok).toBe(true);
+    expect(validated.summary.created).toBe(2);
+    expect(snapshot(w.workLog)).toEqual({});
+
+    // One bad record rejects the batch, valid records included
+    writeFileSync(join(w.staging, 'z.md'), '---\nnot: [valid\n---\n');
+    for (const mode of ['validate', 'import'] as const) {
+      const rejected = importInto(w, { mode });
+      expect(rejected.ok, mode).toBe(false);
+      expect(snapshot(w.workLog), mode).toEqual({});
+    }
+  });
 });
 
 describe('import: paths changing between validation and commit', () => {
