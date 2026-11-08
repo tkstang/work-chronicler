@@ -243,7 +243,7 @@ Field by field:
 | `url` | `webViewLink` from `drive get` when it is `https://docs.google.com/document/d/<id>/edit` (optionally with `?usp=<word>`, such as `?usp=drivesdk`); otherwise `null`. |
 | `occurredAt`, `updatedAt` | Both the `modifiedTime` from `drive get`, exactly as Drive gives it (UTC, ending in `Z`). |
 | `capturedAt` | The time you read the Doc, UTC ending in `Z`. |
-| `mentions.tickets` | Ticket keys in the title or excerpt, such as `BILL-311` (uppercase, no duplicates). |
+| `mentions.tickets` | Ticket keys in the title or excerpt, such as `BILL-311`, uppercase and each once. A key is a letter, then letters, digits or `_`, then `-`, then a number with no leading zero (`BILL-311`, `OPS_2-7`). Leave out anything else, such as `BILL-0311`, `2FA-1` or `BILL-0`: one malformed key refuses the whole chunk (`SCHEMA_INVALID` on `mentions.tickets`). |
 | `mentions.pullRequests` | GitHub pull request URLs in the title or excerpt (`https://github.com/<owner>/<repo>/pull/<n>`), each once. |
 | `document.title` | The Doc's `name` on one line (tabs and line breaks become spaces), at most 1,000 characters, with `\` written as `\\` and `"` as `\"` inside the quotes. |
 | `document.createdAt` | `createdTime` from `drive get`. |
