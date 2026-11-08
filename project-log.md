@@ -39,6 +39,10 @@ target=codex-6-sol-xhigh threshold=high findings=critical:0,high:2,medium:2,low:
 
 target=codex-6-sol-xhigh threshold=high findings=critical:0,high:1,medium:2,low:0 exit=1 status=blocked artifact=.oat/projects/synced/work-chronicler-evidence-expansion/reviews/final-review-2026-11-08T003901Z.md run=635ed2b4-afb9-4199-8199-2d42911836f5
 
+### 2026-11-08 · structural · oat-project-implement · m01
+
+STOP boundary: m01 exit gate blocked after 2 of 2 attempts (onFailure block); fixes p03-t07/t08 dispatched; third gate run awaits operator direction; wce-m01-gate-exhausted
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
