@@ -21,6 +21,12 @@ scratch workspace so your own profiles are untouched:
 WORK_CHRONICLER_HOME="$(mktemp -d)" pnpm cli init
 ```
 
+To try a published version with `npx work-chronicler@<version>`, run it from
+an isolated temporary directory outside any npm project or workspace (for
+example `cd "$(mktemp -d)"`). Inside this repository, or a project that
+links a checkout, npx may resolve the local package instead of the
+published version.
+
 ## Checks
 
 The `package.json` scripts are the source of truth for linting, formatting,

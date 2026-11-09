@@ -32,11 +32,17 @@ and stores the batch all or nothing.
   wrote: top-level messages, threads they started, and their own replies in
   other people's threads. Never store anyone else's words, names or user IDs:
   no reply text, no parent-message text, no lists of people.
-- **Only configured channels.** Search only channels that `slack show` lists
-  with `importable: true`. Never search or store direct messages or group
+- **Only configured channels.** Keep only messages from channels that
+  `slack show` lists with `importable: true`; drop every other search result
+  without using its text. Never search or store direct messages or group
   direct messages.
-- **Private channels only with consent.** Search a channel that `slack show`
-  lists with `private: true` only after the user agrees in this session.
+- **Private channels only with consent.** Search private channels, and keep
+  a message from a channel that `slack show` lists with `private: true`, only
+  after the user agrees in this session.
+- **Hold back secrets.** Never stage a message that contains a password, API
+  key, token, private key, auth header or a password-manager share link,
+  and never write a placeholder record for it. Count it as "held back
+  (secret)".
 - **Never read threads or channels.** Do not call `slack_read_thread` (it
   returns everyone's replies) or `slack_read_channel`. Search results are the
   only input.
@@ -64,40 +70,75 @@ record must carry) and `importCommand`.
 
 If any importable channel has `private: true`, ask: "May I search your
 private channels <names> for <the subject's> messages? Private channel search
-uses a Slack permission you may be asked to approve." Search private channels
-only if the user says yes; otherwise skip them and count them as skipped.
+uses a Slack permission you may be asked to approve." The user may agree to
+some of them or all of them. Only if they want fewer searches, offer one
+more choice: a search of all private channels they belong to, which reads
+the subject's messages in every one of them (those from unconfigured
+channels are dropped unused). Search only what the user agreed to; skip
+every other private channel and count it as skipped.
 
-### 3. Make a staging directory
+### 3. Start a batch in a new staging directory
+
+Import in batches of at most a few hundred records (about 300). Each batch
+gets its own new staging directory:
 
 ```bash
 STAGING=$(mktemp -d "${TMPDIR:-/tmp}/wc-slack-import.XXXXXX")
 ```
 
 It must be outside the work log, and hold only record files named `1.md`,
-`2.md`, …: no other files, hidden files or subdirectories. At most 10,000
-records, and about 32 MiB of record files, per batch (start a second batch
-if there are more; `BATCH_TOO_LARGE` means split it).
+`2.md`, …: no other files, hidden files or subdirectories. When the batch
+holds a few hundred records, or every kept result of the last day searched
+is written, validate and import it (step 7) and delete its directory
+(step 8) before starting the next batch here with a new `mktemp -d`. Kept
+results that did not fit go into the next batch, even after the last day.
 
-### 4. Search each channel
+The CLI refuses a batch of more than 10,000 records, or whose records hold
+more than 64 MiB in total, each counted as its stored form plus its body
+text (`BATCH_TOO_LARGE`: split it), and a record file over 1 MiB
+(`FILE_TOO_LARGE`). Never validate or import a staging directory you did
+not create for this batch.
 
-For each importable channel, search with:
+### 4. Search one day at a time
 
-- `slack_search_public` for a public channel (`private: false`);
-- `slack_search_public_and_private` only for a private channel the user
-  agreed to in step 2.
-
-Query, with the IDs from `slack show`:
+Slack search returns at most 400 results for one query (20 pages of 20;
+asking for page 21 fails with `page_limit_exceeded`), and a busy week has
+more. So search one day at a time, with the user ID from `slack show`:
 
 ```text
-from:<@USER_ID> in:<#CHANNEL_ID> after:<day before range.since>
+from:<@USER_ID> on:2026-01-01
 ```
 
-Add `before:<day after range.until>` when `range.until` is set. Slack's
-`after:` and `before:` exclude the day they name, so search from the day
-before `range.since` (for `since: 2026-01-01`, use `after:2025-12-31`). Pass
-`response_format: "detailed"` and `include_context=false` (so neighbouring
-messages by other people are left out), sort by timestamp, and page through
-every result with the cursor.
+- Search public channels with `slack_search_public` (public channels only).
+- Search a private channel the user agreed to in step 2 on its own: the
+  same query plus `in:<#CHANNEL_ID>`, with `slack_search_public_and_private`.
+  Only when the user agreed to all private channels they belong to, run one
+  `slack_search_public_and_private` search for the day with
+  `channel_types: "public_channel,private_channel"` instead of both.
+- Direct messages and group DMs never appear in these searches.
+- Pass `response_format: "detailed"` and `include_context=false` (so
+  neighbouring messages by other people are left out), sort by timestamp,
+  and page through every result with the cursor to the last page.
+- If one day still reaches the cap (400 results, or the next page fails with
+  `page_limit_exceeded`), search that day again once per importable channel you may
+  search (public channels, and only the private channels the user agreed
+  to), adding `in:<#CHANNEL_ID>` to the query, and use those results for the day.
+  If a channel search reaches the cap too, keep its results and count that
+  channel-day as possibly incomplete.
+- If `on:` returns nothing for a day, always search that day again with a
+  one-day window, `after:<the day before> before:<the day after>`, and use
+  those results: `on:` has returned nothing for days that had messages.
+
+Slack's `on:` names a day in the searching user's own time zone, while the
+range is in UTC. So search every day from the day before `range.since`
+through `range.until` (and the day after it), or through today when
+`range.until` is `null`; step 5 keeps only messages whose UTC time is inside
+the range. The same message can come back from more than one search: keep it
+once per channel ID and `Message_ts`.
+
+Work in small date slices: search a few days, check and write their records
+(steps 5 and 6), then move on. Never hold a month of results in the
+conversation.
 
 Always use the detailed format: the concise format leaves out the channel ID,
 `Message_ts` and permalink, and a record cannot be written without them. A
@@ -117,26 +158,30 @@ Use only the IDs from `Channel` and `From`; never store the author's name or
 email, or the channel name shown there.
 
 In a manager profile the search runs as the manager, for the report's user
-ID, and only in channels the manager confirmed they share with the report
-(`importable: true`). A channel listed with `importable: false` is never
-searched.
-
-Write each record as you go (step 6) rather than holding every message in
-the conversation.
+ID, and only messages from channels the manager confirmed they share with
+the report (`importable: true`) are kept. A message from a channel listed
+with `importable: false` is never kept.
 
 ### 5. Check each result
 
 Keep a result only when all of these hold; otherwise skip it and count the
 reason:
 
-1. Its channel ID is the channel you searched (a different channel, a `D…`
-   direct message or a group DM is never kept).
+1. Its channel ID is an importable channel in `slack show` (a private one
+   only with the user's consent from step 2). Any other channel, a `D…`
+   direct message or a group DM is never kept.
 2. Its author's user ID (the `ID:` in `From`) is `user` from `slack show`.
    Never change a record's author to make it pass.
-3. Its time (`Message_ts`) is inside the range: on or after `range.since`
-   (00:00 UTC) and, when `range.until` is set, before the day after it.
+3. Its time (`Message_ts`) is inside the range in UTC: on or after
+   `range.since` (00:00 UTC) and, when `range.until` is set, before the day
+   after it (00:00 UTC). Messages from the extra days step 4 searched are
+   dropped here.
 4. It has text the subject wrote. A message whose `Text` is empty (a
    file-only message), a shared message or a bot attachment is skipped.
+5. It holds no secret: no password, API key, token, private key, auth
+   header or password-manager share link. Hold such a message back whole
+   (no record, no placeholder, no edited copy) and count it as "held back
+   (secret)".
 
 ### 6. Write one record per kept message
 
@@ -180,7 +225,18 @@ Field by field:
 | `mentions.pullRequests` | GitHub pull request URLs in the subject's text (`https://github.com/<owner>/<repo>/pull/<n>`), each once. From a Slack link `<URL\|label>`, take only the URL. |
 | `message.container.name` | The channel's `name` exactly as `slack show` lists it, or `null`. Never the name from search results. |
 | `message.thread` | See below. |
-| Body | The subject's own text, verbatim, with the Slack markup below rewritten. Leave out quoted or forwarded text by anyone else: every line that starts with `>` is a quote, so drop it. Never add names, reply text or the parent's text. |
+| Body | The subject's own text, verbatim: HTML entities decoded and the Slack markup below rewritten, so the body holds what the subject typed. Leave out quoted or forwarded text by anyone else: a line that starts with `>` and a space (Slack's quote form, `> quoted text`) is a quote, so drop it. A line such as `>50% of tests pass` is the subject's own text and stays. Never add names, reply text or the parent's text. |
+
+Build the body from `Text` in this order:
+
+1. Decode the HTML entities Slack escapes: `&amp;` → `&`, `&lt;` → `<`,
+   `&gt;` → `>`.
+2. Drop the quote lines: those that start with `>` followed by a space.
+3. Rewrite the Slack markup with the table below, then look again and repeat
+   until no markup is left. A literal `<…>` the subject typed around an
+   auto-linked URL nests: `<<https://example.com/spec>>` becomes
+   `<https://example.com/spec>` after one pass and `https://example.com/spec`
+   after the second. One pass leaves markup that `validate` refuses.
 
 Slack markup in `Text`, rewritten in the body:
 
@@ -197,7 +253,9 @@ Slack markup in `Text`, rewritten in the body:
 Threads, from the `thread_ts` in the result's permalink:
 
 - **No `thread_ts`, or `thread_ts` equal to `Message_ts`** (a top-level
-  message or a thread the subject started): `thread: null`. When the detailed
+  message or a thread the subject started): `thread: null`, and the `url`
+  drops the `?thread_ts=…` a thread starter's permalink carries (it names
+  the message itself, and `validate` refuses it on `url`). When the detailed
   result shows a `Reply count: <n>` line (it does for a thread the subject
   started), copy `<n>` into `replyCount`; otherwise leave it `0`. The results
   never show how many people replied, so `replyParticipantCount` stays `0`.
@@ -208,7 +266,7 @@ Threads, from the `thread_ts` in the result's permalink:
   `https://<host>/archives/<channel ID>/p<thread_ts without the dot>` on the
   same host as the message's permalink, or `null`. `replyCount` and `replyParticipantCount` stay `0`.
 
-### 7. Validate, then import
+### 7. Validate, read the result, then import
 
 Take the `importCommand` argv from `slack show`, replace `<staging-dir>` with
 `$STAGING`, and add `--json`. First run it with `validate` in place of
@@ -233,31 +291,51 @@ If `ok` is `false`, read each issue's `code`, `file` and `field`:
   again.
 - `SOURCE_RULE` on `body`: the text still holds raw Slack markup (a
   `<@…>` mention, a `<#…>` channel link, a `<!…>` special mention or a
-  `<link>`/`<link|label>`). Rewrite it with the markup table in step 6 and
-  validate again.
+  `<link>`/`<link|label>`). Rewrite it with the markup table in step 6,
+  repeating until no markup is left (a nested `<<https://…>>` needs two
+  passes), and validate again.
 - `RECOVERY_REQUIRED`: an earlier import was interrupted. The next `import`
   finishes it first; tell the user.
+- `IMPORT_IN_PROGRESS`: another import holds the work-log lock (`import`
+  also reports it while a `filter` runs). Wait a minute and run the same
+  command again, keeping the staging directory, a few times. Never remove
+  the lock yourself.
 
 When `validate` passes, run the `importCommand` itself with `$STAGING` and
-`--json`. It stores every record or none. If it fails, show the user the
-issue codes and fields (they never contain message text).
+`--json`. It stores every record or none. On `IMPORT_IN_PROGRESS`, wait and
+retry it the same way before anything else.
 
-### 8. Clean up
+If the batch still fails (retries used up, or an issue you cannot fix),
+stop the import here: show the user the issue codes and fields (they never
+contain message text), note the first and last day the batch covers, and
+do not search or import any later day. Step 8 still deletes the directory;
+running the skill again for those days later is safe.
 
-Always delete the staging directory, whether the import succeeded or not:
+### 8. Clean up, then continue
+
+Delete the batch's staging directory once its import succeeded or the
+import stopped (never between a failed attempt and its retry):
 
 ```bash
 rm -rf "$STAGING"
 ```
 
-In an IC profile, run `work-chronicler link` afterwards: it reports how many
+If the import stopped, go to step 9. Otherwise go back to step 3 while any
+day is left to search or any kept result is not yet imported: the import
+ends only when every kept result is. After the last batch, in an IC
+profile, run `work-chronicler link`: it reports how many
 PR and ticket mentions in imported messages resolve to the work log.
 
 ### 9. Report
 
-Report counts only: channels searched (public and private), messages found,
-messages skipped by reason, and the import summary (`created`, `updated`,
-`unchanged`). Do not quote message text or name anyone.
+Report counts only: days searched, whether private channels were included,
+messages found, messages skipped by reason (including "held back
+(secret)"), batches imported, how many channel-days are possibly
+incomplete because a channel search reached the cap (say the import may be
+incomplete for them), and the import summary added up across batches
+(`created`, `updated`, `unchanged`). If the import stopped, say so
+and give the days not imported (from the failed batch's first day to the
+end of the range). Do not quote message text or name anyone.
 
 Importing again is safe: each message is stored by its identity
 (workspace, channel and `Message_ts`), so a rerun updates the same records
