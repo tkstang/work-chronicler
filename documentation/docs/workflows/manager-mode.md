@@ -249,8 +249,8 @@ All fetch commands (`github`, `jira`, `all`) support three modes in manager mode
 
 **Important**: Reports are fetched with the manager's tokens. GitHub requests use
 the manager's GitHub token and fetch PRs authored by the report's GitHub
-username. JIRA requests use the manager's JIRA API token with the report's
-email as the account email, and fetch tickets assigned to that account in the
+username. JIRA requests authenticate as the manager (the manager's JIRA email
+and API token) and fetch the tickets assigned to the report's email in the
 report's JIRA projects.
 
 ### Fetch All Reports

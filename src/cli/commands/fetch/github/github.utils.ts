@@ -226,6 +226,7 @@ async function fetchRepoPRs(
   const skipped = 0;
   let cached = 0;
   let page = 1;
+  let renameNoted = false;
 
   /**
    * Determine if we can skip this repo entirely based on cache.
@@ -286,21 +287,39 @@ async function fetchRepoPRs(
         continue;
       }
 
-      // Skip if already cached
-      const cacheKey = `${org}/${repo}/${pr.number}`;
+      // GitHub redirects a renamed repo's old name, so file every PR under
+      // the repo's current name: a config listing both names would otherwise
+      // store each PR twice.
+      const repoName = pr.base.repo.name;
+      if (repoName !== repo && !renameNoted) {
+        renameNoted = true;
+        spinner.stop();
+        console.log(
+          `  ${chalk.yellow('⚠')} ${chalk.gray(org)}/${chalk.cyan(repo)} ${chalk.yellow(`is now ${org}/${repoName}; its PRs are stored under the current name`)}`,
+        );
+        console.log(
+          chalk.gray(
+            `    Use ${repoName} in the config. PRs stored earlier under ${org}/${repo} are duplicates: delete them (and run \`filter\` again if you use it).`,
+          ),
+        );
+        spinner.start();
+      }
+
+      // Skip if already cached, or already written this run under another name
+      const cacheKey = `${org}/${repoName}/${pr.number}`;
       if (cacheInfo.cachedPRs.has(cacheKey)) {
         cached++;
         continue;
       }
 
-      spinner.text = `${chalk.gray(org)}/${chalk.cyan(repo)} - Fetching PR #${pr.number}...`;
+      spinner.text = `${chalk.gray(org)}/${chalk.cyan(repoName)} - Fetching PR #${pr.number}...`;
 
       // Fetch additional PR details (additions, deletions, etc.)
       let prDetails: Awaited<ReturnType<typeof octokit.pulls.get>>;
       try {
         prDetails = await octokit.pulls.get({
           owner: org,
-          repo,
+          repo: repoName,
           pull_number: pr.number,
         });
       } catch (error) {
@@ -310,7 +329,7 @@ async function fetchRepoPRs(
       const prData: PullRequest = {
         title: pr.title,
         prNumber: pr.number,
-        repository: repo,
+        repository: repoName,
         org,
         author: pr.user?.login ?? 'unknown',
         state: mapPRState(pr.state, pr.merged_at),
@@ -328,13 +347,14 @@ async function fetchRepoPRs(
       const filePath = getPRFilePath(
         outputDir,
         org,
-        repo,
+        repoName,
         createdAt,
         pr.number,
       );
       const body = pr.body ?? '';
 
       writeMarkdownFile(filePath, prData, body);
+      cacheInfo.cachedPRs.add(cacheKey);
       written++;
 
       if (verbose) {

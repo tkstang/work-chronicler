@@ -107,7 +107,7 @@ describe('report paths for an IC profile named "manager"', () => {
       join(workLog, '.analysis'),
     );
     expect(getReportOutputsDir('manager', 'alice-smith')).toBe(
-      join(workLog, 'outputs'),
+      join(root, 'profiles', 'manager', 'outputs'),
     );
   });
 });
