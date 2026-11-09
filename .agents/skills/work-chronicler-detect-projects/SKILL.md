@@ -135,10 +135,10 @@ For each project, gather:
 **Impact**: 3 flagship, 2 major
 
 **Tickets**:
-- DWP-575: Add cursor command for creating jira ticket
-- DWP-576: Create honeycomb-env package
-- DWP-577: Refactor helm charts
-- DWP-578: Update deployment scripts
+- PROJ-575: Add cursor command for creating jira ticket
+- PROJ-576: Create shared-env package
+- PROJ-577: Refactor helm charts
+- PROJ-578: Update deployment scripts
 
 **Key Deliverables**:
 - OAuth2 integration with multiple providers
@@ -153,9 +153,9 @@ For each project, gather:
 **Impact**: 2 flagship, 4 major, 2 standard
 
 **Tickets**:
-- DWP-463: Eater app lambda optimization
-- DWP-529: Caching layer implementation
-- DWP-530: Database query optimization
+- PROJ-463: Eater app lambda optimization
+- PROJ-529: Caching layer implementation
+- PROJ-530: Database query optimization
 
 **Key Deliverables**:
 - 73% reduction in API latency

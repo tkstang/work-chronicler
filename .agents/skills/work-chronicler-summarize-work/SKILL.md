@@ -257,7 +257,7 @@ This ensures users have both immediate feedback AND a persistent file they can r
 
 ### Top Repositories
 1. voxmedia/duet: 206 PRs (+45,000 / -12,000 lines)
-2. voxmedia/honeycomb: 63 PRs (+8,500 / -2,100 lines)
+2. voxmedia/shared-platform: 63 PRs (+8,500 / -2,100 lines)
 
 ### Activity Timeline
 - Busiest month: August 2025 (41 PRs)
