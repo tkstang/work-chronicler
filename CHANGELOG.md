@@ -12,6 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `fetch github` stores PRs under each repo's current name. A config that
   listed a renamed repo under both its old and new names stored every PR
   twice; it now notes the rename and stores each PR once.
+- Manager-mode `fetch jira` and `fetch all` authenticate as the manager and
+  fetch the tickets assigned to the report's email. They paired the report's
+  email with the manager's API token, which JIRA rejects, or, when it
+  authenticated, fetched the manager's own tickets (#31).
+
+### Added
+
+- `jira.instances[].assignee` selects whose tickets to fetch (an email or
+  account ID); the authenticated account remains the default.
 
 ### Changed
 

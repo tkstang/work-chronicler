@@ -156,8 +156,11 @@ export function buildReportConfig(
               url: managerConfig.jira.host.startsWith('https://')
                 ? managerConfig.jira.host
                 : `https://${managerConfig.jira.host}`,
-              email: report.email,
+              // Authenticate as the manager (an API token belongs to the
+              // account that created it) and select the report's tickets.
+              email: managerConfig.jira.email,
               token: managerConfig.jira.token,
+              assignee: report.email,
               projects: report.jiraProjects,
             },
           ],

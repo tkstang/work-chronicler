@@ -57,6 +57,7 @@ example.
 | `jira.instances[].url`      | yes                       | HTTPS URL, for example `https://acme.atlassian.net`.                                                                                                                                                                                                         |
 | `jira.instances[].email`    | no                        | Account email; `JIRA_EMAIL` is used otherwise.                                                                                                                                                                                                               |
 | `jira.instances[].token`    | no                        | API token; `JIRA_TOKEN` is used otherwise.                                                                                                                                                                                                                   |
+| `jira.instances[].assignee` | no                        | Whose tickets to fetch (email or account ID); the authenticated account otherwise.                                                                                                                                                                           |
 | `jira.instances[].projects` | no                        | Project keys to fetch; surrounding spaces are removed, and the case is kept. Each ticket stores the key as written here as its `project`, and the `search_tickets` project filter matches it exactly, so write keys in their JIRA case (`PROJ`, not `proj`). |
 | `output.directory`          | no                        | Work-log location, relative to the config file. Default `./work-log`.                                                                                                                                                                                        |
 | `fetch.since`               | yes                       | Start date, `YYYY-MM-DD`.                                                                                                                                                                                                                                    |
@@ -65,8 +66,8 @@ example.
 | `slack`                     | no                        | Slack settings for the Slack import skills (see below). Absent means no Slack records are imported.                                                                                                                                                          |
 | `googleDocs`                | no                        | Google Docs settings for the Google Docs import skill (see below). Absent means no Google Docs records are imported.                                                                                                                                         |
 
-JIRA fetches tickets in each project that are assigned to you and were created
-inside the date range.
+JIRA fetches tickets in each project that are assigned to you (or to
+`assignee`, when set) and were created inside the date range.
 
 ### Slack
 

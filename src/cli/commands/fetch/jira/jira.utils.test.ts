@@ -6,6 +6,7 @@ import { ConfigSchema } from '@config/schema';
 import { type Config, readAllTickets } from '@core/index';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { buildReportConfig } from '../fetch-manager.utils';
 import { RateLimitError } from '../github/github.utils';
 import { fetchJiraTickets, MAX_PAGES } from './jira.utils';
 
@@ -351,6 +352,55 @@ describe('fetchJiraTickets storage path for configured project keys', () => {
     expect(readdirSync(join(outputDir, 'jira', 'acme'))).toEqual(['proj']);
     expect(readdirSync(join(outputDir, 'jira', 'acme', 'proj'))).toEqual([
       'PROJ-1.md',
+    ]);
+  });
+});
+
+describe('fetchJiraTickets for a manager report', () => {
+  it("authenticates as the manager and selects the report's tickets", async () => {
+    const sent: Array<{ auth: string; jql: string }> = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init: RequestInit) => {
+        const headers = init.headers as Record<string, string>;
+        sent.push({
+          auth: Buffer.from(
+            String(headers.Authorization).replace('Basic ', ''),
+            'base64',
+          ).toString(),
+          jql: (JSON.parse(String(init.body)) as { jql: string }).jql,
+        });
+        return Response.json({ issues: [], isLast: true });
+      }),
+    );
+
+    const reportConfig = buildReportConfig(
+      {
+        mode: 'manager',
+        github: { org: 'acme' },
+        jira: {
+          host: 'acme.atlassian.net',
+          email: 'manager@example.com',
+          token: 'manager-token',
+        },
+        fetch: { since: '2025-01-01', until: '2025-06-01' },
+        reports: [],
+      },
+      {
+        name: 'Alice Smith',
+        github: 'alice',
+        email: 'alice@example.com',
+        repos: [],
+        jiraProjects: ['PAY'],
+      },
+    );
+    await fetchJiraTickets({ config: reportConfig, outputDir });
+
+    expect(sent).toEqual([
+      {
+        auth: 'manager@example.com:manager-token',
+        jql: expect.stringContaining('assignee = "alice@example.com"'),
+      },
     ]);
   });
 });

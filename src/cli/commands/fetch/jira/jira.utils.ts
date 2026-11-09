@@ -146,6 +146,8 @@ interface FetchProjectTicketsParams {
   baseUrl: string;
   email: string;
   token: string;
+  /** Whose tickets to fetch; the authenticated account when absent */
+  assignee?: string;
   instanceName: string;
   project: string;
   since: Date;
@@ -197,6 +199,7 @@ async function fetchProjectPages(
     baseUrl,
     email,
     token,
+    assignee,
     instanceName,
     project,
     since,
@@ -214,8 +217,11 @@ async function fetchProjectPages(
   const sinceStr = formatJqlDate(since);
   const untilStr = formatJqlDate(until);
 
-  // JQL to find tickets assigned to current user within date range
-  const jql = `project = "${project}" AND assignee = currentUser() AND created >= "${sinceStr}" AND created <= "${untilStr}" ORDER BY created DESC`;
+  // JQL to find the assignee's tickets within the date range
+  const assigneeClause = assignee
+    ? `"${assignee.replace(/["\\]/g, '\\$&')}"`
+    : 'currentUser()';
+  const jql = `project = "${project}" AND assignee = ${assigneeClause} AND created >= "${sinceStr}" AND created <= "${untilStr}" ORDER BY created DESC`;
 
   for (let page = 1; ; page++) {
     if (page > MAX_PAGES) {
@@ -437,6 +443,7 @@ async function fetchInstanceTickets(
       baseUrl: instanceConfig.url,
       email,
       token,
+      assignee: instanceConfig.assignee,
       instanceName,
       project,
       since,

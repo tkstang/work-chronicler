@@ -62,6 +62,8 @@ export const JiraInstanceConfigSchema = z.object({
   url: httpsUrl,
   email: z.email().optional(),
   token: z.string().optional(),
+  /** Whose tickets to fetch (email or account ID); the authenticated account when absent */
+  assignee: z.string().trim().min(1).optional(),
   projects: z.array(JiraProjectKeySchema).default([]),
 });
 
