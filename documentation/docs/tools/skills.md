@@ -214,7 +214,7 @@ Skills automatically detect:
 Skills read from:
 
 1. **work-log/** - PRs and tickets (markdown with YAML frontmatter), imported messages in `messages/` and imported Google Docs in `documents/`
-2. **analysis/** - Generated JSON (stats, projects, timeline)
+2. **Analysis** - Generated JSON (stats, projects, timeline): `work-log/.analysis/` in an IC profile, `reports/{id}/analysis/` for a report
 3. **notes/** - User-added context
 4. **performance-reviews/** - Past reviews
 5. **peer-reviews/** - Peer feedback
