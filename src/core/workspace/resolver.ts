@@ -224,8 +224,8 @@ export function getReportOutputsDir(
     return join(getProfileDir(profileName), 'outputs');
   }
 
-  // For IC mode, return standard outputs path (work-log/outputs)
-  return join(getWorkLogDir(profileName), 'outputs');
+  // For IC mode, the profile's outputs directory (where the skills write)
+  return join(getProfileDir(profileName), 'outputs');
 }
 
 /**

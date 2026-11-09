@@ -290,7 +290,7 @@ profiles/manager/
     └── team-timeline.json
 ```
 
-AI-generated documents are saved to `outputs/`:
+AI-generated documents are saved to the profile's `outputs/` directory (beside `work-log/`, not inside it):
 
 ```
 outputs/
