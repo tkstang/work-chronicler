@@ -1,6 +1,8 @@
 {
-  "title": "Contributor Guides",
+  "title": "Contributing",
   "pages": [
+    "documentation",
+    "markdown-features",
     "docs-toolchain"
   ]
 }

@@ -47,8 +47,8 @@ starting at `documentation/docs/index.md`; update them in the same pull request
 as the behavior they describe. To preview the site, run `pnpm dev` in
 `documentation/`. Before opening a pull request that changes the docs, run the
 checks in `documentation/AGENTS.md` (format, nav sync, docs check and build);
-`documentation/docs/contributing/` holds the authoring contract and toolchain
-guide.
+`documentation/docs/contributing/` holds the authoring contract, the supported
+Markdown features and the toolchain guide.
 
 ## Branches and commits
 

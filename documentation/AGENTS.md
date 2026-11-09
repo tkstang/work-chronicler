@@ -1,6 +1,6 @@
 # AGENTS — Work Chronicler
 
-Applies inside this docs app. Read [the contributor contract](docs/contributing.md) and [toolchain guide](docs/contributing/docs-toolchain.md) before changing it. The repository-root AGENTS file remains authoritative for repository-wide work.
+Applies inside this docs app. Read [the contributor contract](docs/contributing/documentation.md), [Markdown features](docs/contributing/markdown-features.md) and the [toolchain guide](docs/contributing/docs-toolchain.md) before changing it. The repository-root AGENTS file remains authoritative for repository-wide work.
 
 ## Information architecture
 

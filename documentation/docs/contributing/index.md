@@ -1,13 +1,21 @@
 ---
-title: Contributor Guides
-description: "Local toolchain setup and contributor resources."
+title: Contributing
+description: "How to change these docs: the authoring contract, the Markdown this app renders, and the local toolchain."
 ---
 
-# Contributor Guides
+# Contributing
 
-Use the [contributor entry](../contributing.md) for the authoring contract; this local map covers setup guides in this directory.
+Use this section when you are changing the Work Chronicler documentation rather
+than reading it. Start with the authoring contract, check the syntax reference
+before using anything beyond plain Markdown, and use the toolchain guide to
+preview and validate your change. Working on the CLI itself is covered by
+`CONTRIBUTING.md` in the repository root.
 
 ## Contents
 
-- [Docs Toolchain](docs-toolchain.md)
+- [Contributing to the documentation](documentation.md)
+  Authored and generated files, the navigation contract, moving pages, diagrams and validation.
+- [Markdown features](markdown-features.md)
+  Every Markdown feature this app renders, with syntax and a rendered example.
+- [Docs toolchain](docs-toolchain.md)
   Install, preview and validate the docs app.

@@ -5,7 +5,7 @@ description: "Set up the local docs toolchain, preview changes and build the sit
 
 # Docs Toolchain
 
-This page is for documentation contributors. Follow the [contributor map](index.md) and [authoring contract](../contributing.md); readers start with [the documentation home](../index.md).
+This page is for documentation contributors. Follow the [contributor map](index.md) and [authoring contract](documentation.md); readers start with [the documentation home](../index.md).
 
 ## Prerequisites
 

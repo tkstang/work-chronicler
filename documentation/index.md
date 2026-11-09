@@ -24,7 +24,8 @@
   - [Configuration](docs/tools/configuration.md) — Profiles, config.yaml fields, GitHub and JIRA tokens, environment variables and the on-disk workspace layout.
   - [MCP server](docs/tools/mcp-server.md) — Connect Claude Desktop, Cursor or another MCP client to your work log, and the ten read-only tools it exposes.
   - [AI skills](docs/tools/skills.md) — What each IC, manager, Slack and Google Docs skill does, how to install and upgrade the skills, and how they find your data.
-- [Contributing](docs/contributing.md) — Authoring contract, generated files, supported syntax and validation.
-- Contributor Guides
-  - [Contributor Guides](docs/contributing/index.md) — Local toolchain setup and contributor resources.
+- Contributing
+  - [Contributing](docs/contributing/index.md) — How to change these docs: the authoring contract, the Markdown this app renders, and the local toolchain.
+  - [Contributing to the documentation](docs/contributing/documentation.md) — Authoring contract: authored and generated files, the navigation contract, page moves, diagrams and validation.
+  - [Markdown features](docs/contributing/markdown-features.md) — Every Markdown feature the Work Chronicler docs app renders, each with its syntax and a rendered example.
   - [Docs Toolchain](docs/contributing/docs-toolchain.md) — Set up the local docs toolchain, preview changes and build the site.
