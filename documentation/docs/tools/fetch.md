@@ -27,7 +27,10 @@ are no date flags.
 
 PRs are stored under each repo's current name. When a configured repo was
 renamed, `fetch github` says so and stores its PRs under the new name, so a
-config that lists both the old and the new name stores each PR once.
+config that lists both the old and the new name stores each PR once. PRs an
+earlier version stored under the old name stay where they are and are counted
+twice: replace the old name in the config, delete
+`pull-requests/<org>/<old-name>/`, and run `filter` again if you use it.
 
 ## PR reviews you gave
 

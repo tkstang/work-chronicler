@@ -297,6 +297,11 @@ async function fetchRepoPRs(
         console.log(
           `  ${chalk.yellow('⚠')} ${chalk.gray(org)}/${chalk.cyan(repo)} ${chalk.yellow(`is now ${org}/${repoName}; its PRs are stored under the current name`)}`,
         );
+        console.log(
+          chalk.gray(
+            `    Use ${repoName} in the config. PRs stored earlier under ${org}/${repo} are duplicates: delete them (and run \`filter\` again if you use it).`,
+          ),
+        );
         spinner.start();
       }
 
