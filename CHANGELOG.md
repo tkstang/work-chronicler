@@ -26,6 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/work-chronicler-setup-slack` can, when you ask, find the channels you
   posted in, including archived ones and ones you left, by searching your
   own messages for their channel IDs only.
+- The documentation is now a Fumadocs site in `documentation/`. Its pages moved
+  to `documentation/docs/` and were split by task: Getting started, Workflows
+  (resumes and self-reviews, peer reviews, PR reviews you gave, Slack and
+  Google Docs imports, manager mode and review packets) and Tools (the command
+  reference by command group, configuration, the MCP server and the skills
+  catalog). Links to the old `documentation/*.md` pages point at the new ones.
 
 ## [0.7.0] - 2026-11-08
 
@@ -216,7 +222,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pass `nextCursor` as `cursor`, with the same filters, for the next page
   (a cursor from another tool or for other filters is refused). Pages never
   skip or repeat a result, and `total` still counts every match. See
-  [Pages](documentation/mcp-server.md#pages).
+  [Pages](documentation/docs/tools/mcp-server.md#pages).
 
 ## [0.6.0] - 2026-11-08
 

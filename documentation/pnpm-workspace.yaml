@@ -1,0 +1,20 @@
+# The docs app is its own pnpm install root, separate from the published
+# package at the repository root. Install from this directory.
+packages: []
+
+# Supply-chain hold, mirrored from the root: do not install versions
+# published in the last 24h.
+minimumReleaseAge: 1440
+
+# Lifecycle build-script allowlist: only these deps may run install/build
+# scripts. esbuild (a fumadocs-mdx dependency) is the only one that has
+# an install script; sharp ships prebuilt binaries.
+allowBuilds:
+  esbuild: true
+
+# Fumadocs loses Markdown handler properties added in
+# mdast-util-to-markdown 2.2.0, so valid bold or italic text can fail to
+# compile. Keep this pin at this install root (see
+# docs/contributing/docs-toolchain.md).
+overrides:
+  mdast-util-to-markdown: 2.1.2

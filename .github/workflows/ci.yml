@@ -29,10 +29,12 @@ jobs:
     timeout-minutes: 20
 
     steps:
+      # Full history: the docs check compares diagrams against origin/main.
       - name: Checkout
         uses: actions/checkout@v5
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       # pnpm 12 support needs pnpm/action-setup v6.1.0 or later. The version
       # comes from package.json `packageManager`.
@@ -66,6 +68,36 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      # The docs app (documentation/) is its own pnpm install root with its
+      # own lockfile; its devDependencies provide the oat CLI.
+      - name: Install docs dependencies
+        working-directory: documentation
+        run: pnpm install --frozen-lockfile
+
+      - name: Add docs tools to PATH
+        run: echo "$GITHUB_WORKSPACE/documentation/node_modules/.bin" >> "$GITHUB_PATH"
+
+      - name: Verify documentation
+        env:
+          DOCS_ROOT: documentation
+          DOCS_CONTENT: documentation/docs
+          DOCS_TOOLING: fumadocs
+          DOCS_BUILD_SCRIPT: build
+          DOCS_MANIFEST: documentation/index.md
+        shell: bash
+        run: |
+          set -euo pipefail
+          oat docs check --target-dir "$DOCS_ROOT"
+          oat docs nav sync --target-dir "$DOCS_ROOT" --check
+          if [ "$DOCS_TOOLING" != markdown ]; then
+            (cd "$DOCS_ROOT" && pnpm run "$DOCS_BUILD_SCRIPT")
+          fi
+          if [ -n "$DOCS_MANIFEST" ]; then
+            git ls-files --error-unmatch -- "$DOCS_MANIFEST"
+            oat docs generate-index --docs-dir "$DOCS_CONTENT" --output "$DOCS_MANIFEST"
+            git diff --exit-code -- "$DOCS_MANIFEST"
+          fi
 
       - name: Publish dry run
         if: github.event_name == 'pull_request' && !github.event.pull_request.draft

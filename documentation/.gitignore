@@ -1,0 +1,12 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# fumadocs-mdx generated source
+.source/
+
+# Next.js generated types
+next-env.d.ts

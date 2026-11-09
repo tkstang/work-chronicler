@@ -1,7 +1,9 @@
 {
   "*.{ts,js,mjs,cjs}": [
-    "oxlint --fix",
-    "oxfmt --write --no-error-on-unmatched-pattern"
+    "oxlint --fix --no-error-on-unmatched-pattern",
+    "oxfmt --write --disable-nested-config --no-error-on-unmatched-pattern"
   ],
-  "*.{json,md,yml,yaml}": ["oxfmt --write --no-error-on-unmatched-pattern"]
+  "*.{json,md,yml,yaml}": [
+    "oxfmt --write --disable-nested-config --no-error-on-unmatched-pattern"
+  ]
 }
