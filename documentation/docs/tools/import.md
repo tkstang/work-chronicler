@@ -77,7 +77,7 @@ and writes.
 ```mermaid
 flowchart TD
   accTitle: The staged import pipeline
-  accDescr: A skill stages record files. validate and import both read and check the whole batch. validate then plans destinations without a lock or writes. import takes the work-log lock, finishes any interrupted import, stores the batch through .import-transaction and either records it as stored or puts every record back.
+  accDescr: A skill stages record files. validate and import both read and check the whole batch. validate then plans destinations without a lock or writes. import takes the work-log lock, finishes any interrupted import, stores the batch through .import-transaction and either records it as stored or puts every record back. If a record cannot be put back, or storing cannot be confirmed, .import-transaction is kept for the next import to finish.
   S["A skill writes record files to a staging directory"] --> R["Read and check the batch: files, YAML, schema, subject, source rules, range"]
   R -->|"any issue"| X["Batch rejected: nothing written"]
   R -->|"validate"| V["Check for a pending import and plan destinations. No lock, no writes"]
@@ -91,7 +91,8 @@ flowchart TD
   T --> C["Put each record in place, checking again"]
   C -->|"failure or outside change"| RB["Put every record back: no records changed"]
   C --> D["Batch recorded as stored, then cleanup"]
-  RB -->|"cannot put back"| K["ROLLBACK_INCOMPLETE: .import-transaction/ kept for the next import"]
+  C -->|"cannot confirm it was recorded"| K
+  RB -->|"cannot put back a record"| K["Rejected (RECOVERY_CONFLICT or ROLLBACK_INCOMPLETE): .import-transaction/ kept for the next import"]
   D --> U["Release the lock"]
   RB --> U
   K --> U

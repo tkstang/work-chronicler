@@ -360,15 +360,16 @@ How the commands fill a manager profile (the default profile name is
 ```mermaid
 flowchart TD
   accTitle: Manager profile layout
-  accDescr: A manager profile holds its config, tokens, team analysis and one directory per report. fetch and import write each report's work log, analyze reports writes its analysis, analyze team merges those into team analysis, and the manager skills write to the report's outputs.
+  accDescr: A manager profile holds its config, tokens, team analysis and one directory per report. fetch and import write each report's work log, analyze reports writes its analysis, analyze team merges those into team analysis, and the manager skills write to the report's outputs, except the team summary, which goes to the profile's outputs.
   P["profiles/manager/: config.yaml (org, reports), .env (tokens)"]
   P --> R["reports/report-id/"]
   P --> TA["analysis/: team-projects.json, contributor-matrix.json, team-timeline.json"]
+  P --> TO["outputs/: team summaries"]
   R --> RW["work-log/: pull-requests/, jira/, messages/, documents/"]
   R --> RA["analysis/: stats.json, projects.json, timeline.json"]
   R --> RO["outputs/"]
   R --> RN["notes/, performance-reviews/, peer-reviews/ (yours to fill)"]
-  F["fetch --report or --all-reports"] --> RW
+  F["fetch github, jira or all: --report or --all-reports"] --> RW
   I["import --report"] --> RW
   RW -->|"analyze reports id"| RA
   RA -->|"analyze team"| TA
@@ -376,7 +377,8 @@ flowchart TD
   RA --> SK
   TA --> SK
   RN --> SK
-  SK --> RO
+  SK -->|"per-report skills"| RO
+  SK -->|"team summary"| TO
 ```
 
 Manager mode uses a specialized directory structure:

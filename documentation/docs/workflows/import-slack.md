@@ -15,10 +15,10 @@ anything there. The CLI stores the settings and checks every record on import
 ```mermaid
 flowchart TD
   accTitle: Slack import workflow
-  accDescr: The setup skill records the workspace, the subject's user ID and the chosen channels with the slack commands. The import skill reads slack show, then works in batches of a few hundred records, each in a new staging directory: it searches day by day, holds back secrets, writes records, runs validate and import, and deletes the directory, until every kept message is imported.
+  accDescr: The setup skill records the workspace, the subject's user ID and the chosen channels with the slack commands. The import skill reads slack show, then works in batches of a few hundred records, each in a new staging directory: it searches day by day, holds back secrets, writes records, runs validate and import, and deletes the directory, until every kept message is imported or a batch keeps failing. An IC profile runs link after a complete import.
   subgraph SETUP["setup-slack skill: once per IC profile or report"]
     A1["Read slack show --json; find the workspace and the subject's Slack user ID"] --> A2["slack configure"]
-    A2 --> A3["List public channels (on request, also the ones you posted in); private ones only on opt-in; never DMs"]
+    A2 --> A3["List public channels (IC profile, on request: also the ones you posted in); private ones only on opt-in; never DMs"]
     A3 --> A4["Manager profile: confirm the report is a member"]
     A4 --> A5["slack channels add, with a one-line reason per channel"]
   end
@@ -29,9 +29,10 @@ flowchart TD
     B4 --> B5["Write one record per kept message"]
     B5 --> B6["validate, then import (wait and retry on IMPORT_IN_PROGRESS)"]
     B6 --> B7["Delete the batch's staging directory"]
+    B6 -->|"a batch keeps failing: stop"| B7
     B7 -->|"days or kept messages left"| B2
-    B6 -->|"a batch keeps failing"| B8
-    B7 --> B8["Report counts only (IC profile: run link after the last batch)"]
+    B7 -->|"all imported (IC profile: run link)"| B8["Report counts only"]
+    B7 -->|"import stopped"| B8
   end
   A5 --> B1
   SL[("Slack, read through the assistant's connector")] -.-> A3
