@@ -78,31 +78,30 @@
 
    1. PALETTE: the only block to edit when the brand colours change. Light
       values on :root, dark values on .dark (next-themes sets the class on
-      <html>; .dark must stay after :root). The values are a neutral
-      slate/blue placeholder.
+      <html>; .dark must stay after :root). The values are the Navy palette.
    ========================================================================== */
 :root {
-  --wc-accent: #2563eb; /* links, active nav, focus, card hover */
-  --wc-accent-hover: #1d4ed8;
+  --wc-accent: #1e3a8a; /* links, active nav, focus, card hover */
+  --wc-accent-hover: #1e40af;
   --wc-accent-foreground: #ffffff; /* text on an accent fill */
-  --wc-accent-soft: rgb(37 99 235 / 0.08); /* tinted surfaces */
-  --wc-bg: #f8fafc;
-  --wc-surface: #ffffff; /* cards, popovers, diagrams */
-  --wc-surface-muted: #f1f5f9; /* code, table headers, hover */
+  --wc-accent-soft: #e8eefb; /* tinted surfaces */
+  --wc-bg: #ffffff;
+  --wc-surface: #f8fafc; /* cards, popovers, diagrams */
+  --wc-surface-muted: #f8fafc; /* code, table headers, hover */
   --wc-border: #e2e8f0;
   --wc-text: #0f172a;
-  --wc-text-muted: #475569;
+  --wc-text-muted: #64748b;
 }
 
 .dark {
-  --wc-accent: #60a5fa;
-  --wc-accent-hover: #93c5fd;
+  --wc-accent: #93c5fd;
+  --wc-accent-hover: #bfdbfe;
   --wc-accent-foreground: #0b1220;
-  --wc-accent-soft: rgb(96 165 250 / 0.12);
+  --wc-accent-soft: #172554;
   --wc-bg: #0b1220;
-  --wc-surface: #111a2e;
+  --wc-surface: #111a2c;
   --wc-surface-muted: #1a2438;
-  --wc-border: #26324a;
+  --wc-border: #1f2a3d;
   --wc-text: #e2e8f0;
   --wc-text-muted: #94a3b8;
 }
