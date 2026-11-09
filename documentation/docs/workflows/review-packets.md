@@ -18,16 +18,22 @@ Manager mode provides two analysis layers:
 
 Analyze work for a specific report:
 
-```bash
-# Interactive selection
-work-chronicler analyze reports
+Interactively, choose the report from a prompt:
 
+```bash
+work-chronicler analyze reports
+```
+
+```text
 ? Select a report to analyze:
   ◉ Alice Smith (alice-smith)
   ◯ Bob Jones (bob-jones)
   ◯ Charlie Davis (charlie-davis)
+```
 
-# Non-interactive
+Or name the report:
+
+```bash
 work-chronicler analyze reports alice-smith
 ```
 
@@ -212,7 +218,9 @@ work-chronicler init --mode manager
 work-chronicler fetch all --all-reports
 
 # 3. Generate analysis for each report
-work-chronicler analyze reports alice-smith
+work-chronicler analyze reports alice-smith   # repeat for every report
+work-chronicler analyze reports bob-jones
+work-chronicler analyze reports charlie-davis
 
 # 4. Generate team-level insights
 work-chronicler analyze team
@@ -227,6 +235,12 @@ work-chronicler analyze team
 # (In Claude Code, Cursor, etc. with installed skills)
 /work-chronicler-manager-write-review-packet alice-smith Q1-2026
 ```
+
+Fetching for the quarter does not remove older records: the reports' work
+logs keep everything fetched before, and `analyze reports` counts every
+record there (its `stats.json` `dateRange` spans them all). Before using a
+packet, check that the evidence it cites is dated inside the quarter, and
+recount any totals for the quarter rather than quoting `stats.json`.
 
 ### Example 2: New Manager Getting Started
 
@@ -283,7 +297,9 @@ work-chronicler analyze team
 work-chronicler fetch all --all-reports --cache
 
 # 2. Regenerate analysis
-work-chronicler analyze reports alice-smith
+work-chronicler analyze reports alice-smith   # repeat for every report
+work-chronicler analyze reports bob-jones
+work-chronicler analyze reports charlie-davis
 work-chronicler analyze team
 
 # 3. Generate summary for 1:1s
@@ -300,7 +316,7 @@ work-chronicler analyze team
 **Workflow**:
 
 1. Fetch data for the quarter: set `fetch.since` / `fetch.until` in the profile config, then `fetch all --all-reports`
-2. Analyze per-report: `analyze reports <report-id>`
+2. Analyze per-report: `analyze reports <report-id>` (totals include every record in the report's work log, not only the quarter; check evidence dates)
 3. Upload past reviews to `performance-reviews/` directories
 4. Add manager notes to `notes/` directories
 5. Use AI skills: `/work-chronicler-manager-write-review-packet <report-id> Q1-2026`

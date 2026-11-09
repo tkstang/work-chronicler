@@ -67,8 +67,8 @@ cd documentation
 pnpm docs:format
 pnpm docs:format:check
 pnpm docs:lint
-oat docs nav sync --target-dir .
-oat docs nav sync --target-dir . --check
+./node_modules/.bin/oat docs nav sync --target-dir .
+./node_modules/.bin/oat docs nav sync --target-dir . --check
 pnpm docs:check
 pnpm build
 ```
@@ -79,7 +79,7 @@ From the **repository root**, enter the app and regenerate the machine inventory
 
 ```bash
 cd documentation
-oat docs generate-index --docs-dir docs --output index.md
+./node_modules/.bin/oat docs generate-index --docs-dir docs --output index.md
 ```
 
 The app's predev/prebuild hooks regenerate it automatically. This does not replace authored Contents or navigation checks.

@@ -1,7 +1,6 @@
 {
   "title": "Contributor Guides",
   "pages": [
-    "../contributing.md",
     "docs-toolchain"
   ]
 }

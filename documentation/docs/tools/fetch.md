@@ -40,12 +40,16 @@ text is its latest version.
 Each reviewed PR gets one file at
 `work-log/pr-reviews/<org>/<repo>/<number>.md` with the PR's URL, title,
 author and state, and your reviews and comments. Fetching again updates the
-same file. If `pr-reviews/` already holds records for a different GitHub
+same file. With no `github.orgs` configured, `--reviews` fetches nothing: it prints that it
+skipped PR reviews, does not check `pr-reviews/`, and does not fail. With orgs
+configured, if `pr-reviews/` already holds records for a different GitHub
 user, for example because you changed `github.username`, `--reviews` refuses
 to run, fetches nothing and exits with an error; use a separate profile or
 output directory for each person, or remove `pr-reviews/`. `status` does not
-count such records and says so. With `--cache`, PRs that have not changed since their file was
-written for the same or a wider date range are skipped. These records are never counted as PRs you authored.
+count such records and says so. With `--cache`, a reviewed PR is skipped when its last update is the
+one its file recorded and the file's date range starts on or before this
+fetch's start and either ends on or after this fetch's end or ends after
+the PR's last update (no review can be newer than that update). These records are never counted as PRs you authored.
 A rate limit stops the run; other failures are reported per org and make the
 run exit with status 1.
 

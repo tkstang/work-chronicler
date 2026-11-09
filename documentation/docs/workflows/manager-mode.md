@@ -152,7 +152,7 @@ work-chronicler reports add "Alice Smith" \
   --jira-projects PLAT,AUTH
 ```
 
-The optional `[name]` argument is the display name (the report ID is derived from it, e.g. `alice-smith`). The command only runs non-interactively when both `--github` and `--email` are given; otherwise it prompts. Repo auto-discovery is available only in the interactive prompts (choose **Auto-discover**).
+The optional `[name]` argument is the display name (the report ID is derived from it, e.g. `alice-smith`; without it the GitHub username is used). It is used only when both `--github` and `--email` are given, which makes the command non-interactive. Otherwise the command ignores `[name]` and the flags and prompts for every field, including the name, which then sets the report name and ID. Repo auto-discovery is available only in the interactive prompts (choose **Auto-discover**).
 
 ### Listing Reports
 

@@ -38,7 +38,7 @@ Edit `docs/**/*.md` and their Contents, not generated app-root `index.md`, `.sou
 
 ## When you add or change a diagram
 
-Mermaid is source. Important/mobile diagrams get matching light/dark SVG pairs, updated with the Mermaid in the same commit. Require meaningful alt text (about155 characters maximum), `role="img"`, `<title>`, `<desc>` and `aria-labelledby`, readable labels and useful viewBox. Inspect rendered diagrams in both themes; transforms do not validate diagram correctness. See the contributor contract for framework-specific asset paths and image behavior.
+Mermaid is source. Important/mobile diagrams get matching light/dark SVG pairs, updated with the Mermaid in the same commit. Require meaningful alt text (about 155 characters maximum), `role="img"`, `<title>`, `<desc>` and `aria-labelledby`, readable labels and useful viewBox. Inspect rendered diagrams in both themes; transforms do not validate diagram correctness. See the contributor contract for framework-specific asset paths and image behavior.
 
 ## Install-root compatibility
 
@@ -59,8 +59,8 @@ cd documentation
 pnpm docs:format
 pnpm docs:format:check
 pnpm docs:lint
-oat docs nav sync --target-dir .
-oat docs nav sync --target-dir . --check
+./node_modules/.bin/oat docs nav sync --target-dir .
+./node_modules/.bin/oat docs nav sync --target-dir . --check
 pnpm docs:check
 pnpm build
 ```
@@ -69,7 +69,7 @@ Lint is disabled and formatting is enabled (oxfmt); a disabled echo does not val
 
 ```bash
 cd documentation
-oat docs generate-index --docs-dir docs --output index.md
+./node_modules/.bin/oat docs generate-index --docs-dir docs --output index.md
 ```
 
 The predev/prebuild hooks also generate it. `/llms.txt`, `/llms-full.txt` and `/llms/<page-slugs>/content.md` expose loaded reader Markdown (root `/llms/content.md`). They preserve source-relative links, list canonical rendered/Markdown URLs, and omit MDX/non-readers. Use the listed source path to interpret raw relative links.

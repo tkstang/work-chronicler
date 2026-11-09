@@ -24,6 +24,8 @@ reports. New here? Start with [Getting started](getting-started.md).
   Goal-by-goal guides: resumes and self-reviews, peer reviews, PR reviews you gave, Slack and Google Docs imports, and manager review packets.
 - [Tools](tools/index.md)
   Reference for every CLI command, the configuration, the MCP server and the AI skills.
+- [Authoring contract](contributing.md)
+  Human authoring conventions, supported Markdown and validation for these docs.
 - [Contributing](contributing/index.md)
   Authoring conventions and checks for these docs.
 

@@ -166,10 +166,20 @@ from two JIRA instances share, since it cannot tell them apart.
   `RECOVERY_REQUIRED` while this is pending.
 - If a record was changed by something else before recovery or cleanup
   finished (including after a successful import whose cleanup failed),
-  recovery leaves it as it is and stops with `RECOVERY_CONFLICT`. The journal
-  stays in `.import-transaction/journal.json`, and any version the batch
-  replaced stays in `.import-transaction/backup/` (a newly created record has
-  none). Sort the record out by hand, then remove `.import-transaction/`.
+  recovery leaves that record as it is and reports it with
+  `RECOVERY_CONFLICT`, naming its `destination`. While rolling back it still
+  puts back every other record it can; one it could not restore yet is
+  reported as `ROLLBACK_INCOMPLETE` and retried by the next `import`. As long
+  as any record is reported, `.import-transaction/` is kept: the journal in
+  `journal.json`, and the version the batch replaced for each record not yet
+  put back in `backup/` (a newly created record has none). Run `import` again
+  (an empty directory will do) until only `RECOVERY_CONFLICT` records remain.
+  For each of those, either restore the replaced version from `backup/`, so
+  the next `import` finishes the recovery and removes the transaction itself,
+  or keep the record's current version. Remove `.import-transaction/` by hand
+  only when every record the journal lists holds the version you want: until
+  then it holds the only copy of the replaced versions, and removing it can
+  leave part of a batch in the work log.
 - Every change `import` makes (storing, putting records back, recovering and
   cleaning up) goes only through directories it recorded: the work log,
   `.import-transaction/` and each folder in it, and every directory on the
@@ -179,8 +189,9 @@ from two JIRA instances share, since it cannot tell them apart.
   rejects the batch (`CHANGED_DURING_IMPORT`) and nothing is changed through
   it. While putting records back or recovering, `import` changes nothing
   through that path and stops with `RECOVERY_CONFLICT`, keeping
-  `.import-transaction/`. Check the path it names, then remove
-  `.import-transaction/`.
+  `.import-transaction/`. Put back the directory it names, then run `import`
+  again so recovery can finish; see the bullet above before removing
+  `.import-transaction/` by hand.
 
 ## Errors and `--json`
 
