@@ -1,6 +1,6 @@
 {
   "name": "work-chronicler",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "CLI and MCP server that turns your GitHub PRs and JIRA tickets into a searchable markdown work log for performance reviews and resumes.",
   "keywords": [
     "ai-agents",
