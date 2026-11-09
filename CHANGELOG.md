@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `fetch github` stores PRs under each repo's current name. A config that
+  listed a renamed repo under both its old and new names stored every PR
+  twice; it now notes the rename and stores each PR once.
+
 ### Changed
 
 - `/work-chronicler-import-slack` handles large imports: it searches one
