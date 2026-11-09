@@ -108,7 +108,9 @@ members. See [Import Slack messages](../workflows/import-slack.md#for-a-report).
 Google Docs import is opt-in. The `googleDocs` section names the Google
 account whose Docs an import skill may collect: only Google Docs that account
 owns, modified inside the `fetch` range, are imported, and `import` refuses
-any other. The CLI never contacts Google and never stores Google credentials.
+any other. `import --since` and `--until` replace the range's bounds for one
+batch, so a confirmed range can admit Docs modified outside the configured
+`fetch` range. The CLI never contacts Google and never stores Google credentials.
 Set it with `google-docs configure` (see [Google Docs commands](google-docs.md))
 rather than by hand.
 

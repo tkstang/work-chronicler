@@ -235,6 +235,10 @@ work-chronicler reports remove alice-smith --keep-data
 work-chronicler reports remove alice-smith --delete-data
 ```
 
+`--delete-data` deletes the report's directory (`reports/alice-smith/`: work
+log, analysis, outputs and notes). Team analysis in the profile's `analysis/`
+still includes the report until you run `analyze team` again.
+
 ## Fetching Data
 
 All fetch commands (`github`, `jira`, `all`) support three modes in manager mode:
@@ -298,19 +302,23 @@ Summary:
 
 Fetch data for a specific report:
 
-```bash
-# Interactive selection (any fetch command)
-work-chronicler fetch all
-work-chronicler fetch github
-work-chronicler fetch jira
+Run any fetch command without a report flag to choose interactively:
 
+```bash
+work-chronicler fetch all
+```
+
+```text
 ? Which report(s)?
   ◯ Alice Smith (alice-smith)
   ◯ Bob Jones (bob-jones)
   ◯ Charlie Davis (charlie-davis)
   ◉ All reports
+```
 
-# Or specify directly
+Or name the report:
+
+```bash
 work-chronicler fetch all --report alice-smith
 work-chronicler fetch github --report bob-jones
 work-chronicler fetch jira --report charlie-davis

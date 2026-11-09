@@ -11,7 +11,7 @@ description: fetch github, fetch jira and fetch all, their flags and date range,
 | `fetch jira`   | Fetch your tickets from the configured JIRA projects.         |
 | `fetch all`    | Fetch both, then run `link`. Add `--no-link` to skip linking. |
 
-All three accept:
+The fetch commands accept these flags; where a row names commands, only those accept it (`fetch jira` rejects `--reviews`):
 
 | Flag                  | Meaning                                                                                                                                             |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |

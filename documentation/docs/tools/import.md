@@ -28,7 +28,10 @@ Both take these flags and exit with status 1 when they reject the batch:
 `--since` and `--until` change only the range Google Docs records are
 checked against (see [Google Docs records](import-records.md#google-docs-records)); Slack
 records have no range check. Give `validate` and `import` the same ones, so
-`validate` accepts exactly the batch `import` will. A malformed `--since` or
+both check Google Docs records against the same range. That aligns the range
+checks, not the outcome: while an interrupted import is pending, `validate`
+reports `RECOVERY_REQUIRED`, but `import` first finishes the interrupted
+import and may then accept the batch. A malformed `--since` or
 `--until` is refused (`RANGE_INVALID`) whatever the batch holds.
 
 Imported records are supplementary evidence: every command that reads them
@@ -166,21 +169,33 @@ from two JIRA instances share, since it cannot tell them apart.
   `RECOVERY_CONFLICT` and keeps every file there. `validate` reports
   `RECOVERY_REQUIRED` while this is pending.
 - If a record was changed by something else before recovery or cleanup
-  finished (including after a successful import whose cleanup failed),
-  recovery leaves that record as it is and reports it with
+  finished, recovery leaves that record as it is and reports it with
   `RECOVERY_CONFLICT`, naming its `destination`. While rolling back it still
   puts back every other record it can; one it could not restore yet is
   reported as `ROLLBACK_INCOMPLETE` and retried by the next `import`. As long
   as any record is reported, `.import-transaction/` is kept: the journal in
   `journal.json`, and the version the batch replaced for each record not yet
   put back in `backup/` (a newly created record has none). Run `import` again
-  (an empty directory will do) until only `RECOVERY_CONFLICT` records remain.
-  For each of those, either restore the replaced version from `backup/`, so
-  the next `import` finishes the recovery and removes the transaction itself,
-  or keep the record's current version. Remove `.import-transaction/` by hand
-  only when every record the journal lists holds the version you want: until
-  then it holds the only copy of the replaced versions, and removing it can
-  leave part of a batch in the work log.
+  (an empty directory will do) until only `RECOVERY_CONFLICT` records remain,
+  then reconcile them by the message:
+  - **"An earlier import was recorded as stored, but this record no longer
+    holds the version it stored"** (a batch that was stored, whose cleanup
+    did not finish): recovery finishes only when every record holds the
+    version the batch stored. Restoring the replaced version from `backup/`
+    does not help. Put the stored version back and run `import` again, or
+    reconcile every record of the batch yourself before removing
+    `.import-transaction/` by hand.
+  - **"This record was changed by something other than this import"** (a
+    batch being rolled back): for a record the batch replaced, put the
+    replaced version from `backup/` back at the destination; for a record the
+    batch created (it has no backup), remove the destination file. Then run
+    `import` again: the rollback finishes and removes the transaction.
+
+  Remove `.import-transaction/` by hand only when every record the journal
+  lists holds the version you want: until then it holds the only copy of the
+  replaced versions, and removing it can leave part of a batch in the work
+  log.
+
 - Every change `import` makes (storing, putting records back, recovering and
   cleaning up) goes only through directories it recorded: the work log,
   `.import-transaction/` and each folder in it, and every directory on the

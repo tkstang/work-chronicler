@@ -205,7 +205,7 @@ work-chronicler workspace profile     # Get active profile name
 
 Skills automatically detect:
 
-- **IC mode**: Read from `<profile>/work-log/`, with analysis in `<profile>/work-log/.analysis/` (what `workspace analysis` prints)
+- **IC mode**: Read from `<profile>/work-log/`, with analysis in `<profile>/work-log/.analysis/` (what `workspace analysis` prints). When a filtered subset exists, the writing and detection skills read it instead, including its `work-log/filtered/.analysis/`
 - **Manager mode**: Detect report context, read from `reports/{id}/work-log/` and per-report analysis in `reports/{id}/analysis/`; team analysis is in the manager profile's `analysis/`
 - **Active profile**: Use current profile set via `profile switch` or `WORK_CHRONICLER_PROFILE`
 
@@ -214,7 +214,7 @@ Skills automatically detect:
 Skills read from:
 
 1. **work-log/** - PRs and tickets (markdown with YAML frontmatter), imported messages in `messages/` and imported Google Docs in `documents/`
-2. **Analysis** - Generated JSON (stats, projects, timeline): `work-log/.analysis/` in an IC profile, `reports/{id}/analysis/` for a report
+2. **Analysis** - Generated JSON (stats, projects, timeline): `work-log/.analysis/` in an IC profile (`work-log/filtered/.analysis/` while a filtered subset exists), `reports/{id}/analysis/` for a report
 3. **notes/** - User-added context
 4. **performance-reviews/** - Past reviews
 5. **peer-reviews/** - Peer feedback

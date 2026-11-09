@@ -47,12 +47,25 @@ flowchart TD
    failed. Running it again updates the same records and never duplicates
    them.
 
+The skill deletes its temporary directories at the end of a run. If the
+session stops before that, Doc text can remain in them: they are
+`${TMPDIR:-/tmp}/wc-gdocs-read.*` (what `gog` read, and each record's
+excerpt) and `${TMPDIR:-/tmp}/wc-gdocs-import.*` (staged records). Once no
+import is running, remove them:
+
+```bash
+rm -rf "${TMPDIR:-/tmp}"/wc-gdocs-read.* "${TMPDIR:-/tmp}"/wc-gdocs-import.*
+```
+
 ## For a report
 
-```
+In a terminal:
+
+```bash
 work-chronicler google-docs configure --report alice-smith --account alice@example.com
-/work-chronicler-import-google-docs alice-smith
 ```
+
+Then, in your AI coding assistant, run `/work-chronicler-import-google-docs alice-smith`.
 
 The skill reads as you, so it sees only the report's Docs that are shared
 with you. Records go to `reports/alice-smith/work-log/documents/`.
