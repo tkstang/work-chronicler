@@ -32,6 +32,11 @@ earlier version stored under the old name stay where they are and are counted
 twice: replace the old name in the config, delete
 `pull-requests/<org>/<old-name>/`, and run `filter` again if you use it.
 
+With `fetch github --cache`, each configured repository is still listed for the
+requested dates. PRs already stored under the same organization, repository and
+number skip the detail request. For reviewed PRs, configure the repository's
+current name so it matches GitHub's search results.
+
 ## PR reviews you gave
 
 `--reviews` is opt-in because it costs extra GitHub requests: an account
