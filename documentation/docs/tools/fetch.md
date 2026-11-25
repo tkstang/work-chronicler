@@ -32,6 +32,10 @@ earlier version stored under the old name stay where they are and are counted
 twice: replace the old name in the config, delete
 `pull-requests/<org>/<old-name>/`, and run `filter` again if you use it.
 
+With `fetch github --cache`, each configured repository is still listed for the
+requested dates. PRs already stored under the same organization, repository and
+number skip the detail request.
+
 ## PR reviews you gave
 
 `--reviews` is opt-in because it costs extra GitHub requests: an account
@@ -42,7 +46,8 @@ date range, on other people's PRs in your configured orgs and repos, however
 old the PR. PRs you authored are skipped. Pending (unsubmitted)
 reviews and ordinary PR conversation comments are not included. A comment
 counts by when it was written, not when it was last edited, and the stored
-text is its latest version.
+text is its latest version. If a repository was renamed, configure its current
+name so it matches GitHub's review search results.
 
 Each reviewed PR gets one file at
 `work-log/pr-reviews/<org>/<repo>/<number>.md` with the PR's URL, title,

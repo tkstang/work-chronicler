@@ -25,7 +25,13 @@ vi.mock('@octokit/rest', () => ({
   Octokit: class {
     pulls = {
       list: async ({ repo }: { repo: string }) => ({
-        data: repo === 'old-app' || repo === 'new-app' ? [pr] : [],
+        data: [
+          {
+            ...pr,
+            base: { repo: { name: repo === 'old-app' ? 'new-app' : repo } },
+            html_url: `https://github.com/voxmedia/${repo === 'old-app' ? 'new-app' : repo}/pull/7`,
+          },
+        ],
       }),
       get: async () => ({
         data: { additions: 10, deletions: 2, changed_files: 3 },
@@ -49,7 +55,7 @@ function configFor(repos: string[]): Config {
   };
 }
 
-describe('fetchGitHubPRs with a renamed repo', () => {
+describe('fetchGitHubPRs repository identity', () => {
   let outputDir: string;
 
   beforeEach(() => {
@@ -72,5 +78,28 @@ describe('fetchGitHubPRs with a renamed repo', () => {
     expect(existsSync(join(prDir, 'old-app'))).toBe(false);
     expect(readdirSync(join(prDir, 'new-app'))).toHaveLength(1);
     expect(results.reduce((sum, r) => sum + r.prsWritten, 0)).toBe(1);
+  });
+  it('imports a newly configured repository inside an already cached date range', async () => {
+    await fetchGitHubPRs({ config: configFor(['new-app']), outputDir });
+    const config = configFor(['new-app', 'other-app']);
+    config.fetch = {
+      ...config.fetch,
+      since: '2025-03-01',
+      until: '2025-03-01',
+    };
+
+    const results = await fetchGitHubPRs({ config, outputDir, useCache: true });
+
+    expect(results).toEqual([
+      expect.objectContaining({ repo: 'new-app', prsCached: 1, prsWritten: 0 }),
+      expect.objectContaining({
+        repo: 'other-app',
+        prsCached: 0,
+        prsWritten: 1,
+      }),
+    ]);
+    expect(
+      readdirSync(join(outputDir, 'pull-requests', 'voxmedia', 'other-app')),
+    ).toHaveLength(1);
   });
 });

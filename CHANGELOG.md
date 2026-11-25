@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `fetch github --cache` now discovers missing PRs even when other stored PRs
+  span the requested dates, including when a repository was just added.
+
 ## [0.7.1] - 2026-11-09
 
 ### Added

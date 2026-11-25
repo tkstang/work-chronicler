@@ -228,26 +228,6 @@ async function fetchRepoPRs(
   let page = 1;
   let renameNoted = false;
 
-  /**
-   * Determine if we can skip this repo entirely based on cache.
-   * If we have cached PRs and the requested range is within the cached range, skip.
-   */
-  if (
-    cacheInfo.cachedPRs.size > 0 &&
-    cacheInfo.oldestCachedDate &&
-    cacheInfo.newestCachedDate &&
-    since >= cacheInfo.oldestCachedDate &&
-    until <= cacheInfo.newestCachedDate
-  ) {
-    // Count cached PRs for this repo
-    for (const key of cacheInfo.cachedPRs) {
-      if (key.startsWith(`${org}/${repo}/`)) {
-        cached++;
-      }
-    }
-    return { written: 0, skipped: 0, cached };
-  }
-
   while (true) {
     let response: Awaited<ReturnType<typeof octokit.pulls.list>>;
     try {
